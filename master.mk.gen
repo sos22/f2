@@ -1,0 +1,10 @@
+#! /bin/bash
+
+. shutil
+
+cc controlserver.C
+cc master.C
+cc shutdown.C
+ld master controlserver.o master.o shutdown.o lib.a
+
+target master

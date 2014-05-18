@@ -1,0 +1,66 @@
+# A bunch of helpers for building makefiles
+
+mkfile=$1
+
+cat <<EOF
+$mkfile: $0 shutil
+clean::
+	rm -f $mkfile
+EOF
+
+# Emit a link rule.  First argument is binary, other arguments are
+# source objects.
+function ld() {
+    local target=$1
+    shift
+    cat <<EOF
+$target: $* $mkfile
+	gcc -g -o \$@.tmp $* -lstdc++ -lpthread && mv -f \$@.tmp \$@
+clean::
+	rm -f $target $target.tmp
+EOF
+}
+
+# Emit compile rules.  First argument is source, others are added to
+# compiler flags.  Language inferred from extension.
+function cc() {
+    local src=$1
+    shift
+    local extension=${src##*.}
+    case $extension in
+	C)
+	    local obj=${src%.C}.o
+	    local dep=${src%.C}.d
+	    cat <<EOF
+include $dep
+$dep $obj: $src $mkfile
+	g++ -g -std=gnu++0x -Wall -Werror -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp $src $* && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+clean::
+	rm -f $dep $obj
+EOF
+	    ;;
+	*)
+	    echo "Unknown language extension \`\`$extension'' (for $src)" >&2
+	    exit 1
+	    ;;
+    esac
+}
+
+# Build an archive from a bunch of object files.
+function ar() {
+    local target=$1
+    shift
+    cat <<EOF
+$target: $* $mkfile
+	ar cqs \$@.tmp $* && mv \$@.tmp \$@
+clean::
+	rm -f $target
+EOF
+}
+
+function target()
+{
+    cat <<EOF
+realall:: $1
+EOF
+}

@@ -1,0 +1,77 @@
+#ifndef WAITBOX_TMPL__
+#define WAITBOX_TMPL__
+
+#include "waitbox.H"
+
+#include <sys/poll.h>
+#include <unistd.h>
+
+#define rmb() asm volatile("")
+#define wmb() asm volatile("")
+
+template <typename t> fd_t const &
+waitbox<t>::fd() const
+{
+    return readfd;
+}
+
+template <typename t> bool
+waitbox<t>::ready() const
+{
+    bool r = filled;
+    if (r)
+	rmb();
+    return r;
+}
+
+template <typename t> orerror<waitbox<t> *>
+waitbox<t>::build()
+{
+    auto p(fd_t::pipe());
+    if (p.isfailure())
+	return orerror<waitbox<t> *>::failure(p.failure());
+    auto work = new waitbox<t>();
+    work->filled = false;
+    work->readfd = p.success().read;
+    work->writefd = p.success().write;
+    return orerror<waitbox<t> *>::success(work);
+}
+
+template <typename t> void
+waitbox<t>::destroy()
+{
+    readfd.close();
+    writefd.close();
+    if (filled)
+	((t *)content)->~t();
+    delete this;
+}
+
+template <typename t> const t &
+waitbox<t>::get() const
+{
+    if (!filled) {
+	auto pfd(fd().poll(POLLIN));
+	auto r(::poll(&pfd, 1, -1));
+	if (r != 1)
+	    error::from_errno().fatal("poll for waitbox get");
+    }
+    assert(filled);
+    return *(const t *)content;
+}
+
+template <typename t> void
+waitbox<t>::set(const t &v)
+{
+    assert(!filled);
+    new (content) t(v);
+    wmb();
+    filled = true;
+    auto w(writefd.write("Z", 1));
+    if (w.isfailure())
+	w.failure().fatal("setting waitbox");
+    if (w.success() != 1)
+	error::disconnected.fatal("setting waitbox");
+}
+
+#endif /* !WAITBOX_TMPL__ */

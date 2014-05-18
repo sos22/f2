@@ -1,0 +1,63 @@
+#ifndef WAITQUEUE_TMPL__
+#define WAITQUEUE_TMPL__
+
+#include "list.tmpl"
+
+template <typename t> fd_t
+waitqueue<t>::fd() const
+{
+    return readfd;
+}
+
+template <typename t> t
+waitqueue<t>::pop()
+{
+    assert(!content.empty());
+    char c;
+    auto r(readfd.read(&c, 1));
+    if (r.isfailure())
+	r.failure().fatal("reading waitqueue");
+    if (r.success() != 1)
+	error::disconnected.fatal("reading waitqueue");
+    auto token(mux.lock());
+    auto res(content.pop());
+    mux.unlock(&token);
+    return res;
+}
+
+template <typename t> void
+waitqueue<t>::push(const t &what)
+{
+    auto token(mux.lock());
+    *content.append() = what;
+    mux.unlock(&token);
+    char c = 'X';
+    auto r(writefd.write(&c, 1));
+    if (r.isfailure())
+	r.failure().fatal("writing waitqueue");
+    if (r.success() != 1)
+	error::disconnected.fatal("writing waitqueue");
+}
+
+template <typename t> orerror<waitqueue<t> *>
+waitqueue<t>::build()
+{
+    auto fds(fd_t::pipe());
+    if (fds.isfailure())
+	return orerror<waitqueue<t> *>::failure(fds.failure());
+    auto work = new waitqueue<t>();
+    work->readfd = fds.success().read;
+    work->writefd = fds.success().write;
+    return orerror<waitqueue<t> *>::success(work);
+}
+
+template <typename t> void
+waitqueue<t>::destroy() const
+{
+    readfd.close();
+    writefd.close();
+    assert(content.empty());
+    delete this;
+}
+
+#endif /* !WAITQUEUE_TMPL__ */

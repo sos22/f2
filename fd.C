@@ -1,0 +1,64 @@
+#include "fd.H"
+
+#include <sys/poll.h>
+#include <unistd.h>
+
+#include "maybe.H"
+
+void
+fd_t::close(void) const
+{
+    ::close(fd);
+}
+
+struct pollfd
+fd_t::poll(int mode) const
+{
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = mode;
+    pfd.revents = 0;
+    return pfd;
+}
+
+bool
+fd_t::polled(const struct pollfd &pfd) const
+{
+    return pfd.fd == fd;
+}
+
+orerror<size_t>
+fd_t::read(void *buf, size_t sz) const
+{
+    auto s(::read(fd, buf, sz));
+    if (s < 0)
+	return orerror<size_t>::failure(error::from_errno());
+    else if (s == 0)
+	return orerror<size_t>::failure(error::disconnected);
+    else
+	return orerror<size_t>::success(s);
+}
+
+orerror<size_t>
+fd_t::write(const void *buf, size_t sz) const
+{
+    auto s(::write(fd, buf, sz));
+    if (s < 0)
+	return orerror<size_t>::failure(error::from_errno());
+    else if (s == 0)
+	return orerror<size_t>::failure(error::disconnected);
+    else
+	return orerror<size_t>::success(s);
+}
+
+orerror<fd_t::piperes>
+fd_t::pipe()
+{
+    int fds[2];
+    if (::pipe(fds) < 0)
+	return orerror<fd_t::piperes>::failure(error::from_errno());
+    piperes r;
+    r.read = fd_t(fds[0]);
+    r.write = fd_t(fds[1]);
+    return orerror<fd_t::piperes>::success(r);
+}

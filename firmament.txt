@@ -1,0 +1,269 @@
+The core of firmament is a DHT mapping from task IDs to either a
+description of the task itself or the results of running that task.
+The task ID is given by a hash of the the task description.  The
+outputs of a task form a dictionary mapping strings to byte streams.
+External clients can inject a new task and can demand the results of
+any task.  Clients are expected to be tolerant of tasks disappearing,
+and are expected to re-inject when necessary.  Tasks inside the system
+have access to the following operations:
+
+1) Populate one of their outputs with a particular bytestream.
+2) Delegate one or more of their outputs to another task.
+
+That's it.  The delegation operation must provide a full task
+description of the task which is to produce the delegated output.
+Note that this design makes the cluster itself completely free of hard
+state; any entry can be, in principle, discarded and rebuilt, although
+possibly with very poor performance.
+
+DHT entries always contain a task description.  They can also contain
+output entries which contain either a bytestream or a delegation
+record which consists of a task name and an output name.  They can
+also contain an optional running record indicating that the task is
+currently running.
+
+That's it for the basic version.  Shouldn't be all that hard to
+implement, really.
+
+
+Failure handling: for now, I'm going to assume that all failures are
+soft and will go away if retried.  That's not going to fly forever,
+but it'll do for version 1.  Might want to do something better
+piggy-backed on the taint tracking, once that's implemented.
+
+
+
+Refinements:
+
+-- Streaming: In the basic version, a task can't start until all of
+   its inputs are full available.  An obvious refinement is to stream
+   data from one task to another.
+
+-- Taint tracking: The basic design requires all tasks to be fully
+   deterministic to allow sane failure recovery in the diamond
+   dependency case.  Taint tracking allows tasks to attach a taint to
+   each output.  Tasks can only consume the input of another task if
+   the taint is compatible; otherwise, the task must be re-run with
+   the right taint.  e.g. if a task calls gettimeofday() then the
+   taint says what the time was.  Need some way for users to remove
+   taints from tasks to get reasonable performance, but default should
+   be to do the safe thing unless we can prove that less safe one is
+   consistent with failure-free semantics.  Could also use taint
+   tracking to do a kind of access control framework.
+
+-- Byzantine fault tolerance, rather than the easy fail-stop.  Only
+   really need to run Paxos on the controller; workers can do
+   n=2 work, rather than n=4.
+
+-- Heterogeneous clusters.  You could imagine grouping machines
+   according to e.g. hardware properties and then requiring that tasks
+   be scheduled on machines with certain desired properties.
+
+-- Combined compute/storage slaves.  Most nodes will have both disks
+   and processors, and you should be able to do a lot better if you
+   take account of that e.g. using compute node input read-in to
+   increase storage replication level.  This is probably the first
+   refinement to implement.
+
+
+
+Implementation plan
+-------------------
+
+I'm going to start with something single-master.  Not even
+single-master with failover; just single-master.  Stick with C for
+implementation, since I'm going to want to eventually try to encourage
+other people to use this thing.  V1 master will keep all of its data
+in a SQLite database.  Slaves will keep their data on the filesystem,
+plus maybe a bit of metadata somewhere to allow in-principle recovery
+after master failure.  Don't worry about crypto for now; it's not like
+it's going over the internet.  It'll be some variant of SSL later on.
+
+Basic protocols:
+
+Slave arrival:
+
+Slave -> Broadcast: HAIL <version> <slave name> <nonce1>
+Master -> Slave: WELLMET <version> <master name> <tcp port> <nonce2> {hash 'A'+nonce1+password}
+Slave -> Master: HELLO <version> <nonce2> <slave name> {hash 'B'+nonce2+password> <capabilities> <inventory>
+
+HAIL and WELLMET are over UDP.  Everything else is TCP.  I'm kind of
+tempted to pad the HAIL messages so that they're bigger than WELLMETs,
+just to eliminate the possibility of amplification attacks, and
+probably rate-limit them as well, even though we're running over a
+trusted network.  Trusting that nobody bad can sniff messages is a
+slightly lower bar than trusting that nobody bad can send them.
+
+Could implement this by making nonce2 be a hash of the slave name, a
+low-granularity timestamp, and a master secret, so that the master
+doesn't have to remember the nonces between the WELLMET and the HELLO,
+so as to eliminate the obvious DoS vulnerability there.  Opens up the
+risk of replay attacks on low-RTT networks, though.  Meh; I've already
+decided not to consider eavesdropping attacks in this version.
+
+There's a MITM attack here as well, if you're unlucky with the timing:
+
+Slave -> {Master,Eve}: HAIL
+Eve -> Master: HAIL
+Master -> Eve: WELLMET
+Eve -> Slave: WELLMET
+Slave -> Eve: HELLO
+
+That's especially likely if I rate-limit master WELLMETs by dropping
+those over the limit.
+
+Fix by assuming a trusted local network so that Eve never gets the
+initial HAIL.  Fixing that requires proper crypto anyway.
+
+
+Check slave alive:
+
+Master -> Slave: PING
+Slave -> Master: PONG <hash of state which the master should know about>
+
+The hash of state is so that we know when to trigger reconciliation.
+For store servers it'll be all of the state, since the master always
+knows when stuff gets added to or removed from a store, barring
+errors.  For compute servers it'll exclude async task termination
+which hasn't been reported yet.
+
+
+Create a task:
+
+Master -> Storage slave: CREATE <taskid> <task description>
+Slave -> Master: {ACK|FULL|FAILED}
+
+Master allocates the taskid.  Slave can either complete the command,
+report that it doesn't have enough space, or report that it's failed
+and needs to be removed from the cluster.
+
+
+Start a task:
+
+Master -> compute slave: RUN <taskid> <task description> <input hints>
+Compute slave -> input storage slave: EXPOSE <taskid> <inputname>*
+Input storage slave -> compute slave: input data, in some suitably chunked/multiplexed/whatevered encoding
+Master -> output storage slave: PREPAREFILL <taskid> <outputname>* <compute slave>
+Output storage slave -> compute slave: FILLHERE <taskid> <outputname>*
+Compute slave -> output storage slave: output data
+Compute slave -> output storage slave: FINISHED <taskid> <outputname>*
+Output storage slave -> master: IHAVE <taskid> <outputname>*
+Compute slave -> master: FINISHED <taskid>
+
+Compute slave is told about the task before the output storage slave
+is told to expect results, so that we can overlap compute with
+master->storage communication.  Output storage slave is responsible
+for connecting to compute slave, to avoid another trip through the
+master.  Similarly, the completion messages go through the storage
+slave to avoid confusion about what happens if the master receives the
+FINISHED message before the storage slave receives the last of the
+data.  The input hints sent to the compute slave can be either the
+value of the input, for small things, or the storage slave which holds
+them, for larger ones.
+
+If a storage server, whether input or output, fails while a task is
+running, the compute slave is expected to detect it and send the
+master a FIND/LOST message:
+
+Slave -> Master: LOST <taskid> <inputname>*
+Master -> Slave: FOUND <input hints>*
+
+Or:
+
+Slave -> Master: FIND <taskid> <outputname>*
+Master -> output storage slave: PREPAREFILL <taskid> <outputname>* <compute slave>
+
+Compute slaves can also send those whenever they feel like it; the
+input hints in the initial RUN message are just hints.
+
+Any of the slaves can also send PEERFAILED messages to tell the master
+that one of its peers appears to have failed; this is in addition to
+the LOST/FIND messages.
+
+FINISHED messages are used to update the master's inventory.  They are
+not used to trigger dependent tasks, which are all done off of the
+IHAVE messages.
+
+The compute slave can also send a TASKFAILED message to the master, to
+tell it that a particular task failed, and to the storage slaves, to
+tell them to discard a partial output.
+
+Master is responsible for detecting compute slave failure.  When that
+happens, it should send an ABANDONED message to the output storage
+slaves, telling them that the relevant outputs will now not be filled
+so that they can delete partial results.
+
+There are a whole bunch of obvious refinements here to reduce the
+number of RTTs needed, but I think that'll do for a first version.
+
+
+Slave task creation
+
+Slave -> Master: NEWTASK <task description>
+Master -> Slave: ACK
+
+Task IDs are just hashes of task descriptions, so this just adds
+something to the database so that we can invert the hash.
+
+
+Output delegation
+
+Compute slave -> master: DELEGATE <current task> <current output name> <new task> <new output name>
+Master -> compute slave: ACK
+Master -> output storage slave: ABANDON <current task> <current output name>
+
+Delegations are all stored canonically on the master.  I'm half
+tempted to have the output storage slave store them as well, just
+because, but it's not really necessary and it seems like it might
+have interesting GC issues.
+
+
+
+Notes on client-slave protocol:
+
+-- Every message has an ident, responses to those messages echo the
+   ident.
+
+-- TCP sockets get opened and closed implicitly, with connection
+   caching.
+
+-- The protocol sketch above suggests using the same channel for data
+   and commands.  That means being fairly careful about chunking rules
+   to get good latency on commands, especially since I'll be doing
+   this in userspace.  Meh.  Could always split then out later.
+
+-- Need to have some kind of extensibility plan to add new fields to
+   each message.  That's going to make for an interesting wire
+   protocol.
+
+
+Implementation order
+--------------------
+
+1) Message protocol.  Stand-alone test program.
+2) CLI for talking to master.  Want a way of extracting logs
+   and getting general debug information, at a minimum.  Should probably
+   run this over message protocol, probably with some kind of registry
+   as well.
+3) Master discovers compute slaves.  Just the UDP bits.
+4) CLI for talking directly to compute slaves
+5) Basic master task table: something to add tasks and list them out
+   again
+6) Small object support.  Small task outputs will be stored on the
+   master, along with the task table.
+7) Scheduler: CLI interface to tell master to run a task now, enough
+   master gubbins to pass then off to compute servers, and enough
+   compute server gubbins to actually run them.  Test with a kind
+   of hello world thing.
+8) Compute task failure recovery.
+9) Compute slave failure recovery.
+10) Delegation: Extend hello world test program to delegate one of its
+    outputs.  Initially, just record that it's been delegated, then
+    extend so that the scheduler does something sensible about it.
+11) Master discovers storage slaves.
+12) CLI for talking to storage slaves
+13) Extend master CLI to support access to storage slaves: populate
+    objects, get them back, list them, delete them.
+14) Storage server failure recovery
+15) Support for compute jobs pulling inputs from storage slaves.
+16) Support for compute jobs storing outputs on storage slaves.

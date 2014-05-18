@@ -1,0 +1,75 @@
+#ifndef VECTOR_TMPL__
+#define VECTOR_TMPL__
+
+#include <assert.h>
+#include <stdlib.h>
+
+#include <utility>
+
+template <typename t> void
+vector<t>::extend(void)
+{
+    t *newcontent = (t *)calloc(sizeof(t), nr_allocated + 8);
+    for (unsigned idx = 0; idx < nr; idx++) {
+	newcontent[idx] = std::move(content[idx]);
+	content[idx].~t();
+    }
+    free(content);
+    content = newcontent;
+    nr_allocated += 8;
+}
+
+template <typename t> unsigned
+vector<t>::push(const t &w)
+{
+    if (nr_allocated == nr)
+	extend();
+    content[nr] = w;
+    nr++;
+    return nr-1;
+}
+
+template <typename t> unsigned
+vector<t>::push(t &&w)
+{
+    if (nr_allocated == nr)
+	extend();
+    content[nr] = w;
+    nr++;
+    return nr-1;
+}
+
+template <typename t>
+vector<t>::~vector()
+{
+    for (unsigned idx; idx < nr; idx++)
+        content[idx].~t();
+    free(content);
+}
+
+template <typename t> t &
+vector<t>::operator[](unsigned idx)
+{
+    assert(idx < nr);
+    return content[idx];
+}
+template <typename t> const t &
+vector<t>::operator[](unsigned idx) const
+{
+    assert(idx < nr);
+    return content[idx];
+}
+
+template <typename t> void
+vector<t>::remove(unsigned idx)
+{
+    assert(idx < nr);
+    for (unsigned i = idx + 1; i < nr; i++) {
+        content[i-1].~t();
+        content[i-1] = std::move(content[i]);
+    }
+    content[nr-1].~t();
+    nr--;
+}
+
+#endif /* !VECTOR_TMPL__ */

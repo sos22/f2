@@ -1,0 +1,14 @@
+#! /bin/bash
+
+. shutil
+
+function bits() {
+    echo {listenfd,buffer,cond,error,fd,list,mutex,obj,thread,unixsocket,waitbox,wireproto}$1
+}
+
+for x in $(bits .C)
+do
+    cc $x
+done
+
+ar lib.a $(bits .o)

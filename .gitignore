@@ -1,0 +1,8 @@
+*.o
+*.d
+*~
+*.a
+*.mk
+master
+mastercli
+config
