@@ -12,6 +12,9 @@ public:
     maybe<error> send(const wireproto::tx_message &what);
     static orerror<controlclient *> connect();
     void destroy() const;
+    orerror<const wireproto::rx_message *> receive();
+    orerror<const wireproto::rx_message *> call(const wireproto::tx_message &msg);
+    wireproto::sequencenr allocsequencenr();
 };
 
 #endif /* !CONTROLCLIENT_H__ */

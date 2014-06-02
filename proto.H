@@ -13,6 +13,8 @@ namespace proto {
 
     namespace PONG {
 	static const msgtag tag(2);
+	static const parameter<int> cntr(201);
+	static const parameter<const char *> msg(202);
     };
 }
 

@@ -1,6 +1,8 @@
 #ifndef BUFFER_H__
 #define BUFFER_H__
 
+#include <stddef.h>
+
 #include "error.H"
 #include "list.H"
 #include "maybe.H"
@@ -25,7 +27,7 @@ class buffer {
 
     subbuf *newsubbuf(size_t, bool, bool, bool);
 public:
-    buffer() : first(), last(), prod(0), cons(0) {}
+    buffer() : first(NULL), last(NULL), prod(0), cons(0) {}
     ~buffer();
     maybe<error> send(fd_t);
     maybe<error> receive(fd_t);

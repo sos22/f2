@@ -12,8 +12,8 @@ template class list<wireproto::tx_message::pinstance>;
 
 namespace wireproto {
 
-tx_message::tx_message(msgtag _t)
-    : t(_t)
+tx_message::tx_message(msgtag _t, sequencenr _sequence)
+    : t(_t), sequence(_sequence)
 {}
 
 tx_message::~tx_message()
@@ -27,14 +27,15 @@ tx_message::serialise(buffer &buffer) const
     uint16_t sz;
     uint16_t nrparams;
     nrparams = 0;
-    sz = 6;
+    sz = 8;
     for (auto it(params.start()); !it.finished(); it.next()) {
 	sz += it->serialised_size() + 4;
 	nrparams++;
     }
-    if (sz > 0x8000)
+    if (sz >= 0x8000)
 	return maybe<error>::mkjust(error::overflowed);
     buffer.queue(&sz, sizeof(sz));
+    buffer.queue(&sequence, sizeof(sequence));
     buffer.queue(&nrparams, sizeof(nrparams));
     buffer.queue(&t.val, sizeof(t.val));
     uint16_t consumed = 0;
@@ -52,6 +53,7 @@ maybe<const rx_message *>
 rx_message::fetch(buffer &buffer)
 {
     uint16_t sz;
+    sequencenr sequence(sequencenr::invalid());
     uint16_t nrparams;
     uint16_t tag;
     if (buffer.avail() < sizeof(sz) + sizeof(nrparams))
@@ -61,15 +63,17 @@ rx_message::fetch(buffer &buffer)
 	buffer.pushback(&sz, sizeof(sz));
 	return maybe<const rx_message *>::mknothing();
     }
-    if (sz < sizeof(sz) + sizeof(nrparams) + sizeof(tag))
+    if (sz < sizeof(sz) + sizeof(sequence) + sizeof(nrparams) + sizeof(tag))
 	return NULL;
+    buffer.fetch(&sequence, sizeof(sequence));
     buffer.fetch(&nrparams, sizeof(nrparams));
     buffer.fetch(&tag, sizeof(tag));
     if (nrparams > 128 || sz < 6 + nrparams * 4)
 	return NULL;
     auto work(new rx_message(msgtag(tag),
+			     sequence,
 			     nrparams,
-			     sz - 6 - nrparams * 4,
+			     sz - buffer.offset() - nrparams * 4,
 			     buffer.offset() + 4 * nrparams,
 			     buffer));
     buffer.fetch(work->index, 4 * nrparams);
@@ -90,10 +94,14 @@ rx_message::finish() const
     delete this;
 }
 
-rx_message::rx_message(msgtag _t, uint16_t _nrparams,
-		       size_t _payload_size, size_t _payload_offset,
+rx_message::rx_message(msgtag _t,
+		       sequencenr _sequence,
+		       uint16_t _nrparams,
+		       size_t _payload_size,
+		       size_t _payload_offset,
 		       buffer &_buf)
     : index((idx *)calloc(4, _nrparams)),
+      sequence(_sequence),
       nrparams(_nrparams),
       payload_size(_payload_size),
       payload_offset(_payload_offset),
@@ -111,12 +119,24 @@ tx_message::addparam(parameter<const char *> tmpl, const char *val)
     return *this;
 }
 
+template <> tx_message &
+tx_message::addparam(parameter<int> tmpl, int val)
+{
+    auto p(params.append());
+    p->id = tmpl.id;
+    p->flavour = pinstance::p_int32;
+    p->int32 = val;
+    return *this;
+}
+
 size_t
 tx_message::pinstance::serialised_size() const
 {
     switch (flavour) {
     case p_string:
 	return strlen(string) + 1;
+    case p_int32:
+	return 4;
     }
     abort();
 }
@@ -127,6 +147,9 @@ tx_message::pinstance::serialise(buffer &buf) const
     switch (flavour) {
     case p_string:
 	buf.queue(string, strlen(string) + 1);
+	return;
+    case p_int32:
+	buf.queue(&int32, 4);
 	return;
     }
     abort();
@@ -152,6 +175,14 @@ deserialise(bufslice &slice)
 	return maybe<const char *>::mknothing();
     return (const char *)slice.buf.linearise(slice.start, slice.end);
 }
+template <> maybe<int>
+deserialise(bufslice &slice)
+{
+    if (slice.end - slice.start != 4)
+	return maybe<int>::mknothing();
+    else
+	return *(int *)slice.buf.linearise(slice.start, slice.end);
+}
 
 template <typename typ> maybe<typ>
 rx_message::getparam(parameter<typ> p) const
@@ -172,5 +203,6 @@ rx_message::getparam(parameter<typ> p) const
 }
 
 template maybe<const char *> rx_message::getparam<const char *>(parameter<const char *>)const;
+template maybe<int> rx_message::getparam<int>(parameter<int>)const;
 
 };

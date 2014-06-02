@@ -179,7 +179,10 @@ controlserver::clientthread::ping(const wireproto::rx_message *msg,
 	printf("msg %s\n", payload.just());
     else
 	printf("msg missing\n");
-    wireproto::tx_message m(proto::PONG::tag);
+    wireproto::tx_message m(proto::PONG::tag, msg->sequence);
+    static int cntr;
+    m.addparam(proto::PONG::cntr, cntr++);
+    m.addparam(proto::PONG::msg, "response message");
     auto r(m.serialise(outgoing));
     if (r.isjust())
 	r.just().warn("sending pong");

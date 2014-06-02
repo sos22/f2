@@ -21,7 +21,7 @@ buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
 	res->prod = (newsz + sz) / 2;
     else
 	res->prod = 0;
-    res->cons = res->cons;
+    res->cons = res->prod;
     if (insert) {
 	if (atstart) {
 	    res->next = first;
