@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc testdriver.C
+ld test testdriver.o lib.a
+
+target test

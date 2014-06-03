@@ -5,6 +5,7 @@ all: realall
 include lib.mk
 include master.mk
 include mastercli.mk
+include test.mk
 
 config: config.gen
 	./$< $@ > $@.tmp && mv -f $@.tmp $@

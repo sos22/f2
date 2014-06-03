@@ -3,7 +3,7 @@
 . shutil
 
 function bits() {
-    echo {listenfd,buffer,cond,error,fd,list,mutex,obj,thread,unixsocket,waitbox,wireproto}$1
+    echo {listenfd,buffer,cond,error,fd,list,mutex,obj,test,thread,unixsocket,waitbox,wireproto}$1
 }
 
 for x in $(bits .C)
