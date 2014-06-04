@@ -8,6 +8,9 @@
 
 /* A box you can put a value in, and some gubbins to wait until
    someone puts a value in it.  */
+/* Note that each of these will consume two file descriptors, so you
+   can't go creating them willy-nilly.  If you don't need something
+   you can poll on then use a condition variable instead. */
 template <typename t>
 class waitbox {
     mutex_t mux;

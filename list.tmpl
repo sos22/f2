@@ -44,7 +44,7 @@ list<t>::empty() const
 }
 
 template <typename t> t
-list<t>::pop()
+list<t>::pophead()
 {
     assert(!empty());
     auto i(start());
@@ -53,8 +53,18 @@ list<t>::pop()
     return res;
 }
 
+template <typename t> t
+list<t>::poptail()
+{
+    assert(!empty());
+    auto i(reverse());
+    t res = *i;
+    i.remove();
+    return res;
+}
+
 template <typename t> void
-list<t>::push(const t &what)
+list<t>::pushhead(const t &what)
 {
     auto m(new member(what));
     m->linkage.next = root.next;
@@ -63,25 +73,17 @@ list<t>::push(const t &what)
     root.next = m;
 }
 
-template <typename t> t *
-list<t>::tail()
+template <typename t> void
+list<t>::pushtail(const t &what)
 {
-    if (empty())
-	return NULL;
-    else
-	return &root.prev->value;
+    auto m(new member(what));
+    m->linkage.prev = root.prev;
+    m->linkage.next = containerof(&root, member, linkage);
+    root.prev->linkage.next = m;
+    root.prev = m;
 }
 
-template <typename t> t *
-list<t>::head()
-{
-    if (empty())
-	return NULL;
-    else
-	return &root.next->value;
-}
-
-template <typename t> t *
+template <typename t> t &
 list<t>::append()
 {
     auto m(new member());
@@ -89,10 +91,10 @@ list<t>::append()
     m->linkage.next = containerof(&root, member, linkage);
     root.prev->linkage.next = m;
     root.prev = m;
-    return &m->value;
+    return m->value;
 }
 
-template <typename t> t *
+template <typename t> t &
 list<t>::prepend()
 {
     auto m(new member());
@@ -100,13 +102,19 @@ list<t>::prepend()
     m->linkage.prev = containerof(&root, member, linkage);
     root.next->linkage.prev = m;
     root.next = m;
-    return &m->value;
+    return m->value;
 }
 
 template <typename t> typename list<t>::iter
 list<t>::start()
 {
-    return list<t>::iter(root.next, root.next->linkage.next, &root);
+    return list<t>::iter(&root, false);
+}
+
+template <typename t> typename list<t>::iter
+list<t>::reverse()
+{
+    return list<t>::iter(&root, true);
 }
 
 template <typename t> bool
@@ -116,10 +124,16 @@ list<t>::iter::finished() const
 }
 
 template <typename t>
-list<t>::iter::iter(member *_cursor,
-		    member *_n,
-		    nub *_eof)
-    : cursor(_cursor), n(_n), eof(_eof)
+list<t>::iter::iter(nub *_eof,
+		    bool _reverse)
+    : cursor(_reverse
+	     ? _eof->next
+	     : _eof->prev),
+      n(_reverse
+	? cursor->linkage.prev
+	: cursor->linkage.next),
+      eof(_eof),
+      reverse(_reverse)
 {}
 
 template <typename t> void
@@ -127,7 +141,10 @@ list<t>::iter::next()
 {
     assert(!finished());
     cursor = n;
-    n = cursor->linkage.next;
+    if (reverse)
+	n = cursor->linkage.prev;
+    else
+	n = cursor->linkage.next;
 }
 
 template <typename t> t &
@@ -171,7 +188,7 @@ list<t>::iter::remove()
 template <typename t> typename list<t>::const_iter
 list<t>::start() const
 {
-    return list<t>::const_iter(root.next, root.next->linkage.next, &root);
+    return list<t>::const_iter(&root, false);
 }
 
 template <typename t> bool
@@ -181,18 +198,22 @@ list<t>::const_iter::finished() const
 }
 
 template <typename t>
-list<t>::const_iter::const_iter(const member *_cursor,
-				const member *_n,
-				const nub *_eof)
-    : cursor(_cursor), n(_n), eof(_eof)
+list<t>::const_iter::const_iter(const nub *_eof,
+				bool _reverse)
+    : cursor(_reverse
+	     ? _eof->prev
+	     : _eof->next),
+      eof(_eof),
+      reverse(_reverse)
 {}
 
 template <typename t> void
 list<t>::const_iter::next()
 {
     assert(!finished());
-    cursor = n;
-    n = cursor->linkage.next;
+    cursor = reverse
+	? cursor->linkage.prev
+	: cursor->linkage.next;
 }
 
 template <typename t> const t &

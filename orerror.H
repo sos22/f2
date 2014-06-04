@@ -7,12 +7,14 @@
 
 #include "error.H"
 
-template <typename t> class orerror : public obj {
+template <typename t> class orerror {
     const bool errored;
     union {
 	error err;
 	char buf[sizeof(t)];
     };
+    orerror() = delete;
+    void operator=(const orerror &o) = delete;
 public:
     orerror(const t &v)
 	: errored(false)
@@ -24,7 +26,7 @@ public:
 	{
 	    new (this->buf) t(std::move(v));
 	}
-    orerror(error _err)
+    orerror(const error &_err)
 	: errored(true), err(_err)
 	{
 	    err = _err;
@@ -39,7 +41,7 @@ public:
 	assert(!errored);
 	return *(const t *)buf;
     }
-    error failure() const {
+    const error &failure() const {
 	return err;
     }
     bool issuccess() const {

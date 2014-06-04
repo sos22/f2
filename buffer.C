@@ -55,7 +55,7 @@ buffer::receive(fd_t fd)
 	return read.failure();
     b->prod += read.success();
     prod += read.success();
-    return maybe<error>::mknothing();
+    return Nothing;
 }
 
 maybe<error>
@@ -76,7 +76,7 @@ buffer::send(fd_t fd)
 	    return wrote.failure();
 	first->cons += wrote.success();
 	cons += wrote.success();
-	return maybe<error>::mknothing();
+	return Nothing;
     }
 }
 

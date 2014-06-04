@@ -16,10 +16,9 @@ public:
 	friend class list;
 	member *cursor;
 	member *n;
-	nub *eof;
-	iter(member *_cursor,
-	     member *_n,
-	     nub *_eof);
+	nub *const eof;
+	const bool reverse;
+	iter(nub *_eof, bool _reverse);
     public:
 	bool finished() const;
 	void next();
@@ -32,11 +31,9 @@ public:
     class const_iter {
 	friend class list;
 	const member *cursor;
-	const member *n;
-	const nub *eof;
-	const_iter(const member *_cursor,
-		   const member *_n,
-		   const nub *_eof);
+	const nub *const eof;
+	const bool reverse;
+	const_iter(const nub *_eof, bool _reverse);
     public:
 	bool finished() const;
 	void next();
@@ -46,16 +43,36 @@ public:
 
     list();
     ~list();
+
+    /* Iterators: forwards and backwards, const and non-const. */
     iter start();
     const_iter start() const;
+    iter reverse();
+    const_iter reverse() const;
+
+    /* Check whether a list is currently empty */
     bool empty() const;
+    /* delete everything which is currently in the list */
     void flush();
-    t pop();
-    void push(const t &);
-    t *tail();
-    t *head();
-    t *append();
-    t *prepend();
+
+    /* Simple copying interface to the list, suitable for lists of
+     * small items (e.g. pointers). */
+    /* Remove the first item from the list and return a copy of it. */
+    t pophead();
+    /* Remove the last item from the list and return a copy of it. */
+    t poptail();
+    /* Add a copy of an item to the front of the list */
+    void pushhead(const t &);
+    /* Add a copy of an item to the end of the list */
+    void pushtail(const t &);
+
+    /* Non-copying interface, suitable for more complicated types. */
+    /* Allocate a new item, using the default constructor, place it at
+       the end of the list, and return a reference to it. */
+    t &append();
+    /* Allocate a new item, using the default constructor, place it at
+       the start of the list, and return a reference to it. */
+    t &prepend();
 };
 
 #endif /* !LIST_H__ */

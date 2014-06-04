@@ -21,7 +21,7 @@ namespace wireproto {
 	    : val(_val)
 	    {}
     public:
-	static const sequencenr invalid() { return sequencenr(0); }
+	static const sequencenr invalid;
 	bool operator ==(const sequencenr &o) const
 	    { return val == o.val; }
     };
@@ -62,11 +62,13 @@ namespace wireproto {
 	    {}
     };
 
+    class rx_message;
     class tx_message {
     public:
 	const msgtag t;
-	tx_message(msgtag, sequencenr);
-	maybe<error> serialise(buffer &buf) const;
+	tx_message(msgtag);
+	maybe<error> serialise(buffer &buf, sequencenr) const;
+	maybe<error> serialisereply(buffer &buf, const rx_message &) const;
 	template <typename t> tx_message &addparam(parameter<t>, t);
 	~tx_message();
     private:
@@ -85,8 +87,6 @@ namespace wireproto {
 	    void serialise(buffer &) const;
 	};
 	list<pinstance> params;
-    public:
-	const sequencenr sequence;
     };
     class rx_message {
 	struct idx {

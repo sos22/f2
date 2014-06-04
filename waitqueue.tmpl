@@ -10,7 +10,7 @@ waitqueue<t>::fd() const
 }
 
 template <typename t> t
-waitqueue<t>::pop()
+waitqueue<t>::pophead()
 {
     assert(!content.empty());
     char c;
@@ -20,16 +20,16 @@ waitqueue<t>::pop()
     if (r.success() != 1)
 	error::disconnected.fatal("reading waitqueue");
     auto token(mux.lock());
-    auto res(content.pop());
+    auto res(content.pophead());
     mux.unlock(&token);
     return res;
 }
 
 template <typename t> void
-waitqueue<t>::push(const t &what)
+waitqueue<t>::pushtail(const t &what)
 {
     auto token(mux.lock());
-    *content.append() = what;
+    content.append() = what;
     mux.unlock(&token);
     char c = 'X';
     auto r(writefd.write(&c, 1));

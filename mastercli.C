@@ -11,7 +11,7 @@ main()
     if (c.isfailure())
 	c.failure().fatal("connecting to master");
     auto m = c.success()->call(
-	wireproto::tx_message(proto::PING::tag, c.success()->allocsequencenr()).
+	wireproto::tx_message(proto::PING::tag).
 	addparam(proto::PING::msg, "Hello"));
     if (m.issuccess())
 	printf("master ping sequence %d, message %s\n",

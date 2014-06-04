@@ -21,7 +21,8 @@ struct controlclient {
 	{
 	    fd.close();
 	}
-    maybe<error> send(const wireproto::tx_message &msg);
+    maybe<error> send(const wireproto::tx_message &msg,
+		      wireproto::sequencenr snr);
     orerror<const wireproto::rx_message *> call(const wireproto::tx_message &msg);
     orerror<const wireproto::rx_message *> receive();
     wireproto::sequencenr allocsequencenr(void)
@@ -40,10 +41,11 @@ connect()
 }
 
 maybe<error>
-controlclient::send(const wireproto::tx_message &msg)
+controlclient::send(const wireproto::tx_message &msg,
+		    wireproto::sequencenr seq)
 {
     {
-	auto r(msg.serialise(outgoing));
+	auto r(msg.serialise(outgoing, seq));
 	if (r.isjust())
 	    return r;
     }
@@ -53,29 +55,40 @@ controlclient::send(const wireproto::tx_message &msg)
 	if (r.isjust())
 	    return r;
     }
-    return maybe<error>::mknothing();
+    return Nothing;
 }
 
 orerror<const wireproto::rx_message *>
 controlclient::call(const wireproto::tx_message &msg)
 {
-    auto r = send(msg);
+    auto snr(sequencer.get());
+    auto r = send(msg, snr);
     if (r.isjust()) {
+	sequencer.put(snr);
 	return r.just();
     }
     while (1) {
 	auto m = receive();
-	if (m.isfailure())
+	if (m.isfailure()) {
+	    /* XXX leak the sequence number here.  Probably not a
+	     * problem: the connection is almost certainly dead,
+	     * anyway. */
 	    return m;
-	if (m.success()->sequence == msg.sequence)
+	}
+	if (m.success()->sequence == snr) {
+	    sequencer.put(snr);
 	    return m;
-	pendingrx.push(m.success());
+	}
+	pendingrx.pushhead(m.success());
     }
 }
 
 orerror<const wireproto::rx_message *>
 controlclient::receive()
 {
+    if (!pendingrx.empty()) {
+	return pendingrx.pophead();
+    }
     while (1) {
 	auto r(wireproto::rx_message::fetch(incoming));
 	if (r.isjust())
@@ -103,13 +116,8 @@ controlclient::destroy() const
 maybe<error>
 controlclient::send(const wireproto::tx_message &msg)
 {
-    return ((cc::controlclient *)this)->send(msg);
-}
-
-wireproto::sequencenr
-controlclient::allocsequencenr()
-{
-    return ((cc::controlclient *)this)->allocsequencenr();
+    return ((cc::controlclient *)this)->send(msg,
+					     wireproto::sequencenr::invalid);
 }
 
 orerror<const wireproto::rx_message *>

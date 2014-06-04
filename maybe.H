@@ -3,38 +3,41 @@
 
 #include <assert.h>
 
+class _Nothing {
+};
+const class _Nothing Nothing;
+
 template <typename t>
 class maybe {
-    bool r;
+    const bool r;
     unsigned char content[sizeof(t)];
-    maybe()
+    maybe() = delete;
+    void operator=(const maybe &o) = delete;
+public:
+    maybe(const maybe &o)
+	: r(o.r)
+	{
+	    if (!r)
+		new (content) t(o.just());
+	}
+    ~maybe()
+	{
+	    if (isjust()) ((t *)content)->~t();
+	}
+    maybe(_Nothing n)
 	: r(true)
 	{
 	}
-public:
     maybe(const t &what)
 	: r(false)
 	{
 	    new (content) t(what);
-	}
-    static maybe<t> mkjust(const t &what)
-	{
-	    return maybe<t>(what);
-	}
-    static maybe<t> mknothing()
-	{
-	    return maybe<t>();
 	}
     bool isnothing() const { return r; }
     bool isjust() const { return !r; }
     const t &just() const {
 	assert(isjust());
 	return *(t *)content;
-    }
-
-    maybe<t> operator||(const maybe<t> &o) const {
-	if (isjust()) return *this;
-	else return o;
     }
 };
 

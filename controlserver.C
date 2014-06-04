@@ -45,8 +45,8 @@ struct controlserver : threadfn {
 		     waitbox<bool> *_shutdown)
 	    : owner(_owner), fd(_fd), shutdown(_shutdown)
 	    {}
-	void ping(const wireproto::rx_message *, buffer &);
-	void unrecognised(const wireproto::rx_message *, buffer &);
+	void ping(const wireproto::rx_message &, buffer &);
+	void unrecognised(const wireproto::rx_message &, buffer &);
     public:
 	static orerror<clientthread *> spawn(controlserver *,
 					     fd_t,
@@ -128,7 +128,7 @@ controlserver::clientthread::run()
     }
     fd.close();
     auto token(owner->mux.lock());
-    owner->dying->push(this);
+    owner->dying->pushtail(this);
     owner->mux.unlock(&token);
 }
 
@@ -147,9 +147,9 @@ controlserver::clientthread::runcommand(buffer &incoming,
 	return false;
     }
     if (r.just()->t == proto::PING::tag)
-	ping(r.just(), outgoing);
+	ping(*r.just(), outgoing);
     else
-	unrecognised(r.just(), outgoing);
+	unrecognised(*r.just(), outgoing);
     r.just()->finish();
     return true;
 }
@@ -170,26 +170,26 @@ controlserver::clientthread::spawn(controlserver *server,
 }
 
 void
-controlserver::clientthread::ping(const wireproto::rx_message *msg,
+controlserver::clientthread::ping(const wireproto::rx_message &msg,
 				  buffer &outgoing)
 {
     printf("Received a ping\n");
-    auto payload(msg->getparam(proto::PING::msg));
+    auto payload(msg.getparam(proto::PING::msg));
     if (payload.isjust())
 	printf("msg %s\n", payload.just());
     else
 	printf("msg missing\n");
-    wireproto::tx_message m(proto::PONG::tag, msg->sequence);
+    wireproto::tx_message m(proto::PONG::tag);
     static int cntr;
     m.addparam(proto::PONG::cntr, cntr++);
     m.addparam(proto::PONG::msg, "response message");
-    auto r(m.serialise(outgoing));
+    auto r(m.serialisereply(outgoing, msg));
     if (r.isjust())
 	r.just().warn("sending pong");
 }
 
 void
-controlserver::clientthread::unrecognised(const wireproto::rx_message *msg,
+controlserver::clientthread::unrecognised(const wireproto::rx_message &msg,
 					  buffer &outgoing)
 {
     printf("Received an unrecognised message\n");
@@ -227,7 +227,7 @@ controlserver::run()
 /**/			goto out;
 		} else if (dying->fd().polled(pfds[i])) {
 		    assert(!(pfds[i].revents & POLLERR));
-		    auto thr(dying->pop());
+		    auto thr(dying->pophead());
 		    thr->thr()->join();
 		    for (auto it(threads.start()); 1; it.next()) {
 			assert(!it.finished());
@@ -250,10 +250,9 @@ controlserver::run()
 						localshutdown));
 		    if (tr.isfailure()) {
 			error::from_errno().warn("Cannot build thread for new client");
-			auto n(newfd.success());
-			n.close();
+			newfd.success().close();
 		    } else {
-			threads.push(tr.success());
+			threads.pushhead(tr.success());
 		    }
 		}
 		pfds[i].revents = 0;
@@ -324,11 +323,11 @@ controlserver::setup()
 	    goto failed;
 	}
     }
-    return maybe<error>::mknothing();
+    return Nothing;
 
 failed:
     end();
-    return maybe<error>::mkjust(err);
+    return err;
 }
 
 }

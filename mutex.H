@@ -4,7 +4,6 @@
 #include <pthread.h>
 
 class mutex_t {
-    friend class cond_t;
     pthread_mutex_t mux;
 public:
     /* lock acquisition returns a token, for a couple of reasons:

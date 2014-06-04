@@ -55,4 +55,3 @@ unixsocket::connect(const char *path)
     }
     return fd_t(sock);
 }
-

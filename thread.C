@@ -19,9 +19,9 @@ thread::spawn(threadfn *fn, thread **out)
     if (err) {
 	*out = NULL;
 	delete work;
-	return maybe<error>::mkjust(error::from_errno(err));
+	return error::from_errno(err);
     } else {
-	return maybe<error>::mknothing();
+	return Nothing;
     }
 }
 
