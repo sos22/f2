@@ -10,9 +10,9 @@ listenfd::accept() const
 {
     int n(::accept(fd, NULL, NULL));
     if (n < 0)
-	return orerror<fd_t>::failure(error::from_errno());
+	return error::from_errno();
     else
-	return orerror<fd_t>::success(fd_t(n));
+	return fd_t(n);
 }
 
 listenfd::listenfd(int n)

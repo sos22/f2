@@ -35,9 +35,8 @@ connect()
 {
     auto r(unixsocket::connect("mastersock"));
     if (r.isfailure())
-	return orerror< ::controlclient *>::failure(r.failure());
-    return orerror< ::controlclient *>::success(
-	(::controlclient *)new controlclient(r.success()));
+	return r.failure();
+    return (::controlclient *)new controlclient(r.success());
 }
 
 maybe<error>
@@ -62,7 +61,7 @@ controlclient::call(const wireproto::tx_message &msg)
 {
     auto r = send(msg);
     if (r.isjust()) {
-	return orerror<const wireproto::rx_message *>::failure(r.just());
+	return r.just();
     }
     while (1) {
 	auto m = receive();
@@ -80,10 +79,10 @@ controlclient::receive()
     while (1) {
 	auto r(wireproto::rx_message::fetch(incoming));
 	if (r.isjust())
-	    return orerror<const wireproto::rx_message *>::success(r.just());
+	    return r.just();
 	auto t(incoming.receive(fd));
 	if (t.isjust())
-	    return orerror<const wireproto::rx_message *>::failure(t.just());
+	    return t.just();
     }
 }
 

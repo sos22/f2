@@ -163,9 +163,9 @@ controlserver::clientthread::spawn(controlserver *server,
     auto tr(thread::spawn(work, &work->_thr));
     if (tr.isjust()) {
 	delete work;
-	return orerror<clientthread *>::failure(tr.just());
+	return tr.just();
     } else {
-	return orerror<clientthread *>::success(work);
+	return work;
     }
 }
 
@@ -339,9 +339,9 @@ controlserver::build(waitbox<shutdowncode> *s)
     auto r = new cf::controlserver(s);
     auto e = r->setup();
     if (e.isnothing())
-	return orerror<controlserver *>::success((controlserver *)r);
+	return (controlserver *)r;
     else
-	return orerror<controlserver *>::failure(e.just());
+	return e.just();
 }
 
 void

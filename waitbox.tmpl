@@ -29,12 +29,12 @@ waitbox<t>::build()
 {
     auto p(fd_t::pipe());
     if (p.isfailure())
-	return orerror<waitbox<t> *>::failure(p.failure());
+	return p.failure();
     auto work = new waitbox<t>();
     work->filled = false;
     work->readfd = p.success().read;
     work->writefd = p.success().write;
-    return orerror<waitbox<t> *>::success(work);
+    return work;
 }
 
 template <typename t> void

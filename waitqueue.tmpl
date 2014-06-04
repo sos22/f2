@@ -44,11 +44,11 @@ waitqueue<t>::build()
 {
     auto fds(fd_t::pipe());
     if (fds.isfailure())
-	return orerror<waitqueue<t> *>::failure(fds.failure());
+	return fds.failure();
     auto work = new waitqueue<t>();
     work->readfd = fds.success().read;
     work->writefd = fds.success().write;
-    return orerror<waitqueue<t> *>::success(work);
+    return work;
 }
 
 template <typename t> void
