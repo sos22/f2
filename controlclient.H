@@ -26,7 +26,13 @@ public:
      * to come back.  This will receive any other messages which the
      * server deigns to send us and place them in the receive
      * queue. */
-    orerror<const wireproto::rx_message *> call(const wireproto::tx_message &msg);
+    orerror<const wireproto::rx_message *> call(const wireproto::req_message &msg);
+    /* Allocate a sequence number suitable for constructing a new
+     * req_message */
+    wireproto::sequencenr allocsequencenr();
+    /* Release a sequence number previously returned by
+     * ::allocsequencenr() */
+    void putsequencenr(wireproto::sequencenr);
 };
 
 #endif /* !CONTROLCLIENT_H__ */

@@ -174,16 +174,16 @@ controlserver::clientthread::ping(const wireproto::rx_message &msg,
 				  buffer &outgoing)
 {
     printf("Received a ping\n");
-    auto payload(msg.getparam(proto::PING::msg));
+    auto payload(msg.getparam(proto::PING::req::msg));
     if (payload.isjust())
 	printf("msg %s\n", payload.just());
     else
 	printf("msg missing\n");
-    wireproto::tx_message m(proto::PONG::tag);
+    wireproto::resp_message m(msg);
     static int cntr;
-    m.addparam(proto::PONG::cntr, cntr++);
-    m.addparam(proto::PONG::msg, "response message");
-    auto r(m.serialisereply(outgoing, msg));
+    m.addparam(proto::PING::resp::cntr, cntr++);
+    m.addparam(proto::PING::resp::msg, "response message");
+    auto r(m.serialise(outgoing));
     if (r.isjust())
 	r.just().warn("sending pong");
 }

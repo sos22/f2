@@ -16,6 +16,14 @@ tx_message::tx_message(msgtag _t)
     : t(_t)
 {}
 
+resp_message::resp_message(const rx_message &o)
+    : tx_message(o.t), sequence(o.sequence.reply())
+{}
+
+req_message::req_message(msgtag _t, sequencenr _sequence)
+    : tx_message(_t), sequence(_sequence)
+{}
+
 tx_message::~tx_message()
 {
     params.flush();
@@ -50,9 +58,21 @@ tx_message::serialise(buffer &buffer, sequencenr snr) const
 }
 
 maybe<error>
-tx_message::serialisereply(buffer &buffer, const rx_message &o) const
+tx_message::serialise(buffer &buffer) const
 {
-    return serialise(buffer, o.sequence);
+    return serialise(buffer, sequencenr::invalid);
+}
+
+maybe<error>
+resp_message::serialise(buffer &buffer) const
+{
+    return tx_message::serialise(buffer, sequence);
+}
+
+maybe<error>
+req_message::serialise(buffer &buffer) const
+{
+    return tx_message::serialise(buffer, sequence);
 }
 
 maybe<const rx_message *>
@@ -118,7 +138,7 @@ rx_message::rx_message(msgtag _t,
 template <> tx_message &
 tx_message::addparam(parameter<const char *> tmpl, const char *val)
 {
-    auto p(params.append());
+    auto &p(params.append());
     p.id = tmpl.id;
     p.flavour = pinstance::p_string;
     p.string = val;
@@ -128,7 +148,7 @@ tx_message::addparam(parameter<const char *> tmpl, const char *val)
 template <> tx_message &
 tx_message::addparam(parameter<int> tmpl, int val)
 {
-    auto p(params.append());
+    auto &p(params.append());
     p.id = tmpl.id;
     p.flavour = pinstance::p_int32;
     p.int32 = val;

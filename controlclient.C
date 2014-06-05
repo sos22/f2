@@ -21,14 +21,18 @@ struct controlclient {
 	{
 	    fd.close();
 	}
-    maybe<error> send(const wireproto::tx_message &msg,
-		      wireproto::sequencenr snr);
-    orerror<const wireproto::rx_message *> call(const wireproto::tx_message &msg);
+    maybe<error> send(const wireproto::tx_message &msg);
+    orerror<const wireproto::rx_message *> call(const wireproto::req_message &msg);
     orerror<const wireproto::rx_message *> receive();
+    orerror<const wireproto::rx_message *> _receive();
     wireproto::sequencenr allocsequencenr(void)
 	{
 	    return sequencer.get();
-	}    
+	}
+    void putsequencenr(wireproto::sequencenr snr)
+	{
+	    sequencer.put(snr);
+	}
 };
 
 static orerror< ::controlclient *>
@@ -41,11 +45,10 @@ connect()
 }
 
 maybe<error>
-controlclient::send(const wireproto::tx_message &msg,
-		    wireproto::sequencenr seq)
+controlclient::send(const wireproto::tx_message &msg)
 {
     {
-	auto r(msg.serialise(outgoing, seq));
+	auto r(msg.serialise(outgoing));
 	if (r.isjust())
 	    return r;
     }
@@ -59,26 +62,17 @@ controlclient::send(const wireproto::tx_message &msg,
 }
 
 orerror<const wireproto::rx_message *>
-controlclient::call(const wireproto::tx_message &msg)
+controlclient::call(const wireproto::req_message &msg)
 {
-    auto snr(sequencer.get());
-    auto r = send(msg, snr);
-    if (r.isjust()) {
-	sequencer.put(snr);
+    auto r = send(msg);
+    if (r.isjust())
 	return r.just();
-    }
     while (1) {
-	auto m = receive();
-	if (m.isfailure()) {
-	    /* XXX leak the sequence number here.  Probably not a
-	     * problem: the connection is almost certainly dead,
-	     * anyway. */
+	auto m = _receive();
+	if (m.isfailure())
 	    return m;
-	}
-	if (m.success()->sequence == snr) {
-	    sequencer.put(snr);
+	if (m.success()->sequence == msg.sequence.reply())
 	    return m;
-	}
 	pendingrx.pushhead(m.success());
     }
 }
@@ -89,6 +83,12 @@ controlclient::receive()
     if (!pendingrx.empty()) {
 	return pendingrx.pophead();
     }
+    return _receive();
+}
+
+orerror<const wireproto::rx_message *>
+controlclient::_receive()
+{
     while (1) {
 	auto r(wireproto::rx_message::fetch(incoming));
 	if (r.isjust())
@@ -116,14 +116,25 @@ controlclient::destroy() const
 maybe<error>
 controlclient::send(const wireproto::tx_message &msg)
 {
-    return ((cc::controlclient *)this)->send(msg,
-					     wireproto::sequencenr::invalid);
+    return ((cc::controlclient *)this)->send(msg);
 }
 
 orerror<const wireproto::rx_message *>
-controlclient::call(const wireproto::tx_message &msg)
+controlclient::call(const wireproto::req_message &msg)
 {
     return ((cc::controlclient *)this)->call(msg);
+}
+
+wireproto::sequencenr
+controlclient::allocsequencenr()
+{
+    return ((cc::controlclient *)this)->allocsequencenr();
+}
+
+void
+controlclient::putsequencenr(wireproto::sequencenr snr)
+{
+    return ((cc::controlclient *)this)->putsequencenr(snr);
 }
 
 #include "list.tmpl"

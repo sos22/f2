@@ -24,6 +24,8 @@ namespace wireproto {
 	static const sequencenr invalid;
 	bool operator ==(const sequencenr &o) const
 	    { return val == o.val; }
+	sequencenr reply() const
+	    { return sequencenr(val | 0x8000); }
     };
     class sequencer {
 	uint16_t last;
@@ -67,15 +69,16 @@ namespace wireproto {
     public:
 	const msgtag t;
 	tx_message(msgtag);
-	maybe<error> serialise(buffer &buf, sequencenr) const;
-	maybe<error> serialisereply(buffer &buf, const rx_message &) const;
 	template <typename t> tx_message &addparam(parameter<t>, t);
 	~tx_message();
+	virtual maybe<error> serialise(buffer &buf) const;
+    protected:
+	maybe<error> serialise(buffer &buf, sequencenr snr) const;
     private:
 	struct pinstance {
 	    uint16_t id;
 	    enum {
-		p_string,
+		p_string = 91,
 		p_int32,
 	    } flavour;
 	    union {
@@ -87,6 +90,20 @@ namespace wireproto {
 	    void serialise(buffer &) const;
 	};
 	list<pinstance> params;
+    };
+    class req_message : public tx_message {
+    public:
+	const sequencenr sequence;
+	req_message(msgtag, sequencenr snr);
+	maybe<error> serialise(buffer &buf) const;
+	template <typename t> req_message &addparam(parameter<t> p, t v)
+	    { tx_message::addparam(p,v); return *this; }
+    };
+    class resp_message : public tx_message {
+    public:
+	const sequencenr sequence;
+	resp_message(const rx_message &r);
+	maybe<error> serialise(buffer &buf) const;
     };
     class rx_message {
 	struct idx {

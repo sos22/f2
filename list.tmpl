@@ -127,8 +127,8 @@ template <typename t>
 list<t>::iter::iter(nub *_eof,
 		    bool _reverse)
     : cursor(_reverse
-	     ? _eof->next
-	     : _eof->prev),
+	     ? _eof->prev
+	     : _eof->next),
       n(_reverse
 	? cursor->linkage.prev
 	: cursor->linkage.next),
