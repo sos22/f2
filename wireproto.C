@@ -1,14 +1,17 @@
 #include "wireproto.H"
 
 #include <assert.h>
+#include <errno.h>
 #include <stddef.h>
 #include <string.h>
 
 #include "buffer.H"
+#include "error.H"
 
 #include "list.tmpl"
 
 template class list<wireproto::tx_message::pinstance>;
+template class list<const char *>;
 
 namespace wireproto {
 
@@ -136,7 +139,7 @@ rx_message::rx_message(msgtag _t,
 {}
 
 template <> tx_message &
-tx_message::addparam(parameter<const char *> tmpl, const char *val)
+tx_message::addparam(parameter<const char *> tmpl, const char *const &val)
 {
     auto &p(params.append());
     p.id = tmpl.id;
@@ -146,13 +149,31 @@ tx_message::addparam(parameter<const char *> tmpl, const char *val)
 }
 
 template <> tx_message &
-tx_message::addparam(parameter<int> tmpl, int val)
+tx_message::addparam(parameter<int> tmpl, const int &val)
 {
     auto &p(params.append());
     p.id = tmpl.id;
     p.flavour = pinstance::p_int32;
     p.int32 = val;
     return *this;
+}
+
+template <> tx_message &
+tx_message::addparam(parameter<list<const char *> > tmpl, const list<const char *> &val)
+{
+    auto &p(params.append());
+    p.id = tmpl.id;
+    p.flavour = pinstance::p_list_string;
+    new (&p.list_string) list<const char *>();
+    for (auto it(val.start()); !it.finished(); it.next())
+	p.list_string.pushtail(*it);
+    return *this;
+}
+
+tx_message &
+tx_message::addparam(parameter<const char *> tmpl, const char *val)
+{
+    return addparam<const char *>(tmpl, val);
 }
 
 size_t
@@ -163,6 +184,13 @@ tx_message::pinstance::serialised_size() const
 	return strlen(string) + 1;
     case p_int32:
 	return 4;
+    case p_list_string: {
+	size_t s;
+	s = 0;
+	for (auto it(list_string.start()); !it.finished(); it.next())
+	    s += strlen(*it) + 1;
+	return s;
+    }
     }
     abort();
 }
@@ -177,9 +205,48 @@ tx_message::pinstance::serialise(buffer &buf) const
     case p_int32:
 	buf.queue(&int32, 4);
 	return;
+    case p_list_string:
+	for (auto it(list_string.start()); !it.finished(); it.next())
+	    buf.queue(*it, strlen(*it) + 1);
+	return;
     }
     abort();
 }
+
+tx_message::pinstance::pinstance(wireproto::tx_message::pinstance const&o)
+    : id(o.id), flavour(o.flavour)
+{
+    switch (flavour) {
+    case p_string:
+	string = o.string;
+	break;
+    case p_int32:
+	int32 = o.int32;
+	break;
+    case p_list_string:
+	new (&list_string) list<const char *>();
+	for (auto it(o.list_string.start()); !it.finished(); it.next())
+	    list_string.pushtail(*it);
+	break;
+    }
+}
+
+tx_message::pinstance::~pinstance()
+{
+    switch (flavour) {
+    case p_string:
+	break;
+    case p_int32:
+	break;
+    case p_list_string:
+	list_string.flush();
+	break;
+    }
+}
+
+tx_message::pinstance::pinstance()
+    : id(0), flavour(p_int32)
+{}
 
 struct bufslice {
     buffer &buf;
@@ -210,6 +277,31 @@ deserialise(bufslice &slice)
 	return *(int *)slice.buf.linearise(slice.start, slice.end);
 }
 
+template <typename typ> maybe<error> decode(bufslice &slice,
+					    typ &out);
+
+template <> maybe<error>
+decode(bufslice &slice, list<const char *> &out)
+{
+    assert(out.empty());
+    if (slice.end == slice.start)
+	return error::from_errno(EINVAL);
+    size_t start;
+    size_t end;
+    start = slice.start;
+    while (start != slice.end) {
+	for (end = start; end != slice.end && slice.buf.idx(end) != '\0'; end++)
+	    ;
+	if (end == slice.end) {
+	    out.flush();
+	    return error::from_errno(EINVAL);
+	}
+	out.pushtail((const char *)slice.buf.linearise(start, end + 1));
+	start = end + 1;
+    }
+    return Nothing;
+}
+
 template <typename typ> maybe<typ>
 rx_message::getparam(parameter<typ> p) const
 {
@@ -229,7 +321,24 @@ rx_message::getparam(parameter<typ> p) const
 }
 
 template maybe<const char *> rx_message::getparam<const char *>(parameter<const char *>)const;
-template maybe<int> rx_message::getparam<int>(parameter<int>)const;
+template maybe<int> rx_message::getparam<int>(parameter<int>) const;
+template <> maybe<error>
+rx_message::fetch(parameter<list<const char *> > p, list<const char *> &out) const
+{
+    unsigned idx;
+    for (idx = 0; idx < nrparams; idx++) {
+	if (index[idx].id == p.id)
+	    break;
+    }
+    if (idx == nrparams)
+	return error::from_errno(ENOENT);
+    bufslice slice(buf,
+		   payload_offset + index[idx].offset,
+		   idx + 1 == nrparams
+		     ? payload_offset + payload_size 
+		     : payload_offset + index[idx+1].offset);
+    return decode(slice, out);
+}
 
 const sequencenr sequencenr::invalid(0);
 

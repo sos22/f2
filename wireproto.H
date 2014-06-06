@@ -51,6 +51,9 @@ namespace wireproto {
 	bool operator==(const msgtag &o) const {
 	    return val == o.val;
 	}
+	int as_int() const {
+	    return val;
+	}
     };
     template <typename _instanceT>
     class parameter {
@@ -69,7 +72,8 @@ namespace wireproto {
     public:
 	const msgtag t;
 	tx_message(msgtag);
-	template <typename t> tx_message &addparam(parameter<t>, t);
+	template <typename t> tx_message &addparam(parameter<t>, const t &);
+	tx_message &addparam(parameter<const char *>, const char *);
 	~tx_message();
 	virtual maybe<error> serialise(buffer &buf) const;
     protected:
@@ -80,12 +84,17 @@ namespace wireproto {
 	    enum {
 		p_string = 91,
 		p_int32,
+		p_list_string,
 	    } flavour;
 	    union {
 		/* utf-8 */
 		const char *string;
 		int32_t int32;
+		list<const char *> list_string;
 	    };
+	    ~pinstance();
+	    pinstance(const pinstance &o);
+	    pinstance();
 	    size_t serialised_size() const;
 	    void serialise(buffer &) const;
 	};
@@ -128,6 +137,7 @@ namespace wireproto {
 	const msgtag t;
 	static maybe<const rx_message *> fetch(buffer &buf);
 	template <typename typ> maybe<typ> getparam(parameter<typ>) const;
+	template <typename typ> maybe<error> fetch(parameter<typ>, typ &out) const;
 	void finish() const;
     };
 };

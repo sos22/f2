@@ -230,4 +230,40 @@ list<t>::const_iter::operator->() const
     return &cursor->value;
 }
 
+template <typename t> int
+list<t>::length() const
+{
+    int res;
+    res = 0;
+    for (auto it(start()); !it.finished(); it.next())
+	res++;
+    return res;
+}
+
+template <typename t> void
+list<t>::sanitycheck() const
+{
+    const member *origin = containerof(&root, const member, linkage);
+    const member *cursor1;
+    const member *cursor2;
+
+    cursor1 = origin;
+    cursor2 = origin;
+    while (1) {
+	cursor1 = cursor1->linkage.next;
+	assert(cursor1->linkage.next->linkage.prev == cursor1);
+	assert(cursor1->linkage.prev->linkage.next == cursor1);
+	if (cursor1 == origin)
+	    break;
+	assert(cursor1 != cursor2);
+	cursor1 = cursor1->linkage.next;
+	assert(cursor1->linkage.next->linkage.prev == cursor1);
+	assert(cursor1->linkage.prev->linkage.next == cursor1);
+	if (cursor1 == origin)
+	    break;
+	assert(cursor1 != cursor2);
+	cursor2 = cursor2->linkage.next;
+    }
+}
+
 #endif /* !LIST_TMPL__ */

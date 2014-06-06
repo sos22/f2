@@ -10,7 +10,7 @@ include test.mk
 config: config.gen
 	./$< $@ > $@.tmp && mv -f $@.tmp $@
 clean::
-	rm -f config
+	rm -f config *.log
 
 %: %.gen config
 	./$< $@ > $@.tmp && mv -f $@.tmp $@

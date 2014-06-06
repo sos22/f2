@@ -11,6 +11,7 @@
 #include "fd.H"
 #include "list.H"
 #include "listenfd.H"
+#include "logging.H"
 #include "maybe.H"
 #include "mutex.H"
 #include "thread.H"
@@ -47,6 +48,7 @@ struct controlserver : threadfn {
 	    {}
 	void ping(const wireproto::rx_message &, buffer &);
 	void unrecognised(const wireproto::rx_message &, buffer &);
+	void getlogs(const wireproto::rx_message &, buffer &);
     public:
 	static orerror<clientthread *> spawn(controlserver *,
 					     fd_t,
@@ -92,6 +94,7 @@ controlserver::clientthread::run()
     buffer incoming;
     bool die;
     die = false;
+    logmsg(loglevel::info, "start client thread");
     while (!die && !shutdown->ready()) {
 	auto r(::poll(fds, 2, -1));
 	if (r < 0)
@@ -126,6 +129,7 @@ controlserver::clientthread::run()
 	    }
 	}
     }
+    logmsg(loglevel::info, "client thread finishing");
     fd.close();
     auto token(owner->mux.lock());
     owner->dying->pushtail(this);
@@ -137,17 +141,21 @@ controlserver::clientthread::runcommand(buffer &incoming,
 					buffer &outgoing,
 					bool *die)
 {
-    printf("run command\n");
     auto r(wireproto::rx_message::fetch(incoming));
     if (r.isnothing())
 	return false;
     if (r.just() == NULL) {
-	printf("client misbehaving\n");
+	logmsg(loglevel::failure, "client misbehaving");
 	*die = true;
 	return false;
     }
+    logmsg(loglevel::verbose,
+	   "run command %d\n",
+	   r.just()->t.as_int());
     if (r.just()->t == proto::PING::tag)
 	ping(*r.just(), outgoing);
+    else if (r.just()->t == proto::GETLOGS::tag)
+	getlogs(*r.just(), outgoing);
     else
 	unrecognised(*r.just(), outgoing);
     r.just()->finish();
@@ -173,12 +181,11 @@ void
 controlserver::clientthread::ping(const wireproto::rx_message &msg,
 				  buffer &outgoing)
 {
-    printf("Received a ping\n");
     auto payload(msg.getparam(proto::PING::req::msg));
     if (payload.isjust())
-	printf("msg %s\n", payload.just());
+	logmsg(loglevel::info, "ping msg %s", payload.just());
     else
-	printf("msg missing\n");
+	logmsg(loglevel::failure, "ping with no message?");
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
@@ -189,10 +196,26 @@ controlserver::clientthread::ping(const wireproto::rx_message &msg,
 }
 
 void
+controlserver::clientthread::getlogs(const wireproto::rx_message &msg,
+				     buffer &outgoing)
+{
+    logmsg(loglevel::debug, "fetch logs");
+    wireproto::resp_message m(msg);
+    list<const char *> results;
+    getmemlog(results);
+    m.addparam(proto::GETLOGS::resp::msgs, results);
+    auto r(m.serialise(outgoing));
+    if (r.isjust())
+	r.just().warn("sending logs");
+    while (!results.empty())
+	free(const_cast<char *>(results.pophead()));
+}
+
+void
 controlserver::clientthread::unrecognised(const wireproto::rx_message &msg,
 					  buffer &outgoing)
 {
-    printf("Received an unrecognised message\n");
+    logmsg(loglevel::failure, "Received an unrecognised message");
 }
 
 void
@@ -214,12 +237,14 @@ controlserver::run()
 	    assert(i < ARRAY_SIZE(pfds));
 	    if (pfds[i].revents) {
 		if (globalshutdown->fd().polled(pfds[i])) {
+		    logmsg(loglevel::info, "control interface received global shutdown");
 		    assert(!(pfds[i].revents & POLLERR));
 		    assert(globalshutdown->ready());
 		    localshutdown->set(true);
 		    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
 		    nrfds--;
 		} else if (localshutdown->fd().polled(pfds[i])) {
+		    logmsg(loglevel::info, "control interface received local shutdown");
 		    assert(!(pfds[i].revents & POLLERR));
 		    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
 		    nrfds--;
@@ -236,6 +261,7 @@ controlserver::run()
 			    break;
 			}
 		    }
+		    logmsg(loglevel::info, "control interface reaped client thread");
 		    if (threads.empty() && localshutdown->ready())
 			goto out;
 		} else {
@@ -245,6 +271,7 @@ controlserver::run()
 		    auto newfd(sock.accept());
 		    if (newfd.isfailure())
 			newfd.failure().fatal("accept on control interface");
+		    logmsg(loglevel::info, "control interface accepting new client");
 		    auto tr(clientthread::spawn(this,
 						newfd.success(),
 						localshutdown));

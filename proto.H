@@ -17,6 +17,14 @@ namespace proto {
 	};
     };
 
+    namespace GETLOGS {
+	static const msgtag tag(2);
+	namespace req {
+	};
+	namespace resp {
+	    static const parameter<list<const char *> > msgs(250);
+	};
+    };
 }
 
 #endif /* !PROTO_H__ */

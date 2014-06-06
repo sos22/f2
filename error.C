@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "logging.H"
+
 const error error::disconnected(-1);
 const error error::overflowed(-2);
 
@@ -39,11 +41,15 @@ error::from_errno(int err)
 void
 error::fatal(const char *msg) const
 {
+    logmsg(loglevel::emergency, "fatal error: %s: %s",
+	   msg, str());
     errx(1, "fatal error: %s: %s", msg, str());
 }
 
 void
 error::warn(const char *msg) const
 {
+    logmsg(loglevel::failure, "warning: %s: %s",
+	   msg, str());
     warnx("warning: %s: %s", msg, str());
 }

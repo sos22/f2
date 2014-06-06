@@ -52,6 +52,8 @@ public:
 
     /* Check whether a list is currently empty */
     bool empty() const;
+    /* Count the number of elements in the list */
+    int length() const;
     /* delete everything which is currently in the list */
     void flush();
 
@@ -73,6 +75,9 @@ public:
     /* Allocate a new item, using the default constructor, place it at
        the start of the list, and return a reference to it. */
     t &prepend();
+
+    /* Check that the list looks vaguely reasonable */
+    void sanitycheck() const;
 };
 
 #endif /* !LIST_H__ */

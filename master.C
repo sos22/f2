@@ -2,11 +2,16 @@
 
 #include "shutdown.H"
 #include "controlserver.H"
+#include "logging.H"
 #include "waitbox.H"
 
 int
 main()
 {
+    initlogging("master");
+
+    logmsg(loglevel::notice, "master starting");
+
     signal(SIGPIPE, SIG_IGN);
     auto s(waitbox<shutdowncode>::build());
     if (s.isfailure())
