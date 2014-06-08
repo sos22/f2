@@ -19,6 +19,7 @@
 #include "proto.H"
 #include "shutdown.H"
 #include "unixsocket.H"
+#include "waitbox.H"
 #include "waitqueue.H"
 #include "wireproto.H"
 

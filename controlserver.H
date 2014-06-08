@@ -1,10 +1,9 @@
 #ifndef CONTROLSERVER_H__
 #define CONTROLSERVER_H__
 
-#include "orerror.H"
-#include "waitbox.H"
-
 class shutdowncode;
+template <typename t> class orerror;
+template <typename t> class waitbox;
 
 class controlserver {
     controlserver() = delete;
