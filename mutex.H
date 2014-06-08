@@ -22,15 +22,15 @@ public:
        in agreement with that documentation.
     */
     class token {
-	token() {}
-	friend class mutex_t;
-	friend class cond_t;
-	void release() {}
+        token() {}
+        friend class mutex_t;
+        friend class cond_t;
+        void release() {}
     public:
-	/* Assert/document that a token must have been obtained from a
-	   particular mutex.  Doesn't actually do anything in this
-	   implementation. */
-	void formux(mutex_t &) {}
+        /* Assert/document that a token must have been obtained from a
+           particular mutex.  Doesn't actually do anything in this
+           implementation. */
+        void formux(mutex_t &) {}
     };
     mutex_t();
     ~mutex_t();

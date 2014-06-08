@@ -21,8 +21,8 @@ class fd_t {
     int fd;
 protected:
     explicit fd_t(int _fd)
-	: fd(_fd)
-	{}
+        : fd(_fd)
+        {}
 public:
     fd_t() : fd(-1) {}
     /* Construct a pollfd structure, suitable for passing off to

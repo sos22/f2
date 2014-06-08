@@ -15,7 +15,7 @@ namespace wireproto{
 class controliface {
 public:
     virtual maybe<error> controlmessage(const wireproto::rx_message &,
-					buffer &) = 0;
+                                        buffer &) = 0;
     virtual ~controliface() {}
 };
 
@@ -36,34 +36,34 @@ public:
        cookie which can later be used to deregister it.  Aborts if the
        same interface is registered multiple times. */
     iface registeriface(wireproto::msgtag,
-			controliface &iface);
+                        controliface &iface);
 
     class iface {
-	void *content;
-	iface() = delete;
-	iface(void *_content)
-	    : content(_content)
-	    {}
+        void *content;
+        iface() = delete;
+        iface(void *_content)
+            : content(_content)
+            {}
     public:
-	/* Because I can't figure out how to make this class friends
-	 * with registeriface() */
-	static iface __mk_iface__(void *content)
-	    {
-		return iface(content);
-	    }
-	iface(const iface &o)
-	    : content(o.content)
-	    {}
-	const iface &operator=(const iface &o)
-	    {
-		content = o.content;
-		return *this;
-	    }
+        /* Because I can't figure out how to make this class friends
+         * with registeriface() */
+        static iface __mk_iface__(void *content)
+            {
+                return iface(content);
+            }
+        iface(const iface &o)
+            : content(o.content)
+            {}
+        const iface &operator=(const iface &o)
+            {
+                content = o.content;
+                return *this;
+            }
 
-	/* Deregister the interface message type.  This waits for all
-	   outstanding invocations of the interface to finish before
-	   returning. */
-	void deregister() const;
+        /* Deregister the interface message type.  This waits for all
+           outstanding invocations of the interface to finish before
+           returning. */
+        void deregister() const;
     };
 };
 

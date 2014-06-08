@@ -10,31 +10,31 @@ class list {
     void operator=(const list &o) = delete;
 public:
     class iter {
-	friend class list;
-	list *const owner;
-	member *cursor;
-	const bool reverse;
-	iter(list *owner, const bool reverse);
+        friend class list;
+        list *const owner;
+        member *cursor;
+        const bool reverse;
+        iter(list *owner, const bool reverse);
     public:
-	bool finished() const;
-	void next();
-	void remove();
-	t &operator*();
-	t *operator->();
-	const t &operator*() const;
-	const t *operator->() const;
+        bool finished() const;
+        void next();
+        void remove();
+        t &operator*();
+        t *operator->();
+        const t &operator*() const;
+        const t *operator->() const;
     };
     class const_iter {
-	friend class list;
-	const list *const owner;
-	const member *cursor;
-	const bool reverse;
-	const_iter(const list *owner, const bool reverse);
+        friend class list;
+        const list *const owner;
+        const member *cursor;
+        const bool reverse;
+        const_iter(const list *owner, const bool reverse);
     public:
-	bool finished() const;
-	void next();
-	const t &operator*() const;
-	const t *operator->() const;
+        bool finished() const;
+        void next();
+        const t &operator*() const;
+        const t *operator->() const;
     };
 
     list();

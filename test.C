@@ -17,5 +17,3 @@ void
 test::detail(const char *, ...)
 {
 }
-
-

@@ -15,28 +15,28 @@ struct controlclient {
     wireproto::sequencer sequencer;
     list<const wireproto::rx_message *> pendingrx;
     controlclient(fd_t _fd)
-	: outgoing(),
-	  incoming(),
-	  fd(_fd),
-	  sequencer(),
-	  pendingrx()
-	{}
+        : outgoing(),
+          incoming(),
+          fd(_fd),
+          sequencer(),
+          pendingrx()
+        {}
     ~controlclient()
-	{
-	    fd.close();
-	}
+        {
+            fd.close();
+        }
     maybe<error> send(const wireproto::tx_message &msg);
     orerror<const wireproto::rx_message *> call(const wireproto::req_message &msg);
     orerror<const wireproto::rx_message *> receive();
     orerror<const wireproto::rx_message *> _receive();
     wireproto::sequencenr allocsequencenr(void)
-	{
-	    return sequencer.get();
-	}
+        {
+            return sequencer.get();
+        }
     void putsequencenr(wireproto::sequencenr snr)
-	{
-	    sequencer.put(snr);
-	}
+        {
+            sequencer.put(snr);
+        }
 };
 
 static orerror< ::controlclient *>
@@ -44,7 +44,7 @@ connect()
 {
     auto r(unixsocket::connect("mastersock"));
     if (r.isfailure())
-	return r.failure();
+        return r.failure();
     return (::controlclient *)new controlclient(r.success());
 }
 
@@ -52,15 +52,15 @@ maybe<error>
 controlclient::send(const wireproto::tx_message &msg)
 {
     {
-	auto r(msg.serialise(outgoing));
-	if (r.isjust())
-	    return r;
+        auto r(msg.serialise(outgoing));
+        if (r.isjust())
+            return r;
     }
 
     while (!outgoing.empty()) {
-	auto r(outgoing.send(fd));
-	if (r.isjust())
-	    return r;
+        auto r(outgoing.send(fd));
+        if (r.isjust())
+            return r;
     }
     return Nothing;
 }
@@ -70,14 +70,14 @@ controlclient::call(const wireproto::req_message &msg)
 {
     auto r = send(msg);
     if (r.isjust())
-	return r.just();
+        return r.just();
     while (1) {
-	auto m = _receive();
-	if (m.isfailure())
-	    return m;
-	if (m.success()->sequence == msg.sequence.reply())
-	    return m;
-	pendingrx.pushtail(m.success());
+        auto m = _receive();
+        if (m.isfailure())
+            return m;
+        if (m.success()->sequence == msg.sequence.reply())
+            return m;
+        pendingrx.pushtail(m.success());
     }
 }
 
@@ -85,7 +85,7 @@ orerror<const wireproto::rx_message *>
 controlclient::receive()
 {
     if (!pendingrx.empty()) {
-	return pendingrx.pophead();
+        return pendingrx.pophead();
     }
     return _receive();
 }
@@ -94,14 +94,14 @@ orerror<const wireproto::rx_message *>
 controlclient::_receive()
 {
     while (1) {
-	auto r(wireproto::rx_message::fetch(incoming));
-	if (r.issuccess())
-	    return r.success();
-	if (r.isfailure() && r.failure() != error::underflowed)
-	    return r.failure();
-	auto t(incoming.receive(fd));
-	if (t.isjust())
-	    return t.just();
+        auto r(wireproto::rx_message::fetch(incoming));
+        if (r.issuccess())
+            return r.success();
+        if (r.isfailure() && r.failure() != error::underflowed)
+            return r.failure();
+        auto t(incoming.receive(fd));
+        if (t.isjust())
+            return t.just();
     }
 }
 

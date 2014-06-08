@@ -11,8 +11,8 @@ vector<t>::extend(void)
 {
     t *newcontent = (t *)calloc(sizeof(t), nr_allocated + 8);
     for (unsigned idx = 0; idx < nr; idx++) {
-	newcontent[idx] = std::move(content[idx]);
-	content[idx].~t();
+        newcontent[idx] = std::move(content[idx]);
+        content[idx].~t();
     }
     free(content);
     content = newcontent;
@@ -23,7 +23,7 @@ template <typename t> unsigned
 vector<t>::push(const t &w)
 {
     if (nr_allocated == nr)
-	extend();
+        extend();
     content[nr] = w;
     nr++;
     return nr-1;
@@ -33,7 +33,7 @@ template <typename t> unsigned
 vector<t>::push(t &&w)
 {
     if (nr_allocated == nr)
-	extend();
+        extend();
     content[nr] = w;
     nr++;
     return nr-1;

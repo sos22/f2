@@ -10,11 +10,11 @@ template <typename t> struct list<t>::member {
     member(const member &) = delete;
     void operator=(const member &) = delete;
     member(member *_next, member *_prev, const t &v)
-	: next(_next), prev(_prev), value(v)
-	{}
+        : next(_next), prev(_prev), value(v)
+        {}
     member(member *_next, member *_prev)
-	: next(_next), prev(_prev), value()
-	{}
+        : next(_next), prev(_prev), value()
+        {}
 };
 
 template <typename t>
@@ -34,7 +34,7 @@ list<t>::flush()
 {
     auto i(start());
     while (!i.finished())
-	i.remove();
+        i.remove();
 }
 
 template <typename t> bool
@@ -69,11 +69,11 @@ list<t>::pushhead(const t &what)
 {
     auto m(new member(head, NULL, what));
     if (head) {
-	assert(tail);
-	head->prev = m;
+        assert(tail);
+        head->prev = m;
     } else {
-	assert(!tail);
-	tail = m;
+        assert(!tail);
+        tail = m;
     }
     head = m;
 }
@@ -83,11 +83,11 @@ list<t>::pushtail(const t &what)
 {
     auto m(new member(NULL, tail, what));
     if (tail) {
-	assert(head);
-	tail->next = m;
+        assert(head);
+        tail->next = m;
     } else {
-	assert(!head);
-	head = m;
+        assert(!head);
+        head = m;
     }
     tail = m;
 }
@@ -97,11 +97,11 @@ list<t>::append()
 {
     auto m(new member(NULL, tail));
     if (tail) {
-	assert(head);
-	tail->next = m;
+        assert(head);
+        tail->next = m;
     } else {
-	assert(!head);
-	head = m;
+        assert(!head);
+        head = m;
     }
     tail = m;
     return m->value;
@@ -112,11 +112,11 @@ list<t>::prepend()
 {
     auto m(new member(head, NULL));
     if (head) {
-	assert(tail);
-	head->prev = m;
+        assert(tail);
+        head->prev = m;
     } else {
-	assert(!tail);
-	tail = m;
+        assert(!tail);
+        tail = m;
     }
     head = m;
     return m->value;
@@ -142,11 +142,11 @@ list<t>::iter::finished() const
 
 template <typename t>
 list<t>::iter::iter(list *_owner,
-		    bool _reverse)
+                    bool _reverse)
     : owner(_owner),
       cursor(_reverse
-	     ? owner->tail
-	     : owner->head),
+             ? owner->tail
+             : owner->head),
       reverse(_reverse)
 {}
 
@@ -155,8 +155,8 @@ list<t>::iter::next()
 {
     assert(!finished());
     cursor = reverse
-	? cursor->prev
-	: cursor->next;
+        ? cursor->prev
+        : cursor->next;
 }
 
 template <typename t> t &
@@ -192,19 +192,19 @@ list<t>::iter::remove()
 {
     assert(!finished());
     member *n = reverse
-	? cursor->prev
-	: cursor->next;
+        ? cursor->prev
+        : cursor->next;
     if (cursor->next) {
-	cursor->next->prev = cursor->prev;
+        cursor->next->prev = cursor->prev;
     } else {
-	assert(cursor == owner->tail);
-	owner->tail = cursor->prev;
+        assert(cursor == owner->tail);
+        owner->tail = cursor->prev;
     }
     if (cursor->prev) {
-	cursor->prev->next = cursor->next;
+        cursor->prev->next = cursor->next;
     } else {
-	assert(cursor == owner->head);
-	owner->head = cursor->next;
+        assert(cursor == owner->head);
+        owner->head = cursor->next;
     }
     delete cursor;
     cursor = n;
@@ -224,11 +224,11 @@ list<t>::const_iter::finished() const
 
 template <typename t>
 list<t>::const_iter::const_iter(const list *_owner,
-				bool _reverse)
+                                bool _reverse)
     : owner(_owner),
       cursor(_reverse
-	     ? _owner->tail
-	     : _owner->head),
+             ? _owner->tail
+             : _owner->head),
       reverse(_reverse)
 {}
 
@@ -237,8 +237,8 @@ list<t>::const_iter::next()
 {
     assert(!finished());
     cursor = reverse
-	? cursor->prev
-	: cursor->next;
+        ? cursor->prev
+        : cursor->next;
 }
 
 template <typename t> const t &
@@ -261,7 +261,7 @@ list<t>::length() const
     int res;
     res = 0;
     for (auto it(start()); !it.finished(); it.next())
-	res++;
+        res++;
     return res;
 }
 
@@ -273,8 +273,8 @@ list<t>::sanitycheck() const
 
     cursor1 = head;
     if (cursor1 == tail) {
-	assert(!cursor1 || !cursor1->next);
-	return;
+        assert(!cursor1 || !cursor1->next);
+        return;
     }
     assert(cursor1);
     assert(!cursor1->prev);
@@ -282,24 +282,24 @@ list<t>::sanitycheck() const
      * cycles. */
     cursor2 = head;
     while (1) {
-	cursor1 = cursor1->next;
-	assert(cursor1);
-	assert((cursor1->next == NULL) == (cursor1 == tail));
-	assert((cursor1->prev == NULL) == (cursor1 == head));
-	assert(!cursor1->next || cursor1->next->prev == cursor1);
-	assert(!cursor1->prev || cursor1->prev->next == cursor1);
-	if (cursor1 == tail)
-	    break;
-	assert(cursor1 != cursor2);
-	cursor1 = cursor1->next;
-	assert(cursor1);
-	assert((cursor1->next == NULL) == (cursor1 == tail));
-	assert((cursor1->prev == NULL) == (cursor1 == head));
-	assert(!cursor1->next || cursor1->next->prev == cursor1);
-	assert(!cursor1->prev || cursor1->prev->next == cursor1);
-	if (cursor1 == tail)
-	    break;
-	cursor2 = cursor2->next;
+        cursor1 = cursor1->next;
+        assert(cursor1);
+        assert((cursor1->next == NULL) == (cursor1 == tail));
+        assert((cursor1->prev == NULL) == (cursor1 == head));
+        assert(!cursor1->next || cursor1->next->prev == cursor1);
+        assert(!cursor1->prev || cursor1->prev->next == cursor1);
+        if (cursor1 == tail)
+            break;
+        assert(cursor1 != cursor2);
+        cursor1 = cursor1->next;
+        assert(cursor1);
+        assert((cursor1->next == NULL) == (cursor1 == tail));
+        assert((cursor1->prev == NULL) == (cursor1 == head));
+        assert(!cursor1->next || cursor1->next->prev == cursor1);
+        assert(!cursor1->prev || cursor1->prev->next == cursor1);
+        if (cursor1 == tail)
+            break;
+        cursor2 = cursor2->next;
     }
 }
 

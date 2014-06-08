@@ -13,11 +13,11 @@ class test;
 class buffer {
     class subbuf {
     public:
-	subbuf *next;
-	unsigned sz;
-	size_t prod;
-	size_t cons;
-	unsigned char payload[];
+        subbuf *next;
+        unsigned sz;
+        size_t prod;
+        size_t cons;
+        unsigned char payload[];
     };
     subbuf *first;
     subbuf *last;

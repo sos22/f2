@@ -34,9 +34,9 @@ class controlserver;
 
 struct registration {
     registration() __attribute__((noreturn)); /* should never be
-					       * called, but needed
-					       * for linked list
-					       * templates */
+                                               * called, but needed
+                                               * for linked list
+                                               * templates */
     registration(const registration &o);
     void operator=(const registration &) = delete;
 
@@ -63,28 +63,28 @@ public:
 
 struct controlserver : threadfn {
     class clientthread : threadfn {
-	controlserver *owner;
-	fd_t fd;
-	thread *_thr;
-	waitbox<bool> *shutdown;
-	void run(void);
-	bool runcommand(buffer &incoming,
-			buffer &outgoing,
-			bool *die);
-	clientthread(controlserver *_owner,
-		     fd_t _fd,
-		     waitbox<bool> *_shutdown)
-	    : owner(_owner), fd(_fd), _thr(NULL),
-	      shutdown(_shutdown)
-	    {}
-	clientthread(const clientthread &) = delete;
-	void operator=(const clientthread &) = delete;
+        controlserver *owner;
+        fd_t fd;
+        thread *_thr;
+        waitbox<bool> *shutdown;
+        void run(void);
+        bool runcommand(buffer &incoming,
+                        buffer &outgoing,
+                        bool *die);
+        clientthread(controlserver *_owner,
+                     fd_t _fd,
+                     waitbox<bool> *_shutdown)
+            : owner(_owner), fd(_fd), _thr(NULL),
+              shutdown(_shutdown)
+            {}
+        clientthread(const clientthread &) = delete;
+        void operator=(const clientthread &) = delete;
     public:
-	static orerror<clientthread *> spawn(controlserver *,
-					     fd_t,
-					     waitbox<bool> *);
-	thread *thr() { return _thr; }
-	virtual ~clientthread() {}
+        static orerror<clientthread *> spawn(controlserver *,
+                                             fd_t,
+                                             waitbox<bool> *);
+        thread *thr() { return _thr; }
+        virtual ~clientthread() {}
     };
     list<registration *> registrations;
     waitbox<bool> *localshutdown;
@@ -102,39 +102,39 @@ struct controlserver : threadfn {
 
     void run();
     controlserver(waitbox<shutdowncode> *_s)
-	: registrations(),
-	  localshutdown(NULL),
-	  globalshutdown(_s),
-	  mux(),
-	  dying(),
-	  t(NULL),
-	  sock(),
-	  unknowninterface(),
+        : registrations(),
+          localshutdown(NULL),
+          globalshutdown(_s),
+          mux(),
+          dying(),
+          t(NULL),
+          sock(),
+          unknowninterface(),
           unknownregistration(registeriface(wireproto::msgtag(0),
                                             unknowninterface)),
-	  loggingregistration(registeriface(proto::GETLOGS::tag,
-					    getlogsiface::singleton)),
-	  pingregistration(registeriface(proto::PING::tag,
-					 pinginterface))
-	{
-	}
+          loggingregistration(registeriface(proto::GETLOGS::tag,
+                                            getlogsiface::singleton)),
+          pingregistration(registeriface(proto::PING::tag,
+                                         pinginterface))
+        {
+        }
     controlserver(const controlserver &) = delete;
     void operator=(const controlserver &) = delete;
 
     registration *registeriface(wireproto::msgtag,
-				controliface &iface);
+                                controliface &iface);
 
     maybe<error> setup();
     void end();
     ~controlserver()
-	{
+        {
             unknownregistration->deregister();
-	    loggingregistration->deregister();
-	    pingregistration->deregister();
-	    assert(!t);
-	    localshutdown->destroy();
-	    dying->destroy();
-	}
+            loggingregistration->deregister();
+            pingregistration->deregister();
+            assert(!t);
+            localshutdown->destroy();
+            dying->destroy();
+        }
 };
 static controlserver *
 rc(::controlserver *c)
@@ -177,14 +177,14 @@ registration::deregister() const
 {
     auto token(server->mux.lock());
     for (auto it(server->registrations.start()); !it.finished(); it.next()) {
-	if (*it == this) {
-	    it.remove();
-	    while (outstanding > 0)
-		token = idle.wait(&token);
-	    server->mux.unlock(&token);
-	    delete this;
-	    return;
-	}
+        if (*it == this) {
+            it.remove();
+            while (outstanding > 0)
+                token = idle.wait(&token);
+            server->mux.unlock(&token);
+            delete this;
+            return;
+        }
     }
     server->mux.unlock(&token);
     abort();
@@ -196,10 +196,10 @@ controlserver::registeriface(wireproto::msgtag tag, controliface &iface)
     auto reg(new registration(this, tag, iface));
     auto token(mux.lock());
     for (auto it(registrations.start()); !it.finished(); it.next()) {
-	if ((*it)->tag == tag) {
-	    mux.unlock(&token);
-	    abort();
-	}
+        if ((*it)->tag == tag) {
+            mux.unlock(&token);
+            abort();
+        }
     }
     registrations.pushtail(reg);
     mux.unlock(&token);
@@ -220,38 +220,38 @@ controlserver::clientthread::run()
     die = false;
     logmsg(loglevel::info, "start client thread");
     while (!die && !shutdown->ready()) {
-	auto r(::poll(fds, 2, -1));
-	if (r < 0)
-	    error::from_errno().fatal("poll client");
-	if (fds[0].revents) {
-	    assert(fds[0].revents == POLLIN);
-	    assert(shutdown->ready());
-	    fds[0].revents = 0;
-	}
-	if (fds[1].revents) {
-	    if (fds[1].revents & POLLOUT) {
-		auto rr(outgoing.send(fd));
-		if (rr.isjust()) {
-		    rr.just().warn("sending to client");
-		    break;
-		}
-		fds[1].revents &= ~POLLOUT;
-		if (outgoing.empty())
-		    fds[1].events &= ~POLLOUT;
-	    }
-	    if (fds[1].revents & POLLIN) {
-		auto t(incoming.receive(fd));
-		if (t.isjust()) {
-		    t.just().warn("receiving from client");
-		    break;
-		}
-		fds[1].revents &= ~POLLIN;
-		while (runcommand(incoming, outgoing, &die))
-		    ;
-		if (!outgoing.empty())
-		    fds[1].events |= POLLOUT;
-	    }
-	}
+        auto r(::poll(fds, 2, -1));
+        if (r < 0)
+            error::from_errno().fatal("poll client");
+        if (fds[0].revents) {
+            assert(fds[0].revents == POLLIN);
+            assert(shutdown->ready());
+            fds[0].revents = 0;
+        }
+        if (fds[1].revents) {
+            if (fds[1].revents & POLLOUT) {
+                auto rr(outgoing.send(fd));
+                if (rr.isjust()) {
+                    rr.just().warn("sending to client");
+                    break;
+                }
+                fds[1].revents &= ~POLLOUT;
+                if (outgoing.empty())
+                    fds[1].events &= ~POLLOUT;
+            }
+            if (fds[1].revents & POLLIN) {
+                auto t(incoming.receive(fd));
+                if (t.isjust()) {
+                    t.just().warn("receiving from client");
+                    break;
+                }
+                fds[1].revents &= ~POLLIN;
+                while (runcommand(incoming, outgoing, &die))
+                    ;
+                if (!outgoing.empty())
+                    fds[1].events |= POLLOUT;
+            }
+        }
     }
     logmsg(loglevel::info, "client thread finishing");
     fd.close();
@@ -262,13 +262,13 @@ controlserver::clientthread::run()
 
 bool
 controlserver::clientthread::runcommand(buffer &incoming,
-					buffer &outgoing,
-					bool *die)
+                                        buffer &outgoing,
+                                        bool *die)
 {
     auto r(wireproto::rx_message::fetch(incoming));
     if (r.isfailure()) {
-	*die = r.failure() != error::underflowed;
-	return false;
+        *die = r.failure() != error::underflowed;
+        return false;
     }
     assert(r.success() != NULL);
     auto tag(r.success()->t);
@@ -278,12 +278,12 @@ controlserver::clientthread::runcommand(buffer &incoming,
     auto token(owner->mux.lock());
     handler = owner->unknownregistration;
     for (auto it(owner->registrations.start());
-	 !it.finished();
-	 it.next()) {
-	if ((*it)->tag == tag) {
-	    handler = *it;
-	    break;
-	}
+         !it.finished();
+         it.next()) {
+        if ((*it)->tag == tag) {
+            handler = *it;
+            break;
+        }
     }
     handler->outstanding++;
     owner->mux.unlock(&token);
@@ -305,16 +305,16 @@ controlserver::clientthread::runcommand(buffer &incoming,
 
 orerror<controlserver::clientthread *>
 controlserver::clientthread::spawn(controlserver *server,
-				   fd_t fd,
-				   waitbox<bool> *shutdown)
+                                   fd_t fd,
+                                   waitbox<bool> *shutdown)
 {
     auto work(new clientthread(server, fd, shutdown));
     auto tr(thread::spawn(work, &work->_thr));
     if (tr.isjust()) {
-	delete work;
-	return tr.just();
+        delete work;
+        return tr.just();
     } else {
-	return work;
+        return work;
     }
 }
 
@@ -323,16 +323,16 @@ pingiface::controlmessage(const wireproto::rx_message &msg, buffer &outgoing)
 {
     auto payload(msg.getparam(proto::PING::req::msg));
     if (payload.isjust())
-	logmsg(loglevel::info, "ping msg %s", payload.just());
+        logmsg(loglevel::info, "ping msg %s", payload.just());
     else
-	logmsg(loglevel::failure, "ping with no message?");
+        logmsg(loglevel::failure, "ping with no message?");
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
     m.addparam(proto::PING::resp::msg, "response message");
     auto r(m.serialise(outgoing));
     if (r.isjust())
-	r.just().warn("sending pong");
+        r.just().warn("sending pong");
     return r;
 }
 
@@ -340,8 +340,8 @@ maybe<error>
 unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 {
     logmsg(loglevel::failure,
-	   "Received an unrecognised message type %d",
-	   msg.t.as_int());
+           "Received an unrecognised message type %d",
+           msg.t.as_int());
     return error::unrecognisedmessage;
 }
 
@@ -357,62 +357,62 @@ controlserver::run()
     pfds[3] = sock.poll();
     nrfds = 4;
     while (1) {
-	int r = poll(pfds, nrfds, -1);
-	if (r < 0)
-	    error::from_errno().fatal("polling control interface");
-	for (unsigned i = 0; r; i++) {
-	    assert(i < ARRAY_SIZE(pfds));
-	    if (pfds[i].revents) {
-		if (globalshutdown->fd().polled(pfds[i])) {
-		    logmsg(loglevel::info, "control interface received global shutdown");
-		    assert(!(pfds[i].revents & POLLERR));
-		    assert(globalshutdown->ready());
-		    localshutdown->set(true);
-		    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
-		    nrfds--;
-		} else if (localshutdown->fd().polled(pfds[i])) {
-		    logmsg(loglevel::info, "control interface received local shutdown");
-		    assert(!(pfds[i].revents & POLLERR));
-		    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
-		    nrfds--;
-		    if (threads.empty())
-/**/			goto out;
-		} else if (dying->fd().polled(pfds[i])) {
-		    assert(!(pfds[i].revents & POLLERR));
-		    auto thr(dying->pophead());
-		    thr->thr()->join();
-		    for (auto it(threads.start()); 1; it.next()) {
-			assert(!it.finished());
-			if (*it == thr) {
-			    it.remove();
-			    break;
-			}
-		    }
-		    logmsg(loglevel::info, "control interface reaped client thread");
-		    if (threads.empty() && localshutdown->ready())
-			goto out;
-		} else {
-		    if (pfds[i].revents & POLLERR)
-			error::disconnected.fatal("on control listen socket");
-		    assert(sock.polled(pfds[i]));
-		    auto newfd(sock.accept());
-		    if (newfd.isfailure())
-			newfd.failure().fatal("accept on control interface");
-		    logmsg(loglevel::info, "control interface accepting new client");
-		    auto tr(clientthread::spawn(this,
-						newfd.success(),
-						localshutdown));
-		    if (tr.isfailure()) {
-			error::from_errno().warn("Cannot build thread for new client");
-			newfd.success().close();
-		    } else {
-			threads.pushhead(tr.success());
-		    }
-		}
-		pfds[i].revents = 0;
-		r--;
-	    }
-	}
+        int r = poll(pfds, nrfds, -1);
+        if (r < 0)
+            error::from_errno().fatal("polling control interface");
+        for (unsigned i = 0; r; i++) {
+            assert(i < ARRAY_SIZE(pfds));
+            if (pfds[i].revents) {
+                if (globalshutdown->fd().polled(pfds[i])) {
+                    logmsg(loglevel::info, "control interface received global shutdown");
+                    assert(!(pfds[i].revents & POLLERR));
+                    assert(globalshutdown->ready());
+                    localshutdown->set(true);
+                    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
+                    nrfds--;
+                } else if (localshutdown->fd().polled(pfds[i])) {
+                    logmsg(loglevel::info, "control interface received local shutdown");
+                    assert(!(pfds[i].revents & POLLERR));
+                    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
+                    nrfds--;
+                    if (threads.empty())
+/**/                    goto out;
+                } else if (dying->fd().polled(pfds[i])) {
+                    assert(!(pfds[i].revents & POLLERR));
+                    auto thr(dying->pophead());
+                    thr->thr()->join();
+                    for (auto it(threads.start()); 1; it.next()) {
+                        assert(!it.finished());
+                        if (*it == thr) {
+                            it.remove();
+                            break;
+                        }
+                    }
+                    logmsg(loglevel::info, "control interface reaped client thread");
+                    if (threads.empty() && localshutdown->ready())
+                        goto out;
+                } else {
+                    if (pfds[i].revents & POLLERR)
+                        error::disconnected.fatal("on control listen socket");
+                    assert(sock.polled(pfds[i]));
+                    auto newfd(sock.accept());
+                    if (newfd.isfailure())
+                        newfd.failure().fatal("accept on control interface");
+                    logmsg(loglevel::info, "control interface accepting new client");
+                    auto tr(clientthread::spawn(this,
+                                                newfd.success(),
+                                                localshutdown));
+                    if (tr.isfailure()) {
+                        error::from_errno().warn("Cannot build thread for new client");
+                        newfd.success().close();
+                    } else {
+                        threads.pushhead(tr.success());
+                    }
+                }
+                pfds[i].revents = 0;
+                r--;
+            }
+        }
     }
 out:
     return;
@@ -422,18 +422,18 @@ void
 controlserver::end()
 {
     if (t) {
-	assert(localshutdown);
-	localshutdown->set(true);
-	t->join();
-	t = NULL;
+        assert(localshutdown);
+        localshutdown->set(true);
+        t->join();
+        t = NULL;
     }
     if (dying) {
-	dying->destroy();
-	dying = NULL;
+        dying->destroy();
+        dying = NULL;
     }
     if (localshutdown) {
-	localshutdown->destroy();
-	localshutdown = NULL;
+        localshutdown->destroy();
+        localshutdown = NULL;
     }
     sock.close();
 }
@@ -444,38 +444,38 @@ controlserver::setup()
     error err;
 
     {
-	auto ls(waitbox<bool>::build());
-	if (ls.isfailure()) {
-	    err = ls.failure();
-	    goto failed;
-	}
-	localshutdown = ls.success();
+        auto ls(waitbox<bool>::build());
+        if (ls.isfailure()) {
+            err = ls.failure();
+            goto failed;
+        }
+        localshutdown = ls.success();
     }
 
     {
-	auto td(waitqueue<clientthread *>::build());
-	if (td.isfailure()) {
-	    err = td.failure();
-	    goto failed;
-	}
-	dying = td.success();
+        auto td(waitqueue<clientthread *>::build());
+        if (td.isfailure()) {
+            err = td.failure();
+            goto failed;
+        }
+        dying = td.success();
     }
 
     {
-	auto sl(unixsocket::listen("mastersock"));
-	if (sl.isfailure()) {
-	    err = sl.failure();
-	    goto failed;
-	}
-	sock = sl.success();
+        auto sl(unixsocket::listen("mastersock"));
+        if (sl.isfailure()) {
+            err = sl.failure();
+            goto failed;
+        }
+        sock = sl.success();
     }
 
     {
-	auto ts(thread::spawn(this, &t));
-	if (ts.isjust()) {
-	    err = ts.just();
-	    goto failed;
-	}
+        auto ts(thread::spawn(this, &t));
+        if (ts.isjust()) {
+            err = ts.just();
+            goto failed;
+        }
     }
     return Nothing;
 
@@ -492,9 +492,9 @@ controlserver::build(waitbox<shutdowncode> *s)
     auto r = new cf::controlserver(s);
     auto e = r->setup();
     if (e.isnothing())
-	return (controlserver *)r;
+        return (controlserver *)r;
     else
-	return e.just();
+        return e.just();
 }
 
 void

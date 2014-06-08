@@ -53,64 +53,64 @@ class memlog_sink : public log_sink {
     mutex_t lock;
 public:
     memlog_sink()
-	: backlog(10000), outstanding(), next_sequence(1), lock()
-	{}
+        : backlog(10000), outstanding(), next_sequence(1), lock()
+        {}
     ~memlog_sink()
-	{
-	    outstanding.flush();
-	}
+        {
+            outstanding.flush();
+        }
     void msg(const char *s)
-	{
-	    auto t(lock.lock());
-	    outstanding.pushtail(memlog_entry(next_sequence++, strdup(s)));
-	    while (outstanding.length() > backlog)
-		outstanding.pophead();
-	    lock.unlock(&t);
-	}
+        {
+            auto t(lock.lock());
+            outstanding.pushtail(memlog_entry(next_sequence++, strdup(s)));
+            while (outstanding.length() > backlog)
+                outstanding.pophead();
+            lock.unlock(&t);
+        }
     maybe<memlog_idx> fetch(memlog_idx start,
-			    int limit,
-			    list<memlog_entry> &out)
-	{
-	    assert(out.empty());
-	    auto t(lock.lock());
-	    int nr;
-	    nr = 0;
-	    for (auto it(outstanding.start());
-		 !it.finished();
-		 it.next()) {
-		if (it->idx >= start) {
-		    if (nr == limit) {
-			auto res(it->idx);
-			lock.unlock(&t);
-			return res;
-		    }
-		    nr++;
-		    out.pushtail(*it);
-		}
-	    }
-	    lock.unlock(&t);
-	    return Nothing;
-	}
+                            int limit,
+                            list<memlog_entry> &out)
+        {
+            assert(out.empty());
+            auto t(lock.lock());
+            int nr;
+            nr = 0;
+            for (auto it(outstanding.start());
+                 !it.finished();
+                 it.next()) {
+                if (it->idx >= start) {
+                    if (nr == limit) {
+                        auto res(it->idx);
+                        lock.unlock(&t);
+                        return res;
+                    }
+                    nr++;
+                    out.pushtail(*it);
+                }
+            }
+            lock.unlock(&t);
+            return Nothing;
+        }
 };
 
 class syslog_sink : public log_sink {
     int priority;
 public:
     syslog_sink(int _priority)
-	: priority(_priority)
-	{}
+        : priority(_priority)
+        {}
     void msg(const char *s)
-	{
-	    syslog(priority, "%s", s);
-	}
+        {
+            syslog(priority, "%s", s);
+        }
     void open(const char *ident, int facility)
-	{
-	    openlog(ident, 0, facility);
-	}
+        {
+            openlog(ident, 0, facility);
+        }
     void close()
-	{
-	    closelog();
-	}
+        {
+            closelog();
+        }
 };
 
 class filelog_sink : public log_sink {
@@ -119,29 +119,29 @@ class filelog_sink : public log_sink {
     void operator=(const filelog_sink &) = delete;
 public:
     filelog_sink()
-	: f(NULL)
-	{}
+        : f(NULL)
+        {}
     maybe<error> open(const char *filename)
-	{
-	    assert(!f);
-	    f = fopen(filename, "w");
-	    if (f)
-		return Nothing;
-	    else
-		return error::from_errno();
-	}
+        {
+            assert(!f);
+            f = fopen(filename, "w");
+            if (f)
+                return Nothing;
+            else
+                return error::from_errno();
+        }
     void close()
-	{
-	    assert(f);
-	    fclose(f);
-	    f = NULL;
-	}
+        {
+            assert(f);
+            fclose(f);
+            f = NULL;
+        }
     void msg(const char *s)
-	{
-	    assert(f);
-	    fprintf(f, "%s\n", s);
-	    fflush(f);
-	}
+        {
+            assert(f);
+            fprintf(f, "%s\n", s);
+            fflush(f);
+        }
 };
 
 class stdio_sink : public log_sink {
@@ -150,14 +150,14 @@ class stdio_sink : public log_sink {
     void operator=(const stdio_sink &) = delete;
 public:
     stdio_sink(FILE *_f)
-	: f(_f)
-	{}
+        : f(_f)
+        {}
     void msg(const char *s)
-	{
-	    assert(f);
-	    fprintf(f, "%s\n", s);
-	    fflush(f);
-	}
+        {
+            assert(f);
+            fprintf(f, "%s\n", s);
+            fflush(f);
+        }
 };
 
 static list<log_sink *> sinks[7];
@@ -186,7 +186,7 @@ void logmsg(loglevel level, const char *fmt, ...)
 {
     list<log_sink *> &sink(__level_to_sink(level));
     if (sink.empty())
-	return;
+        return;
 
     struct timeval now;
     gettimeofday(&now, NULL);
@@ -203,9 +203,9 @@ void logmsg(loglevel level, const char *fmt, ...)
 
     char fmt2[128];
     r = strftime(fmt2,
-		 sizeof(fmt2),
-		 "%F %T.%%06d pid=%%d tid=%%d %%s",
-		 &now_tm);
+                 sizeof(fmt2),
+                 "%F %T.%%06d pid=%%d tid=%%d %%s",
+                 &now_tm);
     assert(r > 0);
     assert(r < (int)sizeof(fmt2));
     char *res;
@@ -214,7 +214,7 @@ void logmsg(loglevel level, const char *fmt, ...)
     free(fmted);
 
     for (auto it(sink.start()); !it.finished(); it.next())
-	(*it)->msg(res);
+        (*it)->msg(res);
 
     free(res);
 }
@@ -241,7 +241,7 @@ void initlogging(const char *ident)
     auto t(logsinks::filelog->open(logfile));
     free(logfile);
     if (t.isjust())
-	t.just().fatal("opening logfile");
+        t.just().fatal("opening logfile");
 
     __level_to_sink(loglevel::emergency).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::emergency).pushhead(logsinks::syslog);
@@ -296,32 +296,32 @@ void deinitlogging(void)
 
 maybe<error>
 getlogsiface::controlmessage(const wireproto::rx_message &msg,
-			     buffer &outgoing)
+                             buffer &outgoing)
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
-	       dflt(memlog_idx::min));
+               dflt(memlog_idx::min));
     logmsg(loglevel::debug, "fetch logs from %ld", start.as_long());
     for (int limit = 200; limit > 0; ) {
-	list<memlog_entry> results;
-	auto resume(logsinks::memlog->fetch(start, limit, results));
-	wireproto::resp_message m(msg);
-	m.addparam(proto::GETLOGS::resp::msgs, results);
-	if (resume.isjust())
-	    m.addparam(proto::GETLOGS::resp::resume, resume.just());
-	auto r(m.serialise(outgoing));
-	results.flush();
-	if (r == Nothing /* success */ ||
-	    r.just() != error::overflowed /* unrecoverable error */)
-	    return r;
-	limit /= 2;
-	logmsg(loglevel::verbose,
-	       "overflow sending %d log messages, trying %d",
-	       limit,
-	       limit / 2);
+        list<memlog_entry> results;
+        auto resume(logsinks::memlog->fetch(start, limit, results));
+        wireproto::resp_message m(msg);
+        m.addparam(proto::GETLOGS::resp::msgs, results);
+        if (resume.isjust())
+            m.addparam(proto::GETLOGS::resp::resume, resume.just());
+        auto r(m.serialise(outgoing));
+        results.flush();
+        if (r == Nothing /* success */ ||
+            r.just() != error::overflowed /* unrecoverable error */)
+            return r;
+        limit /= 2;
+        logmsg(loglevel::verbose,
+               "overflow sending %d log messages, trying %d",
+               limit,
+               limit / 2);
     }
 
     logmsg(loglevel::failure,
-	   "can't send even a single log message without overflowing buffer?");
+           "can't send even a single log message without overflowing buffer?");
     return error::overflowed;
 }
 getlogsiface

@@ -15,12 +15,12 @@ template <typename t> class maybe;
 class error {
     int e;
     explicit error(int _e)
-	: e(_e)
-	{}
+        : e(_e)
+        {}
 public:
     void addparam(wireproto::parameter<error>, wireproto::tx_message &) const;
     static maybe<error> getparam(wireproto::parameter<error>,
-				 const wireproto::rx_message &);
+                                 const wireproto::rx_message &);
 
     error() : e(unknown.e) {}
     bool operator==(const error &o) const { return e == o.e; }
@@ -49,13 +49,13 @@ public:
 
     /* Some standard errors */
     static const error disconnected; /* unexpectedly disconnected from
-				      * peer */
+                                      * peer */
     static const error overflowed; /* overflowed an internal limit */
     static const error underflowed; /* read buffer does not contain
-				       enough data to complete
-				       request */
+                                       enough data to complete
+                                       request */
     static const error missingparameter; /* RPC request missing
-					  * mandatory parameter */
+                                          * mandatory parameter */
     static const error invalidmessage; /* RPC message is malformed. */
     static const error unrecognisedmessage; /* RPC message tag unrecognised */
 };

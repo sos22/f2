@@ -15,37 +15,37 @@ class maybe {
     void operator=(const maybe &o) = delete;
 public:
     maybe(const maybe &o)
-	: r(o.r)
-	{
-	    if (!r)
-		new (content) t(o.just());
-	}
+        : r(o.r)
+        {
+            if (!r)
+                new (content) t(o.just());
+        }
     ~maybe()
-	{
-	    if (isjust()) ((t *)content)->~t();
-	}
+        {
+            if (isjust()) ((t *)content)->~t();
+        }
     maybe(_Nothing)
-	: r(true)
-	{
-	}
+        : r(true)
+        {
+        }
     maybe(const t &what)
-	: r(false)
-	{
-	    new (content) t(what);
-	}
+        : r(false)
+        {
+            new (content) t(what);
+        }
     bool isnothing() const { return r; }
     bool operator!() const { return isnothing(); }
     bool isjust() const { return !r; }
     const t &just() const {
-	assert(isjust());
-	return *(t *)content;
+        assert(isjust());
+        return *(t *)content;
     }
     const t &dflt(const t &what) const {
-	if (isjust()) return just();
-	else return what;
+        if (isjust()) return just();
+        else return what;
     }
     bool operator==(const _Nothing) const {
-	return isnothing();
+        return isnothing();
     }
 };
 

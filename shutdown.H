@@ -6,8 +6,8 @@ class shutdowncode {
     int code;
 public:
     explicit shutdowncode(int _code)
-	: code(_code)
-	{}
+        : code(_code)
+        {}
     /* Call exit() with the given code */
     void finish() __attribute__((noreturn));
 };

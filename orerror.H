@@ -10,45 +10,45 @@
 template <typename t> class orerror {
     const bool errored;
     union {
-	error err;
-	char buf[sizeof(t)];
+        error err;
+        char buf[sizeof(t)];
     };
     orerror() = delete;
     void operator=(const orerror &o) = delete;
 public:
     orerror(const t &v)
-	: errored(false)
-	{
-	    new (this->buf) t(v);
-	}
+        : errored(false)
+        {
+            new (this->buf) t(v);
+        }
     orerror(t &&v)
-	: errored(false)
-	{
-	    new (this->buf) t(std::move(v));
-	}
+        : errored(false)
+        {
+            new (this->buf) t(std::move(v));
+        }
     orerror(const error &_err)
-	: errored(true), err(_err)
-	{
-	    err = _err;
-	}
+        : errored(true), err(_err)
+        {
+            err = _err;
+        }
     ~orerror() {
-	if (errored)
-	    failure().~error();
-	else
-	    success().~t();
+        if (errored)
+            failure().~error();
+        else
+            success().~t();
     }
     const t &success() const {
-	assert(!errored);
-	return *(const t *)buf;
+        assert(!errored);
+        return *(const t *)buf;
     }
     const error &failure() const {
-	return err;
+        return err;
     }
     bool issuccess() const {
-	return !errored;
+        return !errored;
     }
     bool isfailure() const {
-	return errored;
+        return errored;
     }
 };
 

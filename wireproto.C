@@ -24,7 +24,7 @@ resp_message::resp_message(const rx_message &o)
 {}
 
 err_resp_message::err_resp_message(const rx_message &o,
-				   const error &e)
+                                   const error &e)
     : tx_message(o.t),
       sequence(o.sequence.reply())
 {
@@ -46,7 +46,7 @@ tx_message::serialised_size() const
     size_t sz;
     sz = 8;
     for (auto it(params.start()); !it.finished(); it.next())
-	sz += it->serialised_size() + 4;
+        sz += it->serialised_size() + 4;
     return sz;
 }
 
@@ -58,11 +58,11 @@ tx_message::serialise(buffer &buffer, sequencenr snr) const
 
     /* Failure indicator, if present, must be only parameter. */
     for (auto it(params.start()); !it.finished(); it.next())
-	if (it->id == wireproto::err_parameter.id)
-	    assert(nrparams == 1);
+        if (it->id == wireproto::err_parameter.id)
+            assert(nrparams == 1);
 
     if (sz >= 0x8000)
-	return error::overflowed;
+        return error::overflowed;
 
     buffer.queue(&sz, 2);
     buffer.queue(&snr, sizeof(snr));
@@ -70,12 +70,12 @@ tx_message::serialise(buffer &buffer, sequencenr snr) const
     buffer.queue(&t.val, sizeof(t.val));
     uint16_t consumed = 0;
     for (auto it(params.start()); !it.finished(); it.next()) {
-	buffer.queue(&it->id, sizeof(it->id));
-	buffer.queue(&consumed, sizeof(consumed));
-	consumed += it->serialised_size();
+        buffer.queue(&it->id, sizeof(it->id));
+        buffer.queue(&consumed, sizeof(consumed));
+        consumed += it->serialised_size();
     }
     for (auto it(params.start()); !it.finished(); it.next())
-	it->serialise(buffer);
+        it->serialise(buffer);
     return Nothing;
 }
 
@@ -84,7 +84,7 @@ tx_message::clone() const
 {
     tx_message *res = new tx_message(t);
     for (auto it(params.start()); !it.finished(); it.next())
-	res->params.pushtail(it->clone());
+        res->params.pushtail(it->clone());
     return res;
 }
 
@@ -120,41 +120,41 @@ rx_message::fetch(buffer &buffer)
     uint16_t nrparams;
     uint16_t tag;
     if (buffer.avail() < sizeof(sz) + sizeof(nrparams))
-	return error::underflowed;
+        return error::underflowed;
     buffer.fetch(&sz, sizeof(sz));
     if (buffer.avail() + sizeof(sz) < sz) {
-	buffer.pushback(&sz, sizeof(sz));
-	return error::underflowed;
+        buffer.pushback(&sz, sizeof(sz));
+        return error::underflowed;
     }
     if (sz < sizeof(sz) + sizeof(sequence) + sizeof(nrparams) + sizeof(tag))
-	return error::invalidmessage;
+        return error::invalidmessage;
     buffer.fetch(&sequence, sizeof(sequence));
     buffer.fetch(&nrparams, sizeof(nrparams));
     buffer.fetch(&tag, sizeof(tag));
     if (nrparams > 512)
-	return error::overflowed;
+        return error::overflowed;
     if (sz < 6 + nrparams * 4)
-	return error::invalidmessage;
-    
+        return error::invalidmessage;
+
     auto work(new rx_message(msgtag(tag),
-			     sequence,
-			     nrparams,
-			     sz - 8 - nrparams * 4,
-			     buffer.offset() + 4 * nrparams,
-			     buffer));
+                             sequence,
+                             nrparams,
+                             sz - 8 - nrparams * 4,
+                             buffer.offset() + 4 * nrparams,
+                             buffer));
     buffer.fetch(const_cast<idx *>(work->index), 4 * nrparams);
     for (unsigned i = 0; i < nrparams; i++) {
-	if (work->index[i].offset > work->payload_size) {
-	    work->finish();
-	    return error::invalidmessage;
-	}
+        if (work->index[i].offset > work->payload_size) {
+            work->finish();
+            return error::invalidmessage;
+        }
     }
     auto err(work->getparam(err_parameter));
     if (err.isjust()) {
-	work->finish();
-	return err.just();
+        work->finish();
+        return err.just();
     } else {
-	return work;
+        return work;
     }
 }
 
@@ -164,38 +164,38 @@ rx_message::fetch(const bufslice &buf)
     unsigned long avail = buf.end - buf.start;
     const void *buffer = buf.buf.linearise(buf.start, buf.end);
     if (avail < 8)
-	return error::invalidmessage;
+        return error::invalidmessage;
     const uint16_t *header = (const uint16_t *)buffer;
     uint16_t sz = header[0];
     if (sz != avail)
-	return error::invalidmessage;
+        return error::invalidmessage;
     sequencenr sequence(sequencenr::invalid);
     assert(sizeof(sequence) == sizeof(header[1]));
     memcpy(&sequence, &header[1], sizeof(sequence));
     uint16_t nrparams = header[2];
     uint16_t tag = header[3];
     if (nrparams > 128 || sz < 6 + nrparams * 4)
-	return error::invalidmessage;
+        return error::invalidmessage;
     const struct idx *index = (const struct idx *)((unsigned long)buffer + 8);
     size_t payload_size = avail - 8 - 4 * nrparams;
     for (unsigned i = 0; i < nrparams; i++) {
-	if (index[i].offset > payload_size) {
-	    return error::invalidmessage;
-	}
+        if (index[i].offset > payload_size) {
+            return error::invalidmessage;
+        }
     }
     auto work(new rx_message(msgtag(tag),
-			     sequence,
-			     nrparams,
-			     payload_size,
-			     buf.start + sizeof(header[0]) * 4 + nrparams * 4,
-			     buf.buf,
-			     index));
+                             sequence,
+                             nrparams,
+                             payload_size,
+                             buf.start + sizeof(header[0]) * 4 + nrparams * 4,
+                             buf.buf,
+                             index));
     auto err(work->getparam(err_parameter));
     if (err.isjust()) {
-	work->finish();
-	return err.just();
+        work->finish();
+        return err.just();
     } else {
-	return work;
+        return work;
     }
 }
 
@@ -203,18 +203,18 @@ void
 rx_message::finish() const
 {
     if (!nonowning) {
-	buf.discard(payload_size);
-	free(const_cast<idx *>(index));
+        buf.discard(payload_size);
+        free(const_cast<idx *>(index));
     }
     delete this;
 }
 
 rx_message::rx_message(msgtag _t,
-		       sequencenr _sequence,
-		       uint16_t _nrparams,
-		       size_t _payload_size,
-		       size_t _payload_offset,
-		       buffer &_buf)
+                       sequencenr _sequence,
+                       uint16_t _nrparams,
+                       size_t _payload_size,
+                       size_t _payload_offset,
+                       buffer &_buf)
     : index((idx *)calloc(4, _nrparams)),
       nonowning(false),
       sequence(_sequence),
@@ -226,12 +226,12 @@ rx_message::rx_message(msgtag _t,
 {}
 
 rx_message::rx_message(msgtag _t,
-		       sequencenr _sequence,
-		       uint16_t _nrparams,
-		       size_t _payload_size,
-		       size_t _payload_offset,
-		       buffer &_buf,
-		       const struct idx *_index)
+                       sequencenr _sequence,
+                       uint16_t _nrparams,
+                       size_t _payload_size,
+                       size_t _payload_offset,
+                       buffer &_buf,
+                       const struct idx *_index)
     : index(_index),
       nonowning(true),
       sequence(_sequence),
@@ -284,7 +284,7 @@ tx_message::addparam(parameter<unsigned long> tmpl, const unsigned long &val)
 
 template <> tx_message &
 tx_message::addparam(parameter<tx_compoundparameter> tmpl,
-		     const tx_compoundparameter &val)
+                     const tx_compoundparameter &val)
 {
     auto &p(params.append());
     p.id = tmpl.id;
@@ -307,20 +307,20 @@ tx_message::pinstance::clone() const
     res.flavour = flavour;
     switch (flavour) {
     case p_string:
-	res.string = string;
-	break;
+        res.string = string;
+        break;
     case p_bool:
-	res.bool_ = bool_;
-	break;
+        res.bool_ = bool_;
+        break;
     case p_int32:
-	res.int32 = int32;
-	break;
+        res.int32 = int32;
+        break;
     case p_uint64:
-	res.uint64 = uint64;
-	break;
+        res.uint64 = uint64;
+        break;
     case p_compound:
-	res.compound = compound->clone();
-	break;
+        res.compound = compound->clone();
+        break;
     }
     return res;
 }
@@ -330,15 +330,15 @@ tx_message::pinstance::serialised_size() const
 {
     switch (flavour) {
     case p_string:
-	return strlen(string) + 1;
+        return strlen(string) + 1;
     case p_bool:
-	return 1;
+        return 1;
     case p_int32:
-	return 4;
+        return 4;
     case p_uint64:
-	return 8;
+        return 8;
     case p_compound:
-	return compound->serialised_size();
+        return compound->serialised_size();
     }
     abort();
 }
@@ -348,20 +348,20 @@ tx_message::pinstance::serialise(buffer &buf) const
 {
     switch (flavour) {
     case p_string:
-	buf.queue(string, strlen(string) + 1);
-	return;
+        buf.queue(string, strlen(string) + 1);
+        return;
     case p_bool:
-	buf.queue(&bool_, 1);
-	return;
+        buf.queue(&bool_, 1);
+        return;
     case p_int32:
-	buf.queue(&int32, 4);
-	return;
+        buf.queue(&int32, 4);
+        return;
     case p_uint64:
-	buf.queue(&uint64, 8);
-	return;
+        buf.queue(&uint64, 8);
+        return;
     case p_compound:
-	compound->content->serialise(buf);
-	return;
+        compound->content->serialise(buf);
+        return;
     }
     abort();
 }
@@ -371,20 +371,20 @@ tx_message::pinstance::pinstance(wireproto::tx_message::pinstance const&o)
 {
     switch (flavour) {
     case p_string:
-	string = o.string;
-	break;
+        string = o.string;
+        break;
     case p_bool:
-	bool_ = o.bool_;
-	break;
+        bool_ = o.bool_;
+        break;
     case p_int32:
-	int32 = o.int32;
-	break;
+        int32 = o.int32;
+        break;
     case p_uint64:
-	uint64 = o.uint64;
-	break;
+        uint64 = o.uint64;
+        break;
     case p_compound:
-	compound = o.compound->clone();
-	break;
+        compound = o.compound->clone();
+        break;
     }
 }
 
@@ -392,16 +392,16 @@ tx_message::pinstance::~pinstance()
 {
     switch (flavour) {
     case p_string:
-	break;
+        break;
     case p_bool:
-	break;
+        break;
     case p_int32:
-	break;
+        break;
     case p_uint64:
-	break;
+        break;
     case p_compound:
-	delete compound;
-	break;
+        delete compound;
+        break;
     }
 }
 
@@ -413,37 +413,37 @@ template <> maybe<const char *>
 deserialise(bufslice &slice)
 {
     if (slice.end == slice.start ||
-	slice.buf.idx(slice.end-1) != '\0')
-	return Nothing;
+        slice.buf.idx(slice.end-1) != '\0')
+        return Nothing;
     return (const char *)slice.buf.linearise(slice.start, slice.end);
 }
 template <> maybe<int>
 deserialise(bufslice &slice)
 {
     if (slice.end - slice.start != 4)
-	return Nothing;
+        return Nothing;
     else
-	return *(int *)slice.buf.linearise(slice.start, slice.end);
+        return *(int *)slice.buf.linearise(slice.start, slice.end);
 }
 template <> maybe<unsigned long>
 deserialise(bufslice &slice)
 {
     if (slice.end - slice.start != 8)
-	return Nothing;
+        return Nothing;
     else
-	return *(unsigned long *)slice.buf.linearise(slice.start, slice.end);
+        return *(unsigned long *)slice.buf.linearise(slice.start, slice.end);
 }
 template <> maybe<bool>
 deserialise(bufslice &slice)
 {
     if (slice.end - slice.start != 1)
-	return Nothing;
+        return Nothing;
     else
-	return *(bool *)slice.buf.linearise(slice.start, slice.end);
+        return *(bool *)slice.buf.linearise(slice.start, slice.end);
 }
 
 template <typename typ> maybe<error> decode(bufslice &slice,
-					    typ &out);
+                                            typ &out);
 
 template <> maybe<error>
 decode(bufslice &slice, rx_compoundparameter &out)
@@ -465,16 +465,16 @@ rx_message::fetch(parameter<rx_compoundparameter> p, rx_compoundparameter &out) 
 {
     unsigned x;
     for (x = 0; x < nrparams; x++) {
-	if (index[x].id == p.id)
-	    break;
+        if (index[x].id == p.id)
+            break;
     }
     if (x == nrparams)
-	return error::from_errno(ENOENT);
+        return error::from_errno(ENOENT);
     bufslice slice(buf,
-		   payload_offset + index[x].offset,
-		   x + 1 == nrparams
-		     ? payload_offset + payload_size 
-		     : payload_offset + index[x+1].offset);
+                   payload_offset + index[x].offset,
+                   x + 1 == nrparams
+                     ? payload_offset + payload_size
+                     : payload_offset + index[x+1].offset);
     return decode(slice, out);
 }
 

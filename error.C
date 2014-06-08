@@ -20,23 +20,23 @@ const char *
 error::str() const
 {
     if (e > 0)
-	return strerror(e);
+        return strerror(e);
     else if (*this == unknown)
-	return "unknown";
+        return "unknown";
     else if (*this == disconnected)
-	return "disconnected";
+        return "disconnected";
     else if (*this == overflowed)
-	return "overflowed";
+        return "overflowed";
     else if (*this == underflowed)
-	return "underflowed";
+        return "underflowed";
     else if (*this == missingparameter)
-	return "missingparameter";
+        return "missingparameter";
     else if (*this == invalidmessage)
-	return "invalidmessage";
+        return "invalidmessage";
     else if (*this == unrecognisedmessage)
-	return "unrecognisedmessage";
+        return "unrecognisedmessage";
     else
-	abort();
+        abort();
 }
 
 error
@@ -44,7 +44,7 @@ error::from_errno()
 {
     int e = errno;
     errno = 99; /* deliberately clobber errno to catch people using it
-		   when they should be using a returned error code. */
+                   when they should be using a returned error code. */
     return error(e);
 }
 
@@ -58,7 +58,7 @@ void
 error::fatal(const char *msg) const
 {
     logmsg(loglevel::emergency, "fatal error: %s: %s",
-	   msg, str());
+           msg, str());
     errx(1, "fatal error: %s: %s", msg, str());
 }
 
@@ -66,7 +66,7 @@ void
 error::warn(const char *msg) const
 {
     logmsg(loglevel::failure, "warning: %s: %s",
-	   msg, str());
+           msg, str());
     warnx("warning: %s: %s", msg, str());
 }
 

@@ -14,8 +14,8 @@ class loglevel {
     friend list<log_sink *> &__level_to_sink(loglevel l);
     const int level;
     explicit loglevel(int _level)
-	: level(_level)
-	{}
+        : level(_level)
+        {}
 public:
     /* Something went wrong and we're going to crash. */
     static const loglevel emergency;
@@ -34,8 +34,8 @@ public:
 };
 
 void logmsg(loglevel level,
-	    const char *fmt,
-	    ...)
+            const char *fmt,
+            ...)
     __attribute__((format(printf,2,3)));
 
 class memlog_idx {
@@ -49,7 +49,7 @@ public:
     static const memlog_idx min;
     static const memlog_idx max;
     bool operator >=(const memlog_idx &o) const
-	{ return val >= o.val; }
+        { return val >= o.val; }
     unsigned long as_long() const { return val; }
 };
 
@@ -63,20 +63,20 @@ public:
     char *const msg;
 
     memlog_entry(memlog_idx _idx,
-		 const char *_msg)
-	: idx(_idx), msg(strdup(_msg))
-	{
-	}
+                 const char *_msg)
+        : idx(_idx), msg(strdup(_msg))
+        {
+        }
     memlog_entry()
-	: idx(memlog_idx::max), msg(NULL)
-	{}
+        : idx(memlog_idx::max), msg(NULL)
+        {}
     ~memlog_entry()
-	{
-	    free(msg);
-	}
+        {
+            free(msg);
+        }
     memlog_entry(const memlog_entry &o)
-	: idx(o.idx), msg(strdup(o.msg))
-	{}
+        : idx(o.idx), msg(strdup(o.msg))
+        {}
 };
 
 void initlogging(const char *ident);
@@ -85,7 +85,7 @@ void deinitlogging(void);
 class getlogsiface : public controliface {
 public:
     maybe<error> controlmessage(const wireproto::rx_message &,
-				buffer &);
+                                buffer &);
     static getlogsiface singleton;
 };
 

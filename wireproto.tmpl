@@ -10,13 +10,13 @@ struct bufslice {
     unsigned long start;
     unsigned long end;
     bufslice(buffer &_buf, unsigned long _start,
-	     unsigned long _end)
-	: buf(_buf), start(_start), end(_end)
-	{}
+             unsigned long _end)
+        : buf(_buf), start(_start), end(_end)
+        {}
 };
 
 template <typename typ> maybe<error> decode(bufslice &slice,
-					    typ &out);
+                                            typ &out);
 template <typename typ> maybe<typ> deserialise(bufslice &slice);
 
 template <typename typ> maybe<typ>
@@ -24,16 +24,16 @@ rx_message::getparam(parameter<typ> p) const
 {
     unsigned x;
     for (x = 0; x < nrparams; x++) {
-	if (index[x].id == p.id)
-	    break;
+        if (index[x].id == p.id)
+            break;
     }
     if (x == nrparams)
-	return Nothing;
+        return Nothing;
     bufslice slice(buf,
-		   payload_offset + index[x].offset,
-		   x + 1 == nrparams
-		     ? payload_offset + payload_size 
-		     : payload_offset + index[x+1].offset);
+                   payload_offset + index[x].offset,
+                   x + 1 == nrparams
+                     ? payload_offset + payload_size 
+                     : payload_offset + index[x+1].offset);
     return deserialise<typ>(slice);
 }
 
@@ -42,19 +42,19 @@ rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const
 {
     out.flush();
     for (unsigned x = 0; x < nrparams; x++) {
-	if (index[x].id == tmpl.id) {
-	    bufslice slice(buf,
-			   payload_offset + index[x].offset,
-			   x + 1 == nrparams
-			   ? payload_offset + payload_size
-			   : payload_offset + index[x+1].offset);
-	    auto r(deserialise<nested>(slice));
-	    if (r == Nothing) {
-		out.flush();
-		return error::invalidmessage;
-	    }
-	    out.pushtail(r.just());
-	}
+        if (index[x].id == tmpl.id) {
+            bufslice slice(buf,
+                           payload_offset + index[x].offset,
+                           x + 1 == nrparams
+                           ? payload_offset + payload_size
+                           : payload_offset + index[x+1].offset);
+            auto r(deserialise<nested>(slice));
+            if (r == Nothing) {
+                out.flush();
+                return error::invalidmessage;
+            }
+            out.pushtail(r.just());
+        }
     }
     return Nothing;
 
@@ -65,44 +65,44 @@ template <typename nested> tx_message &
 tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
 {
     for (auto it(val.start()); !it.finished(); it.next())
-	addparam(parameter<nested>(tmpl), *it);
+        addparam(parameter<nested>(tmpl), *it);
     return *this;
 }
 
 }
 
-#define wireproto_wrapper_type(wrapper_type)				\
-    namespace wireproto {						\
-	template <> tx_message &tx_message::addparam(			\
-	    parameter<wrapper_type> tmpl,				\
-	    const wrapper_type &val)					\
-	{								\
-	    val.addparam(tmpl, *this);					\
-	    return *this;						\
-	}								\
-	template <> maybe<wrapper_type>				\
-	rx_message::getparam<wrapper_type>(parameter<wrapper_type> p) const \
-	{								\
-	    return wrapper_type::getparam(p, *this);			\
-	}								\
+#define wireproto_wrapper_type(wrapper_type)                            \
+    namespace wireproto {                                               \
+        template <> tx_message &tx_message::addparam(                   \
+            parameter<wrapper_type> tmpl,                               \
+            const wrapper_type &val)                                    \
+        {                                                               \
+            val.addparam(tmpl, *this);                                  \
+            return *this;                                               \
+        }                                                               \
+        template <> maybe<wrapper_type>                                 \
+        rx_message::getparam<wrapper_type>(parameter<wrapper_type> p) const \
+        {                                                               \
+            return wrapper_type::getparam(p, *this);                    \
+        }                                                               \
     }
 
 #define wireproto_simple_wrapper_type(wrapper_type, wrapped_type, field) \
-    wireproto_wrapper_type(wrapper_type)				\
-    void								\
-    wrapper_type::addparam(wireproto::parameter<wrapper_type> tmpl,	\
-			   wireproto::tx_message &msg) const		\
-    {									\
-	msg.addparam(wireproto::parameter<wrapped_type>(tmpl), field);	\
-    }									\
-									\
-    maybe<wrapper_type>						\
-    wrapper_type::getparam(wireproto::parameter<wrapper_type> p,	\
-			   const wireproto::rx_message &msg)		\
-    {									\
-	auto r(msg.getparam(wireproto::parameter<wrapped_type>(p)));	\
-	if (r == Nothing) return Nothing;				\
-	else return wrapper_type(r.just());				\
+    wireproto_wrapper_type(wrapper_type)                                \
+    void                                                                \
+    wrapper_type::addparam(wireproto::parameter<wrapper_type> tmpl,     \
+                           wireproto::tx_message &msg) const            \
+    {                                                                   \
+        msg.addparam(wireproto::parameter<wrapped_type>(tmpl), field);  \
+    }                                                                   \
+                                                                        \
+    maybe<wrapper_type>                                                 \
+    wrapper_type::getparam(wireproto::parameter<wrapper_type> p,        \
+                           const wireproto::rx_message &msg)            \
+    {                                                                   \
+        auto r(msg.getparam(wireproto::parameter<wrapped_type>(p)));    \
+        if (r == Nothing) return Nothing;                               \
+        else return wrapper_type(r.just());                             \
     }
 
 #endif /* !WIREPROTO_H__ */

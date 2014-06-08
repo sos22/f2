@@ -32,11 +32,11 @@ fd_t::read(void *buf, size_t sz) const
 {
     auto s(::read(fd, buf, sz));
     if (s < 0)
-	return error::from_errno();
+        return error::from_errno();
     else if (s == 0)
-	return error::disconnected;
+        return error::disconnected;
     else
-	return s;
+        return s;
 }
 
 orerror<size_t>
@@ -44,11 +44,11 @@ fd_t::write(const void *buf, size_t sz) const
 {
     auto s(::write(fd, buf, sz));
     if (s < 0)
-	return error::from_errno();
+        return error::from_errno();
     else if (s == 0)
-	return error::disconnected;
+        return error::disconnected;
     else
-	return s;
+        return s;
 }
 
 orerror<fd_t::piperes>
@@ -56,7 +56,7 @@ fd_t::pipe()
 {
     int fds[2];
     if (::pipe(fds) < 0)
-	return error::from_errno();
+        return error::from_errno();
     piperes r;
     r.read = fd_t(fds[0]);
     r.write = fd_t(fds[1]);

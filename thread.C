@@ -17,11 +17,11 @@ thread::spawn(threadfn *fn, thread **out)
     *out = work;
     int err = pthread_create(&work->thr, NULL, startfn, work);
     if (err) {
-	*out = NULL;
-	delete work;
-	return error::from_errno(err);
+        *out = NULL;
+        delete work;
+        return error::from_errno(err);
     } else {
-	return Nothing;
+        return Nothing;
     }
 }
 

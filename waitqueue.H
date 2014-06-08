@@ -16,8 +16,8 @@ class waitqueue {
     fd_t writefd;
     list<t> content;
     waitqueue()
-	: mux(), readfd(), writefd(), content()
-	{}
+        : mux(), readfd(), writefd(), content()
+        {}
 public:
     t pophead();
     void pushtail(const t &);

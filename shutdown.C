@@ -11,4 +11,3 @@ shutdowncode::finish()
 {
     exit(code);
 }
-
