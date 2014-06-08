@@ -19,7 +19,9 @@ mutex_t::lock()
 }
 
 void
-mutex_t::unlock(token *)
+mutex_t::unlock(token *tok)
 {
+    tok->formux(*this);
+    tok->release();
     pthread_mutex_unlock(&mux);
 }

@@ -16,6 +16,7 @@
 #include "error.H"
 #include "maybe.H"
 #include "mutex.H"
+#include "proto.H"
 
 #include "list.tmpl"
 
@@ -293,12 +294,35 @@ void deinitlogging(void)
     __level_to_sink(loglevel::verbose).flush();
 }
 
-maybe<memlog_idx>
-getmemlog(memlog_idx start,
-	  int limit,
-	  list<memlog_entry> &out)
+maybe<error>
+getlogsiface::controlmessage(const wireproto::rx_message &msg,
+			     buffer &outgoing)
 {
-    assert(out.empty());
-    assert(logsinks::memlog);
-    return logsinks::memlog->fetch(start, limit, out);
+    auto start(msg.getparam(proto::GETLOGS::req::startidx).
+	       dflt(memlog_idx::min));
+    logmsg(loglevel::debug, "fetch logs from %ld", start.as_long());
+    for (int limit = 200; limit > 0; ) {
+	list<memlog_entry> results;
+	auto resume(logsinks::memlog->fetch(start, limit, results));
+	wireproto::resp_message m(msg);
+	m.addparam(proto::GETLOGS::resp::msgs, results);
+	if (resume.isjust())
+	    m.addparam(proto::GETLOGS::resp::resume, resume.just());
+	auto r(m.serialise(outgoing));
+	results.flush();
+	if (r == Nothing /* success */ ||
+	    r.just() != error::overflowed /* unrecoverable error */)
+	    return r;
+	limit /= 2;
+	logmsg(loglevel::verbose,
+	       "overflow sending %d log messages, trying %d",
+	       limit,
+	       limit / 2);
+    }
+
+    logmsg(loglevel::failure,
+	   "can't send even a single log message without overflowing buffer?");
+    return error::overflowed;
 }
+getlogsiface
+getlogsiface::singleton;

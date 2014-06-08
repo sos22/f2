@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "buffer.H"
+#include "cond.H"
 #include "fd.H"
 #include "list.H"
 #include "listenfd.H"
@@ -29,6 +30,37 @@
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 namespace cf {
+class controlserver;
+
+struct registration {
+    registration() __attribute__((noreturn)); /* should never be
+					       * called, but needed
+					       * for linked list
+					       * templates */
+    registration(const registration &o);
+    void operator=(const registration &) = delete;
+
+    controlserver *server;
+    wireproto::msgtag tag;
+    unsigned outstanding;
+    controliface &iface;
+    cond_t idle;
+    registration(controlserver *_server,
+                 wireproto::msgtag _tag,
+                 controliface &_iface);
+    void deregister() const;
+    ~registration() { assert(outstanding == 0); }
+};
+
+class pingiface : public controliface {
+public:
+    maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
+};
+class unknowniface : public controliface {
+public:
+    maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
+};
+
 struct controlserver : threadfn {
     class clientthread : threadfn {
 	controlserver *owner;
@@ -45,9 +77,6 @@ struct controlserver : threadfn {
 	    : owner(_owner), fd(_fd), _thr(NULL),
 	      shutdown(_shutdown)
 	    {}
-	maybe<error> ping(const wireproto::rx_message &, buffer &);
-	maybe<error> unrecognised(const wireproto::rx_message &, buffer &);
-	maybe<error> getlogs(const wireproto::rx_message &, buffer &);
 	clientthread(const clientthread &) = delete;
 	void operator=(const clientthread &) = delete;
     public:
@@ -57,6 +86,7 @@ struct controlserver : threadfn {
 	thread *thr() { return _thr; }
 	virtual ~clientthread() {}
     };
+    list<registration *> registrations;
     waitbox<bool> *localshutdown;
     waitbox<shutdowncode> *globalshutdown;
     mutex_t mux;
@@ -64,22 +94,43 @@ struct controlserver : threadfn {
     thread *t;
     listenfd sock;
 
+    unknowniface unknowninterface;
+    pingiface pinginterface;
+    registration *unknownregistration;
+    registration *loggingregistration;
+    registration *pingregistration;
+
     void run();
     controlserver(waitbox<shutdowncode> *_s)
-	: localshutdown(NULL),
+	: registrations(),
+	  localshutdown(NULL),
 	  globalshutdown(_s),
 	  mux(),
 	  dying(),
 	  t(NULL),
-	  sock()
-	{}
+	  sock(),
+	  unknowninterface(),
+          unknownregistration(registeriface(wireproto::msgtag(0),
+                                            unknowninterface)),
+	  loggingregistration(registeriface(proto::GETLOGS::tag,
+					    getlogsiface::singleton)),
+	  pingregistration(registeriface(proto::PING::tag,
+					 pinginterface))
+	{
+	}
     controlserver(const controlserver &) = delete;
     void operator=(const controlserver &) = delete;
+
+    registration *registeriface(wireproto::msgtag,
+				controliface &iface);
 
     maybe<error> setup();
     void end();
     ~controlserver()
 	{
+            unknownregistration->deregister();
+	    loggingregistration->deregister();
+	    pingregistration->deregister();
 	    assert(!t);
 	    localshutdown->destroy();
 	    dying->destroy();
@@ -89,6 +140,70 @@ static controlserver *
 rc(::controlserver *c)
 {
     return (controlserver *)c;
+}
+
+registration::registration(controlserver *_server,
+                           wireproto::msgtag _tag,
+                           controliface &_iface)
+    : server(_server),
+      tag(_tag),
+      outstanding(0),
+      iface(_iface),
+      idle(server->mux)
+{}
+
+registration::registration(const registration &o)
+    : server(o.server),
+      tag(o.tag),
+      outstanding(0),
+      iface(o.iface),
+      idle(server->mux)
+{
+    assert(!o.outstanding);
+}
+
+registration::registration()
+    : server(NULL),
+      tag(0),
+      outstanding(0),
+      iface(*(controliface *)NULL),
+      idle(server->mux)
+{
+    abort();
+}
+
+void
+registration::deregister() const
+{
+    auto token(server->mux.lock());
+    for (auto it(server->registrations.start()); !it.finished(); it.next()) {
+	if (*it == this) {
+	    it.remove();
+	    while (outstanding > 0)
+		token = idle.wait(&token);
+	    server->mux.unlock(&token);
+	    delete this;
+	    return;
+	}
+    }
+    server->mux.unlock(&token);
+    abort();
+}
+
+registration *
+controlserver::registeriface(wireproto::msgtag tag, controliface &iface)
+{
+    auto reg(new registration(this, tag, iface));
+    auto token(mux.lock());
+    for (auto it(registrations.start()); !it.finished(); it.next()) {
+	if ((*it)->tag == tag) {
+	    mux.unlock(&token);
+	    abort();
+	}
+    }
+    registrations.pushtail(reg);
+    mux.unlock(&token);
+    return reg;
 }
 
 void
@@ -158,13 +273,32 @@ controlserver::clientthread::runcommand(buffer &incoming,
     assert(r.success() != NULL);
     auto tag(r.success()->t);
     logmsg(loglevel::verbose, "run command %d\n", tag.as_int());
-    auto process(tag == proto::PING::tag ? &clientthread::ping :
-		 tag == proto::GETLOGS::tag ? &clientthread::getlogs :
-		 &clientthread::unrecognised);
-    auto res((this->*process)(*r.success(), outgoing));
+    registration *handler;
+
+    auto token(owner->mux.lock());
+    handler = owner->unknownregistration;
+    for (auto it(owner->registrations.start());
+	 !it.finished();
+	 it.next()) {
+	if ((*it)->tag == tag) {
+	    handler = *it;
+	    break;
+	}
+    }
+    handler->outstanding++;
+    owner->mux.unlock(&token);
+
+    auto res(handler->iface.controlmessage(*r.success(), outgoing));
+
+    auto token2(owner->mux.lock());
+    handler->outstanding--;
+    if (!handler->outstanding)
+        handler->idle.broadcast(token2);
+    owner->mux.unlock(&token2);
+
     if (res.isjust())
-	wireproto::err_resp_message(*r.success(), res.just())
-	    .serialise(outgoing);
+        wireproto::err_resp_message(*r.success(), res.just())
+            .serialise(outgoing);
     r.success()->finish();
     return true;
 }
@@ -185,8 +319,7 @@ controlserver::clientthread::spawn(controlserver *server,
 }
 
 maybe<error>
-controlserver::clientthread::ping(const wireproto::rx_message &msg,
-				  buffer &outgoing)
+pingiface::controlmessage(const wireproto::rx_message &msg, buffer &outgoing)
 {
     auto payload(msg.getparam(proto::PING::req::msg));
     if (payload.isjust())
@@ -204,39 +337,7 @@ controlserver::clientthread::ping(const wireproto::rx_message &msg,
 }
 
 maybe<error>
-controlserver::clientthread::getlogs(const wireproto::rx_message &msg,
-				     buffer &outgoing)
-{
-    auto start(msg.getparam(proto::GETLOGS::req::startidx).
-	       dflt(memlog_idx::min));
-    logmsg(loglevel::debug, "fetch logs from %ld", start.as_long());
-    for (int limit = 200; limit > 0; ) {
-	list<memlog_entry> results;
-	auto resume(getmemlog(start, limit, results));
-	wireproto::resp_message m(msg);
-	m.addparam(proto::GETLOGS::resp::msgs, results);
-	if (resume.isjust())
-	    m.addparam(proto::GETLOGS::resp::resume, resume.just());
-	auto r(m.serialise(outgoing));
-	results.flush();
-	if (r == Nothing /* success */ ||
-	    r.just() != error::overflowed /* unrecoverable error */)
-	    return r;
-	limit /= 2;
-	logmsg(loglevel::verbose,
-	       "overflow sending %d log messages, trying %d",
-	       limit,
-	       limit / 2);
-    }
-
-    logmsg(loglevel::failure,
-	   "can't send even a single log message without overflowing buffer?");
-    return error::overflowed;
-}
-
-maybe<error>
-controlserver::clientthread::unrecognised(const wireproto::rx_message &msg,
-					  buffer &)
+unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 {
     logmsg(loglevel::failure,
 	   "Received an unrecognised message type %d",
@@ -403,5 +504,12 @@ controlserver::destroy()
     delete cf::rc(this);
 }
 
+controlserver::iface
+controlserver::registeriface(wireproto::msgtag t, controliface &interface)
+{
+    return iface::__mk_iface__(cf::rc(this)->registeriface(t, interface));
+}
+
 template class list<cf::controlserver::clientthread *>;
 template class waitqueue<cf::controlserver::clientthread *>;
+template class list<cf::registration *>;

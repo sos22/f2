@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "list.H"
+#include "controlserver.H"
 #include "wireproto.H"
 
+template <typename> class list;
 class log_sink;
 
 class loglevel {
@@ -78,13 +79,14 @@ public:
 	{}
 };
 
-/* Returns the first ID which got dropped by the limit, or Nothing if
- * nothing was dropped. */
-maybe<memlog_idx> getmemlog(memlog_idx start,
-			    int limit,
-			    list<memlog_entry> &);
-
 void initlogging(const char *ident);
 void deinitlogging(void);
+
+class getlogsiface : public controliface {
+public:
+    maybe<error> controlmessage(const wireproto::rx_message &,
+				buffer &);
+    static getlogsiface singleton;
+};
 
 #endif /* !LOGGING_H__ */

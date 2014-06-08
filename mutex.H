@@ -3,7 +3,10 @@
 
 #include <pthread.h>
 
+class cond_t;
+
 class mutex_t {
+    friend class cond_t;
     pthread_mutex_t mux;
 public:
     /* lock acquisition returns a token, for a couple of reasons:
@@ -21,6 +24,13 @@ public:
     class token {
 	token() {}
 	friend class mutex_t;
+	friend class cond_t;
+	void release() {}
+    public:
+	/* Assert/document that a token must have been obtained from a
+	   particular mutex.  Doesn't actually do anything in this
+	   implementation. */
+	void formux(mutex_t &) {}
     };
     mutex_t();
     ~mutex_t();
