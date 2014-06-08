@@ -29,24 +29,23 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
-namespace cf {
-class controlserver;
+class controlthread;
 
-struct registration {
-    registration() __attribute__((noreturn)); /* should never be
+struct control_registration {
+    control_registration() __attribute__((noreturn)); /* should never be
                                                * called, but needed
                                                * for linked list
                                                * templates */
-    registration(const registration &o);
-    void operator=(const registration &) = delete;
+    control_registration(const control_registration &o);
+    void operator=(const control_registration &) = delete;
 
-    controlserver *server;
+    controlthread *server;
     unsigned outstanding;
     controliface &iface;
     cond_t idle;
-    registration(controlserver *_server, controliface &_iface);
+    control_registration(controlthread *_server, controliface &_iface);
     void deregister() const;
-    ~registration() { assert(outstanding == 0); }
+    ~control_registration() { assert(outstanding == 0); }
 };
 
 class pingiface : public controliface {
@@ -71,9 +70,9 @@ public:
     maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
 };
 
-struct controlserver : threadfn {
+struct controlthread : threadfn {
     class clientthread : threadfn {
-        controlserver *owner;
+        controlthread *owner;
         fd_t fd;
         thread *_thr;
         waitbox<bool> *shutdown;
@@ -81,7 +80,7 @@ struct controlserver : threadfn {
         bool runcommand(buffer &incoming,
                         buffer &outgoing,
                         bool *die);
-        clientthread(controlserver *_owner,
+        clientthread(controlthread *_owner,
                      fd_t _fd,
                      waitbox<bool> *_shutdown)
             : owner(_owner), fd(_fd), _thr(NULL),
@@ -90,13 +89,17 @@ struct controlserver : threadfn {
         clientthread(const clientthread &) = delete;
         void operator=(const clientthread &) = delete;
     public:
-        static orerror<clientthread *> spawn(controlserver *,
+        static orerror<clientthread *> spawn(controlthread *,
                                              fd_t,
                                              waitbox<bool> *);
         thread *thr() { return _thr; }
         virtual ~clientthread() {}
     };
-    list<registration *> registrations;
+
+    /* A lot of state which would be more natural in controlserver
+       actually goes in here because that keeps the controlserver
+       interface a bit easier to understand. */
+    list<control_registration *> registrations;
     waitbox<bool> *localshutdown;
     waitbox<shutdowncode> *globalshutdown;
     mutex_t mux;
@@ -107,13 +110,13 @@ struct controlserver : threadfn {
     unknowniface unknowninterface;
     pingiface pinginterface;
     quitiface quitinterface;
-    registration *unknownregistration;
-    registration *loggingregistration;
-    registration *pingregistration;
-    registration *quitregistration;
+    control_registration *unknownregistration;
+    control_registration *loggingregistration;
+    control_registration *pingregistration;
+    control_registration *quitregistration;
 
     void run();
-    controlserver(waitbox<shutdowncode> *_s)
+    controlthread(waitbox<shutdowncode> *_s)
         : registrations(),
           localshutdown(NULL),
           globalshutdown(_s),
@@ -130,31 +133,26 @@ struct controlserver : threadfn {
           quitregistration(registeriface(quitinterface))
         {
         }
-    controlserver(const controlserver &) = delete;
-    void operator=(const controlserver &) = delete;
+    controlthread(const controlthread &) = delete;
+    void operator=(const controlthread &) = delete;
 
-    registration *registeriface(controliface &iface);
+    control_registration *registeriface(controliface &iface);
 
     maybe<error> setup();
     void end();
-    ~controlserver()
+    ~controlthread()
         {
+            assert(!t);
             unknownregistration->deregister();
             loggingregistration->deregister();
             pingregistration->deregister();
             quitregistration->deregister();
-            assert(!t);
             localshutdown->destroy();
             dying->destroy();
         }
 };
-static controlserver *
-rc(::controlserver *c)
-{
-    return (controlserver *)c;
-}
 
-registration::registration(controlserver *_server,
+control_registration::control_registration(controlthread *_server,
                            controliface &_iface)
     : server(_server),
       outstanding(0),
@@ -162,7 +160,7 @@ registration::registration(controlserver *_server,
       idle(server->mux)
 {}
 
-registration::registration(const registration &o)
+control_registration::control_registration(const control_registration &o)
     : server(o.server),
       outstanding(0),
       iface(o.iface),
@@ -171,7 +169,7 @@ registration::registration(const registration &o)
     assert(!o.outstanding);
 }
 
-registration::registration()
+control_registration::control_registration()
     : server(NULL),
       outstanding(0),
       iface(*(controliface *)NULL),
@@ -181,7 +179,7 @@ registration::registration()
 }
 
 void
-registration::deregister() const
+control_registration::deregister() const
 {
     auto token(server->mux.lock());
     for (auto it(server->registrations.start()); !it.finished(); it.next()) {
@@ -198,10 +196,10 @@ registration::deregister() const
     abort();
 }
 
-registration *
-controlserver::registeriface(controliface &iface)
+control_registration *
+controlthread::registeriface(controliface &iface)
 {
-    auto reg(new registration(this, iface));
+    auto reg(new control_registration(this, iface));
     auto token(mux.lock());
     for (auto it(registrations.start()); !it.finished(); it.next()) {
         if ((*it)->iface.tag == iface.tag) {
@@ -215,7 +213,7 @@ controlserver::registeriface(controliface &iface)
 }
 
 void
-controlserver::clientthread::run()
+controlthread::clientthread::run()
 {
     struct pollfd fds[2];
 
@@ -269,7 +267,7 @@ controlserver::clientthread::run()
 }
 
 bool
-controlserver::clientthread::runcommand(buffer &incoming,
+controlthread::clientthread::runcommand(buffer &incoming,
                                         buffer &outgoing,
                                         bool *die)
 {
@@ -281,7 +279,7 @@ controlserver::clientthread::runcommand(buffer &incoming,
     assert(r.success() != NULL);
     auto tag(r.success()->t);
     logmsg(loglevel::verbose, "run command %d\n", tag.as_int());
-    registration *handler;
+    control_registration *handler;
 
     auto token(owner->mux.lock());
     handler = owner->unknownregistration;
@@ -311,8 +309,8 @@ controlserver::clientthread::runcommand(buffer &incoming,
     return true;
 }
 
-orerror<controlserver::clientthread *>
-controlserver::clientthread::spawn(controlserver *server,
+orerror<controlthread::clientthread *>
+controlthread::clientthread::spawn(controlthread *server,
                                    fd_t fd,
                                    waitbox<bool> *shutdown)
 {
@@ -369,7 +367,7 @@ unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 }
 
 void
-controlserver::run()
+controlthread::run()
 {
     struct pollfd pfds[3];
     list<clientthread *> threads;
@@ -448,7 +446,7 @@ out:
 }
 
 void
-controlserver::end()
+controlthread::end()
 {
     if (t) {
         assert(localshutdown);
@@ -460,7 +458,7 @@ controlserver::end()
 }
 
 maybe<error>
-controlserver::setup()
+controlthread::setup()
 {
     error err;
 
@@ -505,32 +503,30 @@ failed:
     return err;
 }
 
-}
-
-orerror<controlserver *>
+orerror<controlserver>
 controlserver::build(waitbox<shutdowncode> *s)
 {
-    auto r = new cf::controlserver(s);
-    auto e = r->setup();
+    auto r(new struct controlthread(s));
+    auto e(r->setup());
     if (e.isnothing())
-        return (controlserver *)r;
+        return controlserver(*r);
     else
         return e.just();
 }
 
 void
-controlserver::destroy()
+controlserver::destroy() const
 {
-    cf::rc(this)->end();
-    delete cf::rc(this);
+    controlthread.end();
+    delete &controlthread;
 }
 
 controlserver::iface
 controlserver::registeriface(controliface &interface)
 {
-    return iface::__mk_iface__(cf::rc(this)->registeriface(interface));
+    return iface::__mk_iface__(controlthread.registeriface(interface));
 }
 
-template class list<cf::controlserver::clientthread *>;
-template class waitqueue<cf::controlserver::clientthread *>;
-template class list<cf::registration *>;
+template class list<controlthread::clientthread *>;
+template class waitqueue<controlthread::clientthread *>;
+template class list<control_registration *>;

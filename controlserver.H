@@ -24,15 +24,19 @@ public:
 
 class controlserver {
     controlserver() = delete;
+    class controlthread &controlthread;
+    controlserver(class controlthread &_ct)
+        : controlthread(_ct)
+        {}
 public:
     /* Create a new control server and start serving requests.  The
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you
        call destroy(). */
-    static orerror<controlserver *> build(waitbox<shutdowncode> *s);
+    static orerror<controlserver> build(waitbox<shutdowncode> *s);
     /* Release the control server interface, stopping it first if
      * necessary. */
-    void destroy();
+    void destroy() const;
 
     class iface;
     /* Register a new control interface message type.  Returns a

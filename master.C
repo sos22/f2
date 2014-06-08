@@ -20,7 +20,7 @@ main()
     if (c.isfailure())
         c.failure().fatal("build control interface");
     auto r = s.success()->get();
-    c.success()->destroy();
+    c.success().destroy();
     s.success()->destroy();
     deinitlogging();
     r.finish();
