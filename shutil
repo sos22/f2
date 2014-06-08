@@ -34,7 +34,7 @@ function cc() {
 	    cat <<EOF
 include $dep
 $dep $obj: $src $mkfile
-	g++ -g -std=gnu++0x -fno-implicit-templates -Wall -Wextra -Werror -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp $src $* && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+	g++ -g -std=gnu++0x -fno-implicit-templates -fno-operator-names -Weffc++ -Wall -Wextra -Werror -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp $src $* && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
 clean::
 	rm -f $dep $obj
 EOF

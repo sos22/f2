@@ -8,13 +8,14 @@
 class threadfn {
 public:
     virtual void run() = 0;
+    virtual ~threadfn() {}
 };
 
 class thread {
     pthread_t thr;
     threadfn *func;
     static void *startfn(void *_this);
-    thread() {}
+    thread() : thr(), func(NULL) {}
     thread(const thread &o) = delete;
     void operator=(const thread &o) = delete;
 public:

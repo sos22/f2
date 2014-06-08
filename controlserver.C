@@ -41,16 +41,20 @@ struct controlserver : threadfn {
 	clientthread(controlserver *_owner,
 		     fd_t _fd,
 		     waitbox<bool> *_shutdown)
-	    : owner(_owner), fd(_fd), shutdown(_shutdown)
+	    : owner(_owner), fd(_fd), _thr(NULL),
+	      shutdown(_shutdown)
 	    {}
 	maybe<error> ping(const wireproto::rx_message &, buffer &);
 	maybe<error> unrecognised(const wireproto::rx_message &, buffer &);
 	maybe<error> getlogs(const wireproto::rx_message &, buffer &);
+	clientthread(const clientthread &) = delete;
+	void operator=(const clientthread &) = delete;
     public:
 	static orerror<clientthread *> spawn(controlserver *,
 					     fd_t,
 					     waitbox<bool> *);
 	thread *thr() { return _thr; }
+	virtual ~clientthread() {}
     };
     waitbox<bool> *localshutdown;
     waitbox<shutdowncode> *globalshutdown;
@@ -61,8 +65,15 @@ struct controlserver : threadfn {
 
     void run();
     controlserver(waitbox<shutdowncode> *_s)
-	: globalshutdown(_s), t(NULL)
+	: localshutdown(NULL),
+	  globalshutdown(_s),
+	  mux(),
+	  dying(),
+	  t(NULL),
+	  sock()
 	{}
+    controlserver(const controlserver &) = delete;
+    void operator=(const controlserver &) = delete;
 
     maybe<error> setup();
     void end();

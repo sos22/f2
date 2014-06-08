@@ -30,6 +30,8 @@ class buffer {
     subbuf *extend_end(size_t sz = 0) { return newsubbuf(sz, false, false, true); }
     subbuf *extend_start(size_t sz) { return newsubbuf(sz, true, true, true); }
     subbuf *unlinked_subbuf(size_t sz) { return newsubbuf(sz, false, false, false); }
+    buffer(const buffer &o) = delete;
+    void operator=(const buffer &o) = delete;
 public:
     buffer() : first(NULL), last(NULL), prod(0), cons(0) {}
     ~buffer();

@@ -10,6 +10,7 @@ class buffer;
 
 template <typename __fd_t>
 struct __piperes {
+    __piperes() : read(), write() {}
     __fd_t read;
     __fd_t write;
 };

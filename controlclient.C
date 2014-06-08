@@ -15,7 +15,11 @@ struct controlclient {
     wireproto::sequencer sequencer;
     list<const wireproto::rx_message *> pendingrx;
     controlclient(fd_t _fd)
-	: fd(_fd)
+	: outgoing(),
+	  incoming(),
+	  fd(_fd),
+	  sequencer(),
+	  pendingrx()
 	{}
     ~controlclient()
 	{

@@ -53,6 +53,7 @@ public:
 };
 
 class memlog_entry {
+    void operator=(const memlog_entry &) = delete;
 public:
     WIREPROTO_TYPE(memlog_entry);
     static maybe<memlog_entry> from_compound(const wireproto::rx_compoundparameter &);

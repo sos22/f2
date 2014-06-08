@@ -16,7 +16,7 @@ namespace wireproto {
 template <> maybe<error> rx_message::getparam<error>(parameter<error> p) const;
 
 tx_message::tx_message(msgtag _t)
-    : t(_t)
+    : t(_t), params()
 {}
 
 resp_message::resp_message(const rx_message &o)

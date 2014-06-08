@@ -18,7 +18,7 @@ class waitbox {
     bool filled;
     fd_t readfd;
     fd_t writefd;
-    waitbox() {};
+    waitbox() : mux(), filled(false), readfd(), writefd() {};
 public:
     static orerror<waitbox *> build();
     void destroy();

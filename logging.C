@@ -42,6 +42,7 @@ memlog_idx::operator ++(int)
 class log_sink {
 public:
     virtual void msg(const char *s) = 0;
+    virtual ~log_sink() {};
 };
 
 class memlog_sink : public log_sink {
@@ -51,7 +52,7 @@ class memlog_sink : public log_sink {
     mutex_t lock;
 public:
     memlog_sink()
-	: backlog(10000), next_sequence(1)
+	: backlog(10000), outstanding(), next_sequence(1), lock()
 	{}
     ~memlog_sink()
 	{
@@ -113,6 +114,8 @@ public:
 
 class filelog_sink : public log_sink {
     FILE *f;
+    filelog_sink(const filelog_sink &) = delete;
+    void operator=(const filelog_sink &) = delete;
 public:
     filelog_sink()
 	: f(NULL)
@@ -142,6 +145,8 @@ public:
 
 class stdio_sink : public log_sink {
     FILE *f;
+    stdio_sink(const stdio_sink &) = delete;
+    void operator=(const stdio_sink &) = delete;
 public:
     stdio_sink(FILE *_f)
 	: f(_f)

@@ -82,7 +82,7 @@ namespace wireproto {
     class tx_compoundparameter;
     class tx_message {
 	friend class tx_compoundparameter;
-	tx_message() : t(-1) {}
+	tx_message() : t(-1), params()  {}
 	tx_message(const tx_message &o) = delete;
     public:
 	const msgtag t;
@@ -91,7 +91,7 @@ namespace wireproto {
 	template <typename t> tx_message &addparam(parameter<list<t> >,
 						   const list<t> &);
 	tx_message &addparam(parameter<const char *>, const char *);
-	~tx_message();
+	virtual ~tx_message();
 	virtual maybe<error> serialise(buffer &buf) const;
     protected:
 	maybe<error> serialise(buffer &buf, sequencenr snr) const;

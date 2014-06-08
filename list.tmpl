@@ -10,15 +10,16 @@ template <typename t> struct list<t>::member {
     nub linkage;
     t value;
     member(const t &v)
-	: value(v)
+      : linkage(), value(v)
 	{}
     member()
-	: value()
+      : linkage(), value()
 	{}
 };
 
 template <typename t>
 list<t>::list()
+    : root()
 {
     root.next = root.prev = containerof(&root, member, linkage);
 }
