@@ -1,7 +1,8 @@
 #include "cond.H"
 
 cond_t::cond_t(mutex_t &_associated_mux)
-    : associated_mux(_associated_mux)
+    : associated_mux(_associated_mux),
+      cond()
 {
     pthread_cond_init(&cond, NULL);
 }

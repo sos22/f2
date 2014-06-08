@@ -1,10 +1,12 @@
 #include "proto.H"
 
 #include "logging.H"
+#include "shutdown.H"
 #include "wireproto.H"
 #include "wireproto.tmpl"
 
 wireproto_simple_wrapper_type(memlog_idx, unsigned long, val)
+wireproto_simple_wrapper_type(shutdowncode, int, code)
 
 wireproto_wrapper_type(memlog_entry)
 namespace wireproto {

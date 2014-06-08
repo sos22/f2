@@ -22,5 +22,6 @@ main()
     auto r = s.success()->get();
     c.success()->destroy();
     s.success()->destroy();
+    deinitlogging();
     r.finish();
 }

@@ -23,9 +23,9 @@ class controlserver {
     controlserver() = delete;
 public:
     /* Create a new control server and start serving requests.  The
-       server will stop server requests as soon as somebody puts a
-       shutdown code in @s, but you must still call the ::destroy()
-       method. */
+       server will put a shutdown code in @s when it receives a QUIT
+       message, but will continue serving incoming requests until you
+       call destroy(). */
     static orerror<controlserver *> build(waitbox<shutdowncode> *s);
     /* Release the control server interface, stopping it first if
      * necessary. */

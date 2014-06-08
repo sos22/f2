@@ -11,7 +11,7 @@ class fd_t;
  * use them where a list and a cond var would suffice. */
 template <typename t>
 class waitqueue {
-    mutex_t mux;
+    mutable mutex_t mux;
     fd_t readfd;
     fd_t writefd;
     list<t> content;
@@ -24,6 +24,8 @@ public:
     fd_t fd() const;
     /* Destroy the queue.  It must be empty before calling this. */
     void destroy() const;
+    /* Check whether the queue is currently empty */
+    bool empty() const;
     static orerror<waitqueue *> build();
 };
 

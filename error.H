@@ -58,6 +58,7 @@ public:
                                           * mandatory parameter */
     static const error invalidmessage; /* RPC message is malformed. */
     static const error unrecognisedmessage; /* RPC message tag unrecognised */
+    static const error noparse; /* Cannot parse user-provided argument */
 };
 
 #endif

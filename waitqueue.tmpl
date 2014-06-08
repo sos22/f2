@@ -60,4 +60,15 @@ waitqueue<t>::destroy() const
     delete this;
 }
 
+template <typename t> bool
+waitqueue<t>::empty() const
+{
+    bool res;
+
+    auto token(mux.lock());
+    res = content.empty();
+    mux.unlock(&token);
+    return res;
+}
+
 #endif /* !WAITQUEUE_TMPL__ */

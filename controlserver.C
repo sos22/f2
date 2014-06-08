@@ -60,6 +60,17 @@ class unknowniface : public controliface {
 public:
     maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
 };
+class quitiface : public controliface {
+    waitbox<shutdowncode> *s;
+    quitiface() = delete;
+    quitiface(const quitiface &) = delete;
+    void operator=(const quitiface &) = delete;
+public:
+    quitiface(waitbox<shutdowncode> *_s)
+        : s(_s)
+        {}
+    maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
+};
 
 struct controlserver : threadfn {
     class clientthread : threadfn {
@@ -96,9 +107,11 @@ struct controlserver : threadfn {
 
     unknowniface unknowninterface;
     pingiface pinginterface;
+    quitiface quitinterface;
     registration *unknownregistration;
     registration *loggingregistration;
     registration *pingregistration;
+    registration *quitregistration;
 
     void run();
     controlserver(waitbox<shutdowncode> *_s)
@@ -110,12 +123,16 @@ struct controlserver : threadfn {
           t(NULL),
           sock(),
           unknowninterface(),
+          pinginterface(),
+          quitinterface(_s),
           unknownregistration(registeriface(wireproto::msgtag(0),
                                             unknowninterface)),
           loggingregistration(registeriface(proto::GETLOGS::tag,
                                             getlogsiface::singleton)),
           pingregistration(registeriface(proto::PING::tag,
-                                         pinginterface))
+                                         pinginterface)),
+          quitregistration(registeriface(proto::QUIT::tag,
+                                         quitinterface))
         {
         }
     controlserver(const controlserver &) = delete;
@@ -131,6 +148,7 @@ struct controlserver : threadfn {
             unknownregistration->deregister();
             loggingregistration->deregister();
             pingregistration->deregister();
+            quitregistration->deregister();
             assert(!t);
             localshutdown->destroy();
             dying->destroy();
@@ -337,6 +355,21 @@ pingiface::controlmessage(const wireproto::rx_message &msg, buffer &outgoing)
 }
 
 maybe<error>
+quitiface::controlmessage(const wireproto::rx_message &msg, buffer &)
+{
+    auto reason(msg.getparam(proto::QUIT::req::reason));
+    if (!reason) return error::missingparameter;
+    auto message(msg.getparam(proto::QUIT::req::message));
+    logmsg(loglevel::notice,
+           "received a quit message: %s",
+           message.isjust()
+           ? message.just()
+           : "<no explanation given>");
+    s->set(reason.just());
+    return Nothing;
+}
+
+maybe<error>
 unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 {
     logmsg(loglevel::failure,
@@ -348,14 +381,13 @@ unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 void
 controlserver::run()
 {
-    struct pollfd pfds[4];
+    struct pollfd pfds[3];
     list<clientthread *> threads;
     int nrfds;
-    pfds[0] = globalshutdown->fd().poll(POLLIN);
-    pfds[1] = localshutdown->fd().poll(POLLIN);
-    pfds[2] = dying->fd().poll(POLLIN);
-    pfds[3] = sock.poll();
-    nrfds = 4;
+    pfds[0] = localshutdown->fd().poll(POLLIN);
+    pfds[1] = dying->fd().poll(POLLIN);
+    pfds[2] = sock.poll();
+    nrfds = 3;
     while (1) {
         int r = poll(pfds, nrfds, -1);
         if (r < 0)
@@ -363,18 +395,22 @@ controlserver::run()
         for (unsigned i = 0; r; i++) {
             assert(i < ARRAY_SIZE(pfds));
             if (pfds[i].revents) {
-                if (globalshutdown->fd().polled(pfds[i])) {
-                    logmsg(loglevel::info, "control interface received global shutdown");
-                    assert(!(pfds[i].revents & POLLERR));
-                    assert(globalshutdown->ready());
-                    localshutdown->set(true);
-                    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
-                    nrfds--;
-                } else if (localshutdown->fd().polled(pfds[i])) {
-                    logmsg(loglevel::info, "control interface received local shutdown");
+                if (localshutdown->fd().polled(pfds[i])) {
+                    logmsg(loglevel::info,
+                           "control interface received local shutdown");
                     assert(!(pfds[i].revents & POLLERR));
                     memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
                     nrfds--;
+                    /* No longer interested in accepting more clients. */
+                    for (int j = 0; j < nrfds; j++) {
+                        if (sock.polled(pfds[j])) {
+                            memmove(pfds + j,
+                                    pfds + j + 1,
+                                    sizeof(pfds[0]) * (nrfds - j - 1));
+                            nrfds--;
+                            j--;
+                        }
+                    }
                     if (threads.empty())
 /**/                    goto out;
                 } else if (dying->fd().polled(pfds[i])) {
@@ -390,7 +426,7 @@ controlserver::run()
                     }
                     logmsg(loglevel::info, "control interface reaped client thread");
                     if (threads.empty() && localshutdown->ready())
-                        goto out;
+/**/                    goto out;
                 } else {
                     if (pfds[i].revents & POLLERR)
                         error::disconnected.fatal("on control listen socket");
@@ -415,6 +451,9 @@ controlserver::run()
         }
     }
 out:
+    assert(threads.empty());
+    assert(localshutdown->ready());
+    assert(dying->empty());
     return;
 }
 
@@ -426,14 +465,6 @@ controlserver::end()
         localshutdown->set(true);
         t->join();
         t = NULL;
-    }
-    if (dying) {
-        dying->destroy();
-        dying = NULL;
-    }
-    if (localshutdown) {
-        localshutdown->destroy();
-        localshutdown = NULL;
     }
     sock.close();
 }

@@ -15,6 +15,7 @@ const error error::underflowed(-3);
 const error error::missingparameter(-4);
 const error error::invalidmessage(-5);
 const error error::unrecognisedmessage(-6);
+const error error::noparse(-7);
 
 const char *
 error::str() const
@@ -35,6 +36,8 @@ error::str() const
         return "invalidmessage";
     else if (*this == unrecognisedmessage)
         return "unrecognisedmessage";
+    else if (*this == noparse)
+        return "noparse";
     else
         abort();
 }

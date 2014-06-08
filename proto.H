@@ -4,8 +4,8 @@
 #include "wireproto.H"
 
 class memlog_idx;
-class memlog_complete;
 class memlog_entry;
+class shutdowncode;
 
 namespace proto {
     using namespace wireproto;
@@ -36,6 +36,15 @@ namespace proto {
             static const parameter<memlog_idx> resume(250);
             static const parameter<list< ::memlog_entry> > msgs(251);
         };
+    };
+
+    namespace QUIT {
+        static const msgtag tag(3);
+        namespace req {
+            static const parameter<const char *> message(300);
+            static const parameter<shutdowncode> reason(301);
+        };
+        /* No response */
     };
 }
 

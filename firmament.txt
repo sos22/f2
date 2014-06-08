@@ -84,7 +84,7 @@ Basic protocols:
 Slave arrival:
 
 Slave -> Broadcast: HAIL <version> <slave name> <nonce1>
-Master -> Slave: WELLMET <version> <master name> <tcp port> <nonce2> {hash 'A'+nonce1+password}
+Master -> Slave: WELLMET <version> <master name> <tcp port> <nonce2> {hash 'A'+master name+nonce1+password}
 Slave -> Master: HELLO <version> <nonce2> <slave name> {hash 'B'+nonce2+password> <capabilities> <inventory>
 
 HAIL and WELLMET are over UDP.  Everything else is TCP.  I'm kind of
