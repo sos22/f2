@@ -34,10 +34,18 @@ public:
 	    new (content) t(what);
 	}
     bool isnothing() const { return r; }
+    bool operator!() const { return isnothing(); }
     bool isjust() const { return !r; }
     const t &just() const {
 	assert(isjust());
 	return *(t *)content;
+    }
+    const t &dflt(const t &what) const {
+	if (isjust()) return just();
+	else return what;
+    }
+    bool operator==(const _Nothing) const {
+	return isnothing();
     }
 };
 

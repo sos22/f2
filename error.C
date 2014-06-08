@@ -6,19 +6,35 @@
 #include <string.h>
 
 #include "logging.H"
+#include "wireproto.tmpl"
 
+const error error::unknown(0);
 const error error::disconnected(-1);
 const error error::overflowed(-2);
+const error error::underflowed(-3);
+const error error::missingparameter(-4);
+const error error::invalidmessage(-5);
+const error error::unrecognisedmessage(-6);
 
 const char *
 error::str() const
 {
-    if (e == -1)
-	return "disconnected";
-    else if (e == -2)
-	return "overflowed";
-    else if (e > 0)
+    if (e > 0)
 	return strerror(e);
+    else if (*this == unknown)
+	return "unknown";
+    else if (*this == disconnected)
+	return "disconnected";
+    else if (*this == overflowed)
+	return "overflowed";
+    else if (*this == underflowed)
+	return "underflowed";
+    else if (*this == missingparameter)
+	return "missingparameter";
+    else if (*this == invalidmessage)
+	return "invalidmessage";
+    else if (*this == unrecognisedmessage)
+	return "unrecognisedmessage";
     else
 	abort();
 }
@@ -53,3 +69,5 @@ error::warn(const char *msg) const
 	   msg, str());
     warnx("warning: %s: %s", msg, str());
 }
+
+wireproto_simple_wrapper_type(error, int, e);

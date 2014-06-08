@@ -91,8 +91,10 @@ controlclient::_receive()
 {
     while (1) {
 	auto r(wireproto::rx_message::fetch(incoming));
-	if (r.isjust())
-	    return r.just();
+	if (r.issuccess())
+	    return r.success();
+	if (r.isfailure() && r.failure() != error::underflowed)
+	    return r.failure();
 	auto t(incoming.receive(fd));
 	if (t.isjust())
 	    return t.just();

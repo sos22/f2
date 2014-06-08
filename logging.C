@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <syscall.h>
 #include <syslog.h>
 #include <time.h>
@@ -18,6 +19,31 @@
 
 #include "list.tmpl"
 
+template class list<memlog_entry>;
+
+const memlog_idx
+memlog_idx::min(0);
+
+const memlog_idx
+memlog_idx::max(ULONG_MAX);
+
+memlog_idx::memlog_idx(unsigned long _val)
+    : val(_val)
+{}
+
+memlog_idx
+memlog_idx::operator ++(int)
+{
+    val++;
+    return memlog_idx(val - 1);
+}
+
+const memlog_complete
+memlog_complete::complete(true);
+
+const memlog_complete
+memlog_complete::incomplete(false);
+
 class log_sink {
 public:
     virtual void msg(const char *s) = 0;
@@ -25,32 +51,46 @@ public:
 
 class memlog_sink : public log_sink {
     const int backlog;
-    list<char *> outstanding;
+    list<memlog_entry> outstanding;
+    memlog_idx next_sequence;
     mutex_t lock;
 public:
     memlog_sink()
-	: backlog(10000)
+	: backlog(10000), next_sequence(1)
 	{}
     ~memlog_sink()
 	{
-	    while (!outstanding.empty())
-		free(outstanding.pophead());
+	    outstanding.flush();
 	}
     void msg(const char *s)
 	{
 	    auto t(lock.lock());
-	    outstanding.pushtail(strdup(s));
+	    outstanding.pushtail(memlog_entry(next_sequence++, strdup(s)));
 	    while (outstanding.length() > backlog)
-		free(outstanding.pophead());
+		outstanding.pophead();
 	    lock.unlock(&t);
 	}
-    void fetch(list<const char *> &out)
+    memlog_complete fetch(memlog_idx start, int limit, list<memlog_entry> &out)
 	{
 	    assert(out.empty());
 	    auto t(lock.lock());
-	    for (auto it(outstanding.start()); !it.finished(); it.next())
-		out.pushtail(strdup(*it));
+	    int nr;
+	    memlog_complete res = memlog_complete::complete;
+	    nr = 0;
+	    for (auto it(outstanding.start());
+		 !it.finished();
+		 it.next()) {
+		if (it->idx >= start) {
+		    if (nr >= limit) {
+			res = memlog_complete::incomplete;
+			break;
+		    }
+		    nr++;
+		    out.pushtail(*it);
+		}
+	    }
 	    lock.unlock(&t);
+	    return res;
 	}
 };
 
@@ -229,9 +269,9 @@ void deinitlogging(void)
     __level_to_sink(loglevel::verbose).flush();
 }
 
-void getmemlog(list<const char *> &out)
+memlog_complete getmemlog(memlog_idx start, int limit, list<memlog_entry> &out)
 {
     assert(out.empty());
     assert(logsinks::memlog);
-    logsinks::memlog->fetch(out);
+    return logsinks::memlog->fetch(start, limit, out);
 }

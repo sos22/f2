@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "controlclient.H"
+#include "logging.H"
 #include "proto.H"
 #include "wireproto.H"
 
@@ -33,12 +34,12 @@ main(int argc, char *argv[])
 	    wireproto::req_message(proto::GETLOGS::tag, snr));
 	c.success()->putsequencenr(snr);
 	if (m.issuccess()) {
-	    list<const char *> msgs;
+	    list<memlog_entry> msgs;
 	    auto r(m.success()->fetch(proto::GETLOGS::resp::msgs, msgs));
 	    if (r.isjust())
 		r.just().fatal("decoding returned message list");
 	    for (auto it(msgs.start()); !it.finished(); it.next())
-		printf("%s\n", *it);
+		printf("%s\n", it->msg);
 	    msgs.flush();
 	} else {
 	    m.failure().fatal("requesting logs");

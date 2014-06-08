@@ -1,7 +1,11 @@
 #ifndef LOGGING_H__
 #define LOGGING_H__
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "list.H"
+#include "wireproto.H"
 
 class log_sink;
 
@@ -33,7 +37,58 @@ void logmsg(loglevel level,
 	    ...)
     __attribute__((format(printf,2,3)));
 
-void getmemlog(list<const char *> &);
+class memlog_idx {
+    friend class memlog_sink;
+    unsigned long val;
+    memlog_idx(unsigned long);
+    memlog_idx operator++(int);
+public:
+    WIREPROTO_TYPE(memlog_idx);
+
+    static const memlog_idx min;
+    static const memlog_idx max;
+    bool operator >=(const memlog_idx &o) const
+	{ return val >= o.val; }
+};
+
+class memlog_entry {
+public:
+    WIREPROTO_TYPE(memlog_entry);
+    static maybe<memlog_entry> from_compound(const wireproto::rx_compoundparameter &);
+
+    memlog_idx const idx;
+    char *const msg;
+
+    memlog_entry(memlog_idx _idx,
+		 const char *_msg)
+	: idx(_idx), msg(strdup(_msg))
+	{
+	}
+    memlog_entry()
+	: idx(memlog_idx::max), msg(NULL)
+	{}
+    ~memlog_entry()
+	{
+	    free(msg);
+	}
+    memlog_entry(const memlog_entry &o)
+	: idx(o.idx), msg(strdup(o.msg))
+	{}
+};
+
+class memlog_complete {
+    bool r;
+    explicit memlog_complete(bool _r)
+	: r(_r)
+	{}
+    memlog_complete() = delete;
+public:
+    WIREPROTO_TYPE(memlog_complete);
+
+    static const memlog_complete complete;
+    static const memlog_complete incomplete;
+};
+memlog_complete getmemlog(memlog_idx start, int limit, list<memlog_entry> &);
 
 void initlogging(const char *ident);
 void deinitlogging(void);

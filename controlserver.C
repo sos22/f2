@@ -46,9 +46,9 @@ struct controlserver : threadfn {
 		     waitbox<bool> *_shutdown)
 	    : owner(_owner), fd(_fd), shutdown(_shutdown)
 	    {}
-	void ping(const wireproto::rx_message &, buffer &);
-	void unrecognised(const wireproto::rx_message &, buffer &);
-	void getlogs(const wireproto::rx_message &, buffer &);
+	maybe<error> ping(const wireproto::rx_message &, buffer &);
+	maybe<error> unrecognised(const wireproto::rx_message &, buffer &);
+	maybe<error> getlogs(const wireproto::rx_message &, buffer &);
     public:
 	static orerror<clientthread *> spawn(controlserver *,
 					     fd_t,
@@ -142,23 +142,19 @@ controlserver::clientthread::runcommand(buffer &incoming,
 					bool *die)
 {
     auto r(wireproto::rx_message::fetch(incoming));
-    if (r.isnothing())
+    if (r.isfailure())
 	return false;
-    if (r.just() == NULL) {
-	logmsg(loglevel::failure, "client misbehaving");
-	*die = true;
-	return false;
-    }
-    logmsg(loglevel::verbose,
-	   "run command %d\n",
-	   r.just()->t.as_int());
-    if (r.just()->t == proto::PING::tag)
-	ping(*r.just(), outgoing);
-    else if (r.just()->t == proto::GETLOGS::tag)
-	getlogs(*r.just(), outgoing);
-    else
-	unrecognised(*r.just(), outgoing);
-    r.just()->finish();
+    assert(r.success() != NULL);
+    auto tag(r.success()->t);
+    logmsg(loglevel::verbose, "run command %d\n", tag.as_int());
+    auto process(tag == proto::PING::tag ? &clientthread::ping :
+		 tag == proto::GETLOGS::tag ? &clientthread::getlogs :
+		 &clientthread::unrecognised);
+    auto res((this->*process)(*r.success(), outgoing));
+    if (res.isjust())
+	wireproto::err_resp_message(*r.success(), res.just())
+	    .serialise(outgoing);
+    r.success()->finish();
     return true;
 }
 
@@ -177,7 +173,7 @@ controlserver::clientthread::spawn(controlserver *server,
     }
 }
 
-void
+maybe<error>
 controlserver::clientthread::ping(const wireproto::rx_message &msg,
 				  buffer &outgoing)
 {
@@ -193,29 +189,46 @@ controlserver::clientthread::ping(const wireproto::rx_message &msg,
     auto r(m.serialise(outgoing));
     if (r.isjust())
 	r.just().warn("sending pong");
+    return r;
 }
 
-void
+maybe<error>
 controlserver::clientthread::getlogs(const wireproto::rx_message &msg,
 				     buffer &outgoing)
 {
     logmsg(loglevel::debug, "fetch logs");
-    wireproto::resp_message m(msg);
-    list<const char *> results;
-    getmemlog(results);
-    m.addparam(proto::GETLOGS::resp::msgs, results);
-    auto r(m.serialise(outgoing));
-    if (r.isjust())
-	r.just().warn("sending logs");
-    while (!results.empty())
-	free(const_cast<char *>(results.pophead()));
+    auto start(msg.getparam(proto::GETLOGS::req::startidx).
+	       dflt(memlog_idx::min));
+
+    for (int limit = 200; limit > 0; ) {
+	list<memlog_entry> results;
+	auto complete(getmemlog(start, limit, results));
+	wireproto::resp_message m(msg);
+	m.addparam(proto::GETLOGS::resp::msgs, results);
+	m.addparam(proto::GETLOGS::resp::complete, complete);
+	auto r(m.serialise(outgoing));
+	results.flush();
+	if (r == Nothing /* success */ ||
+	    r.just() != error::overflowed /* unrecoverable error */)
+	    return r;
+	limit /= 2;
+	logmsg(loglevel::verbose,
+	       "overflow sending %d log messages, trying %d",
+	       limit,
+	       limit / 2);
+    }
+
+    logmsg(loglevel::failure,
+	   "can't send even a single log message without overflowing buffer?");
+    return error::overflowed;
 }
 
-void
+maybe<error>
 controlserver::clientthread::unrecognised(const wireproto::rx_message &msg,
 					  buffer &outgoing)
 {
     logmsg(loglevel::failure, "Received an unrecognised message");
+    return error::unrecognisedmessage;
 }
 
 void
