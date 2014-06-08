@@ -184,15 +184,15 @@ buffer::discard(size_t sz)
 }
 
 char
-buffer::idx(size_t offset) const
+buffer::idx(size_t off) const
 {
-    offset -= cons;
+    off -= cons;
     auto it(first);
     while (1) {
 	assert(it);
-	if (offset < it->prod - it->cons)
-	    return it->payload[it->cons + offset];
-	offset -= it->prod - it->cons;
+	if (off < it->prod - it->cons)
+	    return it->payload[it->cons + off];
+	off -= it->prod - it->cons;
 	it = it->next;
     }
 }

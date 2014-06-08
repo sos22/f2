@@ -25,13 +25,13 @@ namespace wireproto {
 };
 void
 memlog_entry::addparam(wireproto::parameter<memlog_entry> tmpl,
-		       wireproto::tx_message &msg) const
+		       wireproto::tx_message &tx_msg) const
 {
     const char *_msg = this->msg;
-    msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
-		 wireproto::tx_compoundparameter().
-		 addparam(proto::memlog_entry::msg, _msg).
-		 addparam(proto::memlog_entry::idx, idx));
+    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+		    wireproto::tx_compoundparameter().
+		    addparam(proto::memlog_entry::msg, _msg).
+		    addparam(proto::memlog_entry::idx, idx));
 }
 maybe<memlog_entry>
 memlog_entry::from_compound(const wireproto::rx_compoundparameter &p)

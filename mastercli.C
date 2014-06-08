@@ -43,9 +43,9 @@ main(int argc, char *argv[])
 		m.failure().fatal("requesting logs");
 	    auto mm(m.success());
 	    list<memlog_entry> msgs;
-	    auto r(mm->fetch(proto::GETLOGS::resp::msgs, msgs));
-	    if (r.isjust())
-		r.just().fatal("decoding returned message list");
+	    auto rr(mm->fetch(proto::GETLOGS::resp::msgs, msgs));
+	    if (rr.isjust())
+		rr.just().fatal("decoding returned message list");
 	    for (auto it(msgs.start()); !it.finished(); it.next())
 		printf("%9ld: %s\n", it->idx.as_long(), it->msg);
 	    msgs.flush();

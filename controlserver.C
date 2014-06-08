@@ -114,9 +114,9 @@ controlserver::clientthread::run()
 	}
 	if (fds[1].revents) {
 	    if (fds[1].revents & POLLOUT) {
-		auto r(outgoing.send(fd));
-		if (r.isjust()) {
-		    r.just().warn("sending to client");
+		auto rr(outgoing.send(fd));
+		if (rr.isjust()) {
+		    rr.just().warn("sending to client");
 		    break;
 		}
 		fds[1].revents &= ~POLLOUT;

@@ -463,18 +463,18 @@ template maybe<error> rx_message::getparam<error>(parameter<error>) const;
 template <> maybe<error>
 rx_message::fetch(parameter<rx_compoundparameter> p, rx_compoundparameter &out) const
 {
-    unsigned idx;
-    for (idx = 0; idx < nrparams; idx++) {
-	if (index[idx].id == p.id)
+    unsigned x;
+    for (x = 0; x < nrparams; x++) {
+	if (index[x].id == p.id)
 	    break;
     }
-    if (idx == nrparams)
+    if (x == nrparams)
 	return error::from_errno(ENOENT);
     bufslice slice(buf,
-		   payload_offset + index[idx].offset,
-		   idx + 1 == nrparams
+		   payload_offset + index[x].offset,
+		   x + 1 == nrparams
 		     ? payload_offset + payload_size 
-		     : payload_offset + index[idx+1].offset);
+		     : payload_offset + index[x+1].offset);
     return decode(slice, out);
 }
 
