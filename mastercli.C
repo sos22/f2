@@ -1,3 +1,4 @@
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -9,6 +10,8 @@
 int
 main(int argc, char *argv[])
 {
+    if (argc != 2)
+	errx(1, "need a single argument, the mode to run in");
     auto c(controlclient::connect());
     int r;
 

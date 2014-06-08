@@ -17,7 +17,7 @@ unixsocket::listen(const char *path)
     }
     struct sockaddr_un sa;
     sa.sun_family = AF_UNIX;
-    strcpy(sa.sun_path, "mastersock");
+    strcpy(sa.sun_path, path);
     if (bind(sock, (const struct sockaddr *)&sa, sizeof(sa)) < 0) {
 	if (errno == EADDRINUSE) {
 	    if (unlink(sa.sun_path) < 0 ||

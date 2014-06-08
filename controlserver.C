@@ -142,8 +142,10 @@ controlserver::clientthread::runcommand(buffer &incoming,
 					bool *die)
 {
     auto r(wireproto::rx_message::fetch(incoming));
-    if (r.isfailure())
+    if (r.isfailure()) {
+	*die = r.failure() != error::underflowed;
 	return false;
+    }
     assert(r.success() != NULL);
     auto tag(r.success()->t);
     logmsg(loglevel::verbose, "run command %d\n", tag.as_int());
@@ -225,9 +227,11 @@ controlserver::clientthread::getlogs(const wireproto::rx_message &msg,
 
 maybe<error>
 controlserver::clientthread::unrecognised(const wireproto::rx_message &msg,
-					  buffer &outgoing)
+					  buffer &)
 {
-    logmsg(loglevel::failure, "Received an unrecognised message");
+    logmsg(loglevel::failure,
+	   "Received an unrecognised message type %d",
+	   msg.t.as_int());
     return error::unrecognisedmessage;
 }
 

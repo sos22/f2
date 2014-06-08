@@ -24,7 +24,7 @@ public:
 	{
 	    if (isjust()) ((t *)content)->~t();
 	}
-    maybe(_Nothing n)
+    maybe(_Nothing)
 	: r(true)
 	{
 	}

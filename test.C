@@ -14,7 +14,7 @@ test::msg(const char *fmt, ...)
 }
 
 void
-test::detail(const char *fmt, ...)
+test::detail(const char *, ...)
 {
 }
 
