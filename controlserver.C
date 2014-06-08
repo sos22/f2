@@ -41,23 +41,22 @@ struct registration {
     void operator=(const registration &) = delete;
 
     controlserver *server;
-    wireproto::msgtag tag;
     unsigned outstanding;
     controliface &iface;
     cond_t idle;
-    registration(controlserver *_server,
-                 wireproto::msgtag _tag,
-                 controliface &_iface);
+    registration(controlserver *_server, controliface &_iface);
     void deregister() const;
     ~registration() { assert(outstanding == 0); }
 };
 
 class pingiface : public controliface {
 public:
+    pingiface() : controliface(proto::PING::tag) {}
     maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
 };
 class unknowniface : public controliface {
 public:
+    unknowniface() : controliface(wireproto::msgtag(0)) {}
     maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
 };
 class quitiface : public controliface {
@@ -67,7 +66,7 @@ class quitiface : public controliface {
     void operator=(const quitiface &) = delete;
 public:
     quitiface(waitbox<shutdowncode> *_s)
-        : s(_s)
+        : controliface(proto::QUIT::tag), s(_s)
         {}
     maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
 };
@@ -125,21 +124,16 @@ struct controlserver : threadfn {
           unknowninterface(),
           pinginterface(),
           quitinterface(_s),
-          unknownregistration(registeriface(wireproto::msgtag(0),
-                                            unknowninterface)),
-          loggingregistration(registeriface(proto::GETLOGS::tag,
-                                            getlogsiface::singleton)),
-          pingregistration(registeriface(proto::PING::tag,
-                                         pinginterface)),
-          quitregistration(registeriface(proto::QUIT::tag,
-                                         quitinterface))
+          unknownregistration(registeriface(unknowninterface)),
+          loggingregistration(registeriface(getlogsiface::singleton)),
+          pingregistration(registeriface(pinginterface)),
+          quitregistration(registeriface(quitinterface))
         {
         }
     controlserver(const controlserver &) = delete;
     void operator=(const controlserver &) = delete;
 
-    registration *registeriface(wireproto::msgtag,
-                                controliface &iface);
+    registration *registeriface(controliface &iface);
 
     maybe<error> setup();
     void end();
@@ -161,10 +155,8 @@ rc(::controlserver *c)
 }
 
 registration::registration(controlserver *_server,
-                           wireproto::msgtag _tag,
                            controliface &_iface)
     : server(_server),
-      tag(_tag),
       outstanding(0),
       iface(_iface),
       idle(server->mux)
@@ -172,7 +164,6 @@ registration::registration(controlserver *_server,
 
 registration::registration(const registration &o)
     : server(o.server),
-      tag(o.tag),
       outstanding(0),
       iface(o.iface),
       idle(server->mux)
@@ -182,7 +173,6 @@ registration::registration(const registration &o)
 
 registration::registration()
     : server(NULL),
-      tag(0),
       outstanding(0),
       iface(*(controliface *)NULL),
       idle(server->mux)
@@ -209,12 +199,12 @@ registration::deregister() const
 }
 
 registration *
-controlserver::registeriface(wireproto::msgtag tag, controliface &iface)
+controlserver::registeriface(controliface &iface)
 {
-    auto reg(new registration(this, tag, iface));
+    auto reg(new registration(this, iface));
     auto token(mux.lock());
     for (auto it(registrations.start()); !it.finished(); it.next()) {
-        if ((*it)->tag == tag) {
+        if ((*it)->iface.tag == iface.tag) {
             mux.unlock(&token);
             abort();
         }
@@ -298,7 +288,7 @@ controlserver::clientthread::runcommand(buffer &incoming,
     for (auto it(owner->registrations.start());
          !it.finished();
          it.next()) {
-        if ((*it)->tag == tag) {
+        if ((*it)->iface.tag == tag) {
             handler = *it;
             break;
         }
@@ -536,9 +526,9 @@ controlserver::destroy()
 }
 
 controlserver::iface
-controlserver::registeriface(wireproto::msgtag t, controliface &interface)
+controlserver::registeriface(controliface &interface)
 {
-    return iface::__mk_iface__(cf::rc(this)->registeriface(t, interface));
+    return iface::__mk_iface__(cf::rc(this)->registeriface(interface));
 }
 
 template class list<cf::controlserver::clientthread *>;

@@ -294,6 +294,9 @@ void deinitlogging(void)
     __level_to_sink(loglevel::verbose).flush();
 }
 
+getlogsiface::getlogsiface()
+    : controliface(proto::GETLOGS::tag)
+{}
 maybe<error>
 getlogsiface::controlmessage(const wireproto::rx_message &msg,
                              buffer &outgoing)

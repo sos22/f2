@@ -7,13 +7,16 @@ template <typename> class maybe;
 template <typename t> class orerror;
 class shutdowncode;
 template <typename t> class waitbox;
-namespace wireproto{
-    class rx_message;
-    class msgtag;
-};
+
+#include "wireproto.H"
 
 class controliface {
+protected:
+    controliface(wireproto::msgtag _tag)
+        : tag(_tag)
+        {}
 public:
+    const wireproto::msgtag tag;
     virtual maybe<error> controlmessage(const wireproto::rx_message &,
                                         buffer &) = 0;
     virtual ~controliface() {}
@@ -34,9 +37,9 @@ public:
     class iface;
     /* Register a new control interface message type.  Returns a
        cookie which can later be used to deregister it.  Aborts if the
-       same interface is registered multiple times. */
-    iface registeriface(wireproto::msgtag,
-                        controliface &iface);
+       same interface is registered multiple times, or if multiple
+       interfaces are registered with the same tag. */
+    iface registeriface(controliface &iface);
 
     class iface {
         void *content;

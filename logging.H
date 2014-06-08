@@ -84,6 +84,7 @@ void deinitlogging(void);
 
 class getlogsiface : public controliface {
 public:
+    getlogsiface();
     maybe<error> controlmessage(const wireproto::rx_message &,
                                 buffer &);
     static getlogsiface singleton;
