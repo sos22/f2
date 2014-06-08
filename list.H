@@ -4,21 +4,17 @@
 template <typename t>
 class list {
     struct member;
-    struct nub {
-	member *next;
-	member *prev;
-    };
-    nub root;
+    member *head;
+    member *tail;
     list(const list &o) = delete;
     void operator=(const list &o) = delete;
 public:
     class iter {
 	friend class list;
+	list *const owner;
 	member *cursor;
-	member *n;
-	nub *const eof;
 	const bool reverse;
-	iter(nub *_eof, bool _reverse);
+	iter(list *owner, const bool reverse);
     public:
 	bool finished() const;
 	void next();
@@ -30,10 +26,10 @@ public:
     };
     class const_iter {
 	friend class list;
+	const list *const owner;
 	const member *cursor;
-	const nub *const eof;
 	const bool reverse;
-	const_iter(const nub *_eof, bool _reverse);
+	const_iter(const list *owner, const bool reverse);
     public:
 	bool finished() const;
 	void next();
