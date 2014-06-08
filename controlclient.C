@@ -138,6 +138,3 @@ controlclient::putsequencenr(wireproto::sequencenr snr)
 {
     return ((cc::controlclient *)this)->putsequencenr(snr);
 }
-
-#include "list.tmpl"
-template class list<const wireproto::rx_message *>;

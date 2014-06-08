@@ -27,9 +27,6 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
-template class list<thread *>;
-template class waitqueue<thread *>;
-
 namespace cf {
 struct controlserver : threadfn {
     class clientthread : threadfn {
@@ -393,3 +390,6 @@ controlserver::destroy()
     cf::rc(this)->end();
     delete cf::rc(this);
 }
+
+template class list<cf::controlserver::clientthread *>;
+template class waitqueue<cf::controlserver::clientthread *>;

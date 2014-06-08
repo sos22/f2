@@ -20,6 +20,7 @@
 #include "list.tmpl"
 
 template class list<memlog_entry>;
+template class list<log_sink *>;
 
 const memlog_idx
 memlog_idx::min(0);

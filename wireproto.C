@@ -11,9 +11,6 @@
 
 #include "list.tmpl"
 
-template class list<wireproto::tx_message::pinstance>;
-template class list<const char *>;
-
 namespace wireproto {
 
 template <> maybe<error> rx_message::getparam<error>(parameter<error> p) const;
@@ -449,28 +446,6 @@ template <typename typ> maybe<error> decode(bufslice &slice,
 					    typ &out);
 
 template <> maybe<error>
-decode(bufslice &slice, list<const char *> &out)
-{
-    assert(out.empty());
-    if (slice.end == slice.start)
-	return error::from_errno(EINVAL);
-    size_t start;
-    size_t end;
-    start = slice.start;
-    while (start != slice.end) {
-	for (end = start; end != slice.end && slice.buf.idx(end) != '\0'; end++)
-	    ;
-	if (end == slice.end) {
-	    out.flush();
-	    return error::from_errno(EINVAL);
-	}
-	out.pushtail((const char *)slice.buf.linearise(start, end + 1));
-	start = end + 1;
-    }
-    return Nothing;
-}
-
-template <> maybe<error>
 decode(bufslice &slice, rx_compoundparameter &out)
 {
     auto r(rx_message::fetch(slice));
@@ -482,25 +457,8 @@ decode(bufslice &slice, rx_compoundparameter &out)
 
 template maybe<const char *> rx_message::getparam<const char *>(parameter<const char *>)const;
 template maybe<int> rx_message::getparam<int>(parameter<int>) const;
+template maybe<unsigned long> rx_message::getparam<unsigned long>(parameter<unsigned long>) const;
 template maybe<error> rx_message::getparam<error>(parameter<error>) const;
-
-template <> maybe<error>
-rx_message::fetch(parameter<list<const char *> > p, list<const char *> &out) const
-{
-    unsigned idx;
-    for (idx = 0; idx < nrparams; idx++) {
-	if (index[idx].id == p.id)
-	    break;
-    }
-    if (idx == nrparams)
-	return error::from_errno(ENOENT);
-    bufslice slice(buf,
-		   payload_offset + index[idx].offset,
-		   idx + 1 == nrparams
-		     ? payload_offset + payload_size 
-		     : payload_offset + index[idx+1].offset);
-    return decode(slice, out);
-}
 
 template <> maybe<error>
 rx_message::fetch(parameter<rx_compoundparameter> p, rx_compoundparameter &out) const
@@ -532,3 +490,6 @@ const sequencenr sequencenr::invalid(0);
 const parameter<error> err_parameter(0);
 
 };
+
+template class list<const wireproto::rx_message *>;
+template class list<wireproto::tx_message::pinstance>;
