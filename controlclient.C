@@ -73,7 +73,7 @@ controlclient::call(const wireproto::req_message &msg)
 	    return m;
 	if (m.success()->sequence == msg.sequence.reply())
 	    return m;
-	pendingrx.pushhead(m.success());
+	pendingrx.pushtail(m.success());
     }
 }
 

@@ -33,9 +33,8 @@ namespace proto {
 	    static const parameter<memlog_idx> startidx(200);
 	};
 	namespace resp {
-	    static const parameter<memlog_complete> complete(250);
+	    static const parameter<memlog_idx> resume(250);
 	    static const parameter<list< ::memlog_entry> > msgs(251);
-	    static const parameter<error> failure(252);
 	};
     };
 }

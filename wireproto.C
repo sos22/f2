@@ -134,13 +134,15 @@ rx_message::fetch(buffer &buffer)
     buffer.fetch(&sequence, sizeof(sequence));
     buffer.fetch(&nrparams, sizeof(nrparams));
     buffer.fetch(&tag, sizeof(tag));
-    if (nrparams > 128 || sz < 6 + nrparams * 4)
+    if (nrparams > 512)
+	return error::overflowed;
+    if (sz < 6 + nrparams * 4)
 	return error::invalidmessage;
     
     auto work(new rx_message(msgtag(tag),
 			     sequence,
 			     nrparams,
-			     sz - buffer.offset() - nrparams * 4,
+			     sz - 8 - nrparams * 4,
 			     buffer.offset() + 4 * nrparams,
 			     buffer));
     buffer.fetch(const_cast<idx *>(work->index), 4 * nrparams);

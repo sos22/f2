@@ -5,10 +5,8 @@
 #include "wireproto.tmpl"
 
 wireproto_simple_wrapper_type(memlog_idx, unsigned long, val)
-wireproto_simple_wrapper_type(memlog_complete, bool, r)
 
 wireproto_wrapper_type(memlog_entry)
-
 namespace wireproto {
     template tx_message &tx_message::addparam(
 	parameter<list<memlog_entry> >, const list<memlog_entry> &);
@@ -25,7 +23,6 @@ namespace wireproto {
 	return res;
     }
 };
-
 void
 memlog_entry::addparam(wireproto::parameter<memlog_entry> tmpl,
 		       wireproto::tx_message &msg) const

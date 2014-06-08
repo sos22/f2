@@ -196,16 +196,16 @@ maybe<error>
 controlserver::clientthread::getlogs(const wireproto::rx_message &msg,
 				     buffer &outgoing)
 {
-    logmsg(loglevel::debug, "fetch logs");
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
 	       dflt(memlog_idx::min));
-
+    logmsg(loglevel::debug, "fetch logs from %ld", start.as_long());
     for (int limit = 200; limit > 0; ) {
 	list<memlog_entry> results;
-	auto complete(getmemlog(start, limit, results));
+	auto resume(getmemlog(start, limit, results));
 	wireproto::resp_message m(msg);
 	m.addparam(proto::GETLOGS::resp::msgs, results);
-	m.addparam(proto::GETLOGS::resp::complete, complete);
+	if (resume.isjust())
+	    m.addparam(proto::GETLOGS::resp::resume, resume.just());
 	auto r(m.serialise(outgoing));
 	results.flush();
 	if (r == Nothing /* success */ ||

@@ -38,12 +38,6 @@ memlog_idx::operator ++(int)
     return memlog_idx(val - 1);
 }
 
-const memlog_complete
-memlog_complete::complete(true);
-
-const memlog_complete
-memlog_complete::incomplete(false);
-
 class log_sink {
 public:
     virtual void msg(const char *s) = 0;
@@ -70,27 +64,29 @@ public:
 		outstanding.pophead();
 	    lock.unlock(&t);
 	}
-    memlog_complete fetch(memlog_idx start, int limit, list<memlog_entry> &out)
+    maybe<memlog_idx> fetch(memlog_idx start,
+			    int limit,
+			    list<memlog_entry> &out)
 	{
 	    assert(out.empty());
 	    auto t(lock.lock());
 	    int nr;
-	    memlog_complete res = memlog_complete::complete;
 	    nr = 0;
 	    for (auto it(outstanding.start());
 		 !it.finished();
 		 it.next()) {
 		if (it->idx >= start) {
-		    if (nr >= limit) {
-			res = memlog_complete::incomplete;
-			break;
+		    if (nr == limit) {
+			auto res(it->idx);
+			lock.unlock(&t);
+			return res;
 		    }
 		    nr++;
 		    out.pushtail(*it);
 		}
 	    }
 	    lock.unlock(&t);
-	    return res;
+	    return Nothing;
 	}
 };
 
@@ -135,6 +131,20 @@ public:
 	    fclose(f);
 	    f = NULL;
 	}
+    void msg(const char *s)
+	{
+	    assert(f);
+	    fprintf(f, "%s\n", s);
+	    fflush(f);
+	}
+};
+
+class stdio_sink : public log_sink {
+    FILE *f;
+public:
+    stdio_sink(FILE *_f)
+	: f(_f)
+	{}
     void msg(const char *s)
 	{
 	    assert(f);
@@ -206,6 +216,7 @@ namespace logsinks {
     memlog_sink *memlog;
     syslog_sink *syslog;
     filelog_sink *filelog;
+    stdio_sink *stdiolog;
 };
 
 void initlogging(const char *ident)
@@ -215,6 +226,7 @@ void initlogging(const char *ident)
     logsinks::syslog = new syslog_sink(LOG_INFO);
     logsinks::syslog->open(ident, LOG_DAEMON);
     logsinks::filelog = new filelog_sink();
+    logsinks::stdiolog = new stdio_sink(stdout);
     char *logfile;
     int r;
     r = asprintf(&logfile, "%s.log", ident);
@@ -227,23 +239,29 @@ void initlogging(const char *ident)
     __level_to_sink(loglevel::emergency).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::emergency).pushhead(logsinks::syslog);
     __level_to_sink(loglevel::emergency).pushhead(logsinks::filelog);
+    __level_to_sink(loglevel::emergency).pushhead(logsinks::stdiolog);
     __level_to_sink(loglevel::emergency).sanitycheck();
 
     __level_to_sink(loglevel::error).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::error).pushhead(logsinks::syslog);
     __level_to_sink(loglevel::error).pushhead(logsinks::filelog);
+    __level_to_sink(loglevel::error).pushhead(logsinks::stdiolog);
 
     __level_to_sink(loglevel::notice).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::notice).pushhead(logsinks::syslog);
     __level_to_sink(loglevel::notice).pushhead(logsinks::filelog);
+    __level_to_sink(loglevel::notice).pushhead(logsinks::stdiolog);
 
     __level_to_sink(loglevel::failure).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::failure).pushhead(logsinks::syslog);
+    __level_to_sink(loglevel::failure).pushhead(logsinks::stdiolog);
 
     __level_to_sink(loglevel::info).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::info).pushhead(logsinks::filelog);
+    __level_to_sink(loglevel::info).pushhead(logsinks::stdiolog);
 
     __level_to_sink(loglevel::debug).pushhead(logsinks::memlog);
+    __level_to_sink(loglevel::debug).pushhead(logsinks::stdiolog);
 }
 
 void deinitlogging(void)
@@ -269,7 +287,10 @@ void deinitlogging(void)
     __level_to_sink(loglevel::verbose).flush();
 }
 
-memlog_complete getmemlog(memlog_idx start, int limit, list<memlog_entry> &out)
+maybe<memlog_idx>
+getmemlog(memlog_idx start,
+	  int limit,
+	  list<memlog_entry> &out)
 {
     assert(out.empty());
     assert(logsinks::memlog);

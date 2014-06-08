@@ -49,6 +49,7 @@ public:
     static const memlog_idx max;
     bool operator >=(const memlog_idx &o) const
 	{ return val >= o.val; }
+    unsigned long as_long() const { return val; }
 };
 
 class memlog_entry {
@@ -76,19 +77,11 @@ public:
 	{}
 };
 
-class memlog_complete {
-    bool r;
-    explicit memlog_complete(bool _r)
-	: r(_r)
-	{}
-    memlog_complete() = delete;
-public:
-    WIREPROTO_TYPE(memlog_complete);
-
-    static const memlog_complete complete;
-    static const memlog_complete incomplete;
-};
-memlog_complete getmemlog(memlog_idx start, int limit, list<memlog_entry> &);
+/* Returns the first ID which got dropped by the limit, or Nothing if
+ * nothing was dropped. */
+maybe<memlog_idx> getmemlog(memlog_idx start,
+			    int limit,
+			    list<memlog_entry> &);
 
 void initlogging(const char *ident);
 void deinitlogging(void);

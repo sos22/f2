@@ -29,20 +29,28 @@ main(int argc, char *argv[])
 	else
 	    m.failure().fatal("sending ping");
     } else if (!strcmp(argv[1], "LOGS")) {
-	auto snr(c.success()->allocsequencenr());
-	auto m = c.success()->call(
-	    wireproto::req_message(proto::GETLOGS::tag, snr));
-	c.success()->putsequencenr(snr);
-	if (m.issuccess()) {
+	memlog_idx cursor(memlog_idx::min);
+	while (1) {
+	    auto snr(c.success()->allocsequencenr());
+	    auto m = c.success()->call(
+		wireproto::req_message(proto::GETLOGS::tag, snr)
+		.addparam(proto::GETLOGS::req::startidx, cursor));
+	    c.success()->putsequencenr(snr);
+	    if (m.isfailure())
+		m.failure().fatal("requesting logs");
+	    auto mm(m.success());
 	    list<memlog_entry> msgs;
-	    auto r(m.success()->fetch(proto::GETLOGS::resp::msgs, msgs));
+	    auto r(mm->fetch(proto::GETLOGS::resp::msgs, msgs));
 	    if (r.isjust())
 		r.just().fatal("decoding returned message list");
 	    for (auto it(msgs.start()); !it.finished(); it.next())
-		printf("%s\n", it->msg);
+		printf("%9ld: %s\n", it->idx.as_long(), it->msg);
 	    msgs.flush();
-	} else {
-	    m.failure().fatal("requesting logs");
+	    auto s(mm->getparam(proto::GETLOGS::resp::resume));
+	    mm->finish();
+	    if (!s)
+		break; /* we're done */
+	    cursor = s.just();
 	}
     } else {
 	printf("Unknown command %s.  Known: PING, LOGS\n", argv[1]);
