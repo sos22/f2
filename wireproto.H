@@ -13,6 +13,15 @@ class buffer;
 class controlclient;
 
 namespace wireproto {
+class msgtag;
+};
+
+namespace fields {
+class field;
+const fields::field &mk(const wireproto::msgtag &);
+};
+
+namespace wireproto {
     struct bufslice;
 
     /* Must be POD or serialise/deserialise won't work. */
@@ -43,6 +52,7 @@ namespace wireproto {
         }
     };
     class msgtag {
+        friend const class fields::field &fields::mk(const msgtag &);
         friend class tx_message;
         friend class rx_message;
         uint16_t val;
@@ -53,9 +63,6 @@ namespace wireproto {
 
         bool operator==(const msgtag &o) const {
             return val == o.val;
-        }
-        int as_int() const {
-            return val;
         }
     };
     template <typename _instanceT>

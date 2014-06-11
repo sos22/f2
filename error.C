@@ -83,6 +83,12 @@ error::fatal(const fields::field &msg) const
 }
 
 void
+error::fatal(const char *msg) const
+{
+    fatal(fields::mk(msg));
+}
+
+void
 error::warn(const fields::field &msg) const
 {
     logmsg(loglevel::failure,
@@ -90,6 +96,12 @@ error::warn(const fields::field &msg) const
     fields::fieldbuf buf;
     (msg + ": " + fields::mk(*this)).fmt(buf);
     warnx("warning: %s", buf.c_str());
+}
+
+void
+error::warn(const char *msg) const
+{
+    warn(fields::mk(msg));
 }
 
 wireproto_simple_wrapper_type(error, int, e);

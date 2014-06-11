@@ -96,6 +96,7 @@ public:
 const timefield &mk(const struct timeval &);
 
 void flush();
+void print(const field &f);
 
 void test(class ::test &);
 };

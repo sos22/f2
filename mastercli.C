@@ -9,6 +9,8 @@
 #include "shutdown.H"
 #include "wireproto.H"
 
+#include "fieldfinal.H"
+
 int
 main(int argc, char *argv[])
 {
@@ -18,7 +20,7 @@ main(int argc, char *argv[])
     int r;
 
     if (c.isfailure())
-        c.failure().fatal(fields::mk("connecting to master"));
+        c.failure().fatal("connecting to master");
 
     r = 0;
     if (!strcmp(argv[1], "PING")) {
@@ -29,11 +31,13 @@ main(int argc, char *argv[])
             addparam(proto::PING::req::msg, "Hello"));
         c.success()->putsequencenr(snr);
         if (m.issuccess())
-            printf("master ping sequence %d, message %s\n",
-                   m.success()->getparam(proto::PING::resp::cntr).just(),
-                   m.success()->getparam(proto::PING::resp::msg).just());
+            fields::print("master ping sequence " +
+                          fields::mk(m.success()->getparam(proto::PING::resp::cntr)) +
+                          ", message " +
+                          fields::mk(m.success()->getparam(proto::PING::resp::msg)) +
+                          "\n");
         else
-            m.failure().fatal(fields::mk("sending ping"));
+            m.failure().fatal("sending ping");
     } else if (!strcmp(argv[1], "LOGS")) {
         if (argc != 2) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);

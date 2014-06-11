@@ -15,9 +15,17 @@ struct __piperes {
     __fd_t write;
 };
 
+class fd_t;
+
+namespace fields {
+class field;
+const field &mk(const fd_t &);
+};
+
 class fd_t {
     friend class listenfd;
     friend class unixsocket;
+    friend const fields::field &fields::mk(const fd_t &);
     int fd;
 protected:
     explicit fd_t(int _fd)

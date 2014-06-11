@@ -1,12 +1,15 @@
 #include "fields.H"
 
 #include <assert.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
 #include "list.H"
 #include "list.tmpl"
 #include "test.H"
+
+#include "fieldfinal.H"
 
 namespace fields {
 
@@ -461,6 +464,14 @@ timefield::fmt(fieldbuf &buf) const
     padleft(mk(v.tv_usec).nosep(), 6, mk("0")).fmt(buf);
 }
 
+void
+print(const field &f)
+{
+    fieldbuf buf;
+    f.fmt(buf);
+    printf("%s", buf.c_str());
+}
+
 void flush()
 {
     while (arenas) {
@@ -474,6 +485,9 @@ void flush()
         n->push("<flushed>");
     }
 }
+
+template const field &mk(const maybe<int> &);
+template const field &mk(const maybe<const char *> &);
 
 void test(::test &)
 {

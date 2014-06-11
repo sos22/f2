@@ -33,9 +33,11 @@ public:
 
     /* Abort the program with an error */
     void fatal(const fields::field &) const __attribute__((noreturn));
+    void fatal(const char *) const __attribute__((noreturn));
 
     /* Print out a warning based on an error. */
     void warn(const fields::field &) const;
+    void warn(const char *) const;
 
     /* Construct an error from the current value of @errno.  This
        clobbers @errno. */

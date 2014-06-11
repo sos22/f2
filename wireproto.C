@@ -8,6 +8,7 @@
 
 #include "buffer.H"
 #include "error.H"
+#include "fields.H"
 
 #include "list.tmpl"
 
@@ -493,3 +494,9 @@ const parameter<error> err_parameter(0);
 
 template class list<const wireproto::rx_message *>;
 template class list<wireproto::tx_message::pinstance>;
+
+const fields::field &
+fields::mk(const wireproto::msgtag &t)
+{
+    return fields::mk(t.val).nosep();
+}

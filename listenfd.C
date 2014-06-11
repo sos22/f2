@@ -49,3 +49,9 @@ listenfd::close() const
 {
     ::close(fd);
 }
+
+const fields::field &
+fields::mk(const listenfd &fd)
+{
+    return "listen:" + fields::mk(fd.fd).nosep();
+}

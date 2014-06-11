@@ -29,6 +29,8 @@
 #include "list.tmpl"
 #include "waitqueue.tmpl"
 
+#include "fieldfinal.H"
+
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
 class controlthread;
@@ -229,12 +231,12 @@ controlthread::clientthread::run()
     buffer incoming;
     bool die;
     die = false;
-    logmsg(loglevel::info, fields::mk("start client thread"));
+    logmsg(loglevel::info, "start client thread " + fields::mk(peer));
     while (!die && !shutdown->ready()) {
         fields::flush();
         auto r(::poll(fds, 2, -1));
         if (r < 0)
-            error::from_errno().fatal(fields::mk("poll client"));
+            error::from_errno().fatal("poll client");
         if (fds[0].revents) {
             assert(fds[0].revents == POLLIN);
             assert(shutdown->ready());
@@ -284,8 +286,7 @@ controlthread::clientthread::runcommand(buffer &incoming,
     }
     assert(r.success() != NULL);
     auto tag(r.success()->t);
-    logmsg(loglevel::verbose,
-           fields::mk("run command ") + fields::mk(tag.as_int()));
+    logmsg(loglevel::verbose, "run command " + fields::mk(tag));
     control_registration *handler;
 
     auto token(owner->mux.lock());
@@ -323,7 +324,8 @@ controlthread::clientthread::spawn(controlthread *server,
                                    const peername &peer)
 {
     auto work(new clientthread(server, fd, shutdown, peer));
-    auto tr(thread::spawn(work, &work->_thr));
+    auto tr(thread::spawn(work, &work->_thr,
+                "control thread for " + fields::mk(peer)));
     if (tr.isjust()) {
         delete work;
         return tr.just();
@@ -335,19 +337,15 @@ controlthread::clientthread::spawn(controlthread *server,
 maybe<error>
 pingiface::controlmessage(const wireproto::rx_message &msg, buffer &outgoing)
 {
-    auto payload(msg.getparam(proto::PING::req::msg));
-    if (payload.isjust())
-        logmsg(loglevel::info,
-               fields::mk("ping msg ") + fields::mk(payload.just()));
-    else
-        logmsg(loglevel::failure, fields::mk("ping with no message?"));
+    logmsg(loglevel::info,
+           "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)));
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
     m.addparam(proto::PING::resp::msg, "response message");
     auto r(m.serialise(outgoing));
     if (r.isjust())
-        r.just().warn(fields::mk("sending pong"));
+        r.just().warn("sending pong");
     return r;
 }
 
@@ -357,11 +355,7 @@ quitiface::controlmessage(const wireproto::rx_message &msg, buffer &)
     auto reason(msg.getparam(proto::QUIT::req::reason));
     if (!reason) return error::missingparameter;
     auto message(msg.getparam(proto::QUIT::req::message));
-    logmsg(loglevel::notice,
-           fields::mk("received a quit message: ") +
-           fields::mk(message.isjust()
-                      ? message.just()
-                      : "<no explanation given>"));
+    logmsg(loglevel::notice, "received a quit message: " + fields::mk(message));
     s->set(reason.just());
     return Nothing;
 }
@@ -370,8 +364,7 @@ maybe<error>
 unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 {
     logmsg(loglevel::failure,
-           fields::mk("Received an unrecognised message type ") +
-           fields::mk(msg.t.as_int()));
+           "Received an unrecognised message type " + fields::mk(msg.t));
     return error::unrecognisedmessage;
 }
 
@@ -388,7 +381,7 @@ controlthread::run()
     while (1) {
         int r = poll(pfds, nrfds, -1);
         if (r < 0)
-            error::from_errno().fatal(fields::mk("polling control interface"));
+            error::from_errno().fatal("polling control interface");
         for (unsigned i = 0; r; i++) {
             assert(i < ARRAY_SIZE(pfds));
             if (pfds[i].revents) {
@@ -413,6 +406,9 @@ controlthread::run()
                 } else if (dying->fd().polled(pfds[i])) {
                     assert(!(pfds[i].revents & POLLERR));
                     auto thr(dying->pophead());
+                    logmsg(loglevel::info,
+                           "control interface reaping client thread" +
+                           fields::mk(*thr->thr()));
                     thr->thr()->join();
                     for (auto it(threads.start()); 1; it.next()) {
                         assert(!it.finished());
@@ -421,21 +417,18 @@ controlthread::run()
                             break;
                         }
                     }
-                    logmsg(loglevel::info,
-                           fields::mk("control interface reaped client thread"));
                     if (threads.empty() && localshutdown->ready())
 /**/                    goto out;
                 } else {
                     if (pfds[i].revents & POLLERR)
-                        error::disconnected.fatal(
-                            fields::mk("on control listen socket"));
+                        error::disconnected.fatal("on control listen socket");
                     assert(sock.polled(pfds[i]));
                     auto newfd(sock.accept());
                     if (newfd.isfailure())
-                        newfd.failure().fatal(
-                            fields::mk("accept on control interface"));
+                        newfd.failure().fatal("accept on control interface");
                     logmsg(loglevel::info,
-                           fields::mk("control interface accepting new client"));
+                           "control interface accepting new client " +
+                           fields::mk(newfd.success().peer));
                     auto tr(clientthread::spawn(this,
                                                 newfd.success().fd,
                                                 localshutdown,
@@ -506,7 +499,7 @@ controlthread::setup()
     }
 
     {
-        auto ts(thread::spawn(this, &t));
+        auto ts(thread::spawn(this, &t, fields::mk("master control thread")));
         if (ts.isjust()) {
             err = ts.just();
             goto failed;

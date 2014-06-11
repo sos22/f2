@@ -3,6 +3,7 @@
 #include <sys/poll.h>
 #include <unistd.h>
 
+#include "fields.H"
 #include "maybe.H"
 
 void
@@ -61,4 +62,10 @@ fd_t::pipe()
     r.read = fd_t(fds[0]);
     r.write = fd_t(fds[1]);
     return r;
+}
+
+const fields::field &
+fields::mk(const fd_t &fd)
+{
+    return "fd:" + fields::mk(fd.fd).nosep();
 }

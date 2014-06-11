@@ -7,10 +7,18 @@
 
 struct pollfd;
 
+class listenfd;
+
+namespace fields {
+class field;
+const field &mk(const listenfd &);
+};
+
 /* A file descriptor for listening on, rather than performing normal
    IO on. */
 class listenfd {
     friend class unixsocket;
+    friend const fields::field &fields::mk(const listenfd &);
     int fd;
     explicit listenfd(int);
 public:

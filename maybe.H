@@ -11,10 +11,9 @@ const class _Nothing Nothing;
 
 template <typename t>
 class maybe {
-    const bool r;
+    bool r;
     unsigned char content[sizeof(t)];
     maybe() = delete;
-    void operator=(const maybe &o) = delete;
 public:
     maybe(const maybe &o)
         : r(o.r)
@@ -34,6 +33,14 @@ public:
         : r(false)
         {
             ::new (content) t(what);
+        }
+    void operator=(const maybe &o)
+        {
+            if (isjust())
+                just().~t();
+            r = o.r;
+            if (isjust())
+                new (content) t(o.just());
         }
     bool isnothing() const { return r; }
     bool operator!() const { return isnothing(); }
