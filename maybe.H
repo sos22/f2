@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#include "obj.H"
+
 class _Nothing {
 };
 const class _Nothing Nothing;
@@ -31,7 +33,7 @@ public:
     maybe(const t &what)
         : r(false)
         {
-            new (content) t(what);
+            ::new (content) t(what);
         }
     bool isnothing() const { return r; }
     bool operator!() const { return isnothing(); }
@@ -46,6 +48,9 @@ public:
     }
     bool operator==(const _Nothing) const {
         return isnothing();
+    }
+    bool operator!=(const _Nothing) const {
+        return isjust();
     }
 };
 
