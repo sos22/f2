@@ -4,8 +4,16 @@
 #include "maybe.H"
 #include "wireproto.H"
 
+class shutdowncode;
+
+namespace fields {
+class field;
+const field &mk(const shutdowncode &);
+}
+
 /* Silly little wrapper type around the exit codes passed to exit() */
 class shutdowncode {
+    friend const fields::field &fields::mk(const shutdowncode &);
     int code;
     shutdowncode(int _code)
         : code(_code)

@@ -364,8 +364,7 @@ loglevel::operator ==(const loglevel &o) const
 }
 
 const fields::field &
-fields::mk(const loglevel &l)
-{
+fields::mk(const loglevel &l) {
     if (l == loglevel::emergency)
         return fields::mk("emergency");
     else if (l == loglevel::error)
@@ -381,5 +380,13 @@ fields::mk(const loglevel &l)
     else if (l == loglevel::verbose)
         return fields::mk("verbose");
     else
-        return "unknown loglevel " + fields::mk(l.level);
-}
+        return "unknown loglevel " + fields::mk(l.level); }
+
+const fields::field &
+fields::mk(const memlog_idx &m) {
+    return "<memlog_idx:" + fields::mk(m.val) + ">"; }
+
+const fields::field &
+fields::mk(const memlog_entry &e) {
+    return "<memlog_entry:" + fields::mk(e.idx) +
+        "=" + fields::mk(e.msg) + ">"; }

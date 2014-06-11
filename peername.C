@@ -75,7 +75,7 @@ peernamefield::fmt(fields::fieldbuf &o) const
              " formatting peer address>").fmt(o);
         }
         o.push(":");
-        fields::mk(htons(addr->sin_port)).fmt(o);
+        fields::mk(htons(addr->sin_port)).nosep().fmt(o);
         o.push("/");
         break;
     }
@@ -92,7 +92,7 @@ peernamefield::fmt(fields::fieldbuf &o) const
              " formatting peer address>").fmt(o);
         }
         o.push(":");
-        fields::mk(htons(addr->sin6_port)).fmt(o);
+        fields::mk(htons(addr->sin6_port)).nosep().fmt(o);
         o.push("/");
         break;
     }

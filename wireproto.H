@@ -14,11 +14,16 @@ class controlclient;
 
 namespace wireproto {
 class msgtag;
+class rx_message;
+template <typename t> class parameter;
 };
 
 namespace fields {
 class field;
-const fields::field &mk(const wireproto::msgtag &);
+const field &mk(const wireproto::msgtag &);
+const field &mk(const wireproto::rx_message *);
+template <typename t> const field &mk(const ::maybe<t> &);
+template <typename t> const field &mk(const wireproto::parameter<t> &);
 };
 
 namespace wireproto {
@@ -64,11 +69,15 @@ namespace wireproto {
         bool operator==(const msgtag &o) const {
             return val == o.val;
         }
+        bool operator!=(const msgtag &o) const {
+            return val != o.val;
+        }
     };
     template <typename _instanceT>
     class parameter {
         friend class tx_message;
         friend class rx_message;
+        friend const fields::field &fields::mk<>(const parameter &);
         uint16_t id;
         const char *description;
     public:
@@ -162,12 +171,18 @@ namespace wireproto {
     };
     class rx_message {
         friend class rx_compoundparameter;
+        friend const fields::field &fields::mk(const rx_message *);
         struct idx {
             uint16_t id;
             uint16_t offset;
         };
         const idx *const index;
-        bool const nonowning;
+        enum flavour_t {
+            fl_buffer,
+            fl_slice,
+            fl_clone
+        };
+        const flavour_t flavour;
     public:
         const sequencenr sequence;
     private:
@@ -188,6 +203,14 @@ namespace wireproto {
                    size_t _payload_size,
                    size_t _payload_offset,
                    buffer &_buf);
+        rx_message(msgtag _t,
+                   sequencenr _sequence,
+                   uint16_t _nrparams,
+                   size_t _payload_size,
+                   size_t _payload_offset,
+                   buffer &_buf,
+                   const idx *_index,
+                   bool);
     public:
         const msgtag t;
         static orerror<const rx_message *> fetch(const bufslice &buf);
@@ -251,6 +274,9 @@ namespace wireproto {
             return content->getparam(tmpl);
         }
     };
+
+    template <typename t> const fields::field &paramfield(
+        const rx_message &msg, const parameter<t> &param);
 
     /* Special parameter whose presence indicates that the message
        represents an error.  rx_message will return an error and

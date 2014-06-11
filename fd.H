@@ -26,12 +26,14 @@ class fd_t {
     friend class listenfd;
     friend class unixsocket;
     friend const fields::field &fields::mk(const fd_t &);
+    friend class udpsocket;
     int fd;
 protected:
     explicit fd_t(int _fd)
         : fd(_fd)
         {}
 public:
+    virtual ~fd_t() {}
     fd_t() : fd(-1) {}
     /* Construct a pollfd structure, suitable for passing off to
        poll().  events is one of 0, POLLIN, POLLOUT, or POLLIN|POLLOUT

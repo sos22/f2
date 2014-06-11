@@ -15,7 +15,7 @@ function ld() {
     shift
     cat <<EOF
 $target: $* $mkfile
-	gcc -g -o \$@.tmp $* -lstdc++ -lpthread && mv -f \$@.tmp \$@
+	gcc -g -o \$@.tmp $* -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
 clean::
 	rm -f $target $target.tmp
 EOF

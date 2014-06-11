@@ -1,0 +1,49 @@
+#ifndef RATELIMITER_H__
+#define RATELIMITER_H__
+
+#include "frequency.H"
+#include "mutex.H"
+#include "timestamp.H"
+#include "wireproto.H"
+
+struct ratelimiter_status {
+    WIREPROTO_TYPE(ratelimiter_status);
+
+    const frequency max_rate;
+    const unsigned bucket_size;
+    const unsigned bucket_content;
+    ratelimiter_status(const frequency &_max_rate,
+                       const unsigned _bucket_size,
+                       const unsigned _bucket_content)
+        : max_rate(_max_rate), bucket_size(_bucket_size),
+          bucket_content(_bucket_content)
+        {}
+};
+
+class ratelimiter {
+    ratelimiter() = delete;
+    ratelimiter(const ratelimiter &) = delete;
+    void operator = (const ratelimiter &) = delete;
+    /* Lots of mutables because refilling the bucket changes our
+       internal state without changing the visible state. */
+    mutable timestamp last_refill;
+    frequency const max_rate;
+    unsigned const bucket_size;
+    mutable unsigned bucket_content;
+    mutable mutex_t mux;
+    void refill(mutex_t::token) const;
+public:
+    ratelimiter(const frequency &, unsigned bucket_size);
+    /* If there are tokens available, consume one and return true.
+       Otherwise, return false. */
+    bool probe() __attribute__((warn_unused_result));
+
+    operator ratelimiter_status() const;
+};
+
+namespace fields {
+class field;
+const field &mk(const ratelimiter_status &);
+}
+
+#endif

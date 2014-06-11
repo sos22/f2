@@ -26,3 +26,9 @@ shutdowncode::parse(const char *what)
     else
         return shutdowncode(r.success());
 }
+
+const fields::field &
+fields::mk(const shutdowncode &code)
+{
+    return "<shutdowncode:" + fields::mk(code.code) + ">";
+}

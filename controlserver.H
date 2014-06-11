@@ -5,8 +5,11 @@ class buffer;
 class error;
 template <typename> class maybe;
 template <typename t> class orerror;
+template <typename t> class list;
 class shutdowncode;
 template <typename t> class waitbox;
+
+#include "wireproto.H"
 
 #include "wireproto.H"
 
@@ -44,7 +47,19 @@ public:
        cookie which can later be used to deregister it.  Aborts if the
        same interface is registered multiple times, or if multiple
        interfaces are registered with the same tag. */
-    iface registeriface(controliface &iface);
+    iface registeriface(controliface &iface) const;
+
+    /* Convenience interface for registering lots of control
+       interfaces at once. */
+    class multiregistration {
+        friend class controlthread;
+        list<controliface *> content;
+    public:
+        multiregistration() : content() {}
+        multiregistration &add(controliface &iface);
+        ~multiregistration() { content.flush(); }
+    };
+    iface registeriface(const multiregistration &) const;
 
     class iface {
         void *content;

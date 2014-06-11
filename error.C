@@ -17,6 +17,7 @@ const error error::missingparameter(-4);
 const error error::invalidmessage(-5);
 const error error::unrecognisedmessage(-6);
 const error error::noparse(-7);
+const error error::timeout(-8);
 
 class errorfield : public fields::field {
     error content;
@@ -46,6 +47,8 @@ public:
                 buf.push("unrecognisedmessage");
             } else if (content == error::noparse) {
                 buf.push("noparse");
+            } else if (content == error::timeout) {
+                buf.push("timeout");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">").fmt(buf);
             }

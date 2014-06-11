@@ -424,6 +424,29 @@ intfield::fmt(fieldbuf &out) const
     out.push(buf);
 }
 
+doublefield::doublefield(double _val)
+    : field(), val_(_val)
+{}
+const doublefield &
+doublefield::n(double val)
+{
+    return *new doublefield(val);
+}
+void
+doublefield::fmt(fieldbuf &b) const
+{
+    char buf[64];
+    unsigned r;
+    r = snprintf(buf, sizeof(buf), "%f", val_);
+    assert(r < sizeof(buf));
+    b.push(buf);
+}
+const doublefield &
+mk_double(double d)
+{
+    return doublefield::n(d);
+}
+
 timefield::timefield(const struct timeval &_v, bool _asdate)
     : v(_v), asdate_(_asdate)
 {}

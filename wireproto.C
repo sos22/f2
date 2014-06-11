@@ -1,5 +1,4 @@
 #include "wireproto.H"
-#include "wireproto.tmpl"
 
 #include <assert.h>
 #include <errno.h>
@@ -10,7 +9,9 @@
 #include "error.H"
 #include "fields.H"
 
+#include "fieldfinal.H"
 #include "list.tmpl"
+#include "wireproto.tmpl"
 
 namespace wireproto {
 
@@ -203,9 +204,17 @@ rx_message::fetch(const bufslice &buf)
 void
 rx_message::finish() const
 {
-    if (!nonowning) {
+    switch (flavour) {
+    case fl_buffer:
         buf.discard(payload_size);
         free(const_cast<idx *>(index));
+        break;
+    case fl_slice:
+        break;
+    case fl_clone:
+        delete &buf;
+        free(const_cast<idx *>(index));
+        break;
     }
     delete this;
 }
@@ -217,7 +226,7 @@ rx_message::rx_message(msgtag _t,
                        size_t _payload_offset,
                        buffer &_buf)
     : index((idx *)calloc(4, _nrparams)),
-      nonowning(false),
+      flavour(fl_buffer),
       sequence(_sequence),
       nrparams(_nrparams),
       payload_size(_payload_size),
@@ -234,7 +243,25 @@ rx_message::rx_message(msgtag _t,
                        buffer &_buf,
                        const struct idx *_index)
     : index(_index),
-      nonowning(true),
+      flavour(fl_slice),
+      sequence(_sequence),
+      nrparams(_nrparams),
+      payload_size(_payload_size),
+      payload_offset(_payload_offset),
+      buf(_buf),
+      t(_t)
+{}
+
+rx_message::rx_message(msgtag _t,
+                       sequencenr _sequence,
+                       uint16_t _nrparams,
+                       size_t _payload_size,
+                       size_t _payload_offset,
+                       buffer &_buf,
+                       const struct idx *_index,
+                       bool)
+    : index(_index),
+      flavour(fl_clone),
       sequence(_sequence),
       nrparams(_nrparams),
       payload_size(_payload_size),
@@ -281,7 +308,19 @@ tx_message::addparam(parameter<int> tmpl, const int &val)
 }
 
 template <> tx_message &
+tx_message::addparam(parameter<unsigned> tmpl, const unsigned &val)
+{
+    return addparam(tmpl.id, &val, sizeof(val));
+}
+
+template <> tx_message &
 tx_message::addparam(parameter<unsigned long> tmpl, const unsigned long &val)
+{
+    return addparam(tmpl.id, &val, sizeof(val));
+}
+
+template <> tx_message &
+tx_message::addparam(parameter<double> tmpl, const double &val)
 {
     return addparam(tmpl.id, &val, sizeof(val));
 }
@@ -415,6 +454,14 @@ deserialise(bufslice &slice)
     else
         return *(int *)slice.buf.linearise(slice.start, slice.end);
 }
+template <> maybe<unsigned>
+deserialise(bufslice &slice)
+{
+    if (slice.end - slice.start != 4)
+        return Nothing;
+    else
+        return *(unsigned *)slice.buf.linearise(slice.start, slice.end);
+}
 template <> maybe<unsigned long>
 deserialise(bufslice &slice)
 {
@@ -422,6 +469,14 @@ deserialise(bufslice &slice)
         return Nothing;
     else
         return *(unsigned long *)slice.buf.linearise(slice.start, slice.end);
+}
+template <> maybe<double>
+deserialise(bufslice &slice)
+{
+    if (slice.end - slice.start != 8)
+        return Nothing;
+    else
+        return *(double *)slice.buf.linearise(slice.start, slice.end);
 }
 template <> maybe<bool>
 deserialise(bufslice &slice)
@@ -431,7 +486,6 @@ deserialise(bufslice &slice)
     else
         return *(bool *)slice.buf.linearise(slice.start, slice.end);
 }
-
 template <typename typ> maybe<error> decode(bufslice &slice,
                                             typ &out);
 
@@ -445,10 +499,39 @@ decode(bufslice &slice, rx_compoundparameter &out)
     return Nothing;
 }
 
-template maybe<const char *> rx_message::getparam<const char *>(parameter<const char *>)const;
-template maybe<int> rx_message::getparam<int>(parameter<int>) const;
-template maybe<unsigned long> rx_message::getparam<unsigned long>(parameter<unsigned long>) const;
-template maybe<error> rx_message::getparam<error>(parameter<error>) const;
+template <> maybe<rx_compoundparameter>
+deserialise(bufslice &slice)
+{
+    rx_compoundparameter res;
+    auto r(decode(slice, res));
+    if (r.isjust()) return Nothing;
+    else return res;
+}
+
+
+template maybe<const char *> rx_message::getparam(parameter<const char *>)const;
+template maybe<int> rx_message::getparam(parameter<int>) const;
+template maybe<unsigned> rx_message::getparam(parameter<unsigned>) const;
+template maybe<unsigned long> rx_message::getparam(parameter<unsigned long>) const;
+template maybe<double> rx_message::getparam(parameter<double>) const;
+template maybe<error> rx_message::getparam(parameter<error>) const;
+template maybe<rx_compoundparameter> rx_message::getparam(
+    parameter<rx_compoundparameter>) const;
+
+rx_message *
+rx_message::clone() const
+{
+    idx *newindex = (idx *)calloc(sizeof(idx[0]), nrparams);
+    for (unsigned x = 0; x < nrparams; x++) {
+        newindex[x].id = index[x].id;
+        newindex[x].offset = index[x].offset - index[0].offset;
+    }
+    buffer *newbuf = new buffer();
+    newbuf->queue(buf.linearise(payload_offset, payload_offset + payload_size),
+                  payload_size);
+    return new rx_message(t, sequence, nrparams, payload_size,
+                          0, *newbuf, newindex, true);
+}
 
 template <> maybe<error>
 rx_message::fetch(parameter<rx_compoundparameter> p, rx_compoundparameter &out) const
@@ -479,6 +562,9 @@ rx_compoundparameter::fetch(const bufslice &o)
 const sequencenr sequencenr::invalid(0);
 const parameter<error> err_parameter(0, "error");
 
+template const fields::field &paramfield<unsigned int>(
+    const wireproto::rx_message &msg,
+    const wireproto::parameter<unsigned int> &);
 };
 
 template class list<const wireproto::rx_message *>;
@@ -489,3 +575,29 @@ fields::mk(const wireproto::msgtag &t)
 {
     return fields::mk(t.val).nosep();
 }
+
+const fields::field &
+fields::mk(const wireproto::rx_message *msg)
+{
+    auto *prefix(&("<rx_message " + fields::mk(msg->t)));
+    for (unsigned x = 0;
+         x < msg->nrparams;
+         x++) {
+        prefix = &(*prefix + " ");
+        if (x > 14 && msg->nrparams > 16) {
+            prefix =
+                &(*prefix + "..." + fields::mk(msg->nrparams - x) +
+                  " more...");
+            break;
+        }
+        prefix = &(*prefix + fields::mk(msg->index[x].id) + "/" +
+                   fields::mk(msg->index[x].offset));
+    }
+    return *prefix + ">";
+}
+
+namespace fields {
+template const field &mk<const wireproto::rx_message *>(const orerror<const wireproto::rx_message *> &);
+template const field &mk<unsigned int>(
+    const wireproto::parameter<unsigned int> &);
+};

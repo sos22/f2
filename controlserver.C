@@ -45,9 +45,9 @@ struct control_registration {
 
     controlthread *server;
     unsigned outstanding;
-    controliface &iface;
+    list<controliface *> interfaces;
     cond_t idle;
-    control_registration(controlthread *_server, controliface &_iface);
+    control_registration(controlthread *_server);
     void deregister() const;
     ~control_registration() { assert(outstanding == 0); }
 };
@@ -144,6 +144,8 @@ struct controlthread : threadfn {
     void operator=(const controlthread &) = delete;
 
     control_registration *registeriface(controliface &iface);
+    control_registration *registeriface(
+        const ::controlserver::multiregistration &iface);
 
     maybe<error> setup(const char *name);
     void end();
@@ -159,27 +161,28 @@ struct controlthread : threadfn {
         }
 };
 
-control_registration::control_registration(controlthread *_server,
-                           controliface &_iface)
+control_registration::control_registration(controlthread *_server)
     : server(_server),
       outstanding(0),
-      iface(_iface),
+      interfaces(),
       idle(server->mux)
 {}
 
 control_registration::control_registration(const control_registration &o)
     : server(o.server),
       outstanding(0),
-      iface(o.iface),
+      interfaces(),
       idle(server->mux)
 {
     assert(!o.outstanding);
+    for (auto it(o.interfaces.start()); !it.finished(); it.next())
+        interfaces.pushtail(*it);
 }
 
 control_registration::control_registration()
     : server(NULL),
       outstanding(0),
-      iface(*(controliface *)NULL),
+      interfaces(),
       idle(server->mux)
 {
     abort();
@@ -206,14 +209,31 @@ control_registration::deregister() const
 control_registration *
 controlthread::registeriface(controliface &iface)
 {
-    auto reg(new control_registration(this, iface));
+    return registeriface(::controlserver::multiregistration()
+                         .add(iface));
+}
+
+control_registration *
+controlthread::registeriface(const controlserver::multiregistration &what)
+{
+    auto reg(new control_registration(this));
     auto token(mux.lock());
     for (auto it(registrations.start()); !it.finished(); it.next()) {
-        if ((*it)->iface.tag == iface.tag) {
-            mux.unlock(&token);
-            abort();
+        for (auto it2((*it)->interfaces.start());
+             !it2.finished();
+             it2.next()) {
+            for (auto it3(what.content.start());
+                 !it3.finished();
+                 it3.next()) {
+                if ((*it2)->tag == (*it3)->tag) {
+                    mux.unlock(&token);
+                    abort();
+                }
+            }
         }
     }
+    for (auto it(what.content.start()); !it.finished(); it.next())
+        reg->interfaces.pushtail(*it);
     registrations.pushtail(reg);
     mux.unlock(&token);
     return reg;
@@ -287,27 +307,32 @@ controlthread::clientthread::runcommand(buffer &incoming,
     assert(r.success() != NULL);
     auto tag(r.success()->t);
     logmsg(loglevel::verbose, "run command " + fields::mk(tag));
-    control_registration *handler;
 
     auto token(owner->mux.lock());
-    handler = owner->unknownregistration;
+    auto reg(owner->unknownregistration);
+    controliface *iface(&owner->unknowninterface);
     for (auto it(owner->registrations.start());
          !it.finished();
          it.next()) {
-        if ((*it)->iface.tag == tag) {
-            handler = *it;
-            break;
+        for (auto it2((*it)->interfaces.start());
+             !it2.finished();
+             it2.next()) {
+            if ((*it2)->tag == tag) {
+                reg = *it;
+                iface = *it2;
+                break;
+            }
         }
     }
-    handler->outstanding++;
+    reg->outstanding++;
     owner->mux.unlock(&token);
 
-    auto res(handler->iface.controlmessage(*r.success(), outgoing));
+    auto res(iface->controlmessage(*r.success(), outgoing));
 
     auto token2(owner->mux.lock());
-    handler->outstanding--;
-    if (!handler->outstanding)
-        handler->idle.broadcast(token2);
+    reg->outstanding--;
+    if (!reg->outstanding)
+        reg->idle.broadcast(token2);
     owner->mux.unlock(&token2);
 
     if (res.isjust())
@@ -531,11 +556,25 @@ controlserver::destroy() const
 }
 
 controlserver::iface
-controlserver::registeriface(controliface &interface)
+controlserver::registeriface(controliface &interface) const
 {
     return iface::__mk_iface__(controlthread.registeriface(interface));
+}
+
+controlserver::multiregistration &
+controlserver::multiregistration::add(controliface &iface)
+{
+    content.pushtail(&iface);
+    return *this;
+}
+
+controlserver::iface
+controlserver::registeriface(const controlserver::multiregistration &r) const
+{
+    return iface::__mk_iface__(controlthread.registeriface(r));
 }
 
 template class list<controlthread::clientthread *>;
 template class waitqueue<controlthread::clientthread *>;
 template class list<control_registration *>;
+template class list<controliface *>;

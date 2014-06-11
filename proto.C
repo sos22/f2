@@ -1,12 +1,18 @@
 #include "proto.H"
 
+#include "fields.H"
+#include "frequency.H"
 #include "logging.H"
+#include "ratelimiter.H"
+#include "registrationsecret.H"
 #include "shutdown.H"
 #include "wireproto.H"
 #include "wireproto.tmpl"
 
+wireproto_simple_wrapper_type(frequency, double, hz_)
 wireproto_simple_wrapper_type(memlog_idx, unsigned long, val)
 wireproto_simple_wrapper_type(shutdowncode, int, code)
+wireproto_simple_wrapper_type(registrationsecret, const char *, secret);
 
 wireproto_wrapper_type(memlog_entry)
 namespace wireproto {
@@ -54,4 +60,36 @@ memlog_entry::getparam(wireproto::parameter<memlog_entry> tmpl,
                c));
     if (r.isjust()) return Nothing;
     else return from_compound(c);
+}
+
+wireproto_wrapper_type(ratelimiter_status)
+void
+ratelimiter_status::addparam(wireproto::parameter<ratelimiter_status> tmpl,
+                             wireproto::tx_message &tx_msg) const
+{
+    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                    wireproto::tx_compoundparameter()
+                    .addparam(proto::ratelimiter_status::max_rate, max_rate)
+                    .addparam(proto::ratelimiter_status::bucket_size,
+                              bucket_size)
+                    .addparam(proto::ratelimiter_status::bucket_content,
+                              bucket_content));
+}
+maybe<ratelimiter_status>
+ratelimiter_status::getparam(wireproto::parameter<ratelimiter_status> tmpl,
+                             const wireproto::rx_message &msg)
+{
+    auto packed(msg.getparam(
+               wireproto::parameter<wireproto::rx_compoundparameter>(tmpl)));
+    if (!packed) return Nothing;
+    auto max_rate(packed.just().getparam(proto::ratelimiter_status::max_rate));
+    auto bucket_size(
+        packed.just().getparam(proto::ratelimiter_status::bucket_size));
+    auto bucket_content(
+        packed.just().getparam(proto::ratelimiter_status::bucket_content));
+    if (!max_rate || !bucket_size || !bucket_content)
+        return Nothing;
+    return ratelimiter_status(max_rate.just(),
+                              bucket_size.just(),
+                              bucket_content.just());
 }

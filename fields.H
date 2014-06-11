@@ -82,6 +82,15 @@ public:
 };
 const intfield &mk(long);
 
+class doublefield : public field {
+    double val_;
+    doublefield(double _val);
+public:
+    static const doublefield &n(double val);
+    void fmt(fieldbuf &) const;
+};
+const doublefield &mk_double(double);
+
 class timefield : public field {
     struct timeval v;
     bool asdate_;
@@ -99,6 +108,9 @@ void flush();
 void print(const field &f);
 
 void test(class ::test &);
+
+template <typename t> const field &mk(const ::maybe<t> &m);
+
 };
 
 #endif /* !FIELDS_H__ */

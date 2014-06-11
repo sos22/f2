@@ -8,6 +8,7 @@
 
 namespace fields {
 class field;
+const field &mk(const char *);
 template <typename t> const field &
 mk(const maybe<t> &m)
 {
@@ -23,6 +24,14 @@ mk(const orerror<t> &m)
         return "<failed:" + mk(m.failure()) + ">";
     else
         return "<" + mk(m.success()) + ">";
+}
+template <typename t> const field &
+mk(const t *const &what)
+{
+    if (!what)
+        return fields::mk("NULL");
+    else
+        return "[" + fields::mk(*what) + "]";
 }
 };
 

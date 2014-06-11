@@ -8,9 +8,13 @@
 #include "wireproto.H"
 
 class loglevel;
+class memlog_idx;
+class memlog_entry;
 namespace fields {
 class field;
 const field &mk(const loglevel &);
+const field &mk(const memlog_idx &);
+const field &mk(const memlog_entry &);
 };
 
 template <typename> class list;
@@ -62,6 +66,7 @@ void logmsg(loglevel level, const fields::field &);
 
 class memlog_idx {
     friend class memlog_sink;
+    friend const fields::field &fields::mk(const memlog_idx &);
     unsigned long val;
     memlog_idx(unsigned long);
     memlog_idx operator++(int);

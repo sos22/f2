@@ -6,6 +6,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "proto.H"
+#include "registrationsecret.H"
 #include "shutdown.H"
 #include "wireproto.H"
 
@@ -62,6 +63,24 @@ main(int argc, char *argv[])
             if (!s)
                 break; /* we're done */
             cursor = s.just();
+        }
+    } else if (!strcmp(argv[1], "BEACONSTATUS")) {
+        if (argc != 2) errx(1, "BEACONSTATUS mode takes no arguments");
+        auto snr(c.success()->allocsequencenr());
+        auto m = c.success()->call(
+            wireproto::req_message(proto::BEACONSTATUS::tag, snr));
+        if (m.isfailure()) {
+            fields::print(fields::mk(m.failure()));
+        } else {
+            auto mm(m.success());
+            fields::print(wireproto::paramfield(
+                              *mm, proto::BEACONSTATUS::resp::secret) + "\n"
+                          + wireproto::paramfield(
+                              *mm, proto::BEACONSTATUS::resp::limiter) + "\n"
+                          + wireproto::paramfield(
+                              *mm, proto::BEACONSTATUS::resp::errors) + "\n"
+                          + wireproto::paramfield(
+                              *mm, proto::BEACONSTATUS::resp::rx) + "\n");
         }
     } else if (!strcmp(argv[1], "QUIT")) {
         if (argc != 4)

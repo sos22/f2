@@ -1,9 +1,12 @@
 #include <signal.h>
 
-#include "shutdown.H"
+#include "beaconserver.H"
 #include "controlserver.H"
 #include "fields.H"
+#include "frequency.H"
 #include "logging.H"
+#include "registrationsecret.H"
+#include "shutdown.H"
 #include "waitbox.H"
 
 int
@@ -20,7 +23,14 @@ main()
     auto c(controlserver::build("mastersock", s.success()));
     if (c.isfailure())
         c.failure().fatal("build control interface");
+    auto beacon(beaconserver::build(
+                    registrationsecret::mk("<default password>"),
+                    frequency::hz(10),
+                    c.success()));
+    if (beacon.isfailure())
+        beacon.failure().fatal("build beacon server");
     auto r = s.success()->get();
+    beacon.success()->destroy();
     c.success().destroy();
     s.success()->destroy();
     deinitlogging();
