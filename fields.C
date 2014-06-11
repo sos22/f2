@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <string.h>
+#include <time.h>
 
 #include "list.H"
 #include "list.tmpl"
@@ -408,6 +409,46 @@ intfield::fmt(fieldbuf &out) const
         buf[--nr_digits] = (val_ < 0) ? '-' : '+';
     assert(nr_digits == 0);
     out.push(buf);
+}
+
+timefield::timefield(const struct timeval &_v, bool _asdate)
+    : v(_v), asdate_(_asdate)
+{}
+const timefield &
+timefield::n(const struct timeval &v, bool asdate)
+{
+    return *new timefield(v, asdate);
+}
+const timefield &
+timefield::asdate() const
+{
+    return n(v, true);
+}
+const timefield &
+mk(const struct timeval &v)
+{
+    return timefield::n(v, false);
+}
+void
+timefield::fmt(fieldbuf &buf) const
+{
+    if (asdate_) {
+        struct tm v_tm;
+        gmtime_r(&v.tv_sec, &v_tm);
+        char time[128];
+        int r;
+        r = strftime(time,
+                     sizeof(time),
+                     "%F %T",
+                     &v_tm);
+        assert(r > 0);
+        assert(r < (int)sizeof(time));
+        buf.push(time);
+    } else {
+        mk(v.tv_sec).fmt(buf);
+    }
+    buf.push(".");
+    padleft(mk(v.tv_usec).nosep(), 6, mk("0")).fmt(buf);
 }
 
 void flush()

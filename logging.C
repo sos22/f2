@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "error.H"
+#include "fields.H"
 #include "maybe.H"
 #include "mutex.H"
 #include "proto.H"
@@ -182,7 +183,7 @@ static pid_t gettid(void)
     return syscall(SYS_gettid);
 }
 
-void logmsg(loglevel level, const char *fmt, ...)
+void logmsg(loglevel level, const fields::field &fld)
 {
     list<log_sink *> &sink(__level_to_sink(level));
     if (sink.empty())
@@ -190,33 +191,20 @@ void logmsg(loglevel level, const char *fmt, ...)
 
     struct timeval now;
     gettimeofday(&now, NULL);
-    struct tm now_tm;
-    gmtime_r(&now.tv_sec, &now_tm);
 
-    va_list args;
-    char *fmted;
-    int r;
-    va_start(args, fmt);
-    r = vasprintf(&fmted, fmt, args);
-    va_end(args);
-    assert(r > 0);
-
-    char fmt2[128];
-    r = strftime(fmt2,
-                 sizeof(fmt2),
-                 "%F %T.%%06d pid=%%d tid=%%d %%s",
-                 &now_tm);
-    assert(r > 0);
-    assert(r < (int)sizeof(fmt2));
-    char *res;
-    r = asprintf(&res, fmt2, now.tv_usec, getpid(), gettid(), fmted);
-    assert(r > 0);
-    free(fmted);
-
+    fields::fieldbuf buf;
+    (fields::mk(now).asdate() +
+     fields::mk(" pid=") +
+     fields::mk(getpid()).nosep() +
+     fields::mk(" tid=") +
+     fields::mk(gettid()).nosep() +
+     fields::mk(" ") +
+     fld).fmt(buf);
+    const char *res(buf.c_str());
     for (auto it(sink.start()); !it.finished(); it.next())
         (*it)->msg(res);
 
-    free(res);
+    fields::flush();
 }
 
 namespace logsinks {
@@ -303,7 +291,9 @@ getlogsiface::controlmessage(const wireproto::rx_message &msg,
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
                dflt(memlog_idx::min));
-    logmsg(loglevel::debug, "fetch logs from %ld", start.as_long());
+    logmsg(loglevel::debug,
+           fields::mk("fetch logs from ") +
+           fields::mk(start.as_long()));
     for (int limit = 200; limit > 0; ) {
         list<memlog_entry> results;
         auto resume(logsinks::memlog->fetch(start, limit, results));
@@ -318,13 +308,14 @@ getlogsiface::controlmessage(const wireproto::rx_message &msg,
             return r;
         limit /= 2;
         logmsg(loglevel::verbose,
-               "overflow sending %d log messages, trying %d",
-               limit,
-               limit / 2);
+               fields::mk("overflow sending ") +
+               fields::mk(limit) +
+               fields::mk(" log messages, trying ") +
+               fields::mk(limit / 2));
     }
 
     logmsg(loglevel::failure,
-           "can't send even a single log message without overflowing buffer?");
+           fields::mk("can't send even a single log message without overflowing buffer?"));
     return error::overflowed;
 }
 getlogsiface

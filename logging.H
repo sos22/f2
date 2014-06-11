@@ -7,6 +7,10 @@
 #include "controlserver.H"
 #include "wireproto.H"
 
+namespace fields {
+class field;
+};
+
 template <typename> class list;
 class log_sink;
 
@@ -33,10 +37,7 @@ public:
     static const loglevel verbose;
 };
 
-void logmsg(loglevel level,
-            const char *fmt,
-            ...)
-    __attribute__((format(printf,2,3)));
+void logmsg(loglevel level, const fields::field &);
 
 class memlog_idx {
     friend class memlog_sink;

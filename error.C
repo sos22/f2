@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "fields.H"
 #include "logging.H"
 #include "wireproto.tmpl"
 
@@ -60,16 +61,22 @@ error::from_errno(int err)
 void
 error::fatal(const char *msg) const
 {
-    logmsg(loglevel::emergency, "fatal error: %s: %s",
-           msg, str());
+    logmsg(loglevel::emergency,
+           fields::mk("fatal error: ") +
+           fields::mk(msg) +
+           fields::mk(": ") +
+           fields::mk(str()));
     errx(1, "fatal error: %s: %s", msg, str());
 }
 
 void
 error::warn(const char *msg) const
 {
-    logmsg(loglevel::failure, "warning: %s: %s",
-           msg, str());
+    logmsg(loglevel::failure,
+           fields::mk("warning: ") +
+           fields::mk(msg) +
+           fields::mk(": ") +
+           fields::mk(str()));
     warnx("warning: %s: %s", msg, str());
 }
 

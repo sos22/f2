@@ -10,6 +10,7 @@
 #include "buffer.H"
 #include "cond.H"
 #include "fd.H"
+#include "fields.H"
 #include "list.H"
 #include "listenfd.H"
 #include "logging.H"
@@ -224,7 +225,7 @@ controlthread::clientthread::run()
     buffer incoming;
     bool die;
     die = false;
-    logmsg(loglevel::info, "start client thread");
+    logmsg(loglevel::info, fields::mk("start client thread"));
     while (!die && !shutdown->ready()) {
         auto r(::poll(fds, 2, -1));
         if (r < 0)
@@ -259,7 +260,7 @@ controlthread::clientthread::run()
             }
         }
     }
-    logmsg(loglevel::info, "client thread finishing");
+    logmsg(loglevel::info, fields::mk("client thread finishing"));
     fd.close();
     auto token(owner->mux.lock());
     owner->dying->pushtail(this);
@@ -278,7 +279,8 @@ controlthread::clientthread::runcommand(buffer &incoming,
     }
     assert(r.success() != NULL);
     auto tag(r.success()->t);
-    logmsg(loglevel::verbose, "run command %d\n", tag.as_int());
+    logmsg(loglevel::verbose,
+           fields::mk("run command ") + fields::mk(tag.as_int()));
     control_registration *handler;
 
     auto token(owner->mux.lock());
@@ -329,9 +331,10 @@ pingiface::controlmessage(const wireproto::rx_message &msg, buffer &outgoing)
 {
     auto payload(msg.getparam(proto::PING::req::msg));
     if (payload.isjust())
-        logmsg(loglevel::info, "ping msg %s", payload.just());
+        logmsg(loglevel::info,
+               fields::mk("ping msg ") + fields::mk(payload.just()));
     else
-        logmsg(loglevel::failure, "ping with no message?");
+        logmsg(loglevel::failure, fields::mk("ping with no message?"));
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
@@ -349,10 +352,10 @@ quitiface::controlmessage(const wireproto::rx_message &msg, buffer &)
     if (!reason) return error::missingparameter;
     auto message(msg.getparam(proto::QUIT::req::message));
     logmsg(loglevel::notice,
-           "received a quit message: %s",
-           message.isjust()
-           ? message.just()
-           : "<no explanation given>");
+           fields::mk("received a quit message: ") +
+           fields::mk(message.isjust()
+                      ? message.just()
+                      : "<no explanation given>"));
     s->set(reason.just());
     return Nothing;
 }
@@ -361,8 +364,8 @@ maybe<error>
 unknowniface::controlmessage(const wireproto::rx_message &msg, buffer &)
 {
     logmsg(loglevel::failure,
-           "Received an unrecognised message type %d",
-           msg.t.as_int());
+           fields::mk("Received an unrecognised message type ") +
+           fields::mk(msg.t.as_int()));
     return error::unrecognisedmessage;
 }
 
@@ -385,7 +388,7 @@ controlthread::run()
             if (pfds[i].revents) {
                 if (localshutdown->fd().polled(pfds[i])) {
                     logmsg(loglevel::info,
-                           "control interface received local shutdown");
+                           fields::mk("control interface received local shutdown"));
                     assert(!(pfds[i].revents & POLLERR));
                     memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
                     nrfds--;
@@ -412,7 +415,8 @@ controlthread::run()
                             break;
                         }
                     }
-                    logmsg(loglevel::info, "control interface reaped client thread");
+                    logmsg(loglevel::info,
+                           fields::mk("control interface reaped client thread"));
                     if (threads.empty() && localshutdown->ready())
 /**/                    goto out;
                 } else {
@@ -422,7 +426,8 @@ controlthread::run()
                     auto newfd(sock.accept());
                     if (newfd.isfailure())
                         newfd.failure().fatal("accept on control interface");
-                    logmsg(loglevel::info, "control interface accepting new client");
+                    logmsg(loglevel::info,
+                           fields::mk("control interface accepting new client"));
                     auto tr(clientthread::spawn(this,
                                                 newfd.success(),
                                                 localshutdown));

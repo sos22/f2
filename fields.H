@@ -80,6 +80,19 @@ public:
 };
 const intfield &mk(long);
 
+class timefield : public field {
+    struct timeval v;
+    bool asdate_;
+    timefield(const struct timeval &_v,
+              bool _asdate);
+public:
+    static const timefield &n(const struct timeval &,
+                              bool asdate);
+    const timefield &asdate() const;
+    void fmt(fieldbuf &) const;
+};
+const timefield &mk(const struct timeval &);
+
 void flush();
 
 void test(class ::test &);

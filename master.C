@@ -2,6 +2,7 @@
 
 #include "shutdown.H"
 #include "controlserver.H"
+#include "fields.H"
 #include "logging.H"
 #include "waitbox.H"
 
@@ -10,7 +11,7 @@ main()
 {
     initlogging("master");
 
-    logmsg(loglevel::notice, "master starting");
+    logmsg(loglevel::notice, fields::mk("master starting"));
 
     signal(SIGPIPE, SIG_IGN);
     auto s(waitbox<shutdowncode>::build());
