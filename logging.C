@@ -194,10 +194,8 @@ void logmsg(loglevel level, const fields::field &fld)
 
     fields::fieldbuf buf;
     (fields::mk(now).asdate() +
-     fields::mk(" pid=") +
-     fields::mk(getpid()).nosep() +
-     fields::mk(" tid=") +
-     fields::mk(gettid()).nosep() +
+     " pid=" + fields::mk(getpid()).nosep() +
+     " tid=" + fields::mk(gettid()).nosep() +
      fields::mk(" ") +
      fld).fmt(buf);
     const char *res(buf.c_str());

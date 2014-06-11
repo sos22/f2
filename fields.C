@@ -306,6 +306,16 @@ mk(const char *what)
 {
     return strfield::n(what);
 }
+const field &
+operator+(const char *what, const field &a)
+{
+    return strfield::n(what) + a;
+}
+const field &
+operator+(const field &a, const char *what)
+{
+    return a + strfield::n(what);
+}
 
 intfield::intfield(long _val, int _base, bool _sep, bool _uppercase,
                    bool _alwayssign)

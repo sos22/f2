@@ -60,6 +60,8 @@ const field &padcenter(const field &,
                        const field &padright = space);
 
 const field &mk(const char *);
+const field &operator+(const char *, const field &);
+const field &operator+(const field &, const char *);
 
 class intfield : public field {
     long val_;
