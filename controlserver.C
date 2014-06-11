@@ -18,6 +18,7 @@
 #include "mutex.H"
 #include "thread.H"
 #include "orerror.H"
+#include "peername.H"
 #include "proto.H"
 #include "shutdown.H"
 #include "unixsocket.H"
@@ -77,22 +78,25 @@ struct controlthread : threadfn {
         fd_t fd;
         thread *_thr;
         waitbox<bool> *shutdown;
+        const peername peer;
         void run(void);
         bool runcommand(buffer &incoming,
                         buffer &outgoing,
                         bool *die);
         clientthread(controlthread *_owner,
                      fd_t _fd,
-                     waitbox<bool> *_shutdown)
+                     waitbox<bool> *_shutdown,
+                     const peername &_peer)
             : owner(_owner), fd(_fd), _thr(NULL),
-              shutdown(_shutdown)
+              shutdown(_shutdown), peer(_peer)
             {}
         clientthread(const clientthread &) = delete;
         void operator=(const clientthread &) = delete;
     public:
         static orerror<clientthread *> spawn(controlthread *,
                                              fd_t,
-                                             waitbox<bool> *);
+                                             waitbox<bool> *,
+                                             const peername &peer);
         thread *thr() { return _thr; }
         virtual ~clientthread() {}
     };
@@ -227,9 +231,10 @@ controlthread::clientthread::run()
     die = false;
     logmsg(loglevel::info, fields::mk("start client thread"));
     while (!die && !shutdown->ready()) {
+        fields::flush();
         auto r(::poll(fds, 2, -1));
         if (r < 0)
-            error::from_errno().fatal("poll client");
+            error::from_errno().fatal(fields::mk("poll client"));
         if (fds[0].revents) {
             assert(fds[0].revents == POLLIN);
             assert(shutdown->ready());
@@ -239,7 +244,7 @@ controlthread::clientthread::run()
             if (fds[1].revents & POLLOUT) {
                 auto rr(outgoing.send(fd));
                 if (rr.isjust()) {
-                    rr.just().warn("sending to client");
+                    rr.just().warn("sending to client " + fields::mk(peer));
                     break;
                 }
                 fds[1].revents &= ~POLLOUT;
@@ -249,7 +254,7 @@ controlthread::clientthread::run()
             if (fds[1].revents & POLLIN) {
                 auto t(incoming.receive(fd));
                 if (t.isjust()) {
-                    t.just().warn("receiving from client");
+                    t.just().warn("receiving from client " + fields::mk(peer));
                     break;
                 }
                 fds[1].revents &= ~POLLIN;
@@ -314,9 +319,10 @@ controlthread::clientthread::runcommand(buffer &incoming,
 orerror<controlthread::clientthread *>
 controlthread::clientthread::spawn(controlthread *server,
                                    fd_t fd,
-                                   waitbox<bool> *shutdown)
+                                   waitbox<bool> *shutdown,
+                                   const peername &peer)
 {
-    auto work(new clientthread(server, fd, shutdown));
+    auto work(new clientthread(server, fd, shutdown, peer));
     auto tr(thread::spawn(work, &work->_thr));
     if (tr.isjust()) {
         delete work;
@@ -341,7 +347,7 @@ pingiface::controlmessage(const wireproto::rx_message &msg, buffer &outgoing)
     m.addparam(proto::PING::resp::msg, "response message");
     auto r(m.serialise(outgoing));
     if (r.isjust())
-        r.just().warn("sending pong");
+        r.just().warn(fields::mk("sending pong"));
     return r;
 }
 
@@ -382,7 +388,7 @@ controlthread::run()
     while (1) {
         int r = poll(pfds, nrfds, -1);
         if (r < 0)
-            error::from_errno().fatal("polling control interface");
+            error::from_errno().fatal(fields::mk("polling control interface"));
         for (unsigned i = 0; r; i++) {
             assert(i < ARRAY_SIZE(pfds));
             if (pfds[i].revents) {
@@ -421,19 +427,24 @@ controlthread::run()
 /**/                    goto out;
                 } else {
                     if (pfds[i].revents & POLLERR)
-                        error::disconnected.fatal("on control listen socket");
+                        error::disconnected.fatal(
+                            fields::mk("on control listen socket"));
                     assert(sock.polled(pfds[i]));
                     auto newfd(sock.accept());
                     if (newfd.isfailure())
-                        newfd.failure().fatal("accept on control interface");
+                        newfd.failure().fatal(
+                            fields::mk("accept on control interface"));
                     logmsg(loglevel::info,
                            fields::mk("control interface accepting new client"));
                     auto tr(clientthread::spawn(this,
-                                                newfd.success(),
-                                                localshutdown));
+                                                newfd.success().fd,
+                                                localshutdown,
+                                                newfd.success().peer));
                     if (tr.isfailure()) {
-                        error::from_errno().warn("Cannot build thread for new client");
-                        newfd.success().close();
+                        error::from_errno().warn(
+                            "Cannot build thread for new client " +
+                            fields::mk(newfd.success().peer));
+                        newfd.success().fd.close();
                     } else {
                         threads.pushhead(tr.success());
                     }

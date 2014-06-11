@@ -2,17 +2,26 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/un.h>
+#include <arpa/inet.h>
 #include <stddef.h>
 #include <unistd.h>
 
-orerror<fd_t>
+orerror<listenfd::acceptres>
 listenfd::accept() const
 {
-    int n(::accept(fd, NULL, NULL));
+    union {
+        struct sockaddr s;
+        struct sockaddr_in sin;
+        struct sockaddr_un sun;
+        struct sockaddr_in6 sin6;
+    } addr;
+    socklen_t addrlen(sizeof(addr));
+    int n(::accept(fd, &addr.s, &addrlen));
     if (n < 0)
         return error::from_errno();
     else
-        return fd_t(n);
+        return acceptres(fd_t(n), peername(&addr.s, addrlen));
 }
 
 listenfd::listenfd(int n)

@@ -3,6 +3,10 @@
 
 #include "obj.H"
 
+namespace fields {
+class field;
+};
+
 namespace wireproto {
     template <typename t> class parameter;
     class tx_message;
@@ -13,6 +17,7 @@ template <typename t> class maybe;
 
 /* Wrapper around errno */
 class error {
+    friend class errorfield;
     int e;
     explicit error(int _e)
         : e(_e)
@@ -26,15 +31,11 @@ public:
     bool operator==(const error &o) const { return e == o.e; }
     bool operator!=(const error &o) const { return e != o.e; }
 
-    /* Return a string representing the error.  The returned string is
-     * eternally valid; do not free() or delete it. */
-    const char *str() const;
-
     /* Abort the program with an error */
-    void fatal(const char *msg) const __attribute__((noreturn));
+    void fatal(const fields::field &) const __attribute__((noreturn));
 
     /* Print out a warning based on an error. */
-    void warn(const char *msg) const;
+    void warn(const fields::field &) const;
 
     /* Construct an error from the current value of @errno.  This
        clobbers @errno. */
@@ -59,6 +60,11 @@ public:
     static const error invalidmessage; /* RPC message is malformed. */
     static const error unrecognisedmessage; /* RPC message tag unrecognised */
     static const error noparse; /* Cannot parse user-provided argument */
+};
+
+namespace fields {
+class field;
+const field &mk(const error &e);
 };
 
 #endif

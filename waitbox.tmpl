@@ -6,6 +6,8 @@
 #include <sys/poll.h>
 #include <unistd.h>
 
+#include "fields.H"
+
 #define rmb() asm volatile("")
 #define wmb() asm volatile("")
 
@@ -54,7 +56,7 @@ waitbox<t>::get() const
         auto pfd(fd().poll(POLLIN));
         auto r(::poll(&pfd, 1, -1));
         if (r != 1)
-            error::from_errno().fatal("poll for waitbox get");
+            error::from_errno().fatal(fields::mk("poll for waitbox get"));
     }
     assert(filled);
     return *(const t *)content;
@@ -69,9 +71,9 @@ waitbox<t>::set(const t &v)
     filled = true;
     auto w(writefd.write("Z", 1));
     if (w.isfailure())
-        w.failure().fatal("setting waitbox");
+        w.failure().fatal(fields::mk("setting waitbox"));
     if (w.success() != 1)
-        error::disconnected.fatal("setting waitbox");
+        error::disconnected.fatal(fields::mk("setting waitbox"));
 }
 
 #endif /* !WAITBOX_TMPL__ */

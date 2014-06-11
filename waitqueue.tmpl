@@ -16,9 +16,9 @@ waitqueue<t>::pophead()
     char c;
     auto r(readfd.read(&c, 1));
     if (r.isfailure())
-        r.failure().fatal("reading waitqueue");
+        r.failure().fatal(fields::mk("reading waitqueue"));
     if (r.success() != 1)
-        error::disconnected.fatal("reading waitqueue");
+        error::disconnected.fatal(fields::mk("reading waitqueue"));
     auto token(mux.lock());
     auto res(content.pophead());
     mux.unlock(&token);
@@ -34,9 +34,9 @@ waitqueue<t>::pushtail(const t &what)
     char c = 'X';
     auto r(writefd.write(&c, 1));
     if (r.isfailure())
-        r.failure().fatal("writing waitqueue");
+        r.failure().fatal(fields::mk("writing waitqueue"));
     if (r.success() != 1)
-        error::disconnected.fatal("writing waitqueue");
+        error::disconnected.fatal(fields::mk("writing waitqueue"));
 }
 
 template <typename t> orerror<waitqueue<t> *>

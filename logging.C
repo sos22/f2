@@ -201,8 +201,6 @@ void logmsg(loglevel level, const fields::field &fld)
     const char *res(buf.c_str());
     for (auto it(sink.start()); !it.finished(); it.next())
         (*it)->msg(res);
-
-    fields::flush();
 }
 
 namespace logsinks {
@@ -227,7 +225,7 @@ void initlogging(const char *ident)
     auto t(logsinks::filelog->open(logfile));
     free(logfile);
     if (t.isjust())
-        t.just().fatal("opening logfile");
+        t.just().fatal(fields::mk("opening logfile"));
 
     __level_to_sink(loglevel::emergency).pushhead(logsinks::memlog);
     __level_to_sink(loglevel::emergency).pushhead(logsinks::syslog);

@@ -18,29 +18,43 @@ const error error::invalidmessage(-5);
 const error error::unrecognisedmessage(-6);
 const error error::noparse(-7);
 
-const char *
-error::str() const
+class errorfield : public fields::field {
+    error content;
+    errorfield(const error &_content)
+        : content(_content)
+        {}
+public:
+    static const field &n(const error &content)
+        { return *new errorfield(content); }
+    void fmt(fields::fieldbuf &buf) const
+        {
+            if (content.e > 0) {
+                buf.push(strerror(content.e));
+            } else if (content == error::unknown) {
+                buf.push("unknown");
+            } else if (content == error::disconnected) {
+                buf.push("disconnected");
+            } else if (content == error::overflowed) {
+                buf.push("overflowed");
+            } else if (content == error::underflowed) {
+                buf.push("underflowed");
+            } else if (content == error::missingparameter) {
+                buf.push("missingparameter");
+            } else if (content == error::invalidmessage) {
+                buf.push("invalidmessage");
+            } else if (content == error::unrecognisedmessage) {
+                buf.push("unrecognisedmessage");
+            } else if (content == error::noparse) {
+                buf.push("noparse");
+            } else {
+                ("<invalid error " + fields::mk(content.e) + ">").fmt(buf);
+            }
+        }
+};
+const fields::field &
+fields::mk(const error &e)
 {
-    if (e > 0)
-        return strerror(e);
-    else if (*this == unknown)
-        return "unknown";
-    else if (*this == disconnected)
-        return "disconnected";
-    else if (*this == overflowed)
-        return "overflowed";
-    else if (*this == underflowed)
-        return "underflowed";
-    else if (*this == missingparameter)
-        return "missingparameter";
-    else if (*this == invalidmessage)
-        return "invalidmessage";
-    else if (*this == unrecognisedmessage)
-        return "unrecognisedmessage";
-    else if (*this == noparse)
-        return "noparse";
-    else
-        abort();
+    return errorfield::n(e);
 }
 
 error
@@ -59,25 +73,23 @@ error::from_errno(int err)
 }
 
 void
-error::fatal(const char *msg) const
+error::fatal(const fields::field &msg) const
 {
     logmsg(loglevel::emergency,
-           fields::mk("fatal error: ") +
-           fields::mk(msg) +
-           fields::mk(": ") +
-           fields::mk(str()));
-    errx(1, "fatal error: %s: %s", msg, str());
+           "fatal error: " + msg + ": " + fields::mk(*this));
+    fields::fieldbuf buf;
+    (msg + ": " + fields::mk(*this)).fmt(buf);
+    errx(1, "fatal error: %s", buf.c_str());
 }
 
 void
-error::warn(const char *msg) const
+error::warn(const fields::field &msg) const
 {
     logmsg(loglevel::failure,
-           fields::mk("warning: ") +
-           fields::mk(msg) +
-           fields::mk(": ") +
-           fields::mk(str()));
-    warnx("warning: %s: %s", msg, str());
+           "warning: " + msg + ": " + fields::mk(*this));
+    fields::fieldbuf buf;
+    (msg + ": " + fields::mk(*this)).fmt(buf);
+    warnx("warning: %s", buf.c_str());
 }
 
 wireproto_simple_wrapper_type(error, int, e);
