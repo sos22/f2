@@ -488,7 +488,7 @@ rx_compoundparameter::fetch(const bufslice &o)
 }
 
 const sequencenr sequencenr::invalid(0);
-const parameter<error> err_parameter(0);
+const parameter<error> err_parameter(0, "error");
 
 };
 

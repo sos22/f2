@@ -70,10 +70,11 @@ namespace wireproto {
         friend class tx_message;
         friend class rx_message;
         uint16_t id;
+        const char *description;
     public:
         typedef _instanceT instanceT;
-        explicit parameter(int _id)
-            : id(_id)
+        explicit parameter(int _id, const char *_description)
+            : id(_id), description(_description)
             {}
 
         /* because I can't figure out how to make parameter<int> be a

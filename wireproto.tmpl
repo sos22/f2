@@ -69,6 +69,22 @@ tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
     return *this;
 }
 
+template <typename t> const fields::field &paramfield(
+    const rx_message &msg, const parameter<t> &param)
+{
+    return fields::mk(param) + ": " +
+        fields::mk(msg.getparam(param));
+}
+
+}
+
+namespace fields {
+template <typename t> const field &
+mk(const wireproto::parameter<t> &param)
+{
+    return "<param:" + mk(param.description) + "@" + mk(param.id) + ">";
+}
+
 }
 
 #define wireproto_wrapper_type(wrapper_type)                            \
