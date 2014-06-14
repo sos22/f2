@@ -17,7 +17,7 @@ main()
     auto s(waitbox<shutdowncode>::build());
     if (s.isfailure())
         s.failure().fatal("build shutdown box");
-    auto c(controlserver::build(s.success()));
+    auto c(controlserver::build("mastersock", s.success()));
     if (c.isfailure())
         c.failure().fatal("build control interface");
     auto r = s.success()->get();

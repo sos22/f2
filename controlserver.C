@@ -145,7 +145,7 @@ struct controlthread : threadfn {
 
     control_registration *registeriface(controliface &iface);
 
-    maybe<error> setup();
+    maybe<error> setup(const char *name);
     void end();
     ~controlthread()
         {
@@ -467,7 +467,7 @@ controlthread::end()
 }
 
 maybe<error>
-controlthread::setup()
+controlthread::setup(const char *name)
 {
     error err;
 
@@ -490,7 +490,7 @@ controlthread::setup()
     }
 
     {
-        auto sl(unixsocket::listen("mastersock"));
+        auto sl(unixsocket::listen(name));
         if (sl.isfailure()) {
             err = sl.failure();
             goto failed;
@@ -513,10 +513,10 @@ failed:
 }
 
 orerror<controlserver>
-controlserver::build(waitbox<shutdowncode> *s)
+controlserver::build(const char *ident, waitbox<shutdowncode> *s)
 {
     auto r(new struct controlthread(s));
-    auto e(r->setup());
+    auto e(r->setup(ident));
     if (e.isnothing())
         return controlserver(*r);
     else

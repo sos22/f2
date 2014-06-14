@@ -33,7 +33,8 @@ public:
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you
        call destroy(). */
-    static orerror<controlserver> build(waitbox<shutdowncode> *s);
+    static orerror<controlserver> build(const char *ident,
+                                        waitbox<shutdowncode> *s);
     /* Release the control server interface, stopping it first if
      * necessary. */
     void destroy() const;
