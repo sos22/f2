@@ -28,9 +28,13 @@ public:
         explicit port(int);
         static const port unixport;
     };
+
     /* Get a peername which can be used to send a UDP broadcast on a
        particular port. */
     static peername udpbroadcast(port p);
+
+    /* Get a peername for a local UNIX domain socket. */
+    static peername local(const char *path);
 
     /* Get the sockaddr for this peer */
     const struct sockaddr *sockaddr() const;

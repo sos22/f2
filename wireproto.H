@@ -10,7 +10,6 @@
 #include "orerror.H"
 
 class buffer;
-class controlclient;
 
 namespace wireproto {
 class msgtag;

@@ -3,7 +3,6 @@
 . shutil
 
 cc mastercli.C
-cc controlclient.C
-ld mastercli controlclient.o mastercli.o lib.a
+ld mastercli mastercli.o lib.a
 
 target mastercli

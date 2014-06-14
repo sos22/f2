@@ -19,9 +19,10 @@ peername::peername(const peername &o)
 }
 
 peername::peername(const struct sockaddr *s, size_t size)
-    : sockaddr_(malloc(size)),
+    : sockaddr_(malloc(size + 1)),
       sockaddrsize_(size)
 {
+    ((unsigned char *)sockaddr_)[size] = 0;
     memcpy(sockaddr_, s, size);
     switch (s->sa_family) {
     case AF_UNIX:
@@ -194,6 +195,15 @@ peername::udpbroadcast(peername::port p)
     memset(&sin.sin_addr, 0xff, sizeof(sin.sin_addr));
     return peername((const struct sockaddr *)&sin, sizeof(sin));
 }
+
+peername
+peername::local(const char *path) {
+    struct sockaddr_un sun;
+    memset(&sun, 0, sizeof(sun));
+    sun.sun_family = AF_UNIX;
+    assert(strlen(path) < sizeof(sun.sun_path));
+    strcpy(sun.sun_path, path);
+    return peername((const struct sockaddr *)&sun, sizeof(sun)); }
 
 const struct sockaddr *
 peername::sockaddr() const {

@@ -8,6 +8,7 @@ class error;
 template <typename> class maybe;
 template <typename> class orerror;
 class registrationsecret;
+class rpcconn;
 
 class storageslave {
     class statusiface : public controliface {
@@ -21,6 +22,7 @@ class storageslave {
     };
     statusiface statusinterface;
     controlserver::iface controlregistration;
+    rpcconn *masterconn;
     storageslave(const controlserver &);
     maybe<error> connect(const registrationsecret &);
 public:

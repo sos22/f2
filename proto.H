@@ -103,6 +103,16 @@ namespace proto {
     namespace BEACONSLAVESTATUS {
         static const msgtag tag(7);
     };
+
+    namespace HELLO {
+        static const msgtag tag(8);
+        namespace req {
+            static const parameter<unsigned> version(800, "version");
+            static const parameter<class masternonce> nonce(801, "nonce");
+            static const parameter<class peername> slavename(802, "slavename");
+            static const parameter<class digest> digest(803, "digest");
+        }
+    }
 }
 
 #endif /* !PROTO_H__ */

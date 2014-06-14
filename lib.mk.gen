@@ -25,7 +25,9 @@ function bits() {
     _ proto
     _ ratelimiter
     _ registrationsecret
+    _ rpcconn
     _ shutdown
+    _ tcpsocket
     _ test
     _ tid
     _ timedelta

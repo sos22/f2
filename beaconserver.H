@@ -9,6 +9,7 @@
 #include "peername.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
+#include "rpcconn.H"
 #include "thread.H"
 #include "udpsocket.H"
 

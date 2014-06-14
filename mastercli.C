@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "controlclient.H"
 #include "fields.H"
 #include "logging.H"
+#include "peername.H"
 #include "proto.H"
 #include "registrationsecret.H"
+#include "rpcconn.H"
 #include "shutdown.H"
 #include "wireproto.H"
 
@@ -17,7 +18,7 @@ main(int argc, char *argv[])
 {
     if (argc < 2)
         errx(1, "need a mode argument");
-    auto c(controlclient::connect());
+    auto c(rpcconn::connect(peername::local("mastersock")));
     int r;
 
     if (c.isfailure())
@@ -99,6 +100,6 @@ main(int argc, char *argv[])
         printf("Unknown command %s.  Known: PING, LOGS\n", argv[1]);
         r = 1;
     }
-    c.success()->destroy();
+    delete c.success();
     return r;
 }

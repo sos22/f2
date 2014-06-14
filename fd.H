@@ -27,6 +27,7 @@ class fd_t {
     friend class unixsocket;
     friend const fields::field &fields::mk(const fd_t &);
     friend class udpsocket;
+    friend class tcpsocket;
     int fd;
 protected:
     explicit fd_t(int _fd)
