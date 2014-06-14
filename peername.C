@@ -12,9 +12,10 @@
 #include "wireproto.H"
 
 peername::peername(const peername &o)
-    : sockaddr_(malloc(o.sockaddrsize_)),
+    : sockaddr_(malloc(o.sockaddrsize_ + 1)),
       sockaddrsize_(o.sockaddrsize_)
 {
+    ((char *)sockaddr_)[sockaddrsize_] = 0;
     memcpy(sockaddr_, o.sockaddr_, o.sockaddrsize_);
 }
 
@@ -22,7 +23,7 @@ peername::peername(const struct sockaddr *s, size_t size)
     : sockaddr_(malloc(size + 1)),
       sockaddrsize_(size)
 {
-    ((unsigned char *)sockaddr_)[size] = 0;
+    ((char *)sockaddr_)[size] = 0;
     memcpy(sockaddr_, s, size);
     switch (s->sa_family) {
     case AF_UNIX:
