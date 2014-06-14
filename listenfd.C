@@ -1,4 +1,5 @@
 #include "listenfd.H"
+
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -6,6 +7,8 @@
 #include <arpa/inet.h>
 #include <stddef.h>
 #include <unistd.h>
+
+#include "fields.H"
 
 orerror<listenfd::acceptres>
 listenfd::accept() const

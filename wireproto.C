@@ -314,6 +314,12 @@ tx_message::addparam(parameter<unsigned> tmpl, const unsigned &val)
 }
 
 template <> tx_message &
+tx_message::addparam(parameter<unsigned short> tmpl, const unsigned short &val)
+{
+    return addparam(tmpl.id, &val, sizeof(val));
+}
+
+template <> tx_message &
 tx_message::addparam(parameter<unsigned long> tmpl, const unsigned long &val)
 {
     return addparam(tmpl.id, &val, sizeof(val));
@@ -454,6 +460,14 @@ deserialise(bufslice &slice)
     else
         return *(int *)slice.buf.linearise(slice.start, slice.end);
 }
+template <> maybe<unsigned short>
+deserialise(bufslice &slice)
+{
+    if (slice.end - slice.start != 2)
+        return Nothing;
+    else
+        return *(unsigned short *)slice.buf.linearise(slice.start, slice.end);
+}
 template <> maybe<unsigned>
 deserialise(bufslice &slice)
 {
@@ -510,6 +524,8 @@ deserialise(bufslice &slice)
 
 
 template maybe<const char *> rx_message::getparam(parameter<const char *>)const;
+template maybe<unsigned short> rx_message::getparam(
+    parameter<unsigned short>) const;
 template maybe<int> rx_message::getparam(parameter<int>) const;
 template maybe<unsigned> rx_message::getparam(parameter<unsigned>) const;
 template maybe<unsigned long> rx_message::getparam(parameter<unsigned long>) const;

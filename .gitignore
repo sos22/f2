@@ -3,8 +3,10 @@
 *~
 *.a
 *.mk
-master
-mastercli
 config
-test
+master
 master.log
+mastercli
+storage
+storage.log
+test

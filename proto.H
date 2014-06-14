@@ -6,6 +6,8 @@
 class frequency;
 class memlog_idx;
 class memlog_entry;
+class nonce;
+class peername;
 class shutdowncode;
 class ratelimiter_status;
 class registrationsecret;
@@ -16,6 +18,13 @@ namespace proto {
     namespace memlog_entry {
         static const parameter<const char *> msg(1, "msg");
         static const parameter<memlog_idx> idx(2, "idx");
+    };
+    namespace peername {
+        static const parameter<const char *> local(1, "local");
+        static const parameter<uint16_t> port(2, "port");
+        static const parameter<uint32_t> ipv4(3, "ipv4");
+        static const parameter<uint64_t> ipv6a(3, "ipv6a");
+        static const parameter<uint64_t> ipv6b(3, "ipv6b");
     };
     namespace ratelimiter_status {
         static const parameter<frequency> max_rate(1, "max_rate");
@@ -73,8 +82,17 @@ namespace proto {
     };
 
     /* Beacon interface */
-    namespace BEACONPROBE {
+    namespace HAIL {
         static const msgtag tag(6);
+        namespace req {
+            static const parameter<unsigned> version(600, "version");
+            static const parameter<class peername> slavename(601, "slavename");
+            static const parameter<class nonce> nonce(602, "nonce");
+        }
+    }
+
+    namespace BEACONSLAVESTATUS {
+        static const msgtag tag(7);
     };
 }
 

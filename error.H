@@ -63,6 +63,8 @@ public:
     static const error unrecognisedmessage; /* RPC message tag unrecognised */
     static const error noparse; /* Cannot parse user-provided argument */
     static const error timeout; /* Timed out performing some operation */
+    static const error truncated; /* Message too big for underlying transport */
+    static const error unimplemented; /* Not implemented yet */
 };
 
 namespace fields {

@@ -3,8 +3,10 @@
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
+#include "nonce.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
+#include "peername.H"
 #include "shutdown.H"
 #include "wireproto.H"
 #include "wireproto.tmpl"
@@ -13,6 +15,7 @@ wireproto_simple_wrapper_type(frequency, double, hz_)
 wireproto_simple_wrapper_type(memlog_idx, unsigned long, val)
 wireproto_simple_wrapper_type(shutdowncode, int, code)
 wireproto_simple_wrapper_type(registrationsecret, const char *, secret);
+wireproto_simple_wrapper_type(nonce, uint64_t, val);
 
 wireproto_wrapper_type(memlog_entry)
 namespace wireproto {
@@ -93,3 +96,5 @@ ratelimiter_status::getparam(wireproto::parameter<ratelimiter_status> tmpl,
                               bucket_size.just(),
                               bucket_content.just());
 }
+
+wireproto_wrapper_type(peername)

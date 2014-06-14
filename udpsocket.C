@@ -7,6 +7,8 @@
 #include <unistd.h>
 
 #include "buffer.H"
+#include "fields.H"
+#include "logging.H"
 #include "orerror.H"
 #include "peername.H"
 #include "timedelta.H"
@@ -22,7 +24,29 @@ udpsocket::listen(port p) {
     sin.sin_port = htons(p.p);
     if (bind(fd, (const struct sockaddr *)&sin, sizeof(sin))) {
         ::close(fd);
-        return error::from_errno(); }
+        return error::from_errno();
+    }
+    int mtu = IP_PMTUDISC_DONT;
+    if (setsockopt(fd, SOL_IP, IP_MTU_DISCOVER, &mtu, sizeof(mtu)) < 0) {
+        ::close(fd);
+        return error::from_errno();
+    }
+
+    return udpsocket(fd);
+}
+
+orerror<udpsocket>
+udpsocket::client()
+{
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (fd < 0)
+        return error::from_errno();
+    int allow_broadcast = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &allow_broadcast,
+                   sizeof(allow_broadcast)) < 0) {
+        ::close(fd);
+        return error::from_errno();
+    }
     int mtu = IP_PMTUDISC_DONT;
     if (setsockopt(fd, SOL_IP, IP_MTU_DISCOVER, &mtu, sizeof(mtu)) < 0) {
         ::close(fd);
@@ -71,3 +95,30 @@ udpsocket::receive(buffer &buf, maybe<timestamp> deadline) const {
     buf.queue(rxbuf, recved);
     return peername((const struct sockaddr *)sockaddr,
                     sockaddr_size); }
+
+maybe<error>
+udpsocket::send(buffer &buf, const peername &p) const {
+    size_t bytes(buf.avail());
+    ssize_t sent(::sendto(fd,
+                          buf.linearise(buf.offset(), buf.offset() + bytes),
+                          bytes,
+                          MSG_NOSIGNAL,
+                          p.sockaddr(),
+                          p.sockaddrsize()));
+    if (sent >= 0) {
+        buf.discard(bytes);
+        if ((size_t)sent != bytes)
+            logmsg(loglevel::failure,
+                   "tried to send " + fields::mk(bytes) +
+                   " UDP packet, truncated to " + fields::mk(sent));
+        return Nothing;
+    } else {
+        return error::from_errno(); } }
+
+peername
+udpsocket::localname() const {
+    unsigned char addr[4096];
+    socklen_t addrlen(sizeof(addr));
+    auto res(::getsockname(fd, (struct sockaddr *)addr, &addrlen));
+    if (res < 0) error::from_errno().fatal("getting socket peer name");
+    return peername((const struct sockaddr *)addr, addrlen); }

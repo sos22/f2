@@ -17,6 +17,7 @@ function bits() {
     _ logging
     _ maybe
     _ mutex
+    _ nonce
     _ obj
     _ peername
     _ proto

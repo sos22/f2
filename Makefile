@@ -4,6 +4,7 @@ all: realall
 
 include lib.mk
 include master.mk
+include storage.mk
 include mastercli.mk
 include test.mk
 

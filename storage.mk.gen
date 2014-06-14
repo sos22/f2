@@ -1,0 +1,10 @@
+#! /bin/bash
+
+. shutil
+
+cc controlserver.C
+cc storage.C
+cc storageslave.C
+ld storage controlserver.o storage.o storageslave.o lib.a
+
+target storage

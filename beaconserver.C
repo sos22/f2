@@ -152,7 +152,7 @@ beaconserver::listenthreadclass::run()
             continue;
         }
         auto msg(rrr.success());
-        if (msg->t != proto::BEACONPROBE::tag) {
+        if (msg->t != proto::HAIL::tag) {
             logmsg(loglevel::failure,
                    "unexpected message tag " +
                    fields::mk(msg->t) +
@@ -165,6 +165,12 @@ beaconserver::listenthreadclass::run()
         logmsg(loglevel::info,
                "received beacon message from " +
                fields::mk(rr.success()));
+        logmsg(loglevel::info,
+               wireproto::paramfield(*msg, proto::HAIL::req::version));
+        logmsg(loglevel::info,
+               wireproto::paramfield(*msg, proto::HAIL::req::slavename));
+        logmsg(loglevel::info,
+               wireproto::paramfield(*msg, proto::HAIL::req::nonce));
         owner->rx++;
         msg->finish();
         continue;
