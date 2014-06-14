@@ -1,6 +1,8 @@
 #ifndef CONTROLSERVER_H__
 #define CONTROLSERVER_H__
 
+#include "wireproto.H"
+
 class buffer;
 class error;
 template <typename> class maybe;
@@ -9,9 +11,7 @@ template <typename t> class list;
 class shutdowncode;
 template <typename t> class waitbox;
 
-#include "wireproto.H"
-
-#include "wireproto.H"
+class controlregistration;
 
 class controliface {
 protected:
@@ -62,15 +62,15 @@ public:
     iface registeriface(const multiregistration &) const;
 
     class iface {
-        void *content;
+        controlregistration *content;
         iface() = delete;
-        iface(void *_content)
+        iface(controlregistration *_content)
             : content(_content)
             {}
     public:
         /* Because I can't figure out how to make this class friends
          * with registeriface() */
-        static iface __mk_iface__(void *content)
+        static iface __mk_iface__(controlregistration *content)
             {
                 return iface(content);
             }

@@ -35,21 +35,21 @@
 
 class controlthread;
 
-struct control_registration {
-    control_registration() __attribute__((noreturn)); /* should never be
+struct controlregistration {
+    controlregistration() __attribute__((noreturn)); /* should never be
                                                * called, but needed
                                                * for linked list
                                                * templates */
-    control_registration(const control_registration &o);
-    void operator=(const control_registration &) = delete;
+    controlregistration(const controlregistration &o);
+    void operator=(const controlregistration &) = delete;
 
     controlthread *server;
     unsigned outstanding;
     list<controliface *> interfaces;
     cond_t idle;
-    control_registration(controlthread *_server);
+    controlregistration(controlthread *_server);
     void deregister() const;
-    ~control_registration() { assert(outstanding == 0); }
+    ~controlregistration() { assert(outstanding == 0); }
 };
 
 class pingiface : public controliface {
@@ -106,7 +106,7 @@ struct controlthread : threadfn {
     /* A lot of state which would be more natural in controlserver
        actually goes in here because that keeps the controlserver
        interface a bit easier to understand. */
-    list<control_registration *> registrations;
+    list<controlregistration *> registrations;
     waitbox<bool> *localshutdown;
     waitbox<shutdowncode> *globalshutdown;
     mutex_t mux;
@@ -117,10 +117,8 @@ struct controlthread : threadfn {
     unknowniface unknowninterface;
     pingiface pinginterface;
     quitiface quitinterface;
-    control_registration *unknownregistration;
-    control_registration *loggingregistration;
-    control_registration *pingregistration;
-    control_registration *quitregistration;
+    controlregistration *unknownregistration;
+    controlregistration *registration;
 
     void run();
     controlthread(waitbox<shutdowncode> *_s)
@@ -135,16 +133,17 @@ struct controlthread : threadfn {
           pinginterface(),
           quitinterface(_s),
           unknownregistration(registeriface(unknowninterface)),
-          loggingregistration(registeriface(getlogsiface::singleton)),
-          pingregistration(registeriface(pinginterface)),
-          quitregistration(registeriface(quitinterface))
+          registration(registeriface(controlserver::multiregistration()
+                                     .add(getlogsiface::singleton)
+                                     .add(pinginterface)
+                                     .add(quitinterface)))
         {
         }
     controlthread(const controlthread &) = delete;
     void operator=(const controlthread &) = delete;
 
-    control_registration *registeriface(controliface &iface);
-    control_registration *registeriface(
+    controlregistration *registeriface(controliface &iface);
+    controlregistration *registeriface(
         const ::controlserver::multiregistration &iface);
 
     maybe<error> setup(const char *name);
@@ -153,22 +152,19 @@ struct controlthread : threadfn {
         {
             assert(!t);
             unknownregistration->deregister();
-            loggingregistration->deregister();
-            pingregistration->deregister();
-            quitregistration->deregister();
-            localshutdown->destroy();
+            registration->deregister();
             dying->destroy();
         }
 };
 
-control_registration::control_registration(controlthread *_server)
+controlregistration::controlregistration(controlthread *_server)
     : server(_server),
       outstanding(0),
       interfaces(),
       idle(server->mux)
 {}
 
-control_registration::control_registration(const control_registration &o)
+controlregistration::controlregistration(const controlregistration &o)
     : server(o.server),
       outstanding(0),
       interfaces(),
@@ -179,7 +175,7 @@ control_registration::control_registration(const control_registration &o)
         interfaces.pushtail(*it);
 }
 
-control_registration::control_registration()
+controlregistration::controlregistration()
     : server(NULL),
       outstanding(0),
       interfaces(),
@@ -189,7 +185,7 @@ control_registration::control_registration()
 }
 
 void
-control_registration::deregister() const
+controlregistration::deregister() const
 {
     auto token(server->mux.lock());
     for (auto it(server->registrations.start()); !it.finished(); it.next()) {
@@ -198,6 +194,7 @@ control_registration::deregister() const
             while (outstanding > 0)
                 token = idle.wait(&token);
             server->mux.unlock(&token);
+            const_cast<controlregistration *>(this)->interfaces.flush();
             delete this;
             return;
         }
@@ -206,17 +203,17 @@ control_registration::deregister() const
     abort();
 }
 
-control_registration *
+controlregistration *
 controlthread::registeriface(controliface &iface)
 {
     return registeriface(::controlserver::multiregistration()
                          .add(iface));
 }
 
-control_registration *
+controlregistration *
 controlthread::registeriface(const controlserver::multiregistration &what)
 {
-    auto reg(new control_registration(this));
+    auto reg(new controlregistration(this));
     auto token(mux.lock());
     for (auto it(registrations.start()); !it.finished(); it.next()) {
         for (auto it2((*it)->interfaces.start());
@@ -574,7 +571,13 @@ controlserver::registeriface(const controlserver::multiregistration &r) const
     return iface::__mk_iface__(controlthread.registeriface(r));
 }
 
+void
+controlserver::iface::deregister() const
+{
+    content->deregister();
+}
+
 template class list<controlthread::clientthread *>;
 template class waitqueue<controlthread::clientthread *>;
-template class list<control_registration *>;
+template class list<controlregistration *>;
 template class list<controliface *>;

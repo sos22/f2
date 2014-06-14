@@ -244,6 +244,7 @@ beaconserver::destroy() const
         delete this;
         return;
     }
+    controlregistration.deregister();
     shutdown->set(true);
     listenthread->join();
     delete shutdown;
