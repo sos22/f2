@@ -1,7 +1,6 @@
 #include "logging.H"
 
 #include <sys/time.h>
-#include <sys/types.h>
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -23,6 +22,21 @@
 
 template class list<memlog_entry>;
 template class list<log_sink *>;
+
+const loglevel
+loglevel::emergency(5);
+const loglevel
+loglevel::error(6);
+const loglevel
+loglevel::notice(7);
+const loglevel
+loglevel::failure(8);
+const loglevel
+loglevel::info(9);
+const loglevel
+loglevel::debug(10);
+const loglevel
+loglevel::verbose(11);
 
 const memlog_idx
 memlog_idx::min(0);
@@ -122,6 +136,7 @@ public:
     filelog_sink()
         : f(NULL)
         {}
+    ~filelog_sink() { assert(f == NULL); }
     maybe<error> open(const char *filename)
         {
             assert(!f);
@@ -133,8 +148,8 @@ public:
         }
     void close()
         {
-            assert(f);
-            fclose(f);
+            if (f)
+                fclose(f);
             f = NULL;
         }
     void msg(const char *s)
@@ -161,31 +176,74 @@ public:
         }
 };
 
-static list<log_sink *> sinks[7];
+class logpolicy {
+    friend class getlogsiface;
+    memlog_sink memlog;
+    syslog_sink syslog;
+    filelog_sink filelog;
+    stdio_sink stdiolog;
+    list<log_sink *> sinks[7];
+    list<log_sink *> &level_to_sink(loglevel l);
+public:
+    logpolicy();
+    void init(const char *);
+    void logmsg(loglevel level, const fields::field &);
+    void deinit();
+    ~logpolicy() { deinit(); }
+};
 
-const loglevel loglevel::emergency(5);
-const loglevel loglevel::error(6);
-const loglevel loglevel::notice(7);
-const loglevel loglevel::failure(8);
-const loglevel loglevel::info(9);
-const loglevel loglevel::debug(10);
-const loglevel loglevel::verbose(11);
+static logpolicy
+policy;
 
-list<log_sink *> &__level_to_sink(loglevel l)
+list<log_sink *> &
+logpolicy::level_to_sink(loglevel l)
 {
     assert(l.level >= loglevel::emergency.level);
     assert(l.level <= loglevel::verbose.level);
     return sinks[l.level-loglevel::emergency.level];
 }
 
-static pid_t gettid(void)
+logpolicy::logpolicy()
+    : memlog(),
+      syslog(LOG_INFO),
+      filelog(),
+      stdiolog(stdout)
 {
-    return syscall(SYS_gettid);
 }
 
-void logmsg(loglevel level, const fields::field &fld)
+void
+logpolicy::init(const char *ident)
 {
-    list<log_sink *> &sink(__level_to_sink(level));
+    syslog.open(ident, LOG_DAEMON);
+    char *logfile;
+    int r;
+    r = asprintf(&logfile, "%s.log", ident);
+    assert(r >= 0);
+    auto t(filelog.open(logfile));
+    if (t.isjust())
+        t.just().fatal(fields::mk("opening logfile ") + logfile);
+    free(logfile);
+
+    for (auto it(loglevel::begin()); !it.finished(); it.next()) {
+        auto &l(level_to_sink(*it));
+        l.pushhead(&memlog);
+        l.pushhead(&stdiolog);
+        if (*it >= loglevel::info)
+            l.pushhead(&filelog);
+        if (*it >= loglevel::notice)
+            l.pushhead(&syslog);
+    }
+}
+void
+initlogging(const char *ident)
+{
+    policy.init(ident);
+}
+
+void
+logpolicy::logmsg(loglevel level, const fields::field &fld)
+{
+    auto &sink(level_to_sink(level));
     if (sink.empty())
         return;
 
@@ -195,87 +253,31 @@ void logmsg(loglevel level, const fields::field &fld)
     fields::fieldbuf buf;
     (fields::mk(now).asdate() +
      " pid=" + fields::mk(getpid()).nosep() +
-     " tid=" + fields::mk(gettid()).nosep() +
-     fields::mk(" ") +
-     fld).fmt(buf);
+     " tid=" + fields::mk(tid::me()) +
+     " level=" + fields::mk(level) +
+     " " + fld).fmt(buf);
     const char *res(buf.c_str());
     for (auto it(sink.start()); !it.finished(); it.next())
         (*it)->msg(res);
 }
-
-namespace logsinks {
-    memlog_sink *memlog;
-    syslog_sink *syslog;
-    filelog_sink *filelog;
-    stdio_sink *stdiolog;
-};
-
-void initlogging(const char *ident)
+void
+logmsg(loglevel level, const fields::field &fld)
 {
-    assert(!logsinks::memlog);
-    logsinks::memlog = new memlog_sink();
-    logsinks::syslog = new syslog_sink(LOG_INFO);
-    logsinks::syslog->open(ident, LOG_DAEMON);
-    logsinks::filelog = new filelog_sink();
-    logsinks::stdiolog = new stdio_sink(stdout);
-    char *logfile;
-    int r;
-    r = asprintf(&logfile, "%s.log", ident);
-    assert(r >= 0);
-    auto t(logsinks::filelog->open(logfile));
-    free(logfile);
-    if (t.isjust())
-        t.just().fatal(fields::mk("opening logfile"));
-
-    __level_to_sink(loglevel::emergency).pushhead(logsinks::memlog);
-    __level_to_sink(loglevel::emergency).pushhead(logsinks::syslog);
-    __level_to_sink(loglevel::emergency).pushhead(logsinks::filelog);
-    __level_to_sink(loglevel::emergency).pushhead(logsinks::stdiolog);
-    __level_to_sink(loglevel::emergency).sanitycheck();
-
-    __level_to_sink(loglevel::error).pushhead(logsinks::memlog);
-    __level_to_sink(loglevel::error).pushhead(logsinks::syslog);
-    __level_to_sink(loglevel::error).pushhead(logsinks::filelog);
-    __level_to_sink(loglevel::error).pushhead(logsinks::stdiolog);
-
-    __level_to_sink(loglevel::notice).pushhead(logsinks::memlog);
-    __level_to_sink(loglevel::notice).pushhead(logsinks::syslog);
-    __level_to_sink(loglevel::notice).pushhead(logsinks::filelog);
-    __level_to_sink(loglevel::notice).pushhead(logsinks::stdiolog);
-
-    __level_to_sink(loglevel::failure).pushhead(logsinks::memlog);
-    __level_to_sink(loglevel::failure).pushhead(logsinks::syslog);
-    __level_to_sink(loglevel::failure).pushhead(logsinks::stdiolog);
-
-    __level_to_sink(loglevel::info).pushhead(logsinks::memlog);
-    __level_to_sink(loglevel::info).pushhead(logsinks::filelog);
-    __level_to_sink(loglevel::info).pushhead(logsinks::stdiolog);
-
-    __level_to_sink(loglevel::debug).pushhead(logsinks::memlog);
-    __level_to_sink(loglevel::debug).pushhead(logsinks::stdiolog);
+    policy.logmsg(level, fld);
 }
 
-void deinitlogging(void)
+void
+logpolicy::deinit(void)
 {
-    assert(logsinks::memlog);
-    delete logsinks::memlog;
-    logsinks::memlog = NULL;
-
-    logsinks::syslog->close();
-    delete logsinks::syslog;
-    logsinks::syslog = NULL;
-
-    logsinks::filelog->close();
-    delete logsinks::filelog;
-    logsinks::filelog = NULL;
-
-    __level_to_sink(loglevel::emergency).flush();
-    __level_to_sink(loglevel::error).flush();
-    __level_to_sink(loglevel::failure).flush();
-    __level_to_sink(loglevel::notice).flush();
-    __level_to_sink(loglevel::info).flush();
-    __level_to_sink(loglevel::debug).flush();
-    __level_to_sink(loglevel::verbose).flush();
+    for (auto it(loglevel::begin()); !it.finished(); it.next())
+        level_to_sink(*it).flush();
+    syslog.close();
+    filelog.close();
+}
+void
+deinitlogging(void)
+{
+    policy.deinit();
 }
 
 getlogsiface::getlogsiface()
@@ -292,7 +294,7 @@ getlogsiface::controlmessage(const wireproto::rx_message &msg,
            fields::mk(start.as_long()));
     for (int limit = 200; limit > 0; ) {
         list<memlog_entry> results;
-        auto resume(logsinks::memlog->fetch(start, limit, results));
+        auto resume(policy.memlog.fetch(start, limit, results));
         wireproto::resp_message m(msg);
         m.addparam(proto::GETLOGS::resp::msgs, results);
         if (resume.isjust())
@@ -316,3 +318,68 @@ getlogsiface::controlmessage(const wireproto::rx_message &msg,
 }
 getlogsiface
 getlogsiface::singleton;
+
+loglevel::iter
+loglevel::begin()
+{
+    return loglevel::iter();
+}
+
+loglevel::iter::iter()
+    : cursor(loglevel::emergency.level)
+{
+}
+
+bool
+loglevel::iter::finished() const
+{
+    return cursor > loglevel::verbose.level;
+}
+
+loglevel
+loglevel::iter::operator *() const
+{
+    assert(!finished());
+    return loglevel(cursor);
+}
+
+void
+loglevel::iter::next()
+{
+    cursor++;
+}
+
+bool
+loglevel::operator >=(const loglevel &o) const
+{
+    /* loglevel interface says >= means more serious, but internally
+       levels are in descending order. */
+    return level <= o.level;
+}
+
+bool
+loglevel::operator ==(const loglevel &o) const
+{
+    return level == o.level;
+}
+
+const fields::field &
+fields::mk(const loglevel &l)
+{
+    if (l == loglevel::emergency)
+        return fields::mk("emergency");
+    else if (l == loglevel::error)
+        return fields::mk("error");
+    else if (l == loglevel::notice)
+        return fields::mk("notice");
+    else if (l == loglevel::failure)
+        return fields::mk("failure");
+    else if (l == loglevel::info)
+        return fields::mk("info");
+    else if (l == loglevel::debug)
+        return fields::mk("debug");
+    else if (l == loglevel::verbose)
+        return fields::mk("verbose");
+    else
+        return "unknown loglevel " + fields::mk(l.level);
+}

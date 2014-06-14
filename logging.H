@@ -7,15 +7,19 @@
 #include "controlserver.H"
 #include "wireproto.H"
 
+class loglevel;
 namespace fields {
 class field;
+const field &mk(const loglevel &);
 };
 
 template <typename> class list;
 class log_sink;
 
 class loglevel {
-    friend list<log_sink *> &__level_to_sink(loglevel l);
+    friend class logpolicy;
+    friend const fields::field &fields::mk(const loglevel &);
+    friend class iter;
     const int level;
     explicit loglevel(int _level)
         : level(_level)
@@ -35,6 +39,23 @@ public:
     static const loglevel debug;
     /* Verbose tracing messages */
     static const loglevel verbose;
+
+    /* x >= y is true if x is equal to or more serious than y */
+    bool operator>=(const loglevel &o) const;
+
+    /* simple test for equality */
+    bool operator==(const loglevel &o) const;
+
+    /* An easy way of iterating over all defined log levels */
+    class iter {
+        friend class loglevel;
+    private: int cursor;
+    private: iter();
+    public: bool finished() const;
+    public: void next();
+    public: loglevel operator*() const;
+    };
+    static iter begin();
 };
 
 void logmsg(loglevel level, const fields::field &);
