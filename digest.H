@@ -15,6 +15,7 @@ public:
     WIREPROTO_TYPE(digest);
     digest(const fields::field &);
     bool operator==(const digest &o) const;
+    bool operator!=(const digest &o) const;
 };
 
 #endif /* !DIGEST_H__ */

@@ -56,8 +56,7 @@ public:
             } else if (content == error::unimplemented) {
                 buf.push("unimplemented");
             } else {
-                ("<invalid error " + fields::mk(content.e) + ">").fmt(buf);
-            }
+                ("<invalid error " + fields::mk(content.e) + ">").fmt(buf); }
         }
 };
 const fields::field &

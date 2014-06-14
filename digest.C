@@ -28,3 +28,9 @@ digest::operator==(const digest &o) const
 {
     return val == o.val;
 }
+
+bool
+digest::operator!=(const digest &o) const
+{
+    return !(*this == o);
+}
