@@ -22,12 +22,10 @@ maybe<error>
 storageslave::connect(const registrationsecret &) {
     auto sock(udpsocket::client());
     if (sock.isfailure()) return sock.failure();
-    auto slavename(sock.success().localname());
     auto n(nonce::mk());
     buffer buf;
     {   auto serialiseres(wireproto::tx_message(proto::HAIL::tag)
                           .addparam(proto::HAIL::req::version, 1u)
-                          .addparam(proto::HAIL::req::slavename, slavename)
                           .addparam(proto::HAIL::req::nonce, n)
                           .serialise(buf));
         if (serialiseres.isjust()) return serialiseres.just(); }

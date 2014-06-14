@@ -5,6 +5,8 @@
 #define BEACONSERVER_H__
 
 #include "controlserver.H"
+#include "mastersecret.H"
+#include "peername.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
 #include "thread.H"
@@ -51,6 +53,8 @@ class beaconserver {
     configureiface configureinterface;
     controlserver::iface controlregistration;
     registrationsecret secret;
+    peername mastername;
+    mastersecret mastersecret_;
     ratelimiter limiter;
     listenthreadclass listenthreadfn;
     thread *listenthread;
@@ -62,7 +66,9 @@ class beaconserver {
 
     beaconserver(const registrationsecret &rs,
                  frequency max_responses,
-                 const controlserver &cs);
+                 const controlserver &cs,
+                 const peername &mastername,
+                 const mastersecret &);
 
     beaconserver() = delete;
     beaconserver(const beaconserver &) = delete;
@@ -73,7 +79,9 @@ class beaconserver {
 public:
     static orerror<beaconserver *> build(const registrationsecret &,
                                          frequency max_responses,
-                                         const controlserver &);
+                                         const controlserver &,
+                                         const peername &mastername,
+                                         const mastersecret &_mastersecret);
     void destroy() const;
 };
 

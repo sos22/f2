@@ -9,12 +9,14 @@ function bits() {
     }
     _ buffer
     _ cond
+    _ digest
     _ error
     _ fd
     _ fields
     _ frequency
     _ listenfd
     _ logging
+    _ mastersecret
     _ maybe
     _ mutex
     _ nonce

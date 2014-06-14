@@ -3,6 +3,7 @@
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
+#include "mastersecret.H"
 #include "nonce.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
@@ -11,11 +12,13 @@
 #include "wireproto.H"
 #include "wireproto.tmpl"
 
+wireproto_simple_wrapper_type(digest, unsigned long, val)
 wireproto_simple_wrapper_type(frequency, double, hz_)
+wireproto_simple_wrapper_type(masternonce, digest, d);
 wireproto_simple_wrapper_type(memlog_idx, unsigned long, val)
-wireproto_simple_wrapper_type(shutdowncode, int, code)
-wireproto_simple_wrapper_type(registrationsecret, const char *, secret);
 wireproto_simple_wrapper_type(nonce, uint64_t, val);
+wireproto_simple_wrapper_type(registrationsecret, const char *, secret);
+wireproto_simple_wrapper_type(shutdowncode, int, code)
 
 wireproto_wrapper_type(memlog_entry)
 namespace wireproto {
@@ -76,7 +79,9 @@ ratelimiter_status::addparam(wireproto::parameter<ratelimiter_status> tmpl,
                     .addparam(proto::ratelimiter_status::bucket_size,
                               bucket_size)
                     .addparam(proto::ratelimiter_status::bucket_content,
-                              bucket_content));
+                              bucket_content)
+                    .addparam(proto::ratelimiter_status::dropped,
+                              dropped));
 }
 maybe<ratelimiter_status>
 ratelimiter_status::getparam(wireproto::parameter<ratelimiter_status> tmpl,
@@ -90,11 +95,14 @@ ratelimiter_status::getparam(wireproto::parameter<ratelimiter_status> tmpl,
         packed.just().getparam(proto::ratelimiter_status::bucket_size));
     auto bucket_content(
         packed.just().getparam(proto::ratelimiter_status::bucket_content));
-    if (!max_rate || !bucket_size || !bucket_content)
+    auto dropped(
+        packed.just().getparam(proto::ratelimiter_status::dropped));
+    if (!max_rate || !bucket_size || !bucket_content || !dropped)
         return Nothing;
     return ratelimiter_status(max_rate.just(),
                               bucket_size.just(),
-                              bucket_content.just());
+                              bucket_content.just(),
+                              dropped.just());
 }
 
 wireproto_wrapper_type(peername)

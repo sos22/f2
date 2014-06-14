@@ -84,7 +84,7 @@ Basic protocols:
 Slave arrival:
 
 Slave -> Broadcast: HAIL <version> <slave name> <nonce1>
-Master -> Slave: WELLMET <version> <master name> <tcp port> <nonce2> {hash 'A'+master name+nonce1+password}
+Master -> Slave: WELLMET <version> <master name> <nonce2> {hash 'A'+master name+nonce1+password}
 Slave -> Master: HELLO <version> <nonce2> <slave name> {hash 'B'+nonce2+password> <capabilities> <inventory>
 
 HAIL and WELLMET are over UDP.  Everything else is TCP.  I'm kind of
@@ -101,19 +101,6 @@ so as to eliminate the obvious DoS vulnerability there.  Opens up the
 risk of replay attacks on low-RTT networks, though.  Meh; I've already
 decided not to consider eavesdropping attacks in this version.
 
-There's a MITM attack here as well, if you're unlucky with the timing:
-
-Slave -> {Master,Eve}: HAIL
-Eve -> Master: HAIL
-Master -> Eve: WELLMET
-Eve -> Slave: WELLMET
-Slave -> Eve: HELLO
-
-That's especially likely if I rate-limit master WELLMETs by dropping
-those over the limit.
-
-Fix by assuming a trusted local network so that Eve never gets the
-initial HAIL.  Fixing that requires proper crypto anyway.
 
 
 Check slave alive:

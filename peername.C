@@ -58,8 +58,7 @@ void
 peernamefield::fmt(fields::fieldbuf &o) const
 {
     auto sa(p.sockaddr());
-    int family = sa->sa_family;
-    switch (family) {
+    switch (sa->sa_family) {
     case AF_UNIX:
         o.push("unix://");
         o.push( ((const struct sockaddr_un *)sa)->sun_path);
@@ -69,7 +68,7 @@ peernamefield::fmt(fields::fieldbuf &o) const
         auto addr((const struct sockaddr_in *)sa);
         o.push("ip://");
         char buf[INET_ADDRSTRLEN];
-        auto r(inet_ntop(family, &addr->sin_addr, buf, sizeof(buf)));
+        auto r(inet_ntop(sa->sa_family, &addr->sin_addr, buf, sizeof(buf)));
         if (r) {
             o.push(buf);
         } else {
@@ -86,7 +85,7 @@ peernamefield::fmt(fields::fieldbuf &o) const
         auto addr((const struct sockaddr_in6 *)sa);
         o.push("ip6://");
         char buf[INET6_ADDRSTRLEN];
-        auto r(inet_ntop(family, &addr->sin6_addr, buf, sizeof(buf)));
+        auto r(inet_ntop(sa->sa_family, &addr->sin6_addr, buf, sizeof(buf)));
         if (r) {
             o.push(buf);
         } else {
@@ -113,7 +112,7 @@ peername::addparam(wireproto::parameter<peername> tmpl,
                    wireproto::tx_message &tx_msg) const
 {
     wireproto::tx_compoundparameter tx;
-    auto sa((const struct sockaddr *)sockaddr_);
+    auto sa(sockaddr());
     const char *c;
     switch (sa->sa_family) {
     case AF_UNIX:

@@ -3,7 +3,9 @@
 
 #include "wireproto.H"
 
+class digest;
 class frequency;
+class masternonce;
 class memlog_idx;
 class memlog_entry;
 class nonce;
@@ -30,6 +32,7 @@ namespace proto {
         static const parameter<frequency> max_rate(1, "max_rate");
         static const parameter<unsigned> bucket_size(2, "bucket_size");
         static const parameter<unsigned> bucket_content(3, "bucket_content");
+        static const parameter<unsigned> dropped(4, "dropped");
     };
 
     /* Control interface */
@@ -86,8 +89,14 @@ namespace proto {
         static const msgtag tag(6);
         namespace req {
             static const parameter<unsigned> version(600, "version");
-            static const parameter<class peername> slavename(601, "slavename");
-            static const parameter<class nonce> nonce(602, "nonce");
+            static const parameter<class nonce> nonce(601, "nonce");
+        }
+        namespace resp {
+            static const parameter<unsigned> version(650, "version");
+            static const parameter<class peername> mastername(651,
+                                                              "mastername");
+            static const parameter<class masternonce> nonce(652, "nonce");
+            static const parameter<class digest> digest(653, "digest");
         }
     }
 

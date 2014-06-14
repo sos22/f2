@@ -4,9 +4,11 @@
 #include <string.h>
 
 #include "buffer.H"
+#include "digest.H"
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
+#include "nonce.H"
 #include "orerror.H"
 #include "peername.H"
 #include "proto.H"
@@ -16,9 +18,12 @@
 orerror<beaconserver *>
 beaconserver::build(const registrationsecret &secret,
                     frequency max_response,
-                    const controlserver &cs)
+                    const controlserver &cs,
+                    const peername &mastername,
+                    const mastersecret &_mastersecret)
 {
-    auto res = new beaconserver(secret, max_response, cs);
+    auto res = new beaconserver(secret, max_response, cs, mastername,
+                                _mastersecret);
     auto r(res->listen());
     if (r.isjust()) {
         delete res;
@@ -29,7 +34,9 @@ beaconserver::build(const registrationsecret &secret,
 
 beaconserver::beaconserver(const registrationsecret &_secret,
                            frequency max_response,
-                           const controlserver &cs)
+                           const controlserver &cs,
+                           const peername &_mastername,
+                           const mastersecret &_mastersecret)
     : statusinterface(this),
       configureinterface(this),
       controlregistration(
@@ -38,6 +45,8 @@ beaconserver::beaconserver(const registrationsecret &_secret,
               .add(statusinterface)
               .add(configureinterface))),
       secret(_secret),
+      mastername(_mastername),
+      mastersecret_(_mastersecret),
       limiter(max_response, 100),
       listenthreadfn(this),
       listenthread(NULL),
@@ -165,13 +174,62 @@ beaconserver::listenthreadclass::run()
         logmsg(loglevel::info,
                "received beacon message from " +
                fields::mk(rr.success()));
-        logmsg(loglevel::info,
-               wireproto::paramfield(*msg, proto::HAIL::req::version));
-        logmsg(loglevel::info,
-               wireproto::paramfield(*msg, proto::HAIL::req::slavename));
-        logmsg(loglevel::info,
-               wireproto::paramfield(*msg, proto::HAIL::req::nonce));
+        logmsg(loglevel::info, fields::mk("received HAIL"));
+        auto reqversion(msg->getparam(proto::HAIL::req::version));
+        auto reqnonce(msg->getparam(proto::HAIL::req::nonce));
+        if (!reqversion || !reqnonce) {
+            logmsg(loglevel::failure,
+                   fields::mk("HAIL was missing a mandatory parameter"));
+            msg->finish();
+            continue;
+        }
+        logmsg(loglevel::debug, "version " + fields::mk(reqversion.just()));
+        logmsg(loglevel::debug, "nonce " + fields::mk(reqnonce.just()));
         owner->rx++;
+
+        if (reqversion.just() != 1) {
+            logmsg(loglevel::failure,
+                   "slave " +
+                   fields::mk(rr.success()) +
+                   " requested bad protocol version " +
+                   fields::mk(reqversion.just()) +
+                   " in HAIL message");
+            owner->errors++;
+            msg->finish();
+            continue;
+        }
+
+        buffer outbuffer;
+        auto serialiseres(
+            wireproto::tx_message(proto::HAIL::tag)
+            .addparam(proto::HAIL::resp::version, 1u)
+            .addparam(proto::HAIL::resp::mastername, owner->mastername)
+            .addparam(proto::HAIL::resp::nonce, owner->mastersecret_.nonce(
+                          rr.success()))
+            .addparam(proto::HAIL::resp::digest,
+                      digest("A" +
+                             fields::mk(owner->mastername) +
+                             fields::mk(reqnonce.just()) +
+                             fields::mk(owner->secret)))
+            .serialise(outbuffer));
+        if (serialiseres.isjust()) {
+            logmsg(loglevel::failure,
+                   "error " + fields::mk(serialiseres.just()) +
+                   "serialising response to slave " +
+                       fields::mk(rr.success()) +
+                   " HAIL");
+            owner->errors++;
+            msg->finish();
+            continue;
+        }
+        auto sendres(owner->listenfd.send(outbuffer, rr.success()));
+        if (sendres.isjust()) {
+            logmsg(loglevel::failure,
+                   fields::mk(sendres.just()) + " sending HAIL response to " +
+                   fields::mk(rr.success()));
+            owner->errors++;
+        }
+
         msg->finish();
         continue;
     }

@@ -34,18 +34,20 @@ public:
     /* Return a peername on which this socket can receive packets. */
     peername localname() const;
 
+     /* Return a pollfd for checking whether this FD is currently
+     * readable. */
+    struct pollfd poll() const;
+
+    /* Send a UDP packet to a particular host and port, which must be
+     * either UDP or UDP6, using the source address associated with
+     * this socket. */
+    maybe<error> send(buffer &, const peername &) const;
+
     /* Receive a packet and add it to a buffer, returning the peername
        from which we received it (according to the UDP envelope, so
        easily faked by an attacker). */
     orerror<peername> receive(buffer &buf,
                               maybe<timestamp> deadline = Nothing) const;
-
-    /* Send a packet to a particular peer. */
-    maybe<error> send(buffer &buf, const peername &p) const;
-
-    /* Return a pollfd for checking whether this FD is currently
-     * readable. */
-    struct pollfd poll() const;
 
     /* Close the underlying FD. */
     void close() const;

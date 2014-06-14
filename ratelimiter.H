@@ -12,11 +12,13 @@ struct ratelimiter_status {
     const frequency max_rate;
     const unsigned bucket_size;
     const unsigned bucket_content;
+    const unsigned dropped;
     ratelimiter_status(const frequency &_max_rate,
                        const unsigned _bucket_size,
-                       const unsigned _bucket_content)
+                       const unsigned _bucket_content,
+                       const unsigned _dropped)
         : max_rate(_max_rate), bucket_size(_bucket_size),
-          bucket_content(_bucket_content)
+          bucket_content(_bucket_content), dropped(_dropped)
         {}
 };
 
@@ -31,6 +33,7 @@ class ratelimiter {
     unsigned const bucket_size;
     mutable unsigned bucket_content;
     mutable mutex_t mux;
+    unsigned dropped;
     void refill(mutex_t::token) const;
 public:
     ratelimiter(const frequency &, unsigned bucket_size);

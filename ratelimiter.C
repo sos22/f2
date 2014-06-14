@@ -8,7 +8,8 @@ ratelimiter::ratelimiter(const frequency &f, unsigned _bucket_size)
       max_rate(f),
       bucket_size(_bucket_size),
       bucket_content(_bucket_size),
-      mux()
+      mux(),
+      dropped(0)
 {}
 
 void
@@ -42,6 +43,7 @@ ratelimiter::probe()
         mux.unlock(&tok);
         return true;
     }
+    dropped++;
     mux.unlock(&tok);
     return false;
 }
@@ -50,7 +52,7 @@ ratelimiter::operator ratelimiter_status() const
 {
     auto token(mux.lock());
     refill(token);
-    ratelimiter_status res(max_rate, bucket_size, bucket_content);
+    ratelimiter_status res(max_rate, bucket_size, bucket_content, dropped);
     mux.unlock(&token);
     return res;
 }
@@ -61,5 +63,6 @@ fields::mk(const ratelimiter_status &rs)
     return "<ratelimiterstatus max_rate=" + fields::mk(rs.max_rate)
         + " bucket_size=" + fields::mk(rs.bucket_size)
         + " bucket_content=" + fields::mk(rs.bucket_content)
+        + " dropped=" + fields::mk(rs.dropped)
         + ">";
 }

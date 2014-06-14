@@ -9,7 +9,6 @@
 #include "buffer.H"
 #include "fields.H"
 #include "logging.H"
-#include "orerror.H"
 #include "peername.H"
 #include "timedelta.H"
 
