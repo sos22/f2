@@ -92,6 +92,7 @@ namespace wireproto {
         friend class tx_compoundparameter;
         tx_message() : t(-1), params()  {}
         tx_message(const tx_message &o) = delete;
+        tx_message &addparam(uint16_t, const void *, size_t);
     public:
         const msgtag t;
         tx_message(msgtag);
@@ -109,18 +110,22 @@ namespace wireproto {
         struct pinstance {
             uint16_t id;
             enum {
-                p_string = 91,
-                p_bool,
-                p_int32,
-                p_uint64,
+                p_internal = 91,
+                p_external,
                 p_compound,
             } flavour;
             union {
-                /* utf-8 */
-                const char *string;
-                bool bool_;
-                int32_t int32;
-                uint64_t uint64;
+                struct {
+                    unsigned char sz;
+                    char content[15];
+                } internal;
+                struct {
+                    /* make field order different between internal and
+                       external so as to catch mistakes where we use
+                       the wrong one. */
+                    void *content; /* malloc()ed owned pointer */
+                    unsigned short sz;
+                } external;
                 tx_compoundparameter *compound;
             };
             ~pinstance();

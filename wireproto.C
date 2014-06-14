@@ -243,54 +243,58 @@ rx_message::rx_message(msgtag _t,
       t(_t)
 {}
 
+tx_message &
+tx_message::addparam(uint16_t id, const void *content, size_t sz)
+{
+    pinstance p;
+    p.id = id;
+    if (sz < sizeof(p.internal.content)) {
+        p.flavour = pinstance::p_internal;
+        p.internal.sz = sz;
+        memcpy(p.internal.content, content, sz);
+    } else {
+        p.flavour = pinstance::p_external;
+        p.external.sz = sz;
+        p.external.content = malloc(sz);
+        memcpy(p.external.content, content, sz);
+    }
+    params.pushtail(p);
+    return *this;
+}
+
 template <> tx_message &
 tx_message::addparam(parameter<const char *> tmpl, const char *const &val)
 {
-    auto &p(params.append());
-    p.id = tmpl.id;
-    p.flavour = pinstance::p_string;
-    p.string = val;
-    return *this;
+    return addparam(tmpl.id, val, strlen(val)+1);
 }
 
 template <> tx_message &
 tx_message::addparam(parameter<bool> tmpl, const bool &val)
 {
-    auto &p(params.append());
-    p.id = tmpl.id;
-    p.flavour = pinstance::p_bool;
-    p.bool_ = val;
-    return *this;
+    return addparam(tmpl.id, &val, sizeof(val));
 }
 
 template <> tx_message &
 tx_message::addparam(parameter<int> tmpl, const int &val)
 {
-    auto &p(params.append());
-    p.id = tmpl.id;
-    p.flavour = pinstance::p_int32;
-    p.int32 = val;
-    return *this;
+    return addparam(tmpl.id, &val, sizeof(val));
 }
 
 template <> tx_message &
 tx_message::addparam(parameter<unsigned long> tmpl, const unsigned long &val)
 {
-    auto &p(params.append());
-    p.id = tmpl.id;
-    p.flavour = pinstance::p_uint64;
-    p.uint64 = val;
-    return *this;
+    return addparam(tmpl.id, &val, sizeof(val));
 }
 
 template <> tx_message &
 tx_message::addparam(parameter<tx_compoundparameter> tmpl,
                      const tx_compoundparameter &val)
 {
-    auto &p(params.append());
+    pinstance p;
     p.id = tmpl.id;
     p.flavour = pinstance::p_compound;
     p.compound = val.clone();
+    params.pushtail(p);
     return *this;
 }
 
@@ -307,17 +311,14 @@ tx_message::pinstance::clone() const
     res.id = id;
     res.flavour = flavour;
     switch (flavour) {
-    case p_string:
-        res.string = string;
+    case p_internal:
+        res.internal.sz = internal.sz;
+        memcpy(res.internal.content, internal.content, internal.sz);
         break;
-    case p_bool:
-        res.bool_ = bool_;
-        break;
-    case p_int32:
-        res.int32 = int32;
-        break;
-    case p_uint64:
-        res.uint64 = uint64;
+    case p_external:
+        res.external.sz = external.sz;
+        res.external.content = malloc(external.sz);
+        memcpy(res.external.content, external.content, external.sz);
         break;
     case p_compound:
         res.compound = compound->clone();
@@ -330,14 +331,10 @@ size_t
 tx_message::pinstance::serialised_size() const
 {
     switch (flavour) {
-    case p_string:
-        return strlen(string) + 1;
-    case p_bool:
-        return 1;
-    case p_int32:
-        return 4;
-    case p_uint64:
-        return 8;
+    case p_internal:
+        return internal.sz;
+    case p_external:
+        return external.sz;
     case p_compound:
         return compound->serialised_size();
     }
@@ -348,17 +345,11 @@ void
 tx_message::pinstance::serialise(buffer &buf) const
 {
     switch (flavour) {
-    case p_string:
-        buf.queue(string, strlen(string) + 1);
+    case p_internal:
+        buf.queue(internal.content, internal.sz);
         return;
-    case p_bool:
-        buf.queue(&bool_, 1);
-        return;
-    case p_int32:
-        buf.queue(&int32, 4);
-        return;
-    case p_uint64:
-        buf.queue(&uint64, 8);
+    case p_external:
+        buf.queue(external.content, external.sz);
         return;
     case p_compound:
         compound->content->serialise(buf);
@@ -371,44 +362,42 @@ tx_message::pinstance::pinstance(wireproto::tx_message::pinstance const&o)
     : id(o.id), flavour(o.flavour)
 {
     switch (flavour) {
-    case p_string:
-        string = o.string;
-        break;
-    case p_bool:
-        bool_ = o.bool_;
-        break;
-    case p_int32:
-        int32 = o.int32;
-        break;
-    case p_uint64:
-        uint64 = o.uint64;
-        break;
+    case p_internal:
+        internal.sz = o.internal.sz;
+        memcpy(internal.content, o.internal.content, internal.sz);
+        return;
+    case p_external:
+        external.sz = o.external.sz;
+        external.content = malloc(external.sz);
+        memcpy(external.content, o.external.content, external.sz);
+        return;
     case p_compound:
         compound = o.compound->clone();
-        break;
+        return;
     }
+    abort();
 }
 
 tx_message::pinstance::~pinstance()
 {
     switch (flavour) {
-    case p_string:
-        break;
-    case p_bool:
-        break;
-    case p_int32:
-        break;
-    case p_uint64:
-        break;
+    case p_internal:
+        return;
+    case p_external:
+        free(external.content);
+        return;
     case p_compound:
         delete compound;
-        break;
+        return;
     }
+    abort();
 }
 
 tx_message::pinstance::pinstance()
-    : id(0), flavour(p_int32)
-{}
+    : id(0), flavour(p_internal)
+{
+    internal.sz = 0;
+}
 
 template <> maybe<const char *>
 deserialise(bufslice &slice)
