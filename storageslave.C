@@ -52,8 +52,8 @@ storageslave::destroy() const
 }
 
 maybe<error>
-storageslave::statusiface::controlmessage(const wireproto::rx_message &,
-                                          buffer &)
+storageslave::statusiface::message(const wireproto::rx_message &,
+                                   buffer &)
 {
     return error::unimplemented;
 }

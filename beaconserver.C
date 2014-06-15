@@ -41,7 +41,7 @@ beaconserver::beaconserver(const registrationsecret &_secret,
       configureinterface(this),
       controlregistration(
           cs->registeriface(
-              controlserver::multiregistration()
+              rpcserver::multiregistration()
               .add(statusinterface)
               .add(configureinterface))),
       secret(_secret),
@@ -58,12 +58,12 @@ beaconserver::beaconserver(const registrationsecret &_secret,
 }
 
 beaconserver::statusiface::statusiface(beaconserver *server)
-    : controliface(proto::BEACONSTATUS::tag),
+    : rpcinterface(proto::BEACONSTATUS::tag),
       owner(server)
 {}
 
 maybe<error>
-beaconserver::statusiface::controlmessage(const wireproto::rx_message &msg,
+beaconserver::statusiface::message(const wireproto::rx_message &msg,
                                           buffer &outbuf)
 {
     wireproto::resp_message m(msg);
@@ -76,13 +76,13 @@ beaconserver::statusiface::controlmessage(const wireproto::rx_message &msg,
 }
 
 beaconserver::configureiface::configureiface(beaconserver *server)
-    : controliface(proto::BEACONCONFIGURE::tag),
+    : rpcinterface(proto::BEACONCONFIGURE::tag),
       owner(server)
 {}
 
 maybe<error>
-beaconserver::configureiface::controlmessage(const wireproto::rx_message &msg,
-                                             buffer &outbuf)
+beaconserver::configureiface::message(const wireproto::rx_message &msg,
+                                      buffer &outbuf)
 {
     wireproto::resp_message m(msg);
     /* No run-time configuration yet */
@@ -247,7 +247,7 @@ beaconserver::destroy()
         delete this;
         return;
     }
-    controlregistration.deregister();
+    controlregistration->destroy();
     shutdown->set(true);
     listenthread->join();
     delete shutdown;

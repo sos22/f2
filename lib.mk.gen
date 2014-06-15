@@ -9,6 +9,7 @@ function bits() {
     }
     _ buffer
     _ cond
+    _ controlserver
     _ digest
     _ error
     _ fd
@@ -26,6 +27,7 @@ function bits() {
     _ ratelimiter
     _ registrationsecret
     _ rpcconn
+    _ rpcserver
     _ shutdown
     _ socket
     _ tcpsocket

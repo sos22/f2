@@ -111,12 +111,11 @@ public:
 void initlogging(const char *ident);
 void deinitlogging(void);
 
-class getlogsiface : public controliface {
-public:
-    getlogsiface();
-    maybe<error> controlmessage(const wireproto::rx_message &,
-                                buffer &);
-    static getlogsiface singleton;
+class getlogsiface : public rpcinterface {
+private: maybe<error> message(const wireproto::rx_message &,
+                              buffer &);
+public:  getlogsiface();
+public:  static getlogsiface singleton;
 };
 
 void logtest(class test &);

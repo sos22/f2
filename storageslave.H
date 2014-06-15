@@ -11,17 +11,16 @@ class registrationsecret;
 class rpcconn;
 
 class storageslave {
-    class statusiface : public controliface {
-        storageslave *owner;
-    public:
-        statusiface(storageslave *_owner)
-            : controliface(proto::BEACONSLAVESTATUS::tag),
-              owner(_owner)
+    class statusiface : public rpcinterface {
+    private: storageslave *owner;
+    public:  statusiface(storageslave *_owner)
+        : rpcinterface(proto::BEACONSLAVESTATUS::tag),
+          owner(_owner)
             {}
-        maybe<error> controlmessage(const wireproto::rx_message &, buffer &);
+    private: maybe<error> message(const wireproto::rx_message &, buffer &);
     };
     statusiface statusinterface;
-    controlserver::iface controlregistration;
+    rpcregistration *controlregistration;
     rpcconn *masterconn;
     storageslave(controlserver *);
     maybe<error> connect(const registrationsecret &);

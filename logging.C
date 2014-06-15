@@ -288,11 +288,11 @@ deinitlogging(void)
 }
 
 getlogsiface::getlogsiface()
-    : controliface(proto::GETLOGS::tag)
+    : rpcinterface(proto::GETLOGS::tag)
 {}
 maybe<error>
-getlogsiface::controlmessage(const wireproto::rx_message &msg,
-                             buffer &outgoing)
+getlogsiface::message(const wireproto::rx_message &msg,
+                      buffer &outgoing)
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
                dflt(memlog_idx::min));
