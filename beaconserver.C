@@ -235,10 +235,12 @@ beaconserver::listenthreadclass::run()
     }
 }
 
+/* Don't want to use an ordinary destructor for this because it can
+   wait, and is thus prone to deadlocks if called at the wrong
+   time. */
 void
-beaconserver::destroy() const
+beaconserver::destroy()
 {
-    beaconserver *_this = const_cast<beaconserver *>(this);
     if (!shutdown) {
         assert(!listenthread);
         delete this;
@@ -248,8 +250,8 @@ beaconserver::destroy() const
     shutdown->set(true);
     listenthread->join();
     delete shutdown;
-    _this->shutdown = NULL;
-    _this->listenthread = NULL;
+    shutdown = NULL;
+    listenthread = NULL;
     listenfd.close();
     delete this;
 }

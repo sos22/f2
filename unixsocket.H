@@ -9,6 +9,9 @@
    listenfd and fd_t */
 class unixsocket {
 public:
+    /* Listening on a unix socket is a little different from listening
+       on most other socket types, because if there's someone already
+       there then we can just kick them out. */
     static orerror<listenfd> listen(const char *path);
     static orerror<fd_t> connect(const char *path);
 };

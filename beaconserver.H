@@ -83,7 +83,7 @@ public:
                                          const controlserver &,
                                          const peername &mastername,
                                          const mastersecret &_mastersecret);
-    void destroy() const;
+    void destroy();
 };
 
 #endif /* !BEACONSERVER_H__ */

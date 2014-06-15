@@ -48,7 +48,7 @@ struct controlregistration {
     list<controliface *> interfaces;
     cond_t idle;
     controlregistration(controlthread *_server);
-    void deregister() const;
+    void deregister();
     ~controlregistration() { assert(outstanding == 0); }
 };
 
@@ -185,7 +185,7 @@ controlregistration::controlregistration()
 }
 
 void
-controlregistration::deregister() const
+controlregistration::deregister()
 {
     auto token(server->mux.lock());
     for (auto it(server->registrations.start()); !it.finished(); it.next()) {
