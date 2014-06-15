@@ -6,8 +6,10 @@
 #include <time.h>
 
 #include "list.H"
-#include "list.tmpl"
 #include "test.H"
+#include "thread.H"
+
+#include "list.tmpl"
 
 #include "fieldfinal.H"
 
@@ -27,6 +29,10 @@ const field &space(_space);
 
 static __thread arena *arenas;
 static __thread fieldbuf *buffers;
+
+static class : threaddestructor {
+    void die() { flush(); }
+} _threadcleanup;
 
 static void *
 _alloc(size_t sz)

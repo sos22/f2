@@ -37,5 +37,6 @@ main()
     c.success()->destroy();
     delete s.success();
     deinitlogging();
+    fields::flush();
     r.finish();
 }

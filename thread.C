@@ -6,6 +6,23 @@
 #include "error.H"
 #include "fields.H"
 
+static pthread_mutex_t
+destructorsmux;
+static pthread_once_t
+destructorsonce = PTHREAD_ONCE_INIT;
+static threaddestructor *
+headdestructor;
+static void
+destructorsinit() {
+    pthread_mutex_init(&destructorsmux, NULL); }
+static void
+destructorslock() {
+    pthread_once(&destructorsonce, destructorsinit);
+    pthread_mutex_lock(&destructorsmux); }
+static void
+destructorsunlock() {
+    pthread_mutex_unlock(&destructorsmux); }
+
 void *
 thread::startfn(void *_ths)
 {
@@ -18,6 +35,27 @@ thread::startfn(void *_ths)
     ths->startmux.unlock(&token);
 
     ths->func->run();
+
+    int nrdestructorsalloced = 0;
+    threaddestructor **destructors = NULL;
+    int nrdestructors = 0;
+    destructorslock();
+    for (auto it(headdestructor); it; it = it->next) {
+        if (nrdestructorsalloced == nrdestructors) {
+            nrdestructorsalloced += 16;
+            destructors = (threaddestructor **)realloc(destructors,
+                                                       sizeof(destructors[0]) *
+                                                       nrdestructorsalloced);
+        }
+        it->start();
+        destructors[nrdestructors++] = it;
+    }
+    destructorsunlock();
+    for (int i = 0; i < nrdestructors; i++) {
+        destructors[i]->die();
+        destructors[i]->finished();
+    }
+    free(destructors);
     return NULL;
 }
 
@@ -55,6 +93,38 @@ thread::join()
     free((void *)name);
     delete this;
 }
+
+threaddestructor::threaddestructor()
+    : mux(),
+      idle(mux),
+      next(NULL),
+      outstanding(0) {
+    destructorslock();
+    next = headdestructor;
+    headdestructor = this;
+    destructorsunlock(); }
+threaddestructor::~threaddestructor() {
+    destructorslock();
+    threaddestructor **pprev;
+    for (pprev = &headdestructor; *pprev != this; pprev = &(*pprev)->next)
+        ;
+    *pprev = next;
+    destructorsunlock();
+    auto token(mux.lock());
+    while (outstanding) token = idle.wait(&token);
+    mux.unlock(&token); }
+void
+threaddestructor::start() {
+    auto token(mux.lock());
+    outstanding++;
+    mux.unlock(&token); }
+void
+threaddestructor::finished() {
+    auto token(mux.lock());
+    assert(outstanding);
+    outstanding--;
+    if (!outstanding) idle.broadcast(token);
+    mux.unlock(&token); }
 
 class threadfield : fields::field {
     const thread &t;

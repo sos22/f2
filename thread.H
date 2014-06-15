@@ -45,6 +45,19 @@ public:
     void join();
 };
 
+class threaddestructor {
+    friend class thread;
+private:   mutex_t mux;
+private:   cond_t idle;
+private:   threaddestructor *next;
+private:   unsigned outstanding;
+private:   void start();
+private:   void finished();
+protected: threaddestructor();
+protected: ~threaddestructor();
+private:   virtual void die() = 0;
+};
+
 namespace fields {
 const field &mk(const thread &t);
 };
