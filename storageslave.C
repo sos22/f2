@@ -16,10 +16,10 @@
 #include "udpsocket.H"
 #include "wireproto.H"
 
-storageslave::storageslave(const controlserver &cs)
+storageslave::storageslave(controlserver *cs)
     : statusinterface(this),
       controlregistration(
-          cs.registeriface(statusinterface)) { }
+          cs->registeriface(statusinterface)) { }
 
 maybe<error>
 storageslave::connect(const registrationsecret &rs) {
@@ -33,7 +33,7 @@ storageslave::connect(const registrationsecret &rs) {
 
 orerror<storageslave *>
 storageslave::build(const registrationsecret &rs,
-                    const controlserver &cs)
+                    controlserver *cs)
 {
     auto work(new storageslave(cs));
     auto err(work->connect(rs));

@@ -51,6 +51,10 @@ waitqueue<t>::build()
     return work;
 }
 
+template <typename t>
+waitqueue<t>::~waitqueue() {}
+
+/* Not a destructor because it has a non-trivial precondition */
 template <typename t> void
 waitqueue<t>::destroy() const
 {

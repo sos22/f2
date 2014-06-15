@@ -67,7 +67,7 @@ class beaconserver {
 
     beaconserver(const registrationsecret &rs,
                  frequency max_responses,
-                 const controlserver &cs,
+                 controlserver *cs,
                  const peername &mastername,
                  const mastersecret &);
 
@@ -80,7 +80,7 @@ class beaconserver {
 public:
     static orerror<beaconserver *> build(const registrationsecret &,
                                          frequency max_responses,
-                                         const controlserver &,
+                                         controlserver *,
                                          const peername &mastername,
                                          const mastersecret &_mastersecret);
     void destroy();

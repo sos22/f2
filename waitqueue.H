@@ -18,6 +18,7 @@ class waitqueue {
     waitqueue()
         : mux(), readfd(), writefd(), content()
         {}
+private: ~waitqueue();
 public:
     t pophead();
     void pushtail(const t &);

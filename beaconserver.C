@@ -18,7 +18,7 @@
 orerror<beaconserver *>
 beaconserver::build(const registrationsecret &secret,
                     frequency max_response,
-                    const controlserver &cs,
+                    controlserver *cs,
                     const peername &mastername,
                     const mastersecret &_mastersecret)
 {
@@ -34,13 +34,13 @@ beaconserver::build(const registrationsecret &secret,
 
 beaconserver::beaconserver(const registrationsecret &_secret,
                            frequency max_response,
-                           const controlserver &cs,
+                           controlserver *cs,
                            const peername &_mastername,
                            const mastersecret &_mastersecret)
     : statusinterface(this),
       configureinterface(this),
       controlregistration(
-          cs.registeriface(
+          cs->registeriface(
               controlserver::multiregistration()
               .add(statusinterface)
               .add(configureinterface))),

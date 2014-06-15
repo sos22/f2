@@ -21,7 +21,7 @@ class waitbox {
     waitbox() : mux(), filled(false), readfd(), writefd() {};
 public:
     static orerror<waitbox *> build();
-    void destroy();
+    ~waitbox();
 
     /* Set the waitbox.  Must be called at most once. */
     void set(const t &what);

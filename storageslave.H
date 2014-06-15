@@ -23,12 +23,12 @@ class storageslave {
     statusiface statusinterface;
     controlserver::iface controlregistration;
     rpcconn *masterconn;
-    storageslave(const controlserver &);
+    storageslave(controlserver *);
     maybe<error> connect(const registrationsecret &);
 public:
     static orerror<storageslave *> build(
         const registrationsecret &rs,
-        const controlserver &);
+        controlserver *);
     void destroy() const;
 };
 

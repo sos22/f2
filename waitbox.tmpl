@@ -39,14 +39,13 @@ waitbox<t>::build()
     return work;
 }
 
-template <typename t> void
-waitbox<t>::destroy()
+template <typename t>
+waitbox<t>::~waitbox()
 {
     readfd.close();
     writefd.close();
     if (filled)
         ((t *)content)->~t();
-    delete this;
 }
 
 template <typename t> const t &

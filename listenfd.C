@@ -9,8 +9,9 @@
 #include <unistd.h>
 
 #include "fields.H"
+#include "socket.H"
 
-orerror<listenfd::acceptres>
+orerror<socket_t>
 listenfd::accept() const
 {
     union {
@@ -24,7 +25,7 @@ listenfd::accept() const
     if (n < 0)
         return error::from_errno();
     else
-        return acceptres(fd_t(n), peername(&addr.s, addrlen));
+        return socket_t(n);
 }
 
 listenfd::listenfd(int n)

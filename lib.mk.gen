@@ -27,6 +27,7 @@ function bits() {
     _ registrationsecret
     _ rpcconn
     _ shutdown
+    _ socket
     _ tcpsocket
     _ test
     _ tid
