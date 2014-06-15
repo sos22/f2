@@ -387,6 +387,7 @@ rootthread::run()
                             break;
                         }
                     }
+                    delete thr;
                     if (threads.empty() && owner->localshutdown->ready())
 /**/                    goto out;
                 } else {
