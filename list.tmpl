@@ -64,6 +64,11 @@ list<t>::poptail()
     return res;
 }
 
+template <typename t> const t &
+list<t>::peekhead() const {
+    assert(!empty());
+    return *start(); }
+
 template <typename t> void
 list<t>::pushhead(const t &what)
 {

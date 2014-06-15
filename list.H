@@ -59,6 +59,8 @@ public:
     t pophead();
     /* Remove the last item from the list and return a copy of it. */
     t poptail();
+    /* Peek at the first item in the list. */
+    const t &peekhead() const;
     /* Add a copy of an item to the front of the list */
     void pushhead(const t &);
     /* Add a copy of an item to the end of the list */

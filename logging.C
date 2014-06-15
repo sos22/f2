@@ -38,8 +38,10 @@ loglevel::debug(10);
 const loglevel
 loglevel::verbose(11);
 
+/* Start it with something which changes when truncated to 32 bits so
+   as to make truncation bugs obvious. */
 const memlog_idx
-memlog_idx::min(0);
+memlog_idx::min(1ul << 32);
 
 const memlog_idx
 memlog_idx::max(ULONG_MAX);
@@ -68,7 +70,7 @@ class memlog_sink : public log_sink {
     mutex_t lock;
 public:
     memlog_sink()
-        : backlog(10000), outstanding(), next_sequence(1), lock()
+        : backlog(10000), outstanding(), next_sequence(memlog_idx::min), lock()
         {}
     ~memlog_sink()
         {
@@ -77,7 +79,7 @@ public:
     void msg(const char *s)
         {
             auto t(lock.lock());
-            outstanding.pushtail(memlog_entry(next_sequence++, strdup(s)));
+            outstanding.pushtail(memlog_entry(next_sequence++, s));
             while (outstanding.length() > backlog)
                 outstanding.pophead();
             lock.unlock(&t);
@@ -106,6 +108,10 @@ public:
             lock.unlock(&t);
             return Nothing;
         }
+    
+public: void flush() {
+    while (outstanding.length() > backlog) outstanding.pophead(); }
+    
 };
 
 class syslog_sink : public log_sink {
@@ -273,6 +279,7 @@ logpolicy::deinit(void)
         level_to_sink(*it).flush();
     syslog.close();
     filelog.close();
+    memlog.flush();
 }
 void
 deinitlogging(void)
@@ -390,3 +397,59 @@ const fields::field &
 fields::mk(const memlog_entry &e) {
     return "<memlog_entry:" + fields::mk(e.idx) +
         "=" + fields::mk(e.msg) + ">"; }
+
+void
+logtest(class test &) {
+    memlog_sink ms;
+    ms.msg("Hello");
+    ms.msg("World");
+    ms.msg("Goodbye");
+    {   list<memlog_entry> l;
+        auto truncat(ms.fetch(memlog_idx::min, 0, l));
+        assert(l.empty());
+        assert(truncat.isjust());
+        assert(truncat.just() == memlog_idx::min); }
+    {   list<memlog_entry> l;
+        auto truncat(ms.fetch(memlog_idx::min, 999, l));
+        assert(l.length() == 3);
+        assert(truncat == Nothing);
+        unsigned long idx = 0;
+        for (auto it(l.start()); !it.finished(); it.next()) {
+            assert(it->idx.as_long() == idx + memlog_idx::min.as_long());
+            switch (idx) {
+            case 0:
+                assert(!strcmp(it->msg, "Hello"));
+                break;
+            case 1:
+                assert(!strcmp(it->msg, "World"));
+                break;
+            case 2:
+                assert(!strcmp(it->msg, "Goodbye"));
+                break;
+            default:
+                abort();
+            }
+            idx++;
+        }
+        l.flush(); }
+    {   list<memlog_entry> l;
+        auto truncat1(ms.fetch(memlog_idx::min, 1, l));
+        assert(l.length() == 1);
+        assert(truncat1.isjust());
+        assert(l.peekhead().idx == memlog_idx::min);
+        assert(!strcmp(l.peekhead().msg, "Hello"));
+        l.flush();
+        auto truncat2(ms.fetch(truncat1.just(), 1, l));
+        assert(l.length() == 1);
+        assert(truncat2.isjust());
+        assert(l.peekhead().idx == truncat1.just());
+        assert(!strcmp(l.peekhead().msg, "World"));
+        l.flush();
+        auto truncat3(ms.fetch(truncat2.just(), 1, l));
+        assert(l.length() == 1);
+        assert(truncat3 == Nothing);
+        assert(l.peekhead().idx == truncat2.just());
+        assert(!strcmp(l.peekhead().msg, "Goodbye"));
+        l.flush(); }
+    
+    ms.flush(); }

@@ -77,6 +77,8 @@ public:
     static const memlog_idx max;
     bool operator >=(const memlog_idx &o) const
         { return val >= o.val; }
+    bool operator ==(const memlog_idx &o) const {
+        return val == o.val; }
     unsigned long as_long() const { return val; }
 };
 
@@ -116,5 +118,7 @@ public:
                                 buffer &);
     static getlogsiface singleton;
 };
+
+void logtest(class test &);
 
 #endif /* !LOGGING_H__ */
