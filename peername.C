@@ -45,68 +45,45 @@ peername::~peername()
     free(sockaddr_);
 }
 
-class peernamefield : fields::field {
-    peername p;
-    void fmt(fields::fieldbuf &) const;
-    peernamefield(const peername &_p)
-        : p(_p)
-        {}
-public:
-    static const field &n(const peername &o)
-        { return *new peernamefield(o); }
-};
-
-void
-peernamefield::fmt(fields::fieldbuf &o) const
-{
+const fields::field &
+fields::mk(const peername &p) {
     auto sa(p.sockaddr());
     switch (sa->sa_family) {
     case AF_UNIX:
-        o.push("unix://");
-        o.push( ((const struct sockaddr_un *)sa)->sun_path);
-        o.push("/");
-        break;
+        return "unix://" +
+            fields::mk(((const struct sockaddr_un *)sa)->sun_path) +
+            "/";
     case AF_INET: {
         auto addr((const struct sockaddr_in *)sa);
-        o.push("ip://");
         char buf[INET_ADDRSTRLEN];
         auto r(inet_ntop(sa->sa_family, &addr->sin_addr, buf, sizeof(buf)));
-        if (r) {
-            o.push(buf);
-        } else {
-            ("<error " +
-             fields::mk(error::from_errno()) +
-             " formatting peer address>").fmt(o);
-        }
-        o.push(":");
-        fields::mk(htons(addr->sin_port)).nosep().fmt(o);
-        o.push("/");
-        break;
+        return "ip://" +
+            (r
+             ? fields::mk(buf)
+             : "<error " +
+               fields::mk(error::from_errno()) +
+               " formatting peer address>") +
+            ":" +
+            fields::mk(htons(addr->sin_port)).nosep() +
+            "/";
     }
     case AF_INET6: {
         auto addr((const struct sockaddr_in6 *)sa);
-        o.push("ip6://");
         char buf[INET6_ADDRSTRLEN];
         auto r(inet_ntop(sa->sa_family, &addr->sin6_addr, buf, sizeof(buf)));
-        if (r) {
-            o.push(buf);
-        } else {
-            ("<error " +
-             fields::mk(error::from_errno()) +
-             " formatting peer address>").fmt(o);
-        }
-        o.push(":");
-        fields::mk(htons(addr->sin6_port)).nosep().fmt(o);
-        o.push("/");
-        break;
+        return "ip6://" +
+            (r
+             ? fields::mk(buf)
+             : "<error " +
+               fields::mk(error::from_errno()) +
+               " formatting peer address>") +
+            ":" +
+            fields::mk(htons(addr->sin6_port)).nosep() +
+            "/";
     }
+    default:
+        return "<unknown address family " + fields::mk(sa->sa_family);
     }
-}
-
-const fields::field &
-fields::mk(const peername &p)
-{
-    return peernamefield::n(p);
 }
 
 void
