@@ -1,5 +1,6 @@
 #include "thread.H"
 
+#include <sys/prctl.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,6 +29,8 @@ thread::startfn(void *_ths)
 {
     thread *ths = (thread *)_ths;
     assert(ths->tid_ == Nothing);
+
+    prctl(PR_SET_NAME, (unsigned long)ths->name, 0, 0);
 
     auto token(ths->startmux.lock());
     ths->tid_ = tid::me();
