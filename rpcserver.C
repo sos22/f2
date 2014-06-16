@@ -70,7 +70,8 @@ private: clientthread(
     socket_t _fd,
     waitbox<bool> *_shutdown)
     : owner(_owner), fd(_fd), shutdown(_shutdown) {}
-private: bool runcommand(buffer &incoming,
+private: bool runcommand(const peername &peer,
+                         buffer &incoming,
                          buffer &outgoing,
                          bool *die);
 public:  thread *thr() const;
@@ -82,7 +83,10 @@ public:  static orerror<clientthread *> spawn(
 
 bool
 rpcserver::clientthread::runcommand(
-    buffer &incoming, buffer &outgoing, bool *die) {
+    const peername &peer,
+    buffer &incoming,
+    buffer &outgoing,
+    bool *die) {
     auto r(wireproto::rx_message::fetch(incoming));
     if (r.isfailure()) {
         *die = r.failure() != error::underflowed;
@@ -107,7 +111,7 @@ rpcserver::clientthread::runcommand(
     reg->start();
     owner->mux.unlock(&token);
     
-    auto res(iface->message(*r.success(), outgoing));
+    auto res(iface->message(*r.success(), peer, outgoing));
     
     reg->finished();
 
@@ -154,7 +158,7 @@ rpcserver::clientthread::run() {
                     t.just().warn("receiving from client " + fields::mk(peer));
                     break; }
                 fds[1].revents &= ~POLLIN;
-                while (runcommand(incoming, outgoing, &die))
+                while (runcommand(peer, incoming, outgoing, &die))
                     ;
                 if (!outgoing.empty()) {
                     fds[1].events |= POLLOUT; } } } }
@@ -276,9 +280,11 @@ rpcserver::unknowniface::unknowniface()
 maybe<error>
 rpcserver::unknowniface::message(
     const wireproto::rx_message &msg,
+    const peername &peer,
     buffer &) {
     logmsg(loglevel::failure,
-           "Received an unrecognised message type " + fields::mk(msg.t));
+           "Received an unrecognised message type " + fields::mk(msg.t) +
+           " from " + fields::mk(peer));
     return error::unrecognisedmessage; }
 
 rpcserver::~rpcserver() {
@@ -344,7 +350,7 @@ rpcserver::registeriface(const multiregistration &mr) {
 }
 
 maybe<error>
-rpcserver::start(const peername &p)
+rpcserver::start(const peername &p, const fields::field &name)
 {
     assert(!roothandle);
     assert(!shutdown);
@@ -362,7 +368,7 @@ rpcserver::start(const peername &p)
         sock = sl.success();
         
         threaderr = thread::spawn(
-            &root, &roothandle, fields::mk("master control thread"));
+            &root, &roothandle, name);
         if (threaderr == Nothing) return Nothing; }
     
     if (sl.issuccess()) sl.success().close();
@@ -377,6 +383,10 @@ rpcserver::start(const peername &p)
     else if (sl.isfailure()) return sl.failure();
     else if (threaderr.isjust()) return threaderr.just();
     else abort(); }
+
+peername
+rpcserver::localname() const {
+    return sock.localname(); }
 
 void
 rpcserver::stop() {
@@ -393,8 +403,7 @@ rpcserver::stop() {
 void
 rpcserver::destroy() {
     stop();
-    delete this;
-}
+    delete this; }
 
 template class list<rpcinterface *>;
 template class list<rpcregistration *>;

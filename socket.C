@@ -1,6 +1,7 @@
 #include "socket.H"
 
 #include <sys/socket.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "listenfd.H"

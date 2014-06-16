@@ -64,7 +64,8 @@ beaconserver::statusiface::statusiface(beaconserver *server)
 
 maybe<error>
 beaconserver::statusiface::message(const wireproto::rx_message &msg,
-                                          buffer &outbuf)
+                                   const peername &,
+                                   buffer &outbuf)
 {
     wireproto::resp_message m(msg);
     m.addparam(proto::BEACONSTATUS::resp::secret, owner->secret);
@@ -82,6 +83,7 @@ beaconserver::configureiface::configureiface(beaconserver *server)
 
 maybe<error>
 beaconserver::configureiface::message(const wireproto::rx_message &msg,
+                                      const peername &,
                                       buffer &outbuf)
 {
     wireproto::resp_message m(msg);
@@ -204,6 +206,7 @@ beaconserver::listenthreadclass::run()
             wireproto::tx_message(proto::HAIL::tag)
             .addparam(proto::HAIL::resp::version, 1u)
             .addparam(proto::HAIL::resp::mastername, owner->mastername)
+            .addparam(proto::HAIL::resp::slavename, rr.success())
             .addparam(proto::HAIL::resp::nonce, owner->mastersecret_.nonce(
                           rr.success()))
             .addparam(proto::HAIL::resp::slavename, rr.success())

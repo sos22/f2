@@ -65,6 +65,8 @@ public:
     static const error timeout; /* Timed out performing some operation */
     static const error truncated; /* Message too big for underlying transport */
     static const error unimplemented; /* Not implemented yet */
+    static const error badversion; /* Unrecognised protocol version requested */
+    static const error authenticationfailed; /* Authentication failure */
 };
 
 namespace fields {

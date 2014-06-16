@@ -3,6 +3,7 @@
 
 #include "beaconserver.H"
 #include "controlserver.H"
+#include "coordinator.H"
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
@@ -23,17 +24,31 @@ main()
     (void)unlink("mastersock");
     auto c(controlserver::build(peername::local("mastersock"), s.success()));
     if (c.isfailure()) c.failure().fatal("build control interface");
+    
     logmsg(loglevel::error,
            fields::mk("should use less guessable registration and master secrets"));
+    mastersecret ms("<master secret>");
+    auto rs(registrationsecret::mk("<default password>"));
+    
+    auto coord(coordinator::build(
+                   ms,
+                   rs,
+                   peername::tcpany(),
+                   c.success()));
+    if (coord.isfailure()) coord.failure().fatal("build worker coordinator");
+    
     auto beacon(beaconserver::build(
-                    registrationsecret::mk("<default password>"),
+                    rs,
                     frequency::hz(10),
                     c.success(),
-                    peername::local("dummy"),
-                    mastersecret("<master secret>")));
+                    coord.success()->localname(),
+                    ms));
     if (beacon.isfailure()) beacon.failure().fatal("build beacon server");
+
     auto r = s.success()->get();
+
     beacon.success()->destroy();
+    coord.success()->destroy();
     c.success()->destroy();
     delete s.success();
     deinitlogging();

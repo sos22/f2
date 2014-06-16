@@ -34,19 +34,20 @@ rpcconn::connect(const peername &p) {
 orerror<rpcconn *>
 rpcconn::connectmaster(const beaconresult &beacon)
 {
+    logmsg(loglevel::verbose,
+           "connect with slavename " + fields::mk(beacon.slavename));
     auto res(rpcconn::connect(beacon.mastername));
     if (res.isfailure()) return res.failure();
     auto snr(res.success()->allocsequencenr());
-    auto &hellomsg(
-        wireproto::req_message(proto::HELLO::tag, snr)
-        .addparam(proto::HELLO::req::version, 1u)
-        .addparam(proto::HELLO::req::nonce, beacon.nonce)
-        .addparam(proto::HELLO::req::slavename, beacon.slavename)
-        .addparam(proto::HELLO::req::digest,
-                  digest("B" +
-                         fields::mk(beacon.nonce) +
-                         fields::mk(beacon.secret))));
-    auto hellores(res.success()->call(hellomsg));
+    auto hellores(res.success()->call(
+                      wireproto::req_message(proto::HELLO::tag, snr)
+                      .addparam(proto::HELLO::req::version, 1u)
+                      .addparam(proto::HELLO::req::nonce, beacon.nonce)
+                      .addparam(proto::HELLO::req::slavename, beacon.slavename)
+                      .addparam(proto::HELLO::req::digest,
+                                digest("B" +
+                                       fields::mk(beacon.nonce) +
+                                       fields::mk(beacon.secret)))));
     res.success()->putsequencenr(snr);
     if (hellores.isfailure()) {
         delete res.success();

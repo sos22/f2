@@ -46,6 +46,7 @@ class rpcinterface {
     friend class rpcserver;
 private:   wireproto::msgtag tag;
 private:   virtual maybe<error> message(const wireproto::rx_message &,
+                                        const peername &,
                                         buffer &) = 0;
 protected: rpcinterface(wireproto::msgtag _tag);
 };
@@ -62,6 +63,7 @@ private:   class rootthread : public threadfn {
 private:   class unknowniface : public rpcinterface {
     public:  unknowniface();
     private: maybe<error> message(const wireproto::rx_message &,
+                                  const peername &,
                                   buffer &);
     };
 private:   mutex_t mux;
@@ -114,7 +116,10 @@ public:  rpcregistration *registeriface(const multiregistration &r);
     /* Start accepting new incoming operations, usually called after
        you've finished registering all of the needed interfaces.
        Abort if the interface is already running. */
-protected: maybe<error> start(const peername &p);
+protected: maybe<error> start(const peername &p, const fields::field &name);
+    /* Get a peername on with which other hosts can connect to this
+     * server */
+public:    peername localname() const;
     /* Stop accepting new incoming operations and wait for any extant
        ones to finish, usually called just before we shut down.  No-op
        if we've already stopped. */

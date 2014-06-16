@@ -96,7 +96,7 @@ namespace proto {
             static const parameter<class peername> mastername(651,
                                                               "mastername");
             static const parameter<class peername> slavename(652,
-                                                              "slavename");
+                                                             "slavename");
             static const parameter<class masternonce> nonce(653, "nonce");
             static const parameter<class digest> digest(654, "digest");
         }
@@ -114,6 +114,10 @@ namespace proto {
             static const parameter<class peername> slavename(802, "slavename");
             static const parameter<class digest> digest(803, "digest");
         }
+    }
+
+    namespace COORDINATORSTATUS {
+        static const msgtag tag(9);
     }
 }
 

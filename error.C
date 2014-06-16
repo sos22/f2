@@ -20,6 +20,8 @@ const error error::noparse(-7);
 const error error::timeout(-8);
 const error error::truncated(-9);
 const error error::unimplemented(-10);
+const error error::badversion(-11);
+const error error::authenticationfailed(-12);
 
 class errorfield : public fields::field {
     error content;
@@ -55,6 +57,10 @@ public:
                 buf.push("truncated");
             } else if (content == error::unimplemented) {
                 buf.push("unimplemented");
+            } else if (content == error::badversion) {
+                buf.push("badversion");
+            } else if (content == error::authenticationfailed) {
+                buf.push("authenticationfailed");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">").fmt(buf); }
         }

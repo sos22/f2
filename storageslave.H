@@ -17,8 +17,10 @@ class storageslave {
         : rpcinterface(proto::BEACONSLAVESTATUS::tag),
           owner(_owner)
             {}
-    private: maybe<error> message(const wireproto::rx_message &, buffer &);
-    };
+    private: maybe<error> message(
+        const wireproto::rx_message &,
+        const peername &,
+        buffer &); };
     statusiface statusinterface;
     rpcregistration *controlregistration;
     rpcconn *masterconn;

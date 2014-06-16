@@ -36,20 +36,22 @@
 namespace _controlserver {
 
 class pingiface : public rpcinterface {
-public:
-    pingiface() : rpcinterface(proto::PING::tag) {}
-    maybe<error> message(const wireproto::rx_message &, buffer &);
+public:  pingiface() : rpcinterface(proto::PING::tag) {}
+private: maybe<error> message(const wireproto::rx_message &,
+                              const peername &,
+                              buffer &);
 };
 class quitiface : public rpcinterface {
     waitbox<shutdowncode> *s;
     quitiface() = delete;
     quitiface(const quitiface &) = delete;
     void operator=(const quitiface &) = delete;
-public:
-    quitiface(waitbox<shutdowncode> *_s)
-        : rpcinterface(proto::QUIT::tag), s(_s)
-        {}
-    maybe<error> message(const wireproto::rx_message &, buffer &);
+public:  quitiface(waitbox<shutdowncode> *_s)
+    : rpcinterface(proto::QUIT::tag),
+      s(_s) {}
+private: maybe<error> message(const wireproto::rx_message &,
+                              const peername &,
+                              buffer &);
 };
 
 class controlserverimpl : public controlserver {
@@ -73,10 +75,13 @@ public:  void destroy();
 };
 
 maybe<error>
-pingiface::message(const wireproto::rx_message &msg, buffer &outgoing)
+pingiface::message(const wireproto::rx_message &msg,
+                   const peername &peer,
+                   buffer &outgoing)
 {
     logmsg(loglevel::info,
-           "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)));
+           "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)) +
+           "from " + fields::mk(peer));
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
@@ -88,12 +93,15 @@ pingiface::message(const wireproto::rx_message &msg, buffer &outgoing)
 }
 
 maybe<error>
-quitiface::message(const wireproto::rx_message &msg, buffer &)
-{
+quitiface::message(const wireproto::rx_message &msg,
+                   const peername &peer,
+                   buffer &) {
     auto reason(msg.getparam(proto::QUIT::req::reason));
     if (!reason) return error::missingparameter;
     auto str(msg.getparam(proto::QUIT::req::message));
-    logmsg(loglevel::notice, "received a quit message: " + fields::mk(str));
+    logmsg(loglevel::notice,
+           "received a quit message: " + fields::mk(str) +
+           "from " + fields::mk(peer));
     s->set(reason.just());
     return Nothing;
 }
@@ -109,7 +117,7 @@ controlserverimpl::destroy() {
 maybe<error>
 controlserverimpl::setup(
     const peername &p) {
-    return start(p); }
+    return start(p, fields::mk("control server")); }
 
 } /* end of _controlserver namespace */
 

@@ -292,6 +292,7 @@ getlogsiface::getlogsiface()
 {}
 maybe<error>
 getlogsiface::message(const wireproto::rx_message &msg,
+                      const peername &,
                       buffer &outgoing)
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
