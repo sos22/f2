@@ -10,6 +10,7 @@
 #include "orerror.H"
 
 class buffer;
+class test;
 
 namespace wireproto {
 class msgtag;
@@ -226,9 +227,9 @@ namespace wireproto {
     class tx_compoundparameter {
         friend class tx_message::pinstance;
         friend class tx_message;
-        tx_message *content;
+        tx_message *const content;
         tx_compoundparameter *clone() const {
-            return new tx_compoundparameter(content->clone());
+            return new tx_compoundparameter(content);
         }
         size_t serialised_size() const {
             return content->serialised_size();
@@ -282,6 +283,8 @@ namespace wireproto {
        discard the message if this is present.  If present, this must
        be the only parameter. */
     extern const parameter<error> err_parameter;
+
+    void test(class ::test &);
 };
 
 #define WIREPROTO_TYPE(name)                                            \

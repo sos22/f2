@@ -225,7 +225,7 @@ rx_message::rx_message(msgtag _t,
                        size_t _payload_size,
                        size_t _payload_offset,
                        buffer &_buf)
-    : index((idx *)calloc(4, _nrparams)),
+    : index((idx *)calloc(sizeof(index[0]), _nrparams)),
       flavour(fl_buffer),
       sequence(_sequence),
       nrparams(_nrparams),
@@ -537,7 +537,7 @@ template maybe<rx_compoundparameter> rx_message::getparam(
 rx_message *
 rx_message::clone() const
 {
-    idx *newindex = (idx *)calloc(sizeof(idx[0]), nrparams);
+    idx *newindex = (idx *)calloc(sizeof(newindex[0]), nrparams);
     for (unsigned x = 0; x < nrparams; x++) {
         newindex[x].id = index[x].id;
         newindex[x].offset = index[x].offset - index[0].offset;
@@ -617,3 +617,127 @@ template const field &mk<const wireproto::rx_message *>(const orerror<const wire
 template const field &mk<unsigned int>(
     const wireproto::parameter<unsigned int> &);
 };
+
+namespace wireproto {
+void
+test(class ::test &) {
+    buffer buf;
+    msgtag t(99);
+    parameter<int> p1(5, "p1");
+    parameter<const char *> p2(6, "p2");
+    {   auto r(tx_message(t).serialise(buf));
+        assert(r == Nothing); }
+    {   auto rxm(rx_message::fetch(buf));
+        assert(rxm.issuccess());
+        assert(rxm.success()->t == t);
+        rxm.success()->finish(); }
+    assert(buf.empty());
+    
+    {   auto r(tx_message(t)
+               .addparam(p1, 73)
+               .serialise(buf));
+        assert (r == Nothing); }
+    {   auto rxm(rx_message::fetch(buf));
+        assert(rxm.issuccess());
+        assert(rxm.success()->t == t);
+        assert(rxm.success()->getparam(p1) != Nothing);
+        assert(rxm.success()->getparam(p1).just() == 73);
+        rxm.success()->finish(); }
+    assert(buf.empty());
+    
+    {   auto r(tx_message(t)
+               .addparam(p1, 73)
+               .addparam(p2, "Hello world")
+               .serialise(buf));
+        assert (r == Nothing); }
+    {   auto rxm(rx_message::fetch(buf));
+        assert(rxm.issuccess());
+        assert(rxm.success()->t == t);
+        assert(rxm.success()->getparam(p1) != Nothing);
+        assert(rxm.success()->getparam(p1).just() == 73);
+        assert(rxm.success()->getparam(p2) != Nothing);
+        assert(!strcmp(rxm.success()->getparam(p2).just(),
+                       "Hello world"));
+        rxm.success()->finish(); }
+    assert(buf.empty());
+    
+    parameter<list<const char * > > p3(7, "p3");
+    {   list<const char *> l1;
+        l1.pushtail("X");
+        l1.pushtail("Y");
+        l1.pushtail("Z");
+        auto r(tx_message(t)
+               .addparam(p3, l1)
+               .serialise(buf));
+        l1.flush();
+        assert (r == Nothing); }
+    {   auto rxm(rx_message::fetch(buf));
+        assert(rxm.issuccess());
+        assert(rxm.success()->t == t);
+        assert(rxm.success()->getparam(p1) == Nothing);
+        assert(rxm.success()->getparam(p2) == Nothing);
+        list<const char *> l2;
+        auto fr(rxm.success()->fetch(p3, l2));
+        assert(fr == Nothing);
+        assert(l2.length() == 3);
+        auto it(l2.start());
+        assert(!strcmp(*it, "X"));
+        it.next();
+        assert(!strcmp(*it, "Y"));
+        it.next();
+        assert(!strcmp(*it, "Z"));
+        it.next();
+        assert(it.finished());
+        l2.flush();
+        rxm.success()->finish(); }
+    assert(buf.empty());
+    
+    parameter<tx_compoundparameter> p4t(8, "p4t");
+    parameter<rx_compoundparameter> p4r(8, "p4r");
+    {   auto r(tx_message(t)
+               .addparam(
+                   p4t,
+                   tx_compoundparameter())
+               .addparam(p1, 8)
+               .addparam(p2, "root")
+               .serialise(buf));
+        assert(r == Nothing); }
+    {   auto rxm(rx_message::fetch(buf));
+        assert(rxm.issuccess());
+        assert(rxm.success()->getparam(p1).just() == 8);
+        assert(!strcmp(rxm.success()->getparam(p2).just(), "root"));
+        auto nested(rxm.success()->getparam(p4r));
+        assert(nested != Nothing);
+        rxm.success()->finish(); }
+    assert(buf.empty());
+    
+    {   auto r(tx_message(t)
+               .addparam(
+                   p4t,
+                   tx_compoundparameter()
+                   .addparam(p1, 7)
+                   .addparam(p2, (const char *)"nested"))
+               .addparam(p1, 8)
+               .addparam(p2, "root")
+               .serialise(buf));
+        assert(r == Nothing); }
+    {   auto rxm(rx_message::fetch(buf));
+        assert(rxm.issuccess());
+        assert(rxm.success()->getparam(p1).just() == 8);
+        assert(!strcmp(rxm.success()->getparam(p2).just(), "root"));
+        auto nested(rxm.success()->getparam(p4r));
+        assert(nested != Nothing);
+        assert(nested.just().getparam(p1).just() == 7);
+        assert(!strcmp(nested.just().getparam(p2).just(), "nested"));
+        rxm.success()->finish(); }
+    assert(buf.empty()); }
+
+template maybe<error> rx_message::fetch(
+    parameter<list<const char *> >,
+    list<const char *> &) const;
+template tx_message &tx_message::addparam(
+    parameter<list<const char *> >, const list<const char *> &);
+
+}
+
+template class list<const char *>;
