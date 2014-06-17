@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "controlserver.H"
+#include "rpcserver.H"
 #include "wireproto.H"
 
 class loglevel;
@@ -111,9 +111,10 @@ public:
 void initlogging(const char *ident);
 void deinitlogging(void);
 
-class getlogsiface : public rpcinterface {
+class controlconn;
+class getlogsiface : public rpcinterface<controlconn *> {
 private: maybe<error> message(const wireproto::rx_message &,
-                              rpcconn &,
+                              controlconn *,
                               buffer &);
 public:  getlogsiface();
 public:  static getlogsiface singleton;

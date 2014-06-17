@@ -8,10 +8,11 @@
 class beaconresult;
 template <typename> class orerror;
 class peername;
+template <typename> class rpcserver;
 class tcpsocket;
 
 class rpcconn {
-    friend class rpcserver;
+    template <typename t> friend class rpcserver;
 private: buffer outgoing;
 private: buffer incoming;
 private: socket_t fd;

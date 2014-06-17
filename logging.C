@@ -292,7 +292,7 @@ getlogsiface::getlogsiface()
 {}
 maybe<error>
 getlogsiface::message(const wireproto::rx_message &msg,
-                      rpcconn &,
+                      controlconn *,
                       buffer &outgoing)
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).

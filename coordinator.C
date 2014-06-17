@@ -9,50 +9,59 @@
 #include "registrationsecret.H"
 #include "rpcconn.H"
 
+#include "rpcserver.tmpl"
+
+class coordinatorconn {
+public: rpcconn &conn;
+public: coordinatorconn(rpcconn &_conn) : conn(_conn) {}
+};
+
 class coordinatorimpl : public coordinator {
 private: mastersecret ms;
 private: registrationsecret rs;
 
     /* Control server interface */
-private: class statusinterface : public rpcinterface {
+private: class statusinterface : public rpcinterface<controlconn *> {
     public:  statusinterface() : rpcinterface(proto::COORDINATORSTATUS::tag) {}
     private: maybe<error> message(const wireproto::rx_message &,
-                                  rpcconn &,
+                                  controlconn *,
                                   buffer &);
     };
 private: statusinterface statusiface;
-private: rpcregistration *controlregistration;
+private: rpcregistration<controlconn *> *controlregistration;
 
     /* Coordination server interface */
-private: class hellointerface : public rpcinterface {
+private: class hellointerface : public rpcinterface<coordinatorconn *> {
     private: coordinatorimpl *const owner;
     public:  hellointerface(coordinatorimpl *_owner)
         : rpcinterface(proto::HELLO::tag),
           owner(_owner) {}
     private: maybe<error> message(const wireproto::rx_message &,
-                                  rpcconn &,
+                                  coordinatorconn *,
                                   buffer &);
     };
 private: hellointerface helloiface;
-private: rpcregistration *coordregistration;
+private: rpcregistration<coordinatorconn *> *coordregistration;
 
 public:  coordinatorimpl(const mastersecret &ms,
                          const registrationsecret &rs,
                          controlserver *cs);
+private: orerror<coordinatorconn *> startconn(rpcconn &);
+private: void endconn(coordinatorconn *);
 private: void destroy();
 };
 
 maybe<error>
 coordinatorimpl::statusinterface::message(const wireproto::rx_message &,
-                                          rpcconn &,
+                                          controlconn *,
                                           buffer &) {
     return error::unimplemented; }
 
 maybe<error>
 coordinatorimpl::hellointerface::message(const wireproto::rx_message &msg,
-                                         rpcconn &conn,
+                                         coordinatorconn *conn,
                                          buffer &) {
-    auto from(conn.peer());
+    auto from(conn->conn.peer());
     auto version(msg.getparam(proto::HELLO::req::version));
     auto nonce(msg.getparam(proto::HELLO::req::nonce));
     auto slavename(msg.getparam(proto::HELLO::req::slavename));
@@ -94,8 +103,16 @@ coordinatorimpl::coordinatorimpl(
       controlregistration(cs->registeriface(statusiface)),
       helloiface(this),
       coordregistration(
-          cs->registeriface(multiregistration()
-                            .add(helloiface))) {}
+          registeriface(multiregistration()
+                        .add(helloiface))) {}
+
+orerror<coordinatorconn *>
+coordinatorimpl::startconn(rpcconn &conn) {
+    return new coordinatorconn(conn); }
+
+void
+coordinatorimpl::endconn(coordinatorconn *conn) {
+    delete conn; }
 
 void
 coordinatorimpl::destroy() {
@@ -116,3 +133,5 @@ coordinator::build(
         delete res;
         return r.just(); }
     return res; }
+
+RPCSERVER(coordinatorconn *)

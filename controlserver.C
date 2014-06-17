@@ -30,19 +30,26 @@
 #include "wireproto.H"
 
 #include "list.tmpl"
+#include "rpcserver.tmpl"
 #include "waitqueue.tmpl"
 
 #include "fieldfinal.H"
 
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+
+class controlconn {
+public: peername peer;
+public: controlconn(const peername &p) : peer(p) {} };
+
 namespace _controlserver {
 
-class pingiface : public rpcinterface {
+class pingiface : public rpcinterface<controlconn *> {
 public:  pingiface() : rpcinterface(proto::PING::tag) {}
 private: maybe<error> message(const wireproto::rx_message &,
-                              rpcconn &,
+                              controlconn *,
                               buffer &);
 };
-class quitiface : public rpcinterface {
+class quitiface : public rpcinterface<controlconn *> {
     waitbox<shutdowncode> *s;
     quitiface() = delete;
     quitiface(const quitiface &) = delete;
@@ -51,14 +58,14 @@ public:  quitiface(waitbox<shutdowncode> *_s)
     : rpcinterface(proto::QUIT::tag),
       s(_s) {}
 private: maybe<error> message(const wireproto::rx_message &,
-                              rpcconn &,
+                              controlconn *,
                               buffer &);
 };
 
 class controlserverimpl : public controlserver {
 private: pingiface pinginterface;
 private: quitiface quitinterface;
-private: rpcregistration *registration;
+private: rpcregistration<controlconn *> *registration;
     
 public:  controlserverimpl(waitbox<shutdowncode> *s)
     : controlserver(),
@@ -71,18 +78,21 @@ public:  controlserverimpl(waitbox<shutdowncode> *s)
 private: controlserverimpl(const controlserverimpl &) = delete;
 private: void operator=(const controlserverimpl &) = delete;
 
+private: orerror<controlconn *> startconn(rpcconn &);
+private: void endconn(controlconn *);
+
 public:  maybe<error> setup(const peername &);
 public:  void destroy();
 };
 
 maybe<error>
 pingiface::message(const wireproto::rx_message &msg,
-                   rpcconn &conn,
+                   controlconn *conn,
                    buffer &outgoing)
 {
     logmsg(loglevel::info,
            "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)) +
-           "from " + fields::mk(conn.peer()));
+           " from " + fields::mk(conn->peer));
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
@@ -95,14 +105,14 @@ pingiface::message(const wireproto::rx_message &msg,
 
 maybe<error>
 quitiface::message(const wireproto::rx_message &msg,
-                   rpcconn &conn,
+                   controlconn *conn,
                    buffer &) {
     auto reason(msg.getparam(proto::QUIT::req::reason));
     if (!reason) return error::missingparameter;
     auto str(msg.getparam(proto::QUIT::req::message));
     logmsg(loglevel::notice,
            "received a quit message: " + fields::mk(str) +
-           "from " + fields::mk(conn.peer()));
+           "from " + fields::mk(conn->peer));
     s->set(reason.just());
     return Nothing;
 }
@@ -114,6 +124,14 @@ controlserverimpl::destroy() {
     registration->destroy();
     rpcserver::destroy();
 }
+
+orerror<controlconn *>
+controlserverimpl::startconn(rpcconn &conn) {
+    return new controlconn(conn.peer()); }
+
+void
+controlserverimpl::endconn(controlconn *conn) {
+    delete conn; }
 
 maybe<error>
 controlserverimpl::setup(
@@ -135,3 +153,5 @@ controlserver::build(const peername &p, waitbox<shutdowncode> *s)
     } else {
         r->destroy();
         return e.just(); } }
+
+RPCSERVER(controlconn *)

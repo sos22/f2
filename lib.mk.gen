@@ -27,7 +27,6 @@ function bits() {
     _ ratelimiter
     _ registrationsecret
     _ rpcconn
-    _ rpcserver
     _ shutdown
     _ socket
     _ tcpsocket

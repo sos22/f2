@@ -19,10 +19,10 @@ class beaconserver {
     friend class statusiface;
     friend class configureiface;
 
-    class statusiface : public rpcinterface {
+    class statusiface : public rpcinterface<controlconn *> {
         beaconserver *owner;
         maybe<error> message(const wireproto::rx_message &,
-                             rpcconn &,
+                             controlconn *,
                              buffer &);
         statusiface() = delete;
         statusiface(const statusiface &) = delete;
@@ -30,10 +30,10 @@ class beaconserver {
     public:
         statusiface(beaconserver *_owner);
     };
-    class configureiface : public rpcinterface {
+    class configureiface : public rpcinterface<controlconn *> {
         beaconserver *owner;
         maybe<error> message(const wireproto::rx_message &,
-                             rpcconn &,
+                             controlconn *,
                              buffer &);
         configureiface() = delete;
         configureiface(const configureiface &) = delete;
@@ -54,7 +54,7 @@ class beaconserver {
 
     statusiface statusinterface;
     configureiface configureinterface;
-    rpcregistration *controlregistration;
+    rpcregistration<controlconn *> *controlregistration;
     registrationsecret secret;
     peername mastername;
     mastersecret mastersecret_;

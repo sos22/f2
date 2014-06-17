@@ -11,7 +11,7 @@ class registrationsecret;
 class rpcconn;
 
 class storageslave {
-    class statusiface : public rpcinterface {
+    class statusiface : public rpcinterface<controlconn *> {
     private: storageslave *owner;
     public:  statusiface(storageslave *_owner)
         : rpcinterface(proto::BEACONSLAVESTATUS::tag),
@@ -19,10 +19,10 @@ class storageslave {
             {}
     private: maybe<error> message(
         const wireproto::rx_message &,
-        rpcconn &,
+        controlconn *,
         buffer &); };
     statusiface statusinterface;
-    rpcregistration *controlregistration;
+    rpcregistration<controlconn *> *controlregistration;
     rpcconn *masterconn;
     storageslave(controlserver *);
     maybe<error> connect(const registrationsecret &);

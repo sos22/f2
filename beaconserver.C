@@ -41,7 +41,7 @@ beaconserver::beaconserver(const registrationsecret &_secret,
       configureinterface(this),
       controlregistration(
           cs->registeriface(
-              rpcserver::multiregistration()
+              rpcserver<controlconn *>::multiregistration()
               .add(statusinterface)
               .add(configureinterface))),
       secret(_secret),
@@ -64,7 +64,7 @@ beaconserver::statusiface::statusiface(beaconserver *server)
 
 maybe<error>
 beaconserver::statusiface::message(const wireproto::rx_message &msg,
-                                   rpcconn &,
+                                   controlconn *,
                                    buffer &outbuf)
 {
     wireproto::resp_message m(msg);
@@ -83,7 +83,7 @@ beaconserver::configureiface::configureiface(beaconserver *server)
 
 maybe<error>
 beaconserver::configureiface::message(const wireproto::rx_message &msg,
-                                      rpcconn &,
+                                      controlconn *,
                                       buffer &outbuf)
 {
     wireproto::resp_message m(msg);

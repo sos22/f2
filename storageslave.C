@@ -53,7 +53,7 @@ storageslave::destroy() const
 
 maybe<error>
 storageslave::statusiface::message(const wireproto::rx_message &,
-                                   rpcconn &,
+                                   controlconn *,
                                    buffer &)
 {
     return error::unimplemented;

@@ -12,7 +12,9 @@ template <typename> class orerror;
 class peername;
 class registrationsecret;
 
-class coordinator : public rpcserver {
+class coordinatorconn;
+
+class coordinator : public rpcserver<coordinatorconn *> {
 public: static orerror<coordinator *> build(
     const mastersecret &,
     const registrationsecret &,
