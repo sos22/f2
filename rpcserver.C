@@ -7,6 +7,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "peername.H"
+#include "rpcconn.H"
 #include "util.H"
 #include "waitbox.H"
 #include "waitqueue.H"
@@ -70,9 +71,7 @@ private: clientthread(
     socket_t _fd,
     waitbox<bool> *_shutdown)
     : owner(_owner), fd(_fd), shutdown(_shutdown) {}
-private: bool runcommand(const peername &peer,
-                         buffer &incoming,
-                         buffer &outgoing,
+private: bool runcommand(rpcconn &conn,
                          bool *die);
 public:  thread *thr() const;
 public:  static orerror<clientthread *> spawn(
@@ -83,11 +82,9 @@ public:  static orerror<clientthread *> spawn(
 
 bool
 rpcserver::clientthread::runcommand(
-    const peername &peer,
-    buffer &incoming,
-    buffer &outgoing,
+    rpcconn &conn,
     bool *die) {
-    auto r(wireproto::rx_message::fetch(incoming));
+    auto r(wireproto::rx_message::fetch(conn.incoming));
     if (r.isfailure()) {
         *die = r.failure() != error::underflowed;
         return false; }
@@ -111,26 +108,25 @@ rpcserver::clientthread::runcommand(
     reg->start();
     owner->mux.unlock(&token);
     
-    auto res(iface->message(*r.success(), peer, outgoing));
+    auto res(iface->message(*r.success(), conn, conn.outgoing));
     
     reg->finished();
 
     if (res.isjust()) {
         wireproto::err_resp_message(*r.success(), res.just())
-            .serialise(outgoing); }
+            .serialise(conn.outgoing); }
     r.success()->finish();
     return true; }
 
 void
 rpcserver::clientthread::run() {
-    peername peer(fd.peer());
+    rpcconn conn(fd);
+    peername peer(conn.peer());
     struct pollfd fds[2];
     
     fds[0] = shutdown->fd().poll(POLLIN);
     fds[1] = fd.poll(POLLIN);
     
-    buffer outgoing;
-    buffer incoming;
     bool die;
     die = false;
     logmsg(loglevel::info, "start client thread " + fields::mk(peer));
@@ -145,22 +141,22 @@ rpcserver::clientthread::run() {
             fds[0].revents = 0; }
         if (fds[1].revents) {
             if (fds[1].revents & POLLOUT) {
-                auto rr(outgoing.send(fd));
+                auto rr(conn.outgoing.send(fd));
                 if (rr.isjust()) {
                     rr.just().warn("sending to client " + fields::mk(peer));
                     break; }
                 fds[1].revents &= ~POLLOUT;
-                if (outgoing.empty()) {
+                if (conn.outgoing.empty()) {
                     fds[1].events &= ~POLLOUT; } }
             if (fds[1].revents & POLLIN) {
-                auto t(incoming.receive(fd));
+                auto t(conn.incoming.receive(fd));
                 if (t.isjust()) {
                     t.just().warn("receiving from client " + fields::mk(peer));
                     break; }
                 fds[1].revents &= ~POLLIN;
-                while (runcommand(peer, incoming, outgoing, &die))
+                while (runcommand(conn, &die))
                     ;
-                if (!outgoing.empty()) {
+                if (!conn.outgoing.empty()) {
                     fds[1].events |= POLLOUT; } } } }
     
     logmsg(loglevel::info, fields::mk("client thread finishing"));
@@ -280,11 +276,11 @@ rpcserver::unknowniface::unknowniface()
 maybe<error>
 rpcserver::unknowniface::message(
     const wireproto::rx_message &msg,
-    const peername &peer,
+    rpcconn &conn,
     buffer &) {
     logmsg(loglevel::failure,
            "Received an unrecognised message type " + fields::mk(msg.t) +
-           " from " + fields::mk(peer));
+           " from " + fields::mk(conn.peer()));
     return error::unrecognisedmessage; }
 
 rpcserver::~rpcserver() {

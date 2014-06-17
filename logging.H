@@ -113,7 +113,7 @@ void deinitlogging(void);
 
 class getlogsiface : public rpcinterface {
 private: maybe<error> message(const wireproto::rx_message &,
-                              const peername &,
+                              rpcconn &,
                               buffer &);
 public:  getlogsiface();
 public:  static getlogsiface singleton;

@@ -20,6 +20,7 @@
 #include "orerror.H"
 #include "peername.H"
 #include "proto.H"
+#include "rpcconn.H"
 #include "socket.H"
 #include "shutdown.H"
 #include "unixsocket.H"
@@ -38,7 +39,7 @@ namespace _controlserver {
 class pingiface : public rpcinterface {
 public:  pingiface() : rpcinterface(proto::PING::tag) {}
 private: maybe<error> message(const wireproto::rx_message &,
-                              const peername &,
+                              rpcconn &,
                               buffer &);
 };
 class quitiface : public rpcinterface {
@@ -50,7 +51,7 @@ public:  quitiface(waitbox<shutdowncode> *_s)
     : rpcinterface(proto::QUIT::tag),
       s(_s) {}
 private: maybe<error> message(const wireproto::rx_message &,
-                              const peername &,
+                              rpcconn &,
                               buffer &);
 };
 
@@ -76,12 +77,12 @@ public:  void destroy();
 
 maybe<error>
 pingiface::message(const wireproto::rx_message &msg,
-                   const peername &peer,
+                   rpcconn &conn,
                    buffer &outgoing)
 {
     logmsg(loglevel::info,
            "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)) +
-           "from " + fields::mk(peer));
+           "from " + fields::mk(conn.peer()));
     wireproto::resp_message m(msg);
     static int cntr;
     m.addparam(proto::PING::resp::cntr, cntr++);
@@ -94,14 +95,14 @@ pingiface::message(const wireproto::rx_message &msg,
 
 maybe<error>
 quitiface::message(const wireproto::rx_message &msg,
-                   const peername &peer,
+                   rpcconn &conn,
                    buffer &) {
     auto reason(msg.getparam(proto::QUIT::req::reason));
     if (!reason) return error::missingparameter;
     auto str(msg.getparam(proto::QUIT::req::message));
     logmsg(loglevel::notice,
            "received a quit message: " + fields::mk(str) +
-           "from " + fields::mk(peer));
+           "from " + fields::mk(conn.peer()));
     s->set(reason.just());
     return Nothing;
 }

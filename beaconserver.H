@@ -22,7 +22,7 @@ class beaconserver {
     class statusiface : public rpcinterface {
         beaconserver *owner;
         maybe<error> message(const wireproto::rx_message &,
-                             const peername &,
+                             rpcconn &,
                              buffer &);
         statusiface() = delete;
         statusiface(const statusiface &) = delete;
@@ -33,7 +33,7 @@ class beaconserver {
     class configureiface : public rpcinterface {
         beaconserver *owner;
         maybe<error> message(const wireproto::rx_message &,
-                             const peername &,
+                             rpcconn &,
                              buffer &);
         configureiface() = delete;
         configureiface(const configureiface &) = delete;

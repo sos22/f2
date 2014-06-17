@@ -19,7 +19,7 @@ class storageslave {
             {}
     private: maybe<error> message(
         const wireproto::rx_message &,
-        const peername &,
+        rpcconn &,
         buffer &); };
     statusiface statusinterface;
     rpcregistration *controlregistration;

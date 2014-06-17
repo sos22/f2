@@ -7,6 +7,7 @@
 #include "peername.H"
 #include "proto.H"
 #include "registrationsecret.H"
+#include "rpcconn.H"
 
 class coordinatorimpl : public coordinator {
 private: mastersecret ms;
@@ -16,7 +17,7 @@ private: registrationsecret rs;
 private: class statusinterface : public rpcinterface {
     public:  statusinterface() : rpcinterface(proto::COORDINATORSTATUS::tag) {}
     private: maybe<error> message(const wireproto::rx_message &,
-                                  const peername &,
+                                  rpcconn &,
                                   buffer &);
     };
 private: statusinterface statusiface;
@@ -29,7 +30,7 @@ private: class hellointerface : public rpcinterface {
         : rpcinterface(proto::HELLO::tag),
           owner(_owner) {}
     private: maybe<error> message(const wireproto::rx_message &,
-                                  const peername &from,
+                                  rpcconn &,
                                   buffer &);
     };
 private: hellointerface helloiface;
@@ -43,14 +44,15 @@ private: void destroy();
 
 maybe<error>
 coordinatorimpl::statusinterface::message(const wireproto::rx_message &,
-                                          const peername &,
+                                          rpcconn &,
                                           buffer &) {
     return error::unimplemented; }
 
 maybe<error>
 coordinatorimpl::hellointerface::message(const wireproto::rx_message &msg,
-                                         const peername &from,
+                                         rpcconn &conn,
                                          buffer &) {
+    auto from(conn.peer());
     auto version(msg.getparam(proto::HELLO::req::version));
     auto nonce(msg.getparam(proto::HELLO::req::nonce));
     auto slavename(msg.getparam(proto::HELLO::req::slavename));

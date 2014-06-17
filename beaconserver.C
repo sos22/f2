@@ -64,7 +64,7 @@ beaconserver::statusiface::statusiface(beaconserver *server)
 
 maybe<error>
 beaconserver::statusiface::message(const wireproto::rx_message &msg,
-                                   const peername &,
+                                   rpcconn &,
                                    buffer &outbuf)
 {
     wireproto::resp_message m(msg);
@@ -83,7 +83,7 @@ beaconserver::configureiface::configureiface(beaconserver *server)
 
 maybe<error>
 beaconserver::configureiface::message(const wireproto::rx_message &msg,
-                                      const peername &,
+                                      rpcconn &,
                                       buffer &outbuf)
 {
     wireproto::resp_message m(msg);

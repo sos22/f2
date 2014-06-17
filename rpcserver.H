@@ -12,6 +12,7 @@ class buffer;
 class error;
 template <typename> class maybe;
 class peername;
+class rpcconn;
 template <typename> class waitbox;
 template <typename> class waitqueue;
 
@@ -46,7 +47,7 @@ class rpcinterface {
     friend class rpcserver;
 private:   wireproto::msgtag tag;
 private:   virtual maybe<error> message(const wireproto::rx_message &,
-                                        const peername &,
+                                        rpcconn &,
                                         buffer &) = 0;
 protected: rpcinterface(wireproto::msgtag _tag);
 };
@@ -63,7 +64,7 @@ private:   class rootthread : public threadfn {
 private:   class unknowniface : public rpcinterface {
     public:  unknowniface();
     private: maybe<error> message(const wireproto::rx_message &,
-                                  const peername &,
+                                  rpcconn &,
                                   buffer &);
     };
 private:   mutex_t mux;

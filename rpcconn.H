@@ -11,6 +11,7 @@ class peername;
 class tcpsocket;
 
 class rpcconn {
+    friend class rpcserver;
 private: buffer outgoing;
 private: buffer incoming;
 private: socket_t fd;
