@@ -23,6 +23,7 @@
 #include "socket.H"
 #include "shutdown.H"
 #include "unixsocket.H"
+#include "util.H"
 #include "waitbox.H"
 #include "waitqueue.H"
 #include "wireproto.H"
