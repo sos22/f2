@@ -425,7 +425,7 @@ intfield::fmt(fieldbuf &out) const
         buf[--nr_digits] = '0';
     } else {
         r = val_;
-        int cntr = 0;
+        unsigned cntr = 0;
         while (r) {
             int idx = r % base_;
             if (idx < 0)
@@ -643,6 +643,11 @@ void test(::test &)
     buf.reset();
     mk(123456).nosep().fmt(buf);
     assert(!strcmp(buf.c_str(), "123456"));
+    flush();
+    
+    buf.reset();
+    mk(123456).sep(fields::mk("ABC"), 1).fmt(buf);
+    assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));
     flush();
 }
 
