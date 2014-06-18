@@ -32,8 +32,6 @@
 
 #include "fieldfinal.H"
 
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
-
 namespace _controlserver {
 
 class controlregistration {
