@@ -4,11 +4,15 @@
 
 #include "wireproto.H"
 
+class digest;
+
 namespace fields {
 class field;
+const field &mk(const digest &d);
 }
 
 class digest {
+    friend const fields::field &fields::mk(const digest &d);
     unsigned long val;
     explicit digest(unsigned long _val);
 public:

@@ -21,6 +21,8 @@ digest::digest(const fields::field &what)
     for (x = 0; str[x]; x++)
         acc = acc * 73 + str[x];
     val = acc;
+    logmsg(loglevel::verbose,
+           "digest " + what + " -> " + fields::mk(val));
 }
 
 bool
@@ -33,4 +35,10 @@ bool
 digest::operator!=(const digest &o) const
 {
     return !(*this == o);
+}
+
+const fields::field &
+fields::mk(const digest &d)
+{
+    return "<digest:" + mk(d.val).base(16).uppercase() + ">";
 }
