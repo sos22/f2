@@ -260,7 +260,7 @@ logpolicy::logmsg(loglevel level, const fields::field &fld)
     (fields::mk(now).asdate() +
      " pid=" + fields::mk(getpid()).nosep() +
      " tid=" + fields::mk(tid::me()) +
-     " level=" + fields::mk(level) +
+     " level=" + fields::padright(fields::mk(level), 7) +
      " " + fld).fmt(buf);
     const char *res(buf.c_str());
     for (auto it(sink.start()); !it.finished(); it.next())
