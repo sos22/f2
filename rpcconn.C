@@ -8,7 +8,7 @@
 #include "proto.H"
 #include "tcpsocket.H"
 
-rpcconn::rpcconn(fd_t _fd)
+rpcconn::rpcconn(socket_t _fd)
     : outgoing(),
       incoming(),
       fd(_fd),
@@ -88,3 +88,7 @@ rpcconn::allocsequencenr(void) {
 void
 rpcconn::putsequencenr(wireproto::sequencenr snr) {
     sequencer.put(snr); }
+
+peername
+rpcconn::peer() const {
+    return fd.peer(); }

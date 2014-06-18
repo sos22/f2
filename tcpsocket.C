@@ -6,8 +6,9 @@
 
 #include "orerror.H"
 #include "peername.H"
+#include "socket.H"
 
-orerror<fd_t>
+orerror<socket_t>
 tcpsocket::connect(const peername &p)
 {
     auto sa(p.sockaddr());
@@ -17,5 +18,5 @@ tcpsocket::connect(const peername &p)
     if (r < 0) {
         ::close(sock);
         return error::from_errno(); }
-    return fd_t(sock);
+    return socket_t(sock);
 }

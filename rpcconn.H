@@ -2,7 +2,7 @@
 #define RPCCONN_H__
 
 #include "buffer.H"
-#include "fd.H"
+#include "socket.H"
 #include "wireproto.H"
 
 class beaconresult;
@@ -13,7 +13,7 @@ class tcpsocket;
 class rpcconn {
 private: buffer outgoing;
 private: buffer incoming;
-private: fd_t fd;
+private: socket_t fd;
 private: wireproto::sequencer sequencer;
 private: list<const wireproto::rx_message *> pendingrx;
 
@@ -21,7 +21,7 @@ private: rpcconn() = delete;
 private: rpcconn(const rpcconn &) = delete;
 private: void operator=(const rpcconn &) = delete;
 
-private: rpcconn(fd_t);
+private: rpcconn(socket_t);
 
     /* Receive a message from the remote system, bypassing the
        incoming queue. */
@@ -55,6 +55,10 @@ public: wireproto::sequencenr allocsequencenr();
     /* Release a sequence number previously returned by
      * ::allocsequencenr() */
 public: void putsequencenr(wireproto::sequencenr);
+    
+    /* Get a peername for the thing on the other end of the
+     * connection. */
+public: peername peer() const;
 };
 
 #endif
