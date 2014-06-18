@@ -24,7 +24,7 @@ class masternonce {
 public:
     WIREPROTO_TYPE(masternonce);
 
-    masternonce(const digest &d);
+    explicit masternonce(const digest &d);
 };
 
 class mastersecret {
@@ -32,10 +32,10 @@ class mastersecret {
     mastersecret() = delete;
     void operator=(const mastersecret &) = delete;
 public:
-    mastersecret(const mastersecret &);
-    mastersecret(const char *);
+    explicit mastersecret(const mastersecret &);
+    explicit mastersecret(const char *);
     masternonce nonce(const peername &slavename);
-    bool checknonce(const masternonce &nonce,
+    bool noncevalid(const masternonce &nonce,
                     const peername &slavename) const;
 };
 

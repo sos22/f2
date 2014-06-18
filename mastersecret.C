@@ -28,7 +28,7 @@ masternonce::masternonce(const digest &_d)
 {}
 
 bool
-mastersecret::checknonce(const masternonce &masternonce,
+mastersecret::noncevalid(const masternonce &masternonce,
                          const peername &slavename) const
 {
     time_t now(time(NULL));
