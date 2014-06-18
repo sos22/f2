@@ -73,7 +73,8 @@ listenfd::localname() const {
             if (req.ifr_flags & IFF_POINTOPOINT) continue;
             logmsg(loglevel::debug,
                    "using " +
-                   fields::mk(candidate->sin_addr.s_addr).base(16).nosep() +
+                   fields::mk(candidate->sin_addr.s_addr).base(16)
+                       .sep(fields::period, 2) +
                    " for anonymous socket");
             sin->sin_addr = candidate->sin_addr;
             found = true;
