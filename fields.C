@@ -26,6 +26,14 @@ static struct : public field {
     void fmt(fieldbuf &p) const { p.push(" "); }
 } _space;
 const field &space(_space);
+static struct : public field {
+    void fmt(fieldbuf &p) const { p.push(","); }
+} _comma;
+const field &comma(_comma);
+static struct : public field {
+    void fmt(fieldbuf &p) const { p.push("."); }
+} _period;
+const field &period(_period);
 
 static __thread arena *arenas;
 static __thread fieldbuf *buffers;
@@ -301,10 +309,10 @@ padcenter(const field &base, unsigned minsize,
 }
 
 struct strfield : public field {
-    const char *content;
+    char *const content;
     strfield(const char *_content)
-        : content(_content)
-        {}
+        : content((char *)_alloc(strlen(_content) + 1))
+        { strcpy(content, _content); }
     static const field &n(const char *content)
         { return *new strfield(content); }
     void fmt(fieldbuf &o) const
@@ -326,42 +334,46 @@ operator+(const field &a, const char *what)
     return a + strfield::n(what);
 }
 
-intfield::intfield(long _val, int _base, bool _sep, bool _uppercase,
-                   bool _alwayssign)
-    : val_(_val), base_(_base), sep_(_sep), uppercase_(_uppercase),
-      alwayssign_(_alwayssign)
+intfield::intfield(long _val, int _base, const field &_sep, unsigned _sepwidth,
+                   bool _uppercase, bool _alwayssign)
+    : val_(_val), base_(_base), sep_(_sep), sepwidth_(_sepwidth),
+      uppercase_(_uppercase), alwayssign_(_alwayssign)
 {}
 const intfield &
-intfield::n(long val, int base, bool sep, bool uppercase, bool alwayssign)
+intfield::n(long val, int base, const field &sep, unsigned sepwidth,
+            bool uppercase, bool alwayssign)
 {
     assert(base>1);
     assert(base<37);
-    return *new intfield(val, base, sep, uppercase, alwayssign);
+    return *new intfield(val, base, sep, sepwidth, uppercase, alwayssign);
 }
 const intfield &
 mk(long x)
 {
-    return intfield::n(x, 10, true, false, false);
+    return intfield::n(x, 10, comma, 3, false, false);
 }
 const intfield &
 intfield::base(int b) const
 {
-    return n(val_, b, sep_, uppercase_, alwayssign_);
+    return n(val_, b, sep_, sepwidth_, uppercase_, alwayssign_);
 }
 const intfield &
 intfield::nosep() const
 {
-    return n(val_, base_, false, uppercase_, alwayssign_);
+    return sep(comma, 0);
 }
+const intfield &
+intfield::sep(const field &newsep, unsigned sepwidth) const {
+    return n(val_, base_, newsep, sepwidth, uppercase_, alwayssign_); }
 const intfield &
 intfield::uppercase() const
 {
-    return n(val_, base_, sep_, true, alwayssign_);
+    return n(val_, base_, sep_, sepwidth_, true, alwayssign_);
 }
 const intfield &
 intfield::alwayssign() const
 {
-    return n(val_, base_, sep_, uppercase_, true);
+    return n(val_, base_, sep_, sepwidth_, uppercase_, true);
 }
 void
 intfield::fmt(fieldbuf &out) const
@@ -379,8 +391,15 @@ intfield::fmt(fieldbuf &out) const
         }
     }
     /* Thousands seperators */
-    if (sep_)
-        nr_digits += (nr_digits - 1) / 3;
+    const char *sepstr = NULL;
+    size_t seplen = 0;
+    if (sepwidth_ != 0 && nr_digits > (int)sepwidth_) {
+        fieldbuf buf;
+        sep_.fmt(buf);
+        sepstr = buf.c_str();
+        seplen = strlen(sepstr);
+        nr_digits += seplen * ((nr_digits - 1) / sepwidth_);
+    }
     /* base indicator */
     if (base_ < 10) {
         nr_digits += 3;
@@ -418,8 +437,9 @@ intfield::fmt(fieldbuf &out) const
                 [idx];
             r /= base_;
             cntr++;
-            if (cntr == 3 && r != 0 && sep_) {
-                buf[--nr_digits] = ',';
+            if (cntr == sepwidth_ && r != 0 && sepstr) {
+                memcpy(buf + nr_digits - seplen, sepstr, seplen);
+                nr_digits -= seplen;
                 cntr = 0;
             }
         }

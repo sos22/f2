@@ -43,6 +43,8 @@ public:
 };
 
 extern const field &space;
+extern const field &comma;
+extern const field &period;
 
 const field &operator +(const field &, const field &);
 
@@ -66,16 +68,19 @@ const field &operator+(const field &, const char *);
 class intfield : public field {
     long val_;
     int base_;
-    bool sep_;
+    const field &sep_;
+    unsigned sepwidth_;
     bool uppercase_;
     bool alwayssign_;
-    intfield(long _val, int _base, bool _sep, bool _uppercase,
-             bool _alwayssign);
+    intfield(long _val, int _base, const field &sep, unsigned sepwidth,
+             bool _uppercase, bool _alwayssign);
 public:
-    static const intfield &n(long val, int base, bool sep,
-                             bool uppercase, bool alwayssign);
+    static const intfield &n(long val, int base, const field &sep,
+                             unsigned sepwidth, bool uppercase,
+                             bool alwayssign);
     const intfield &base(int b) const;
     const intfield &nosep() const;
+    const intfield &sep(const field & = comma, unsigned = 3) const;
     const intfield &uppercase() const;
     const intfield &alwayssign() const;
     void fmt(fieldbuf &) const;
