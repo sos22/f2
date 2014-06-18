@@ -33,8 +33,16 @@ public:
        particular port. */
     static peername udpbroadcast(port p);
 
+    /* Get the peername which we should listen on if we want the OS to
+       allocate us a port number. */
+    static peername tcpany();
+
     /* Get a peername for a local UNIX domain socket. */
     static peername local(const char *path);
+
+    /* Check whether two peernames refer to the same address and
+       address family. */
+    bool samehost(const peername &p) const;
 
     /* Get the sockaddr for this peer */
     const struct sockaddr *sockaddr() const;

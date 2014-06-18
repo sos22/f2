@@ -175,6 +175,15 @@ peername::udpbroadcast(peername::port p)
 }
 
 peername
+peername::tcpany()
+{
+    struct sockaddr_in sin;
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    return peername((const struct sockaddr *)&sin, sizeof(sin));
+}
+
+peername
 peername::local(const char *path) {
     struct sockaddr_un sun;
     memset(&sun, 0, sizeof(sun));
@@ -182,6 +191,26 @@ peername::local(const char *path) {
     assert(strlen(path) < sizeof(sun.sun_path));
     strcpy(sun.sun_path, path);
     return peername((const struct sockaddr *)&sun, sizeof(sun)); }
+
+bool
+peername::samehost(const peername &o) const {
+    auto us(sockaddr());
+    auto them(o.sockaddr());
+    if (us->sa_family != them->sa_family) return false;
+    switch (us->sa_family) {
+    case PF_LOCAL: return true;
+    case PF_INET: {
+        auto in_us((const struct sockaddr_in *)us);
+        auto in_them((const struct sockaddr_in *)them);
+        return in_us->sin_addr.s_addr == in_them->sin_addr.s_addr; }
+    case PF_INET6: {
+        auto in6_us((const struct sockaddr_in6 *)us);
+        auto in6_them((const struct sockaddr_in6 *)them);
+        return !memcmp(in6_us->sin6_addr.s6_addr,
+                       in6_them->sin6_addr.s6_addr,
+                       sizeof(in6_us->sin6_addr.s6_addr)); }
+    default:
+        abort(); } }
 
 const struct sockaddr *
 peername::sockaddr() const {
