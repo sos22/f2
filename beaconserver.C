@@ -206,6 +206,7 @@ beaconserver::listenthreadclass::run()
             .addparam(proto::HAIL::resp::mastername, owner->mastername)
             .addparam(proto::HAIL::resp::nonce, owner->mastersecret_.nonce(
                           rr.success()))
+            .addparam(proto::HAIL::resp::slavename, rr.success())
             .addparam(proto::HAIL::resp::digest,
                       digest("A" +
                              fields::mk(owner->mastername) +

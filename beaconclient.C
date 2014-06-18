@@ -63,10 +63,11 @@ beaconclient(const registrationsecret &rs)
             auto *rxmsg(deserialiseres.success());
             auto respversion(rxmsg->getparam(proto::HAIL::resp::version));
             auto respmastername(rxmsg->getparam(proto::HAIL::resp::mastername));
+            auto respslavename(rxmsg->getparam(proto::HAIL::resp::slavename));
             auto respnonce(rxmsg->getparam(proto::HAIL::resp::nonce));
             auto respdigest(rxmsg->getparam(proto::HAIL::resp::digest));
-            if (respversion == Nothing || respmastername == Nothing ||
-                respnonce == Nothing || respdigest == Nothing) {
+            if (!respversion || !respmastername || !respslavename ||
+                !respnonce || !respdigest) {
                 logmsg(loglevel::failure,
                        "bad HAIL response from " + fields::mk(rxfrom) +
                        ": missing parameter");
@@ -98,7 +99,7 @@ beaconclient(const registrationsecret &rs)
             auto slavename(sock.success().localname());
             sock.success().close();
             return beaconresult(respnonce.just(),
-                                slavename,
+                                respslavename.just(),
                                 respmastername.just(),
                                 rs); } } }
 

@@ -95,8 +95,10 @@ namespace proto {
             static const parameter<unsigned> version(650, "version");
             static const parameter<class peername> mastername(651,
                                                               "mastername");
-            static const parameter<class masternonce> nonce(652, "nonce");
-            static const parameter<class digest> digest(653, "digest");
+            static const parameter<class peername> slavename(652,
+                                                              "slavename");
+            static const parameter<class masternonce> nonce(653, "nonce");
+            static const parameter<class digest> digest(654, "digest");
         }
     }
 
