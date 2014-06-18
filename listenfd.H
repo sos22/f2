@@ -25,6 +25,8 @@ public:
     /* Accept the next incoming connection and construct a data
      * socket_t for it. */
     orerror<socket_t> accept() const;
+    /* Get the address on which we're listening. */
+    peername localname() const;
     /* Generate a struct pollfd which, when passed to poll(), will
      * cause us to wait for incoming connections. */
     struct pollfd poll() const;
