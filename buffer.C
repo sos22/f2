@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "fd.H"
+#include "pubsub.H"
 #include "test.H"
 
 #include "list.tmpl"
@@ -43,14 +44,14 @@ buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
 }
 
 maybe<error>
-buffer::receive(fd_t fd)
+buffer::receive(fd_t fd, maybe<timestamp> deadline)
 {
     subbuf *b;
     if (last && last->sz - last->prod >= 4096)
         b = last;
     else
         b = extend_end();
-    auto read(fd.read(b->payload + b->prod, b->sz - b->prod));
+    auto read(fd.read(b->payload + b->prod, b->sz - b->prod, deadline));
     if (read.isfailure())
         return read.failure();
     b->prod += read.success();
@@ -58,8 +59,21 @@ buffer::receive(fd_t fd)
     return Nothing;
 }
 
+orerror<subscriptionbase *>
+buffer::receive(fd_t fd,
+                subscriber &sub,
+                maybe<timestamp> deadline) {
+    {   iosubscription ios(sub, fd.poll(POLLIN));
+        auto r(sub.wait(deadline));
+        if (r == NULL) return error::timeout;
+        if (r != &ios) return r; }
+    auto r(receive(fd, deadline));
+    if (r.isjust()) return r.just();
+    else return NULL; }
+
+
 maybe<error>
-buffer::send(fd_t fd)
+buffer::send(fd_t fd, maybe<timestamp> deadline)
 {
     while (1) {
         /* Shouldn't try to send an empty buffer */
@@ -71,7 +85,8 @@ buffer::send(fd_t fd)
             continue;
         }
         auto wrote(fd.write(first->payload + first->cons,
-                            first->prod - first->cons));
+                            first->prod - first->cons,
+                            deadline));
         if (wrote.isfailure())
             return wrote.failure();
         first->cons += wrote.success();

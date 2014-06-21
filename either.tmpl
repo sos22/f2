@@ -1,0 +1,45 @@
+#ifndef EITHER_TMPL__
+#define EITHER_TMPL__
+
+template <typename a, typename b>
+either<a,b>::either(const a &what)
+    : isleft_(true) {
+    new (content) a(what); }
+
+template <typename a, typename b>
+either<a,b>::either(const b &what)
+    : isleft_(false) {
+    new (content) b(what); }
+
+template <typename a, typename b> bool
+either<a,b>::isleft() const {
+    return isleft_; }
+
+template <typename a, typename b> bool
+either<a,b>::isright() const {
+    return !isleft_; }
+
+template <typename a, typename b> const a &
+either<a,b>::left() const {
+    return *(a *)content; }
+
+template <typename a, typename b> a &
+either<a,b>::left() {
+    return *(a *)content; }
+
+template <typename a, typename b> const b &
+either<a,b>::right() const {
+    return *(b *)content; }
+
+template <typename a, typename b> b &
+either<a,b>::right() {
+    return *(b *)content; }
+
+template <typename a, typename b>
+either<a,b>::~either() {
+    if (isleft_) {
+        left().~a();
+    } else {
+        right().~b(); } }
+
+#endif /* !EITHER_TMPL__ */

@@ -5,6 +5,7 @@
 
 #include "fields.H"
 #include "maybe.H"
+#include "timedelta.H"
 
 void
 fd_t::close(void) const
@@ -29,8 +30,16 @@ fd_t::polled(const struct pollfd &pfd) const
 }
 
 orerror<size_t>
-fd_t::read(void *buf, size_t sz) const
-{
+fd_t::read(void *buf, size_t sz, maybe<timestamp> deadline) const {
+    if (deadline != Nothing) {
+        while (1) {
+            struct pollfd pfd = poll(POLLIN);
+            auto remaining(
+                (deadline.just() - timestamp::now()).as_milliseconds());
+            int r = ::poll(&pfd, 1, remaining);
+            if (r < 0) return error::from_errno();
+            if (r == 1) break;
+            assert(r == 0); } }
     auto s(::read(fd, buf, sz));
     if (s < 0)
         return error::from_errno();
@@ -41,16 +50,23 @@ fd_t::read(void *buf, size_t sz) const
 }
 
 orerror<size_t>
-fd_t::write(const void *buf, size_t sz) const
-{
+fd_t::write(const void *buf, size_t sz, maybe<timestamp> deadline) const {
+    if (deadline != Nothing) {
+        while (1) {
+            struct pollfd pfd = poll(POLLOUT);
+            auto remaining(
+                (deadline.just() - timestamp::now()).as_milliseconds());
+            int r = ::poll(&pfd, 1, remaining);
+            if (r < 0) return error::from_errno();
+            if (r == 1) break;
+            assert(r == 0); } }
     auto s(::write(fd, buf, sz));
     if (s < 0)
         return error::from_errno();
     else if (s == 0)
         return error::disconnected;
     else
-        return s;
-}
+        return s; }
 
 orerror<fd_t::piperes>
 fd_t::pipe()

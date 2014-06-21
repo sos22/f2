@@ -22,6 +22,7 @@ const error error::truncated(-9);
 const error error::unimplemented(-10);
 const error error::badversion(-11);
 const error error::authenticationfailed(-12);
+const error error::ratelimit(-13);
 
 class errorfield : public fields::field {
     error content;
@@ -61,10 +62,12 @@ public:
                 buf.push("badversion");
             } else if (content == error::authenticationfailed) {
                 buf.push("authenticationfailed");
+            } else if (content == error::ratelimit) {
+                buf.push("ratelimit");
             } else {
-                ("<invalid error " + fields::mk(content.e) + ">").fmt(buf); }
-        }
-};
+                ("<invalid error " + fields::mk(content.e) + ">")
+                    .fmt(buf); } } };
+
 const fields::field &
 fields::mk(const error &e)
 {

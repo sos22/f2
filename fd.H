@@ -4,6 +4,7 @@
 #include "maybe.H"
 #include "obj.H"
 #include "orerror.H"
+#include "timestamp.H"
 
 struct pollfd;
 class buffer;
@@ -47,10 +48,14 @@ public:
     void close() const;
     /* Write some bytes into the FD.  A very thin wrapper around
      * ::write() */
-    orerror<size_t> write(const void *buf, size_t bufsz) const;
+    orerror<size_t> write(const void *buf,
+                          size_t bufsz,
+                          maybe<timestamp> deadline = Nothing) const;
     /* Read some bytes from the FD.  A very thin wrapper around
      * ::read() */
-    orerror<size_t> read(void *buf, size_t bufsz) const;
+    orerror<size_t> read(void *buf,
+                         size_t bufsz,
+                         maybe<timestamp> deadline = Nothing) const;
     typedef __piperes<fd_t> piperes;
     /* Wrapper around ::pipe().  Main advantage is that the read and
      * write FDs are named, rather than being fd[0] and fd[1]. */

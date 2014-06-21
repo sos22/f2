@@ -60,6 +60,8 @@ class rpcserver {
     class connectionthread;
 
 private:   class rootthread : public threadfn {
+    public:  list<connectionthread *> threads;
+    public:  mutex_t threadsmux;
     private: rpcserver *owner;
     private: void run();
     public: rootthread(rpcserver *_owner);
@@ -105,6 +107,10 @@ private:   virtual orerror<cookie_t> startconn(rpcconn &conn) = 0;
        ends, once all method invocations on that connection have
        finished. */
 private:   virtual void endconn(cookie_t) = 0;
+    
+    /* Callback from derived classes when a connection needs to be
+     * torn down. */
+public:    void killconn(rpcconn &conn);
     
     /* Register a new RPC interface with the server.  The interface
        can be invoked at any time after this is called until it us

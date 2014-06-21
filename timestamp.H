@@ -10,7 +10,7 @@ class timestamp {
 public:
     timedelta operator-(timestamp) const;
     timestamp operator+(timedelta) const;
-    bool operator>(const timestamp) const;
+    bool operator<(const timestamp) const;
     timespec as_timespec() const;
     static timestamp now();
 };

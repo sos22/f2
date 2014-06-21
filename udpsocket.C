@@ -80,10 +80,11 @@ udpsocket::receive(buffer &buf, maybe<timestamp> deadline) const {
     } else {
         auto pfd(poll());
         while (1) {
-            auto remaining(deadline.just() - timestamp::now());
-            if (remaining < timedelta::seconds(0))
+            auto remaining(
+                (deadline.just() - timestamp::now()).as_milliseconds());
+            if (remaining < 0)
                 return error::timeout;
-            auto r(::poll(&pfd, 1, remaining.as_milliseconds()));
+            auto r(::poll(&pfd, 1, remaining));
             if (r < 0) return error::from_errno();
             if (r == 1) break;
             assert(r == 0);

@@ -63,18 +63,23 @@ rpcinterface<cookie_t>::rpcinterface(
 
 template <typename cookie_t>
 class rpcserver<cookie_t>::connectionthread : threadfn {
+    friend class rpcserver<cookie_t>;
 private: thread *thr_;
 private: rpcserver *owner;
-private: socket_t fd;
-private: waitbox<bool> &shutdown;
+private: rpcconn conn;
+private: waitbox<bool> &shutdownall;
+private: waitbox<bool> shutdownone;
 private: void run();
 private: connectionthread(
     rpcserver *_owner,
     socket_t _fd,
     waitbox<bool> &_shutdown)
-    : owner(_owner), fd(_fd), shutdown(_shutdown) {}
-private: bool runcommand(rpcconn &conn,
-                         cookie_t ctxt,
+    : thr_(NULL),
+      owner(_owner),
+      conn(_fd),
+      shutdownall(_shutdown),
+      shutdownone() {}
+private: bool runcommand(cookie_t ctxt,
                          bool *die);
 public:  thread *thr() const;
 public:  static orerror<connectionthread *> spawn(
@@ -85,7 +90,6 @@ public:  static orerror<connectionthread *> spawn(
 
 template <typename cookie_t> bool
 rpcserver<cookie_t>::connectionthread::runcommand(
-    rpcconn &conn,
     cookie_t ctxt,
     bool *die) {
     auto r(wireproto::rx_message::fetch(conn.incoming));
@@ -124,7 +128,6 @@ rpcserver<cookie_t>::connectionthread::runcommand(
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::connectionthread::run() {
-    rpcconn conn(fd);
     peername peer(conn.peer());
     
     bool die;
@@ -139,27 +142,30 @@ rpcserver<cookie_t>::connectionthread::run() {
         logmsg(loglevel::info, "start client thread " + fields::mk(peer)); }
     
     subscriber sub;
-    subscription shutdownsub(sub, shutdown.pub);
-    iosubscription insub(sub, fd.poll(POLLIN));
-    iosubscription outsub(sub, fd.poll(POLLOUT));
+    subscription shutdownallsub(sub, shutdownall.pub);
+    subscription shutdownonesub(sub, shutdownone.pub);
+    iosubscription insub(sub, conn.fd.poll(POLLIN));
+    iosubscription outsub(sub, conn.fd.poll(POLLOUT));
     while (!die) {
         fields::flush();
         auto r(sub.wait());
-        if (r == &shutdownsub) {
-            if (shutdown.ready()) die = true;
+        if (r == &shutdownallsub) {
+            if (shutdownall.ready()) die = true;
+        } else if (r == &shutdownonesub) {
+            if (shutdownone.ready()) die = true;
         } else if (r == &insub) {
-            auto t(conn.incoming.receive(fd));
+            auto t(conn.incoming.receive(conn.fd));
             insub.rearm();
             if (t.isjust()) {
                 t.just().warn("receiving from client " + fields::mk(peer));
                 break; }
-            while (runcommand(conn, ctxt.success(), &die))
+            while (runcommand(ctxt.success(), &die))
                 ;
         } else if (r == &outsub) {
             if (conn.outgoing.empty()) {
                 /* Happens on initial iteration.  Just ignore it. */
             } else {
-                auto rr(conn.outgoing.send(fd));
+                auto rr(conn.outgoing.send(conn.fd));
                 if (rr.isjust()) {
                     rr.just().warn("sending to client " + fields::mk(peer));
                     break; } }
@@ -168,7 +174,6 @@ rpcserver<cookie_t>::connectionthread::run() {
         if (!conn.outgoing.empty()) outsub.rearm(); }
     
     logmsg(loglevel::info, fields::mk("client thread finishing"));
-    fd.close();
     owner->dying.pushtail(this); }
 
 template <typename cookie_t> thread *
@@ -192,22 +197,16 @@ rpcserver<cookie_t>::connectionthread::spawn(
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::rootthread::run() {
-    list<connectionthread *> threads;
     subscriber sub;
     iosubscription socksub(sub, owner->sock.poll());
     subscription dyingsub(sub, owner->dying.pub);
     subscription shutdownsub(sub, owner->shutdown.pub);
-    while (1) {
+    while (!owner->shutdown.ready() || !threads.empty()) {
         auto r(sub.wait());
         if (r == &shutdownsub) {
             if (!owner->shutdown.ready()) continue;
             logmsg(loglevel::info,
                    fields::mk("control interface received local shutdown"));
-            /* No longer care about shutdown events */
-            shutdownsub.detach();
-            /* Exit once the threads list goes empty */
-            if (threads.empty())
-/**/            break;
         } else if (r == &dyingsub) {
             if (owner->dying.empty()) continue;
             auto thr(owner->dying.pophead());
@@ -215,6 +214,7 @@ rpcserver<cookie_t>::rootthread::run() {
                    "control interface reaping client thread" +
                    fields::mk(*thr->thr()));
             thr->thr()->join();
+            auto token(threadsmux.lock());
             for (auto it(threads.start()); 1; it.next()) {
                 assert(!it.finished());
                 if (*it == thr) {
@@ -222,12 +222,14 @@ rpcserver<cookie_t>::rootthread::run() {
                     break;
                 }
             }
+            threadsmux.unlock(&token);
             delete thr;
-            /* If that was the last thread then we can safely shut down */
-            if (threads.empty() && owner->shutdown.ready())
-/**/            break;
         } else if (r == &socksub) {
-            if (owner->shutdown.ready()) continue;
+            if (owner->shutdown.ready()) {
+                /* We're shutting down, so go back to waiting without
+                   accepting the new connection and without rearming
+                   the subscription. */
+                continue; }
             auto newfd(owner->sock.accept());
             socksub.rearm();
             if (newfd.isfailure())
@@ -235,6 +237,7 @@ rpcserver<cookie_t>::rootthread::run() {
             logmsg(loglevel::info,
                    "control interface accepting new client " +
                    fields::mk(newfd.success().peer()));
+            auto token(threadsmux.lock());
             auto tr(connectionthread::spawn(owner,
                                             newfd.success(),
                                             owner->shutdown));
@@ -246,6 +249,7 @@ rpcserver<cookie_t>::rootthread::run() {
             } else {
                 threads.pushhead(tr.success());
             }
+            threadsmux.unlock(&token);
         } else {
             abort(); } }
     
@@ -257,7 +261,9 @@ rpcserver<cookie_t>::rootthread::run() {
 template <typename cookie_t>
 rpcserver<cookie_t>::rootthread::rootthread(
     rpcserver<cookie_t> *_owner)
-    : owner(_owner) {}
+    : threads(),
+      threadsmux(),
+      owner(_owner) {}
 
 template <typename cookie_t>
 rpcserver<cookie_t>::unknowniface::unknowniface()
@@ -302,6 +308,17 @@ rpcserver<cookie_t>::rpcserver()
       root(this),
       unknowninterface(),
       unknownregistration(registeriface(unknowninterface)) {}
+
+template <typename cookie_t> void
+rpcserver<cookie_t>::killconn(rpcconn &conn) {
+    auto token(root.threadsmux.lock());
+    for (auto it(root.threads.start()); !it.finished(); it.next()) {
+        if (&conn == &(*it)->conn) {
+            (*it)->shutdownone.set(true);
+            root.threadsmux.unlock(&token);
+            return; } }
+    root.threadsmux.unlock(&token);
+    abort(); }
 
 template <typename cookie_t> rpcregistration<cookie_t> *
 rpcserver<cookie_t>::registeriface(

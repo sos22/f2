@@ -8,6 +8,8 @@
 #include "proto.H"
 #include "tcpsocket.H"
 
+#include "either.tmpl"
+
 rpcconn::rpcconn(socket_t _fd)
     : outgoing(),
       incoming(),
@@ -15,15 +17,41 @@ rpcconn::rpcconn(socket_t _fd)
       sequencer(),
       pendingrx() {}
 
-orerror<const wireproto::rx_message *>
-rpcconn::_receive() {
+orerror<rpcconn::receiveres>
+rpcconn::_receive(subscriber &sub, maybe<timestamp> deadline) {
     while (1) {
         auto r(wireproto::rx_message::fetch(incoming));
-        if (r.issuccess()) return r.success();
+        if (r.issuccess()) return receiveres(r.success());
         if (r.isfailure() && r.failure() != error::underflowed) {
             return r.failure(); }
-        auto t(incoming.receive(fd));
-        if (t.isjust()) return t.just(); } }
+        auto t(incoming.receive(fd, sub, deadline));
+        if (t.isfailure()) return t.failure();
+        if (t.success()) return receiveres(t.success()); } }
+
+orerror<const wireproto::rx_message *>
+rpcconn::receive(maybe<timestamp> deadline) {
+    if (!pendingrx.empty()) return pendingrx.pophead();
+    subscriber sub;
+    auto r(_receive(sub, deadline));
+    if (r.isfailure()) return r.failure();
+    assert(r.success().ismessage());
+    return r.success().message(); }
+
+orerror<rpcconn::receiveres>
+rpcconn::receive(subscriber &sub, wireproto::sequencenr snr) {
+    for (auto it(pendingrx.start()); !it.finished(); it.next()) {
+        if ((*it)->sequence == snr) {
+            auto res(*it);
+            it.remove();
+            return receiveres(res); } }
+    while (1) {
+        auto m = _receive(sub, Nothing);
+        if (m.isfailure()) return m.failure();
+        if (m.success().issubscription()) {
+            return receiveres(m.success().subscription()); }
+        if (m.success().message()->sequence == snr) {
+            return receiveres(m.success().message()); }
+        pendingrx.pushtail(m.success().message()); } }
 
 orerror<rpcconn *>
 rpcconn::connect(const peername &p) {
@@ -57,30 +85,29 @@ rpcconn::connectmaster(const beaconresult &beacon)
     return res.success(); }
 
 rpcconn::~rpcconn() {
-    fd.close(); }
+    fd.close();
+    while (!pendingrx.empty())
+        pendingrx.pophead()->finish(); }
 
 maybe<error>
-rpcconn::send(const wireproto::tx_message &msg) {
+rpcconn::send(const wireproto::tx_message &msg, maybe<timestamp> deadline) {
     {   auto r(msg.serialise(outgoing));
         if (r.isjust()) return r; }
     
     while (!outgoing.empty()) {
-        auto r(outgoing.send(fd));
+        auto r(outgoing.send(fd, deadline));
         if (r.isjust()) return r; }
     return Nothing; }
 
 orerror<const wireproto::rx_message *>
 rpcconn::call(const wireproto::req_message &msg) {
     auto r = send(msg);
-    if (r.isjust())
-        return r.just();
-    while (1) {
-        auto m = _receive();
-        if (m.isfailure())
-            return m;
-        if (m.success()->sequence == msg.sequence.reply())
-            return m;
-        pendingrx.pushtail(m.success()); } }
+    if (r.isjust()) return r.just();
+    subscriber sub;
+    auto rr(receive(sub, msg.sequence.reply()));
+    if (rr.isfailure()) return rr.failure();
+    assert(rr.success().ismessage());
+    return rr.success().message(); }
 
 wireproto::sequencenr
 rpcconn::allocsequencenr(void) {
@@ -93,3 +120,5 @@ rpcconn::putsequencenr(wireproto::sequencenr snr) {
 peername
 rpcconn::peer() const {
     return fd.peer(); }
+
+template class either<subscriptionbase *, const wireproto::rx_message *>;

@@ -6,8 +6,12 @@
 #include "error.H"
 #include "list.H"
 #include "maybe.H"
+#include "timestamp.H"
 
 class fd_t;
+template <typename> class orerror;
+class subscriber;
+class subscriptionbase;
 class test;
 
 class buffer {
@@ -39,12 +43,20 @@ public:
     /* Interface to fd_t */
     /* Send some bytes from the start of the buffer.  Only ever makes
      * a single write syscall, so won't block if poll returns POLLOUT.
-     * Might leave some bytes in the buffer. */
-    maybe<error> send(fd_t);
+     * Might leave some bytes in the buffer, even when it returns
+     * success. */
+    maybe<error> send(fd_t, maybe<timestamp> deadline = Nothing);
     /* Grab some bytes from the fd and put them at the end of the
      * buffer.  Only ever makes a single read syscall, so won't block
      * if poll returns POLLIN. */
-    maybe<error> receive(fd_t);
+    maybe<error> receive(fd_t, maybe<timestamp> deadline = Nothing);
+    /* Grab some bytes from the fd, waiting at most until the deadline
+     * or until the subscriber becomes notified.  If the subscriber
+     * becomes notified, clear and return the subscription.  If an
+     * error occurs, return that error.  Otherwise, return NULL. */
+    orerror<subscriptionbase *> receive(fd_t,
+                                        subscriber &sub,
+                                        maybe<timestamp> deadline = Nothing);
 
     /* Interface for setting up buffers from memory. */
     /* Copy some bytes from memory to the end of the buffer.  The

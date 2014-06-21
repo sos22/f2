@@ -67,6 +67,7 @@ public:
     static const error unimplemented; /* Not implemented yet */
     static const error badversion; /* Unrecognised protocol version requested */
     static const error authenticationfailed; /* Authentication failure */
+    static const error ratelimit; /* Blocked by rate limiter */
 };
 
 namespace fields {
