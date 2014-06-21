@@ -4,6 +4,7 @@
 #define PUBSUB_H__
 
 #include "cond.H"
+#include "fd.H"
 #include "list.H"
 #include "maybe.H"
 #include "mutex.H"
@@ -30,34 +31,72 @@ public: void publish();
 public: ~publisher();
 };
 
-/* A subscription acts to connect a subscriber to a publisher. */
-class subscription {
+class subscriptionbase {
     friend class subscriber;
     friend class publisher;
-private:  bool notified;
-private:  subscriber *sub;
+protected: bool notified;
+protected: subscriber *sub;
+protected: subscriptionbase(subscriber &_sub);
+    /* Set the notified flag on this subscription.  Only called by
+     * publisher and derived classes. */
+protected: void set();
+    /* Called by the subscriber when it's time to unhook from the
+     * publisher. */
+private:   virtual void teardown() = 0;
+protected: ~subscriptionbase();
+};
+
+/* A subscription acts to connect a subscriber to a publisher. */
+class subscription : public subscriptionbase {
+    friend class publisher;
 private:  publisher *pub;
     /* Construct a new subscription connecting a given publisher to a
      * given subscriber. */
 public:  subscription(subscriber &, publisher &);
-    /* Set the notified flag on this subscription.  Only called by
-     * publisher. */
-private: void set();
+private: void teardown();
     /* Destruct the subscription, disconnecting from the publisher and
      * the subscriber.  The caller must ensure that this does not run
      * concurrently with the subscriber destructor.*/
 public:  ~subscription();
 };
 
+/* An iosubscription connects a subscriber to an FD and a poll mask.
+   The subscription is notified whenever IO of the given type becomes
+   possible on the FD.  Once notified, it stops listening for further
+   events until rearm() is called. */
+class iosubscription : public subscriptionbase {
+    friend class iopollingthread;
+private: fd_t fd; /* Which FD are we listening to? */
+private: int events; /* Which events are we interested in? */
+private: bool registered; /* Are we currently registered with the poll
+                             thread?  Protected by the polling thread
+                             mux. */
+    /* Construct a new iosubscription connecting the subscriber to the
+     * file descriptor. */
+public:  iosubscription(subscriber &, fd_t fd, int pollmask);
+    /* IO subscriptions are by default single-shot, so that once
+     * they've been notified once they won't be notified again if
+     * further IO becomes possible.  Calling rearm() resets the
+     * subscription so that it can be notified again.  This should
+     * only be called after the subscription has been returned from
+     * subscriber::wait(). */
+public:  void rearm();
+private: void teardown();
+    /* Destruct the subscription, disconnecting the subscriber from
+     * the FD. */
+public:  ~iosubscription();
+};
+
 /* A subscriber represent someone who waits for events to be
  * published.  Each subscriber can be subscribed to one or more
  * publishers and will be woken whenever any of them publish. */
 class subscriber {
+    friend class subscriptionbase;
     friend class subscription;
 private: mutex_t mux;
 private: cond_t cond;
 private: bool notified;
-private: list<subscription *> subscriptions;
+private: list<subscriptionbase *> subscriptions;
     /* One of the subscriptions in the list was notified.  Update the
        subscriber, unblocking if necessary.  Caller must have acquired
        the subscriber lock. */
@@ -69,7 +108,7 @@ public: subscriber();
      * notified, or NULL if nothing was notified before the deadline.
      * The notification flag on the subscription is cleared but it
      * remains in the subscription list. */
-public: subscription *wait(maybe<timestamp> deadline = Nothing);
+public: subscriptionbase *wait(maybe<timestamp> deadline = Nothing);
     /* Destruct a subscriber.  Any outstanding subscriptions are
      * automatically unsubscribed, leaving the subscription in an
      * invalid state in which the only safe operation is to destruct
@@ -79,6 +118,9 @@ public: subscription *wait(maybe<timestamp> deadline = Nothing);
      * is safe). */
 public: ~subscriber();
 };
+
+void initpubsub();
+void deinitpubsub();
 
 class test;
 namespace tests {
