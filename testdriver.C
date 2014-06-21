@@ -4,6 +4,7 @@
 #include "buffer.H"
 #include "fields.H"
 #include "logging.H"
+#include "pubsub.H"
 #include "test.H"
 
 int
@@ -19,6 +20,8 @@ main(int argc, char *argv[])
         fields::test(t);
     else if (!strcmp(argv[1], "logging"))
         logtest(t);
+    else if (!strcmp(argv[1], "pubsub"))
+        tests::pubsub(t);
     else if (!strcmp(argv[1], "wireproto"))
         wireproto::test(t);
     else

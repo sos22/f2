@@ -1,10 +1,16 @@
 #include "cond.H"
 
+#include <errno.h>
+
 cond_t::cond_t(mutex_t &_associated_mux)
     : associated_mux(_associated_mux),
       cond()
 {
-    pthread_cond_init(&cond, NULL);
+    pthread_condattr_t attr;
+    pthread_condattr_init(&attr);
+    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+    pthread_cond_init(&cond, &attr);
+    pthread_condattr_destroy(&attr);
 }
 
 cond_t::~cond_t()
@@ -27,3 +33,23 @@ cond_t::wait(mutex_t::token *tok) const
     pthread_cond_wait(const_cast<pthread_cond_t *>(&cond), &associated_mux.mux);
     return mutex_t::token();
 }
+
+cond_t::waitres
+cond_t::wait(mutex_t::token *tok, maybe<timestamp> deadline) const {
+    if (deadline == Nothing) {
+        waitres res;
+        res.timedout = false;
+        res.token = wait(tok);
+        return res; }
+    
+    tok->formux(associated_mux);
+    tok->release();
+    struct timespec ts(deadline.just().as_timespec());
+    int r = pthread_cond_timedwait(const_cast<pthread_cond_t *>(&cond),
+                                   &associated_mux.mux,
+                                   &ts);
+    assert(r == 0 || r == ETIMEDOUT);
+    waitres res;
+    res.token = mutex_t::token();
+    res.timedout = r == ETIMEDOUT;
+    return res; }

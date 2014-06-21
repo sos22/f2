@@ -3,7 +3,9 @@
 
 #include <pthread.h>
 
+#include "maybe.H"
 #include "mutex.H"
+#include "timestamp.H"
 
 class cond_t {
     mutex_t &associated_mux;
@@ -18,6 +20,12 @@ public:
     /* waiting on a cond var doesn't change the cond var's state, so
        it gets a const modifier. */
     mutex_t::token wait(mutex_t::token *) const;
+    /* Wait on a condvar until some timeout. */
+    struct waitres {
+        bool timedout;
+        mutex_t::token token;
+    };
+    waitres wait(mutex_t::token *, maybe<timestamp> deadline) const;
 
 };
 

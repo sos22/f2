@@ -11,6 +11,7 @@ class timedelta {
     timedelta(long _v) : v(_v) {}
 public:
     static timedelta seconds(long nr);
+    static timedelta milliseconds(long nr);
     timestamp operator+(timestamp);
     double operator*(frequency);
 

@@ -23,3 +23,10 @@ timestamp::operator-(timestamp o) const
 {
     return timedelta(v - o.v);
 }
+
+struct timespec
+timestamp::as_timespec() const {
+    struct timespec res;
+    res.tv_sec = v / 1000000000;
+    res.tv_nsec = v % 1000000000;
+    return res; }

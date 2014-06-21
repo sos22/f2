@@ -2,6 +2,7 @@
 #define TIMESTAMP_H__
 
 class timedelta;
+struct timespec;
 
 class timestamp {
     unsigned long v; /* nanoseconds since epoch */
@@ -9,6 +10,8 @@ class timestamp {
 public:
     timedelta operator-(timestamp) const;
     timestamp operator+(timedelta) const;
+    bool operator>(const timestamp) const;
+    timespec as_timespec() const;
     static timestamp now();
 };
 
