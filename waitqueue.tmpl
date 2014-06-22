@@ -3,22 +3,9 @@
 
 #include "list.tmpl"
 
-template <typename t> fd_t
-waitqueue<t>::fd() const
-{
-    return readfd;
-}
-
 template <typename t> t
 waitqueue<t>::pophead()
 {
-    assert(!content.empty());
-    char c;
-    auto r(readfd.read(&c, 1));
-    if (r.isfailure())
-        r.failure().fatal(fields::mk("reading waitqueue"));
-    if (r.success() != 1)
-        error::disconnected.fatal(fields::mk("reading waitqueue"));
     auto token(mux.lock());
     auto res(content.pophead());
     mux.unlock(&token);
@@ -31,37 +18,7 @@ waitqueue<t>::pushtail(const t &what)
     auto token(mux.lock());
     content.append() = what;
     mux.unlock(&token);
-    char c = 'X';
-    auto r(writefd.write(&c, 1));
-    if (r.isfailure())
-        r.failure().fatal(fields::mk("writing waitqueue"));
-    if (r.success() != 1)
-        error::disconnected.fatal(fields::mk("writing waitqueue"));
-}
-
-template <typename t> orerror<waitqueue<t> *>
-waitqueue<t>::build()
-{
-    auto fds(fd_t::pipe());
-    if (fds.isfailure())
-        return fds.failure();
-    auto work = new waitqueue<t>();
-    work->readfd = fds.success().read;
-    work->writefd = fds.success().write;
-    return work;
-}
-
-template <typename t>
-waitqueue<t>::~waitqueue() {}
-
-/* Not a destructor because it has a non-trivial precondition */
-template <typename t> void
-waitqueue<t>::destroy() const
-{
-    readfd.close();
-    writefd.close();
-    assert(content.empty());
-    delete this;
+    pub_.publish();
 }
 
 template <typename t> bool

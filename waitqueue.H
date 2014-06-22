@@ -2,32 +2,30 @@
 #define WAITQUEUE_H__
 
 #include "list.H"
+#include "pubsub.H"
 
-class fd_t;
+class publisher;
 
-/* Like a list, except that it has an associated FD which you can poll
- * on. */
-/* Much like a waitbox, each of these will consume two FDs, so don't
- * use them where a list and a cond var would suffice. */
+/* A list extended with something to wait until it's non-empty. */
 template <typename t>
 class waitqueue {
     mutable mutex_t mux;
-    fd_t readfd;
-    fd_t writefd;
+    publisher pub_;
     list<t> content;
-    waitqueue()
-        : mux(), readfd(), writefd(), content()
-        {}
-private: ~waitqueue();
+public:  waitqueue()
+    : mux(),
+      pub_(),
+      content(),
+      pub(pub_) {}
 public:
+    const publisher &pub;
     t pophead();
     void pushtail(const t &);
-    fd_t fd() const;
-    /* Destroy the queue.  It must be empty before calling this. */
-    void destroy() const;
+    /* Destruct the queue.  It must be empty before calling this
+     * (checked by content destructor).  */
+public:  ~waitqueue() {}
     /* Check whether the queue is currently empty */
     bool empty() const;
-    static orerror<waitqueue *> build();
 };
 
 #endif /* !WAITQUEUE_H__ */

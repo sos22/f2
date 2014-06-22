@@ -50,11 +50,11 @@ private: maybe<error> message(const wireproto::rx_message &,
                               buffer &);
 };
 class quitiface : public rpcinterface<controlconn *> {
-    waitbox<shutdowncode> *s;
+    waitbox<shutdowncode> &s;
     quitiface() = delete;
     quitiface(const quitiface &) = delete;
     void operator=(const quitiface &) = delete;
-public:  quitiface(waitbox<shutdowncode> *_s)
+public:  quitiface(waitbox<shutdowncode> &_s)
     : rpcinterface(proto::QUIT::tag),
       s(_s) {}
 private: maybe<error> message(const wireproto::rx_message &,
@@ -67,7 +67,7 @@ private: pingiface pinginterface;
 private: quitiface quitinterface;
 private: rpcregistration<controlconn *> *registration;
     
-public:  controlserverimpl(waitbox<shutdowncode> *s)
+public:  controlserverimpl(waitbox<shutdowncode> &s)
     : controlserver(),
       pinginterface(),
       quitinterface(s),
@@ -113,7 +113,7 @@ quitiface::message(const wireproto::rx_message &msg,
     logmsg(loglevel::notice,
            "received a quit message: " + fields::mk(str) +
            "from " + fields::mk(conn->peer));
-    s->set(reason.just());
+    s.set(reason.just());
     return Nothing;
 }
 
@@ -144,7 +144,7 @@ controlserverimpl::setup(
    controlserverimpl, so that we don't need all the implementation
    details in the controlserver.H header. */
 orerror<controlserver *>
-controlserver::build(const peername &p, waitbox<shutdowncode> *s)
+controlserver::build(const peername &p, waitbox<shutdowncode> &s)
 {
     auto r(new _controlserver::controlserverimpl(s));
     auto e(r->setup(p));

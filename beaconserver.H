@@ -62,7 +62,7 @@ class beaconserver {
     listenthreadclass listenthreadfn;
     thread *listenthread;
     udpsocket listenfd;
-    waitbox<bool> *shutdown;
+    waitbox<bool> shutdown;
 
     unsigned errors; /* total number of errors, ever */
     unsigned rx; /* total number of packets received, ever */

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "fields.H"
 #include "util.H"
 
 #include "waitbox.tmpl"

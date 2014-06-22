@@ -66,12 +66,12 @@ class rpcserver<cookie_t>::connectionthread : threadfn {
 private: thread *thr_;
 private: rpcserver *owner;
 private: socket_t fd;
-private: waitbox<bool> *shutdown;
+private: waitbox<bool> &shutdown;
 private: void run();
 private: connectionthread(
     rpcserver *_owner,
     socket_t _fd,
-    waitbox<bool> *_shutdown)
+    waitbox<bool> &_shutdown)
     : owner(_owner), fd(_fd), shutdown(_shutdown) {}
 private: bool runcommand(rpcconn &conn,
                          cookie_t ctxt,
@@ -80,7 +80,7 @@ public:  thread *thr() const;
 public:  static orerror<connectionthread *> spawn(
     rpcserver *owner,
     socket_t fd,
-    waitbox<bool> *);
+    waitbox<bool> &);
 };
 
 template <typename cookie_t> bool
@@ -126,55 +126,50 @@ template <typename cookie_t> void
 rpcserver<cookie_t>::connectionthread::run() {
     rpcconn conn(fd);
     peername peer(conn.peer());
-    struct pollfd fds[2];
-    
-    fds[0] = shutdown->fd().poll(POLLIN);
-    fds[1] = fd.poll(POLLIN);
     
     bool die;
     die = false;
-    logmsg(loglevel::info, "start client thread " + fields::mk(peer));
-    
     auto ctxt(owner->startconn(conn));
     if (ctxt.isfailure()) {
         logmsg(loglevel::failure,
                "connection from " + fields::mk(peer) +
                " rejected by implementation: " + fields::mk(ctxt.failure()));
         die = true;
-    }
+    } else {
+        logmsg(loglevel::info, "start client thread " + fields::mk(peer)); }
     
-    while (!die && !shutdown->ready()) {
+    subscriber sub;
+    subscription shutdownsub(sub, shutdown.pub);
+    iosubscription insub(sub, fd.poll(POLLIN));
+    iosubscription outsub(sub, fd.poll(POLLOUT));
+    while (!die) {
         fields::flush();
-        auto r(::poll(fds, 2, -1));
-        if (r < 0)
-            error::from_errno().fatal("poll client");
-        if (fds[0].revents) {
-            assert(fds[0].revents == POLLIN);
-            assert(shutdown->ready());
-            fds[0].revents = 0; }
-        if (fds[1].revents) {
-            if (fds[1].revents & POLLOUT) {
+        auto r(sub.wait());
+        if (r == &shutdownsub) {
+            if (shutdown.ready()) die = true;
+        } else if (r == &insub) {
+            auto t(conn.incoming.receive(fd));
+            insub.rearm();
+            if (t.isjust()) {
+                t.just().warn("receiving from client " + fields::mk(peer));
+                break; }
+            while (runcommand(conn, ctxt.success(), &die))
+                ;
+        } else if (r == &outsub) {
+            if (conn.outgoing.empty()) {
+                /* Happens on initial iteration.  Just ignore it. */
+            } else {
                 auto rr(conn.outgoing.send(fd));
                 if (rr.isjust()) {
                     rr.just().warn("sending to client " + fields::mk(peer));
-                    break; }
-                fds[1].revents &= ~POLLOUT;
-                if (conn.outgoing.empty()) {
-                    fds[1].events &= ~POLLOUT; } }
-            if (fds[1].revents & POLLIN) {
-                auto t(conn.incoming.receive(fd));
-                if (t.isjust()) {
-                    t.just().warn("receiving from client " + fields::mk(peer));
-                    break; }
-                fds[1].revents &= ~POLLIN;
-                while (runcommand(conn, ctxt.success(), &die))
-                    ;
-                if (!conn.outgoing.empty()) {
-                    fds[1].events |= POLLOUT; } } } }
+                    break; } }
+        } else {
+            abort(); }
+        if (!conn.outgoing.empty()) outsub.rearm(); }
     
     logmsg(loglevel::info, fields::mk("client thread finishing"));
     fd.close();
-    owner->dying->pushtail(this); }
+    owner->dying.pushtail(this); }
 
 template <typename cookie_t> thread *
 rpcserver<cookie_t>::connectionthread::thr() const {
@@ -185,7 +180,7 @@ orerror<class rpcserver<cookie_t>::connectionthread *>
 rpcserver<cookie_t>::connectionthread::spawn(
     rpcserver<cookie_t> *owner,
     socket_t fd,
-    waitbox<bool> *localshutdown) {
+    waitbox<bool> &localshutdown) {
     auto res(new connectionthread(owner, fd, localshutdown));
     auto t(thread::spawn(res, &res->thr_,
                          "RPC client thread for " + fields::mk(fd.peer())));
@@ -197,87 +192,66 @@ rpcserver<cookie_t>::connectionthread::spawn(
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::rootthread::run() {
-    struct pollfd pfds[3];
     list<connectionthread *> threads;
-    unsigned nrfds;
-    pfds[0] = owner->shutdown->fd().poll(POLLIN);
-    pfds[1] = owner->dying->fd().poll(POLLIN);
-    pfds[2] = owner->sock.poll();
-    nrfds = 3;
+    subscriber sub;
+    iosubscription socksub(sub, owner->sock.poll());
+    subscription dyingsub(sub, owner->dying.pub);
+    subscription shutdownsub(sub, owner->shutdown.pub);
     while (1) {
-        int r = poll(pfds, nrfds, -1);
-        if (r < 0) {
-            error::from_errno().fatal("polling control interface"); }
-        for (unsigned i = 0; r; i++) {
-            assert(i < ARRAY_SIZE(pfds));
-            if (pfds[i].revents) {
-                if (owner->shutdown->fd().polled(pfds[i])) {
-                    logmsg(loglevel::info,
-                           fields::mk("control interface received local shutdown"));
-                    assert(!(pfds[i].revents & POLLERR));
-                    memmove(pfds+i, pfds+i+1, sizeof(pfds[0]) * (nrfds-i-1));
-                    nrfds--;
-                    /* No longer interested in accepting more clients. */
-                    for (unsigned j = 0; j < nrfds; j++) {
-                        if (owner->sock.polled(pfds[j])) {
-                            memmove(pfds + j,
-                                    pfds + j + 1,
-                                    sizeof(pfds[0]) * (nrfds - j - 1));
-                            if (i >= j) i--;
-                            nrfds--;
-                            j--;
-                        }
-                    }
-                    if (threads.empty())
-/**/                    goto out;
-                } else if (owner->dying->fd().polled(pfds[i])) {
-                    assert(!(pfds[i].revents & POLLERR));
-                    auto thr(owner->dying->pophead());
-                    logmsg(loglevel::info,
-                           "control interface reaping client thread" +
-                           fields::mk(*thr->thr()));
-                    thr->thr()->join();
-                    for (auto it(threads.start()); 1; it.next()) {
-                        assert(!it.finished());
-                        if (*it == thr) {
-                            it.remove();
-                            break;
-                        }
-                    }
-                    delete thr;
-                    if (threads.empty() && owner->shutdown->ready())
-/**/                    goto out;
-                } else {
-                    if (pfds[i].revents & POLLERR)
-                        error::disconnected.fatal("on control listen socket");
-                    assert(owner->sock.polled(pfds[i]));
-                    auto newfd(owner->sock.accept());
-                    if (newfd.isfailure())
-                        newfd.failure().fatal("accept on control interface");
-                    logmsg(loglevel::info,
-                           "control interface accepting new client " +
-                           fields::mk(newfd.success().peer()));
-                    auto tr(connectionthread::spawn(owner,
-                                                    newfd.success(),
-                                                    owner->shutdown));
-                    if (tr.isfailure()) {
-                        error::from_errno().warn(
-                            "Cannot build thread for new client " +
-                            fields::mk(newfd.success().peer()));
-                        newfd.success().close();
-                    } else {
-                        threads.pushhead(tr.success());
-                    }
+        auto r(sub.wait());
+        if (r == &shutdownsub) {
+            if (!owner->shutdown.ready()) continue;
+            logmsg(loglevel::info,
+                   fields::mk("control interface received local shutdown"));
+            /* No longer care about shutdown events */
+            shutdownsub.detach();
+            /* Exit once the threads list goes empty */
+            if (threads.empty())
+/**/            break;
+        } else if (r == &dyingsub) {
+            if (owner->dying.empty()) continue;
+            auto thr(owner->dying.pophead());
+            logmsg(loglevel::info,
+                   "control interface reaping client thread" +
+                   fields::mk(*thr->thr()));
+            thr->thr()->join();
+            for (auto it(threads.start()); 1; it.next()) {
+                assert(!it.finished());
+                if (*it == thr) {
+                    it.remove();
+                    break;
                 }
-                pfds[i].revents = 0;
-                r--;
             }
-        }
-    }
-out:
+            delete thr;
+            /* If that was the last thread then we can safely shut down */
+            if (threads.empty() && owner->shutdown.ready())
+/**/            break;
+        } else if (r == &socksub) {
+            if (owner->shutdown.ready()) continue;
+            auto newfd(owner->sock.accept());
+            socksub.rearm();
+            if (newfd.isfailure())
+                newfd.failure().fatal("accept on control interface");
+            logmsg(loglevel::info,
+                   "control interface accepting new client " +
+                   fields::mk(newfd.success().peer()));
+            auto tr(connectionthread::spawn(owner,
+                                            newfd.success(),
+                                            owner->shutdown));
+            if (tr.isfailure()) {
+                error::from_errno().warn(
+                    "Cannot build thread for new client " +
+                    fields::mk(newfd.success().peer()));
+                newfd.success().close();
+            } else {
+                threads.pushhead(tr.success());
+            }
+        } else {
+            abort(); } }
+    
     assert(threads.empty());
-    assert(owner->shutdown->ready());
-    assert(owner->dying->empty());
+    assert(owner->shutdown.ready());
+    assert(owner->dying.empty());
     return; }
 
 template <typename cookie_t>
@@ -301,8 +275,6 @@ rpcserver<cookie_t>::unknowniface::message(
 template <typename cookie_t>
 rpcserver<cookie_t>::~rpcserver() {
     assert(!roothandle);
-    assert(!shutdown);
-    assert(!dying);
     assert(unknownregistration->outstanding == 0);
     unknownregistration->destroy();
     assert(registrations.empty()); }
@@ -323,8 +295,8 @@ template <typename cookie_t>
 rpcserver<cookie_t>::rpcserver()
     : mux(),
       registrations(),
-      shutdown(NULL),
-      dying(NULL),
+      shutdown(),
+      dying(),
       sock(),
       roothandle(NULL),
       root(this),
@@ -366,36 +338,18 @@ template <typename cookie_t> maybe<error>
 rpcserver<cookie_t>::start(const peername &p, const fields::field &name)
 {
     assert(!roothandle);
-    assert(!shutdown);
-    assert(!dying);
     assert(unknownregistration);
-
-    auto ls(waitbox<bool>::build());
-    auto td(waitqueue<connectionthread *>::build());
+    
     auto sl(socket_t::listen(p));
+    if (sl.isfailure()) return sl.failure();
+    
     maybe<error> threaderr(Nothing);
+    sock = sl.success();
     
-    if (ls.issuccess() && td.issuccess() && sl.issuccess()) {
-        shutdown = ls.success();
-        dying = td.success();
-        sock = sl.success();
-        
-        threaderr = thread::spawn(
-            &root, &roothandle, name);
-        if (threaderr == Nothing) return Nothing; }
-    
-    if (sl.issuccess()) sl.success().close();
-    if (td.issuccess()) td.success()->destroy();
-    if (ls.issuccess()) delete ls.success();
-    
-    shutdown = NULL;
-    dying = NULL;
-    
-    if (ls.isfailure()) return ls.failure();
-    else if (td.isfailure()) return td.failure();
-    else if (sl.isfailure()) return sl.failure();
-    else if (threaderr.isjust()) return threaderr.just();
-    else abort(); }
+    threaderr = thread::spawn(
+        &root, &roothandle, name);
+    if (threaderr.isjust()) sock.close();
+    return threaderr; }
 
 template <typename cookie_t> peername
 rpcserver<cookie_t>::localname() const {
@@ -404,14 +358,9 @@ rpcserver<cookie_t>::localname() const {
 template <typename cookie_t> void
 rpcserver<cookie_t>::stop() {
     if (roothandle == NULL) return;
-    assert(shutdown != NULL);
-    shutdown->set(true);
+    shutdown.set(true);
     roothandle->join();
-    roothandle = NULL;
-    delete shutdown;
-    dying->destroy();
-    shutdown = NULL;
-    dying = NULL; }
+    roothandle = NULL; }
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::destroy() {

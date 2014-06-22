@@ -3,6 +3,8 @@
 #ifndef PUBSUB_H__
 #define PUBSUB_H__
 
+#include <sys/poll.h>
+
 #include "cond.H"
 #include "fd.H"
 #include "list.H"
@@ -19,8 +21,8 @@ class subscription;
 class publisher {
     friend class subscriber;
     friend class subscription;
-private: mutex_t mux;
-private: list<subscription *> subscriptions;
+private: mutable mutex_t mux;
+private: mutable list<subscription *> subscriptions;
     /* Construct a publisher with no subscriptions */
 public: publisher();
     /* Mark everything all of the subscriptions connected to this
@@ -41,22 +43,23 @@ protected: subscriptionbase(subscriber &_sub);
      * publisher and derived classes. */
 protected: void set();
     /* Called by the subscriber when it's time to unhook from the
-     * publisher. */
-private:   virtual void teardown() = 0;
+     * publisher.  This is made public in some subclasses. */
+private:   virtual void detach() = 0;
 protected: ~subscriptionbase();
 };
 
 /* A subscription acts to connect a subscriber to a publisher. */
 class subscription : public subscriptionbase {
     friend class publisher;
-private:  publisher *pub;
+private:  const publisher *pub;
     /* Construct a new subscription connecting a given publisher to a
      * given subscriber. */
-public:  subscription(subscriber &, publisher &);
-private: void teardown();
-    /* Destruct the subscription, disconnecting from the publisher and
+public:  subscription(subscriber &, const publisher &);
+    /* Detach the subscription, disconnecting from the publisher and
      * the subscriber.  The caller must ensure that this does not run
      * concurrently with the subscriber destructor.*/
+public:  void detach();
+    /* Destruct the subscription, detaching it first if necessary. */
 public:  ~subscription();
 };
 
@@ -66,14 +69,13 @@ public:  ~subscription();
    events until rearm() is called. */
 class iosubscription : public subscriptionbase {
     friend class iopollingthread;
-private: fd_t fd; /* Which FD are we listening to? */
-private: int events; /* Which events are we interested in? */
+private: const struct pollfd pfd; /* What are we listening for? */
 private: bool registered; /* Are we currently registered with the poll
                              thread?  Protected by the polling thread
                              mux. */
-    /* Construct a new iosubscription connecting the subscriber to the
-     * file descriptor. */
-public:  iosubscription(subscriber &, fd_t fd, int pollmask);
+    /* Construct a new iosubscription connecting the subscriber to a
+     * given poll descriptor. */
+public:  iosubscription(subscriber &, struct pollfd);
     /* IO subscriptions are by default single-shot, so that once
      * they've been notified once they won't be notified again if
      * further IO becomes possible.  Calling rearm() resets the
@@ -81,7 +83,7 @@ public:  iosubscription(subscriber &, fd_t fd, int pollmask);
      * only be called after the subscription has been returned from
      * subscriber::wait(). */
 public:  void rearm();
-private: void teardown();
+private: void detach();
     /* Destruct the subscription, disconnecting the subscriber from
      * the FD. */
 public:  ~iosubscription();

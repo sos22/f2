@@ -6,6 +6,8 @@
 #include "listenfd.H"
 #include "mutex.H"
 #include "thread.H"
+#include "waitbox.H"
+#include "waitqueue.H"
 #include "wireproto.H"
 
 class buffer;
@@ -13,8 +15,6 @@ class error;
 template <typename> class maybe;
 class peername;
 class rpcconn;
-template <typename> class waitbox;
-template <typename> class waitqueue;
 
 template <typename> class rpcserver;
 template <typename> class rpcinterface;
@@ -72,8 +72,8 @@ private:   class unknowniface : public rpcinterface<cookie_t> {
     };
 private:   mutex_t mux;
 private:   list<rpcregistration<cookie_t> *> registrations;
-private:   waitbox<bool> *shutdown;
-private:   waitqueue<connectionthread *> *dying;
+private:   waitbox<bool> shutdown;
+private:   waitqueue<connectionthread *> dying;
 private:   listenfd sock;
 private:   thread *roothandle;
 private:   rootthread root;

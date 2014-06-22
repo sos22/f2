@@ -38,7 +38,7 @@ iopollingthread::run() {
                 nralloced += 8;
                 pfds = (struct pollfd *)realloc(pfds,
                                                 sizeof(*pfds) * nralloced); }
-            pfds[nr++] = (*it)->fd.poll((*it)->events); }
+            pfds[nr++] = (*it)->pfd; }
         mux.unlock(&token);
         int r(::poll(pfds, nr, -1));
         token = mux.lock();
@@ -65,7 +65,7 @@ iopollingthread::run() {
             bool found = false;
             for (auto it(what.start()); !it.finished(); it.next()) {
                 auto reg(*it);
-                if (reg->fd.polled(pfds[i])) {
+                if (reg->pfd.fd == pfds[i].fd) {
                     it.remove();
                     reg->registered = false;
                     reg->set();
@@ -185,7 +185,7 @@ subscriptionbase::~subscriptionbase() {
     sub->mux.unlock(&subtoken);
     assert(r); }
 
-subscription::subscription(subscriber &_sub, publisher &_pub)
+subscription::subscription(subscriber &_sub, const publisher &_pub)
     : subscriptionbase(_sub),
       pub(&_pub) {
     auto pubtoken(pub->mux.lock());
@@ -193,7 +193,7 @@ subscription::subscription(subscriber &_sub, publisher &_pub)
     pub->mux.unlock(&pubtoken); }
 
 void
-subscription::teardown() {
+subscription::detach() {
     auto pubtoken(pub->mux.lock());
     bool found = false;
     for (auto it(pub->subscriptions.start()); !it.finished(); it.next()) {
@@ -209,24 +209,13 @@ subscription::~subscription() {
     assert(!!pub == !!sub);
     if (!pub) return; /* subscriber destructor already did everything
                        * for us */
-    bool r;
-    r = false;
-    auto pubtoken(pub->mux.lock());
-    for (auto it(pub->subscriptions.start()); !it.finished(); it.next()) {
-        if (*it == this) {
-            it.remove();
-            r = true;
-            break; } }
-    pub->mux.unlock(&pubtoken);
-    assert(r); }
+    detach(); }
 
 iosubscription::iosubscription(
     subscriber &_sub,
-    fd_t _fd,
-    int _events)
+    struct pollfd _pfd)
     : subscriptionbase(_sub),
-      fd(_fd),
-      events(_events),
+      pfd(_pfd),
       registered(false) {
     rearm(); }
 
@@ -239,23 +228,24 @@ iosubscription::rearm() {
     /* Fast path if we're already notified or the FD is already
      * ready. */
     if (notified) return;
-    struct pollfd pfd(fd.poll(events));
-    int r(::poll(&pfd, 1, 0));
-    if (r >= 0 && (pfd.revents & events)) {
+    struct pollfd p(pfd);
+    assert(p.revents == 0);
+    int r(::poll(&p, 1, 0));
+    if (r > 0 && p.revents) {
         set();
         return; }
     
     pollthread.attach(*this); }
 
 void
-iosubscription::teardown() {
+iosubscription::detach() {
     /* This isn't properly synchronised with the IO polling thread, so
        we could double unregister.  Polling thread is tolerant of
        that. */
     if (registered) pollthread.detach(*this); }
 
 iosubscription::~iosubscription() {
-    teardown(); }
+    detach(); }
 
 void
 subscriber::set(mutex_t::token tok) {
@@ -292,7 +282,7 @@ subscriber::~subscriber() {
     while (!subscriptions.empty()) {
         auto r(subscriptions.pophead());
         assert(r->sub == this);
-        r->teardown();
+        r->detach();
         r->sub = NULL; } }
 
 template class list<subscription *>;
@@ -426,7 +416,7 @@ tests::pubsub(test &support) {
     {   subscriber s;
         auto p(fd_t::pipe());
         if (p.isfailure()) p.failure().fatal("creating pipe");
-        iosubscription sub(s, p.success().read, POLLIN);
+        iosubscription sub(s, p.success().read.poll(POLLIN));
         assert(s.wait(timestamp::now() + epsilon) == NULL);
         p.success().write.write("foo", 3);
         

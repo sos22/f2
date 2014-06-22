@@ -13,15 +13,15 @@ int
 main()
 {
     initlogging("storage");
+    initpubsub();
 
     logmsg(loglevel::notice, fields::mk("storage slave starting"));
 
     signal(SIGPIPE, SIG_IGN);
-    auto s(waitbox<shutdowncode>::build());
-    if (s.isfailure()) s.failure().fatal("build shutdown box");
+    waitbox<shutdowncode> s;
     (void)unlink("storageslave");
     auto c(controlserver::build(
-               peername::local("storageslave"), s.success()));
+               peername::local("storageslave"), s));
     if (c.isfailure()) c.failure().fatal("build control interface");
     auto slave(storageslave::build(
                    registrationsecret::mk("<default password>"),
@@ -29,10 +29,10 @@ main()
     if (slave.isfailure())
         slave.failure().fatal("build storage slave");
 
-    auto r = s.success()->get();
+    auto r = s.get();
     slave.success()->destroy();
     c.success()->destroy();
-    delete s.success();
+    deinitpubsub();
     deinitlogging();
     r.finish();
 }

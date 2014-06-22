@@ -16,7 +16,7 @@ class controlserver : public rpcserver<controlconn *> {
        message, but will continue serving incoming requests until you
        call destroy(). */
 public: static orerror<controlserver *> build(const peername &listenon,
-                                              waitbox<shutdowncode> *s);
+                                              waitbox<shutdowncode> &s);
     /* Release the control server interface, stopping it first if
      * necessary. */
 public: virtual void destroy() = 0;

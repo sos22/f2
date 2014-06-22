@@ -3,76 +3,26 @@
 
 #include "waitbox.H"
 
-#include <sys/poll.h>
-#include <unistd.h>
-
-#include "fields.H"
-
-#define rmb() asm volatile("")
-#define wmb() asm volatile("")
-
-template <typename t> fd_t const &
-waitbox<t>::fd() const
-{
-    return readfd;
-}
-
 template <typename t> bool
-waitbox<t>::ready() const
-{
-    bool r = filled;
-    if (r)
-        rmb();
-    return r;
-}
-
-template <typename t> orerror<waitbox<t> *>
-waitbox<t>::build()
-{
-    auto p(fd_t::pipe());
-    if (p.isfailure())
-        return p.failure();
-    auto work = new waitbox<t>();
-    work->filled = false;
-    work->readfd = p.success().read;
-    work->writefd = p.success().write;
-    return work;
-}
-
-template <typename t>
-waitbox<t>::~waitbox()
-{
-    readfd.close();
-    writefd.close();
-    if (filled)
-        ((t *)content)->~t();
-}
+waitbox<t>::ready() const {
+    auto token(mux.lock());
+    auto res(content.isjust());
+    mux.unlock(&token);
+    return res; }
 
 template <typename t> const t &
-waitbox<t>::get() const
-{
-    if (!filled) {
-        auto pfd(fd().poll(POLLIN));
-        auto r(::poll(&pfd, 1, -1));
-        if (r != 1)
-            error::from_errno().fatal(fields::mk("poll for waitbox get"));
-    }
-    assert(filled);
-    return *(const t *)content;
-}
+waitbox<t>::get() const {
+    subscriber sub;
+    subscription s(sub, pub);
+    while (!ready()) sub.wait();
+    return content.just(); }
 
 template <typename t> void
-waitbox<t>::set(const t &v)
-{
-    assert(!filled);
-    new (content) t(v);
-    wmb();
-    filled = true;
-    auto w(writefd.write("Z", 1));
-    if (w.isfailure())
-        w.failure().fatal(fields::mk("setting waitbox"));
-    if (w.success() != 1)
-        error::disconnected.fatal(fields::mk("setting waitbox"));
-}
+waitbox<t>::set(const t &v) {
+    assert(!ready());
+    auto token(mux.lock());
+    content = v;
+    mux.unlock(&token);
+    pub_.publish(); }
 
 #endif /* !WAITBOX_TMPL__ */

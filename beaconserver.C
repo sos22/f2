@@ -51,7 +51,7 @@ beaconserver::beaconserver(const registrationsecret &_secret,
       listenthreadfn(this),
       listenthread(NULL),
       listenfd(),
-      shutdown(NULL),
+      shutdown(),
       errors(0),
       rx(0)
 {
@@ -95,18 +95,9 @@ maybe<error>
 beaconserver::listen()
 {
     assert(!listenthread);
-    assert(!shutdown);
-
-    auto s(waitbox<bool>::build());
-    if (s.isfailure()) return s.failure();
-    shutdown = s.success();
 
     auto r(udpsocket::listen(udpsocket::port(9009)));
-    if (r.isfailure()) {
-        delete shutdown;
-        shutdown = NULL;
-        return r.failure();
-    }
+    if (r.isfailure()) return r.failure();
 
     listenfd = r.success();
     auto rr(thread::spawn(&listenthreadfn, &listenthread,
@@ -114,8 +105,6 @@ beaconserver::listen()
     if (rr.isjust()) {
         listenfd.close();
         listenfd = udpsocket();
-        delete shutdown;
-        shutdown = NULL;
         return rr.just();
     }
 
@@ -125,7 +114,6 @@ beaconserver::listen()
 beaconserver::~beaconserver()
 {
     assert(listenthread == NULL);
-    assert(shutdown == NULL);
 }
 
 beaconserver::listenthreadclass::listenthreadclass(beaconserver *_owner)
@@ -135,18 +123,16 @@ beaconserver::listenthreadclass::listenthreadclass(beaconserver *_owner)
 void
 beaconserver::listenthreadclass::run()
 {
-    while (!owner->shutdown->ready()) {
-        struct pollfd pfds[2];
-        memset(pfds, 0, sizeof(pfds));
-        pfds[0] = owner->listenfd.poll();
-        pfds[1] = owner->shutdown->fd().poll(POLLIN);
-        int r = ::poll(pfds, 2, -1);
-        if (r < 0)
-            error::from_errno().fatal("polling beacon interface");
-        if (!pfds[0].revents)
-            continue;
+    subscriber sub;
+    iosubscription iosub(sub, owner->listenfd.poll());
+    subscription shutdown(sub, owner->shutdown.pub);
+    while (!owner->shutdown.ready()) {
+        auto notified(sub.wait());
+        if (notified == &shutdown) continue;
+        assert(notified == &iosub);
         buffer inbuffer;
         auto rr(owner->listenfd.receive(inbuffer));
+        iosub.rearm();
         if (!owner->limiter.probe()) {
             /* DOS protection: drop things over the rate limit */
             continue;
@@ -245,16 +231,12 @@ beaconserver::listenthreadclass::run()
 void
 beaconserver::destroy()
 {
-    if (!shutdown) {
-        assert(!listenthread);
+    if (!listenthread) {
         delete this;
-        return;
-    }
+        return; }
     controlregistration->destroy();
-    shutdown->set(true);
+    shutdown.set(true);
     listenthread->join();
-    delete shutdown;
-    shutdown = NULL;
     listenthread = NULL;
     listenfd.close();
     delete this;
