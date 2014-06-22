@@ -300,6 +300,7 @@ rpcserver<cookie_t>::rootthread::run() {
                    "control interface reaping client thread" +
                    fields::mk(*thr->thr()));
             thr->thr()->join();
+            owner->endconn(thr->ctxt);
             auto token(threadsmux.lock());
             for (auto it(threads.start()); 1; it.next()) {
                 assert(!it.finished());
