@@ -66,6 +66,7 @@ class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
 private: thread *thr_;
 private: rpcserver<cookie_t> *owner;
+private: cookie_t ctxt;
 private: rpcconn conn;
 private: waitbox<bool> &shutdownall;
 private: waitbox<bool> shutdownone;
@@ -76,11 +77,11 @@ private: rpcconnthread(
     waitbox<bool> &_shutdown)
     : thr_(NULL),
       owner(_owner),
+      ctxt(),
       conn(_fd),
       shutdownall(_shutdown),
       shutdownone() {}
-private: bool runcommand(cookie_t ctxt,
-                         bool *die);
+private: bool runcommand(bool *die);
 public:  thread *thr() const;
 public:  static orerror<rpcconnthread<cookie_t> *> spawn(
     rpcserver<cookie_t> *owner,
@@ -90,7 +91,6 @@ public:  static orerror<rpcconnthread<cookie_t> *> spawn(
 
 template <typename cookie_t> bool
 rpcconnthread<cookie_t>::runcommand(
-    cookie_t ctxt,
     bool *die) {
     auto r(wireproto::rx_message::fetch(conn.incoming));
     if (r.isfailure()) {
@@ -132,14 +132,6 @@ rpcconnthread<cookie_t>::run() {
     
     bool die;
     die = false;
-    auto ctxt(owner->startconn(conn));
-    if (ctxt.isfailure()) {
-        logmsg(loglevel::failure,
-               "connection from " + fields::mk(peer) +
-               " rejected by implementation: " + fields::mk(ctxt.failure()));
-        die = true;
-    } else {
-        logmsg(loglevel::info, "start client thread " + fields::mk(peer)); }
     
     subscriber sub;
     subscription shutdownallsub(sub, shutdownall.pub);
@@ -159,7 +151,7 @@ rpcconnthread<cookie_t>::run() {
             if (t.isjust()) {
                 t.just().warn("receiving from client " + fields::mk(peer));
                 break; }
-            while (runcommand(ctxt.success(), &die))
+            while (runcommand(&die))
                 ;
         } else if (r == &outsub) {
             if (conn.outgoing.empty()) {
@@ -187,6 +179,16 @@ rpcconnthread<cookie_t>::spawn(
     socket_t fd,
     waitbox<bool> &localshutdown) {
     auto res(new rpcconnthread(owner, fd, localshutdown));
+    auto ctxt(owner->startconn(res->conn));
+    if (ctxt.isfailure()) {
+        logmsg(loglevel::failure,
+               "connection from " + fields::mk(res->conn.peer()) +
+               " rejected by implementation: " + fields::mk(ctxt.failure()));
+        delete res;
+        return ctxt.failure();
+    }
+    res->ctxt = ctxt.success();
+    
     auto t(thread::spawn(res, &res->thr_,
                          "RPC client thread for " + fields::mk(fd.peer())));
     if (t.isjust()) {
