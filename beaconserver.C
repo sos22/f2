@@ -40,8 +40,8 @@ beaconserver::beaconserver(const registrationsecret &_secret,
     : statusinterface(this),
       configureinterface(this),
       controlregistration(
-          cs->registeriface(
-              rpcserver<controlconn *>::multiregistration()
+          cs->service->registeriface(
+              rpcservice<controlconn *>::multiregistration()
               .add(statusinterface)
               .add(configureinterface))),
       secret(_secret),

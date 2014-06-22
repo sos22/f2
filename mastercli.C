@@ -6,6 +6,7 @@
 #include "logging.H"
 #include "peername.H"
 #include "proto.H"
+#include "pubsub.H"
 #include "registrationsecret.H"
 #include "rpcconn.H"
 #include "shutdown.H"
@@ -18,6 +19,8 @@ main(int argc, char *argv[])
 {
     if (argc < 2)
         errx(1, "need a mode argument");
+    initlogging("mastercli");
+    initpubsub();
     auto c(rpcconn::connect(peername::local("mastersock")));
     int r;
 
@@ -101,5 +104,7 @@ main(int argc, char *argv[])
         r = 1;
     }
     delete c.success();
+    deinitpubsub();
+    deinitlogging();
     return r;
 }

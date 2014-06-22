@@ -71,10 +71,11 @@ public:  controlserverimpl(waitbox<shutdowncode> &s)
     : controlserver(),
       pinginterface(),
       quitinterface(s),
-      registration(registeriface(multiregistration()
-                                 .add(getlogsiface::singleton)
-                                 .add(pinginterface)
-                                 .add(quitinterface))) {}
+      registration(service->registeriface(
+                       rpcservice<controlconn *>::multiregistration()
+                       .add(getlogsiface::singleton)
+                       .add(pinginterface)
+                       .add(quitinterface))) {}
 private: controlserverimpl(const controlserverimpl &) = delete;
 private: void operator=(const controlserverimpl &) = delete;
 

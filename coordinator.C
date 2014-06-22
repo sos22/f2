@@ -148,7 +148,7 @@ coordinatorimpl::coordinatorimpl(
       newconnlimiter(frequency::hz(100), 100),
       rs(_rs),
       statusiface(),
-      controlregistration(cs->registeriface(statusiface)) {}
+      controlregistration(cs->service->registeriface(statusiface)) {}
 
 orerror<coordinatorconn *>
 coordinatorimpl::startconn(rpcconn &conn) {

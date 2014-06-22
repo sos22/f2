@@ -17,7 +17,7 @@
 
 template <typename cookie_t>
 rpcregistration<cookie_t>::rpcregistration(
-    rpcserver<cookie_t> *_owner)
+    rpcservice<cookie_t> *_owner)
     : mux(),
       idle(mux),
       owner(_owner),
@@ -33,15 +33,12 @@ rpcregistration<cookie_t>::start()
 }
 
 template <typename cookie_t> void
-rpcregistration<cookie_t>::finished()
-{
+rpcregistration<cookie_t>::finished() {
     auto token(mux.lock());
     assert(outstanding > 0);
     outstanding--;
-    if (outstanding == 0)
-        idle.broadcast(token);
-    mux.unlock(&token);
-}
+    if (outstanding == 0) idle.broadcast(token);
+    mux.unlock(&token); }
 
 template <typename cookie_t> void
 rpcregistration<cookie_t>::destroy() {
@@ -57,53 +54,69 @@ rpcregistration<cookie_t>::destroy() {
     delete this; }
 
 template <typename cookie_t>
+rpcregistration<cookie_t>::~rpcregistration() {}
+
+template <typename cookie_t>
 rpcinterface<cookie_t>::rpcinterface(
     wireproto::msgtag _tag)
     : tag(_tag) {}
 
 template <typename cookie_t>
-class rpcconnthread : threadfn {
-    friend class rpcserver<cookie_t>;
-private: thread *thr_;
-private: rpcserver<cookie_t> *owner;
-private: cookie_t ctxt;
-private: rpcconn conn;
-private: waitbox<bool> &shutdownall;
-private: waitbox<bool> shutdownone;
-private: void run();
-private: rpcconnthread(
-    rpcserver<cookie_t> *_owner,
-    socket_t _fd,
-    waitbox<bool> &_shutdown)
-    : thr_(NULL),
-      owner(_owner),
-      ctxt(),
-      conn(_fd),
-      shutdownall(_shutdown),
-      shutdownone() {}
-private: bool runcommand(bool *die);
-public:  thread *thr() const;
-public:  static orerror<rpcconnthread<cookie_t> *> spawn(
-    rpcserver<cookie_t> *owner,
-    socket_t fd,
-    waitbox<bool> &);
-};
+rpcservice<cookie_t>::unknowniface::unknowniface()
+    : rpcinterface<cookie_t>(wireproto::msgtag(0)) {}
 
-template <typename cookie_t> bool
-rpcconnthread<cookie_t>::runcommand(
-    bool *die) {
-    auto r(wireproto::rx_message::fetch(conn.incoming));
-    if (r.isfailure()) {
-        *die = r.failure() != error::underflowed;
-        return false; }
-    assert(r.success() != NULL);
-    auto tag(r.success()->t);
-    logmsg(loglevel::verbose, "run command " + fields::mk(tag));
-    
-    auto token(owner->mux.lock());
-    auto reg(owner->unknownregistration);
-    rpcinterface<cookie_t> *iface(&owner->unknowninterface);
-    for (auto it(owner->registrations.start());
+template <typename cookie_t> maybe<error>
+rpcservice<cookie_t>::unknowniface::message(
+    const wireproto::rx_message &msg,
+    cookie_t,
+    buffer &) {
+    logmsg(loglevel::failure,
+           "Received an unrecognised message type " + fields::mk(msg.t));
+    return error::unrecognisedmessage; }
+
+template <typename cookie_t>
+rpcservice<cookie_t>::rpcservice()
+    : mux(),
+      registrations(),
+      unknowninterface(),
+      unknownregistration(registeriface(unknowninterface)) {}
+
+template <typename cookie_t> rpcregistration<cookie_t> *
+rpcservice<cookie_t>::registeriface(
+    rpcinterface<cookie_t> &ri) {
+    return registeriface(multiregistration().add(ri)); }
+
+template <typename cookie_t> typename rpcservice<cookie_t>::multiregistration &
+rpcservice<cookie_t>::multiregistration::add(
+    rpcinterface<cookie_t> &ri) {
+    content.pushtail(&ri);
+    return *this; }
+
+template <typename cookie_t>
+rpcservice<cookie_t>::multiregistration::~multiregistration() {
+    content.flush(); }
+
+template <typename cookie_t> rpcregistration<cookie_t> *
+rpcservice<cookie_t>::registeriface(const multiregistration &mr) {
+    auto res(new class rpcregistration<cookie_t>(this));
+    auto token(mux.lock());
+    for (auto it1(mr.content.start()); !it1.finished(); it1.next()) {
+        for (auto it2(registrations.start()); !it2.finished(); it2.next()) {
+            for (auto it3((*it2)->content.start());
+                 !it3.finished();
+                 it3.next()) {
+                assert((*it3)->tag != (*it1)->tag); } }
+        res->content.pushtail(*it1); }
+    registrations.pushtail(res);
+    mux.unlock(&token);
+    return res; }
+
+template <typename cookie_t> typename rpcservice<cookie_t>::lookupres
+rpcservice<cookie_t>::lookup(wireproto::msgtag tag) {
+    auto token(mux.lock());
+    auto reg(unknownregistration);
+    rpcinterface<cookie_t> *iface(&unknowninterface);
+    for (auto it(registrations.start());
          !it.finished();
          it.next()) {
         for (auto it2((*it)->content.start());
@@ -114,17 +127,59 @@ rpcconnthread<cookie_t>::runcommand(
                 iface = *it2;
                 break; } } }
     reg->start();
-    owner->mux.unlock(&token);
-    
-    auto res(iface->message(*r.success(), ctxt, conn.outgoing));
-    
-    reg->finished();
+    mux.unlock(&token);
+    lookupres res;
+    res.reg = reg;
+    res.iface = iface;
+    return res; }
 
-    if (res.isjust()) {
-        wireproto::err_resp_message(*r.success(), res.just())
-            .serialise(conn.outgoing); }
-    r.success()->finish();
-    return true; }
+template <typename cookie_t> void
+rpcservice<cookie_t>::deregister(rpcregistration<cookie_t> *what) {
+    auto token(mux.lock());
+    for (auto it(registrations.start()); !it.finished(); it.next()) {
+        if (*it == what) {
+            it.remove();
+            mux.unlock(&token);
+            return; } }
+    mux.unlock(&token);
+    abort(); }
+
+template <typename cookie_t> void
+rpcservice<cookie_t>::destroy() {
+    while (!registrations.empty()) registrations.peekhead()->destroy();
+    delete this; }
+
+template <typename cookie_t>
+rpcservice<cookie_t>::~rpcservice() {
+    assert(registrations.empty()); }
+
+template <typename cookie_t>
+class rpcconnthread : threadfn {
+    friend class rpcserver<cookie_t>;
+private: thread *thr_;
+private: rpcserver<cookie_t> *owner;
+private: cookie_t ctxt;
+private: rpcconn conn;
+private: waitbox<bool> &shutdownall;
+private: waitbox<bool> shutdownone;
+private: rpcconnthread(
+    rpcserver<cookie_t> *_owner,
+    socket_t _fd,
+    waitbox<bool> &_shutdown)
+    : thr_(NULL),
+      owner(_owner),
+      ctxt(),
+      conn(_fd),
+      shutdownall(_shutdown),
+      shutdownone() {}
+private: void run();
+private: bool runcommand(bool *die);
+public:  thread *thr() const;
+public:  static orerror<rpcconnthread<cookie_t> *> spawn(
+    rpcserver<cookie_t> *owner,
+    socket_t fd,
+    waitbox<bool> &);
+};
 
 template <typename cookie_t> void
 rpcconnthread<cookie_t>::run() {
@@ -168,12 +223,34 @@ rpcconnthread<cookie_t>::run() {
     logmsg(loglevel::info, fields::mk("client thread finishing"));
     owner->dying.pushtail(this); }
 
+template <typename cookie_t> bool
+rpcconnthread<cookie_t>::runcommand(
+    bool *die) {
+    auto r(wireproto::rx_message::fetch(conn.incoming));
+    if (r.isfailure()) {
+        *die = r.failure() != error::underflowed;
+        return false; }
+    assert(r.success() != NULL);
+    auto tag(r.success()->t);
+    logmsg(loglevel::verbose, "run command " + fields::mk(tag));
+    
+    auto reg(owner->service->lookup(tag));
+    
+    auto res(reg.iface->message(*r.success(), ctxt, conn.outgoing));
+    
+    reg.reg->finished();
+
+    if (res.isjust()) {
+        wireproto::err_resp_message(*r.success(), res.just())
+            .serialise(conn.outgoing); }
+    r.success()->finish();
+    return true; }
+
 template <typename cookie_t> thread *
 rpcconnthread<cookie_t>::thr() const {
     return thr_; }
 
-template <typename cookie_t>
-orerror<rpcconnthread<cookie_t> *>
+template <typename cookie_t> orerror<rpcconnthread<cookie_t> *>
 rpcconnthread<cookie_t>::spawn(
     rpcserver<cookie_t> *owner,
     socket_t fd,
@@ -196,6 +273,13 @@ rpcconnthread<cookie_t>::spawn(
         return t.just();
     } else {
         return res; } }
+
+template <typename cookie_t>
+rpcserver<cookie_t>::rootthread::rootthread(
+    rpcserver<cookie_t> *_owner)
+    : threads(),
+      threadsmux(),
+      owner(_owner) {}
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::rootthread::run() {
@@ -261,55 +345,29 @@ rpcserver<cookie_t>::rootthread::run() {
     return; }
 
 template <typename cookie_t>
-rpcserver<cookie_t>::rootthread::rootthread(
-    rpcserver<cookie_t> *_owner)
-    : threads(),
-      threadsmux(),
-      owner(_owner) {}
-
-template <typename cookie_t>
-rpcserver<cookie_t>::unknowniface::unknowniface()
-    : rpcinterface<cookie_t>(wireproto::msgtag(0)) {}
-
-template <typename cookie_t> maybe<error>
-rpcserver<cookie_t>::unknowniface::message(
-    const wireproto::rx_message &msg,
-    cookie_t,
-    buffer &) {
-    logmsg(loglevel::failure,
-           "Received an unrecognised message type " + fields::mk(msg.t));
-    return error::unrecognisedmessage; }
-
-template <typename cookie_t>
-rpcserver<cookie_t>::~rpcserver() {
-    assert(!roothandle);
-    assert(unknownregistration->outstanding == 0);
-    unknownregistration->destroy();
-    assert(registrations.empty()); }
-
-template <typename cookie_t> void
-rpcserver<cookie_t>::deregister(rpcregistration<cookie_t> *what)
-{
-    auto token(mux.lock());
-    for (auto it(registrations.start()); !it.finished(); it.next()) {
-        if (*it == what) {
-            it.remove();
-            mux.unlock(&token);
-            return; } }
-    mux.unlock(&token);
-    abort(); }
-
-template <typename cookie_t>
 rpcserver<cookie_t>::rpcserver()
-    : mux(),
-      registrations(),
+    : service(new rpcservice<cookie_t>()),
+      mux(),
       shutdown(),
       dying(),
       sock(),
       roothandle(NULL),
-      root(this),
-      unknowninterface(),
-      unknownregistration(registeriface(unknowninterface)) {}
+      root(this) {}
+
+template <typename cookie_t> maybe<error>
+rpcserver<cookie_t>::start(const peername &p, const fields::field &name) {
+    assert(!roothandle);
+    auto sl(socket_t::listen(p));
+    if (sl.isfailure()) return sl.failure();
+    sock = sl.success();
+    auto threaderr(thread::spawn(
+                       &root, &roothandle, name));
+    if (threaderr.isjust()) sock.close();
+    return threaderr; }
+
+template <typename cookie_t> peername
+rpcserver<cookie_t>::localname() const {
+    return sock.localname(); }
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::killconn(rpcconn &conn) {
@@ -322,78 +380,33 @@ rpcserver<cookie_t>::killconn(rpcconn &conn) {
     root.threadsmux.unlock(&token);
     abort(); }
 
-template <typename cookie_t> rpcregistration<cookie_t> *
-rpcserver<cookie_t>::registeriface(
-    rpcinterface<cookie_t> &ri) {
-    return registeriface(multiregistration().add(ri)); }
-
-template <typename cookie_t> typename rpcserver<cookie_t>::multiregistration &
-rpcserver<cookie_t>::multiregistration::add(
-    rpcinterface<cookie_t> &ri) {
-    content.pushtail(&ri);
-    return *this; }
-
-template <typename cookie_t>
-rpcserver<cookie_t>::multiregistration::~multiregistration() {
-    content.flush(); }
-
-template <typename cookie_t> rpcregistration<cookie_t> *
-rpcserver<cookie_t>::registeriface(const multiregistration &mr) {
-    auto res(new class rpcregistration<cookie_t>(this));
-    auto token(mux.lock());
-    for (auto it1(mr.content.start()); !it1.finished(); it1.next()) {
-        for (auto it2(registrations.start()); !it2.finished(); it2.next()) {
-            for (auto it3((*it2)->content.start());
-                 !it3.finished();
-                 it3.next()) {
-                assert((*it3)->tag != (*it1)->tag); } }
-        res->content.pushtail(*it1); }
-    registrations.pushtail(res);
-    mux.unlock(&token);
-    return res;
-}
-
-template <typename cookie_t> maybe<error>
-rpcserver<cookie_t>::start(const peername &p, const fields::field &name)
-{
-    assert(!roothandle);
-    assert(unknownregistration);
-    
-    auto sl(socket_t::listen(p));
-    if (sl.isfailure()) return sl.failure();
-    
-    maybe<error> threaderr(Nothing);
-    sock = sl.success();
-    
-    threaderr = thread::spawn(
-        &root, &roothandle, name);
-    if (threaderr.isjust()) sock.close();
-    return threaderr; }
-
-template <typename cookie_t> peername
-rpcserver<cookie_t>::localname() const {
-    return sock.localname(); }
-
 template <typename cookie_t> void
 rpcserver<cookie_t>::stop() {
     if (roothandle == NULL) return;
     shutdown.set(true);
     roothandle->join();
-    roothandle = NULL; }
+    roothandle = NULL;
+    service->destroy();
+    service = NULL; }
 
 template <typename cookie_t> void
 rpcserver<cookie_t>::destroy() {
     stop();
     delete this; }
 
+template <typename cookie_t>
+rpcserver<cookie_t>::~rpcserver() {
+    assert(!roothandle); }
+
 #define RPCSERVER(ctxt)                                                 \
     template class rpcserver<ctxt>;                                     \
+    template class rpcservice<ctxt>;                                    \
     template class rpcconnthread<ctxt>;                                 \
     template class rpcregistration<ctxt>;                               \
     template class rpcinterface<ctxt>;                                  \
     template class list<rpcinterface<ctxt> *>;                          \
     template class list<rpcregistration<ctxt> *>;                       \
-    template class list<rpcconnthread<ctxt> *>;           \
+    template class list<rpcconnthread<ctxt> *>;                         \
     template class waitqueue<rpcconnthread<ctxt> *>;
 
 #endif /* !RPCSERVER_TMPL__ */

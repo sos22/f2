@@ -19,7 +19,7 @@
 storageslave::storageslave(controlserver *cs)
     : statusinterface(this),
       controlregistration(
-          cs->registeriface(statusinterface)) { }
+          cs->service->registeriface(statusinterface)) { }
 
 maybe<error>
 storageslave::connect(const registrationsecret &rs) {

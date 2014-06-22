@@ -15,12 +15,12 @@ class registrationsecret;
 class coordinatorconn;
 
 class coordinator : public rpcserver<coordinatorconn *> {
-public: static orerror<coordinator *> build(
+public:  static orerror<coordinator *> build(
     const mastersecret &,
     const registrationsecret &,
     const peername &,
     controlserver *);
-public: virtual void destroy() = 0;
+public:  virtual void destroy() = 0;
 };
 
 #endif /* !COORDINATOR_H__ */
