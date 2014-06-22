@@ -62,16 +62,16 @@ rpcinterface<cookie_t>::rpcinterface(
     : tag(_tag) {}
 
 template <typename cookie_t>
-class rpcserver<cookie_t>::connectionthread : threadfn {
+class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
 private: thread *thr_;
-private: rpcserver *owner;
+private: rpcserver<cookie_t> *owner;
 private: rpcconn conn;
 private: waitbox<bool> &shutdownall;
 private: waitbox<bool> shutdownone;
 private: void run();
-private: connectionthread(
-    rpcserver *_owner,
+private: rpcconnthread(
+    rpcserver<cookie_t> *_owner,
     socket_t _fd,
     waitbox<bool> &_shutdown)
     : thr_(NULL),
@@ -82,14 +82,14 @@ private: connectionthread(
 private: bool runcommand(cookie_t ctxt,
                          bool *die);
 public:  thread *thr() const;
-public:  static orerror<connectionthread *> spawn(
-    rpcserver *owner,
+public:  static orerror<rpcconnthread<cookie_t> *> spawn(
+    rpcserver<cookie_t> *owner,
     socket_t fd,
     waitbox<bool> &);
 };
 
 template <typename cookie_t> bool
-rpcserver<cookie_t>::connectionthread::runcommand(
+rpcconnthread<cookie_t>::runcommand(
     cookie_t ctxt,
     bool *die) {
     auto r(wireproto::rx_message::fetch(conn.incoming));
@@ -127,7 +127,7 @@ rpcserver<cookie_t>::connectionthread::runcommand(
     return true; }
 
 template <typename cookie_t> void
-rpcserver<cookie_t>::connectionthread::run() {
+rpcconnthread<cookie_t>::run() {
     peername peer(conn.peer());
     
     bool die;
@@ -177,16 +177,16 @@ rpcserver<cookie_t>::connectionthread::run() {
     owner->dying.pushtail(this); }
 
 template <typename cookie_t> thread *
-rpcserver<cookie_t>::connectionthread::thr() const {
+rpcconnthread<cookie_t>::thr() const {
     return thr_; }
 
 template <typename cookie_t>
-orerror<class rpcserver<cookie_t>::connectionthread *>
-rpcserver<cookie_t>::connectionthread::spawn(
+orerror<rpcconnthread<cookie_t> *>
+rpcconnthread<cookie_t>::spawn(
     rpcserver<cookie_t> *owner,
     socket_t fd,
     waitbox<bool> &localshutdown) {
-    auto res(new connectionthread(owner, fd, localshutdown));
+    auto res(new rpcconnthread(owner, fd, localshutdown));
     auto t(thread::spawn(res, &res->thr_,
                          "RPC client thread for " + fields::mk(fd.peer())));
     if (t.isjust()) {
@@ -238,9 +238,9 @@ rpcserver<cookie_t>::rootthread::run() {
                    "control interface accepting new client " +
                    fields::mk(newfd.success().peer()));
             auto token(threadsmux.lock());
-            auto tr(connectionthread::spawn(owner,
-                                            newfd.success(),
-                                            owner->shutdown));
+            auto tr(rpcconnthread<cookie_t>::spawn(owner,
+                                                   newfd.success(),
+                                                   owner->shutdown));
             if (tr.isfailure()) {
                 error::from_errno().warn(
                     "Cannot build thread for new client " +
@@ -386,11 +386,12 @@ rpcserver<cookie_t>::destroy() {
 
 #define RPCSERVER(ctxt)                                                 \
     template class rpcserver<ctxt>;                                     \
+    template class rpcconnthread<ctxt>;                                 \
     template class rpcregistration<ctxt>;                               \
     template class rpcinterface<ctxt>;                                  \
     template class list<rpcinterface<ctxt> *>;                          \
     template class list<rpcregistration<ctxt> *>;                       \
-    template class list<rpcserver<ctxt>::connectionthread *>;           \
-    template class waitqueue<rpcserver<ctxt>::connectionthread *>;
+    template class list<rpcconnthread<ctxt> *>;           \
+    template class waitqueue<rpcconnthread<ctxt> *>;
 
 #endif /* !RPCSERVER_TMPL__ */

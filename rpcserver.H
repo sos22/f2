@@ -16,11 +16,13 @@ template <typename> class maybe;
 class peername;
 class rpcconn;
 
+template <typename> class rpcconnthread;
 template <typename> class rpcserver;
 template <typename> class rpcinterface;
 
 template <typename cookie_t>
 class rpcregistration {
+    friend class rpcconnthread<cookie_t>;
     friend class rpcserver<cookie_t>;
 private: mutex_t mux;
 private: cond_t idle;
@@ -46,6 +48,7 @@ public:  void destroy();
 
 template <typename cookie_t>
 class rpcinterface {
+    friend class rpcconnthread<cookie_t>;
     friend class rpcserver<cookie_t>;
 private:   wireproto::msgtag tag;
 private:   virtual maybe<error> message(const wireproto::rx_message &,
@@ -54,13 +57,15 @@ private:   virtual maybe<error> message(const wireproto::rx_message &,
 protected: rpcinterface(wireproto::msgtag _tag);
 };
 
+template <typename cookie_t> class rpcconnthread;
+
 template <typename cookie_t>
 class rpcserver {
     friend class rpcregistration<cookie_t>;
-    class connectionthread;
+    friend class rpcconnthread<cookie_t>;
 
 private:   class rootthread : public threadfn {
-    public:  list<connectionthread *> threads;
+    public:  list<rpcconnthread<cookie_t> *> threads;
     public:  mutex_t threadsmux;
     private: rpcserver *owner;
     private: void run();
@@ -75,7 +80,7 @@ private:   class unknowniface : public rpcinterface<cookie_t> {
 private:   mutex_t mux;
 private:   list<rpcregistration<cookie_t> *> registrations;
 private:   waitbox<bool> shutdown;
-private:   waitqueue<connectionthread *> dying;
+private:   waitqueue<rpcconnthread<cookie_t> *> dying;
 private:   listenfd sock;
 private:   thread *roothandle;
 private:   rootthread root;

@@ -15,7 +15,7 @@ class subscriptionbase;
 class tcpsocket;
 
 class rpcconn {
-    template <typename t> friend class rpcserver;
+    template <typename t> friend class rpcconnthread;
 private: buffer outgoing;
 private: buffer incoming;
 private: socket_t fd;
