@@ -3,12 +3,12 @@
 
 #include "buffer.H"
 #include "either.H"
+#include "peername.H"
 #include "socket.H"
 #include "wireproto.H"
 
 class beaconresult;
 template <typename> class orerror;
-class peername;
 template <typename> class rpcserver;
 class subscriber;
 class subscriptionbase;
@@ -21,12 +21,13 @@ private: buffer incoming;
 private: socket_t fd;
 private: wireproto::sequencer sequencer;
 private: list<const wireproto::rx_message *> pendingrx;
+private: const peername peer_;
 
 private: rpcconn() = delete;
 private: rpcconn(const rpcconn &) = delete;
 private: void operator=(const rpcconn &) = delete;
 
-private: rpcconn(socket_t);
+private: rpcconn(socket_t, const peername &);
 
     class receiveres {
     private: either<subscriptionbase *, const wireproto::rx_message *> content;

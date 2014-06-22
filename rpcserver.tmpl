@@ -15,6 +15,7 @@
 #include "list.tmpl"
 #include "waitqueue.tmpl"
 
+#include "fieldfinal.H"
 template <typename cookie_t>
 rpcregistration<cookie_t>::rpcregistration(
     rpcservice<cookie_t> *_owner)
@@ -165,11 +166,12 @@ private: waitbox<bool> shutdownone;
 private: rpcconnthread(
     rpcserver<cookie_t> *_owner,
     socket_t _fd,
+    const peername &_peer,
     waitbox<bool> &_shutdown)
     : thr_(NULL),
       owner(_owner),
       ctxt(),
-      conn(_fd),
+      conn(_fd, _peer),
       shutdownall(_shutdown),
       shutdownone() {}
 private: void run();
@@ -255,7 +257,9 @@ rpcconnthread<cookie_t>::spawn(
     rpcserver<cookie_t> *owner,
     socket_t fd,
     waitbox<bool> &localshutdown) {
-    auto res(new rpcconnthread(owner, fd, localshutdown));
+    auto peer(fd.peer());
+    if (peer.isfailure()) return peer.failure();
+    auto res(new rpcconnthread(owner, fd, peer.success(), localshutdown));
     auto ctxt(owner->startconn(res->conn));
     if (ctxt.isfailure()) {
         logmsg(loglevel::failure,

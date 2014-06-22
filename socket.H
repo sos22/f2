@@ -12,7 +12,7 @@ class socket_t : public fd_t {
     friend class tcpsocket;
 private: socket_t(int _fd) : fd_t(_fd) {}
 public:  void operator =(const socket_t &o);
-public:  peername peer() const;
+public:  orerror<peername> peer() const;
 public:  peername localname() const;
 public:  static orerror<listenfd> listen(const peername &);
 };

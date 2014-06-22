@@ -7,13 +7,13 @@
 #include "listenfd.H"
 #include "peername.H"
 
-peername
+orerror<peername>
 socket_t::peer() const {
     unsigned char addr[4096];
     socklen_t addrlen(sizeof(addr));
     auto res(::getpeername(fd, (struct sockaddr *)addr, &addrlen));
-    if (res < 0) error::from_errno().fatal("getting socket local name");
-    return peername((const struct sockaddr *)addr, addrlen); }
+    if (res < 0) return error::from_errno();
+    else return peername((const struct sockaddr *)addr, addrlen); }
 
 peername
 socket_t::localname() const {

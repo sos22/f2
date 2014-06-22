@@ -10,12 +10,13 @@
 
 #include "either.tmpl"
 
-rpcconn::rpcconn(socket_t _fd)
+rpcconn::rpcconn(socket_t _fd, const peername &_peer)
     : outgoing(),
       incoming(),
       fd(_fd),
       sequencer(),
-      pendingrx() {}
+      pendingrx(),
+      peer_(_peer) {}
 
 orerror<rpcconn::receiveres>
 rpcconn::_receive(subscriber &sub, maybe<timestamp> deadline) {
@@ -57,7 +58,7 @@ orerror<rpcconn *>
 rpcconn::connect(const peername &p) {
     auto sock(tcpsocket::connect(p));
     if (sock.isfailure()) return sock.failure();
-    else return new rpcconn(sock.success()); }
+    else return new rpcconn(sock.success(), p); }
 
 orerror<rpcconn *>
 rpcconn::connectmaster(const beaconresult &beacon)
@@ -119,6 +120,6 @@ rpcconn::putsequencenr(wireproto::sequencenr snr) {
 
 peername
 rpcconn::peer() const {
-    return fd.peer(); }
+    return peer_; }
 
 template class either<subscriptionbase *, const wireproto::rx_message *>;

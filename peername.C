@@ -11,6 +11,8 @@
 #include "proto.H"
 #include "wireproto.H"
 
+#include "fieldfinal.H"
+
 peername::peername(const peername &o)
     : sockaddr_(malloc(o.sockaddrsize_ + 1)),
       sockaddrsize_(o.sockaddrsize_)
@@ -219,3 +221,7 @@ peername::sockaddr() const {
 size_t
 peername::sockaddrsize() const {
     return sockaddrsize_; }
+
+namespace fields {
+template const field &mk<peername>(const orerror<peername> &);
+}
