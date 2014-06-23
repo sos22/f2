@@ -24,13 +24,13 @@ private:   class rootthread : public threadfn {
     public:  list<rpcconnthread<cookie_t> *> threads;
     public:  mutex_t threadsmux;
     private: rpcserver *owner;
+    public:  subscriber sub;
     public:  rootthread(rpcserver *_owner);
     private: void run();
     };
 public:    rpcservice<cookie_t> *service;
 private:   mutex_t mux;
 private:   waitbox<bool> shutdown;
-private:   waitqueue<rpcconnthread<cookie_t> *> dying;
 private:   listenfd sock;
 private:   thread *roothandle;
 private:   rootthread root;
@@ -45,10 +45,13 @@ protected: rpcserver();
        Abort if the interface is already running. */
 protected: maybe<error> start(const peername &p, const fields::field &name);
     
+    /* Register a connection thread with the root thread. */
+private: void _startconn(rpcconnthread<cookie_t> *);
+    
     /* Called by the rpcserver implementation whenever a new
        connection arrives.  If this returns an error then the
-       connection will be dropped and endconn() called immediately.
-       Called on the connection thread. */
+       connection will be dropped immediately without calling
+       endconn(). */
 private:   virtual orerror<cookie_t> startconn(rpcconn &conn) = 0;
     
     /* Get a peername on with which other hosts can connect to this

@@ -15,6 +15,7 @@
 #include "waitqueue.H"
 
 #include "list.tmpl"
+#include "waitbox.tmpl"
 #include "waitqueue.tmpl"
 #include "rpcconnthread.tmpl"
 #include "rpcregistration.tmpl"
@@ -29,11 +30,19 @@ rpcserver<cookie_t>::rootthread::rootthread(
       threadsmux(),
       owner(_owner) {}
 
+#define RPCSERVERTHREADSUBMAGIC 0x112233889aabul
+template <typename cookie_t> struct rpcserverthreadsub : public subscription {
+    unsigned long magic;
+    rpcconnthread<cookie_t> *thr;
+    rpcserverthreadsub(subscriber &_sub, rpcconnthread<cookie_t> *_thr)
+        : subscription(_sub, _thr->thr()->pub),
+          magic(RPCSERVERTHREADSUBMAGIC),
+          thr(_thr) {
+        if (thr->thr()->finished()) set(); } };
+
 template <typename cookie_t> void
 rpcserver<cookie_t>::rootthread::run() {
-    subscriber sub;
     iosubscription socksub(sub, owner->sock.poll());
-    subscription dyingsub(sub, owner->dying.pub);
     subscription shutdownsub(sub, owner->shutdown.pub);
     while (!owner->shutdown.ready() || !threads.empty()) {
         auto r(sub.wait());
@@ -41,24 +50,6 @@ rpcserver<cookie_t>::rootthread::run() {
             if (!owner->shutdown.ready()) continue;
             logmsg(loglevel::info,
                    fields::mk("control interface received local shutdown"));
-        } else if (r == &dyingsub) {
-            if (owner->dying.empty()) continue;
-            auto thr(owner->dying.pophead());
-            logmsg(loglevel::info,
-                   "control interface reaping client thread" +
-                   fields::mk(*thr->thr()));
-            thr->thr()->join();
-            owner->endconn(thr->ctxt);
-            auto token(threadsmux.lock());
-            for (auto it(threads.start()); 1; it.next()) {
-                assert(!it.finished());
-                if (*it == thr) {
-                    it.remove();
-                    break;
-                }
-            }
-            threadsmux.unlock(&token);
-            delete thr;
         } else if (r == &socksub) {
             if (owner->shutdown.ready()) {
                 /* We're shutting down, so go back to waiting without
@@ -86,11 +77,29 @@ rpcserver<cookie_t>::rootthread::run() {
             }
             threadsmux.unlock(&token);
         } else {
-            abort(); } }
+            /* It must be a thread dead subscription. */
+            auto subs((rpcserverthreadsub<cookie_t> *)r);
+            assert(subs->magic == RPCSERVERTHREADSUBMAGIC);
+            auto thr(subs->thr);
+            delete subs;
+            logmsg(loglevel::info,
+                   "control interface reaping client thread" +
+                   fields::mk(*thr->thr()));
+            owner->endconn(thr->ctxt.get());
+            thr->thr()->join();
+            auto token(threadsmux.lock());
+            for (auto it(threads.start()); true; it.next()) {
+                assert(!it.finished());
+                if (*it == thr) {
+                    it.remove();
+                    break;
+                }
+            }
+            threadsmux.unlock(&token);
+            delete thr; } }
     
     assert(threads.empty());
     assert(owner->shutdown.ready());
-    assert(owner->dying.empty());
     return; }
 
 template <typename cookie_t>
@@ -98,7 +107,6 @@ rpcserver<cookie_t>::rpcserver()
     : service(new rpcservice<cookie_t>()),
       mux(),
       shutdown(),
-      dying(),
       sock(),
       roothandle(NULL),
       root(this) {}
@@ -111,8 +119,14 @@ rpcserver<cookie_t>::start(const peername &p, const fields::field &name) {
     sock = sl.success();
     auto threaderr(thread::spawn(
                        &root, &roothandle, name));
-    if (threaderr.isjust()) sock.close();
+    if (threaderr.isjust()) {
+        sock.close();
+        return threaderr.just(); }
     return threaderr; }
+
+template <typename cookie_t> void
+rpcserver<cookie_t>::_startconn(rpcconnthread<cookie_t> *thr) {
+    new rpcserverthreadsub<cookie_t>(root.sub, thr); }
 
 template <typename cookie_t> peername
 rpcserver<cookie_t>::localname() const {
@@ -153,9 +167,11 @@ rpcserver<cookie_t>::~rpcserver() {
     template class rpcconnthread<ctxt>;                                 \
     template class rpcregistration<ctxt>;                               \
     template class rpcinterface<ctxt>;                                  \
+    template class rpcserverthreadsub<ctxt>;                            \
     template class list<rpcinterface<ctxt> *>;                          \
     template class list<rpcregistration<ctxt> *>;                       \
     template class list<rpcconnthread<ctxt> *>;                         \
-    template class waitqueue<rpcconnthread<ctxt> *>;
+    template class waitqueue<rpcconnthread<ctxt> *>;                    \
+    template class waitbox<ctxt>;
 
 #endif /* !RPCSERVER_TMPL__ */

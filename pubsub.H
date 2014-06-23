@@ -35,13 +35,11 @@ public: ~publisher();
 
 class subscriptionbase {
     friend class subscriber;
-    friend class publisher;
 protected: bool notified;
 protected: subscriber *sub;
 protected: subscriptionbase(subscriber &_sub);
-    /* Set the notified flag on this subscription.  Only called by
-     * publisher and derived classes. */
-protected: void set();
+    /* Set the notified flag on this subscription. */
+public:   void set();
     /* Called by the subscriber when it's time to unhook from the
      * publisher.  This is made public in some subclasses. */
 private:   virtual void detach() = 0;

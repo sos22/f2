@@ -39,6 +39,9 @@ thread::startfn(void *_ths)
 
     ths->func->run();
 
+    ths->finished_ = true;
+    ths->pub_.publish();
+
     int nrdestructorsalloced = 0;
     threaddestructor **destructors = NULL;
     int nrdestructors = 0;
@@ -63,8 +66,14 @@ thread::startfn(void *_ths)
 }
 
 thread::thread()
-    : thr(), func(NULL), tid_(Nothing), startmux(), startcond(startmux)
-{}
+    : thr(),
+      func(NULL),
+      tid_(Nothing),
+      startmux(),
+      startcond(startmux),
+      pub_(),
+      finished_(false),
+      pub(pub_) {}
 
 maybe<error>
 thread::spawn(threadfn *fn, thread **out, const fields::field &name)
@@ -81,6 +90,9 @@ thread::spawn(threadfn *fn, thread **out, const fields::field &name)
         delete work;
         return error::from_errno(err);
     } else {
+        /* Need to wait for a little bit to get the child thread's
+           tid, because pthreads doesn't give us any easy way of doing
+           so from the parent. */
         auto token(work->startmux.lock());
         while (work->tid_ == Nothing)
             token = work->startcond.wait(&token);
@@ -96,6 +108,10 @@ thread::join()
     free((void *)name);
     delete this;
 }
+
+bool
+thread::finished() const {
+    return finished_; }
 
 threaddestructor::threaddestructor()
     : mux(),

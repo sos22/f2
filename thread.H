@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include "cond.H"
 #include "maybe.H"
+#include "pubsub.H"
 #include "tid.H"
 
 class error;
@@ -27,6 +28,8 @@ class thread {
     maybe<tid> tid_;
     mutex_t startmux;
     cond_t startcond;
+    publisher pub_;
+    bool finished_;
 
     const char *name;
     static void *startfn(void *_this);
@@ -43,6 +46,14 @@ public:
     /* Wait for the thread to finish and tear down the thread
      * structure. */
     void join();
+    /* Check whether the thread has exitted yet.  Note that this might
+     * return false for a little while after the thread function
+     * returns.  That lag will always be short and finite.  The
+     * publisher will be notified when this becomes true. */
+    bool finished() const;
+    /* Publisher which publishes when the thread exits (or, more
+     * precisely, shortly after finished() becomes true). */
+    const publisher &pub;
 };
 
 class threaddestructor {

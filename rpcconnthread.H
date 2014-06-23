@@ -6,7 +6,7 @@ class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
 private: thread *thr_;
 private: rpcserver<cookie_t> *owner;
-private: cookie_t ctxt;
+private: waitbox<cookie_t> ctxt;
 private: rpcconn conn;
 private: waitbox<bool> &shutdownall;
 private: waitbox<bool> shutdownone;
