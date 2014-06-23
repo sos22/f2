@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "rpcserver.H"
+#include "rpcinterface.H"
 #include "wireproto.H"
 
 class loglevel;

@@ -6,6 +6,7 @@
 #include "orerror.H"
 #include "logging.H"
 #include "proto.H"
+#include "pubsub.H"
 #include "tcpsocket.H"
 
 #include "either.tmpl"

@@ -11,6 +11,7 @@
 #include "rpcconn.H"
 #include "peername.H"
 #include "registrationsecret.H"
+#include "rpcservice.H"
 #include "timedelta.H"
 #include "timestamp.H"
 #include "udpsocket.H"

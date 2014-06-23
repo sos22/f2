@@ -1,0 +1,96 @@
+#ifndef RPCSERVICE_TMPL__
+#define RPCSERVICE_TMPL__
+
+template <typename cookie_t>
+rpcservice<cookie_t>::unknowniface::unknowniface()
+    : rpcinterface<cookie_t>(wireproto::msgtag(0)) {}
+
+template <typename cookie_t> maybe<error>
+rpcservice<cookie_t>::unknowniface::message(
+    const wireproto::rx_message &msg,
+    cookie_t,
+    buffer &) {
+    logmsg(loglevel::failure,
+           "Received an unrecognised message type " + fields::mk(msg.t));
+    return error::unrecognisedmessage; }
+
+template <typename cookie_t>
+rpcservice<cookie_t>::rpcservice()
+    : mux(),
+      registrations(),
+      unknowninterface(),
+      unknownregistration(registeriface(unknowninterface)) {}
+
+template <typename cookie_t> rpcregistration<cookie_t> *
+rpcservice<cookie_t>::registeriface(
+    rpcinterface<cookie_t> &ri) {
+    return registeriface(multiregistration().add(ri)); }
+
+template <typename cookie_t> typename rpcservice<cookie_t>::multiregistration &
+rpcservice<cookie_t>::multiregistration::add(
+    rpcinterface<cookie_t> &ri) {
+    content.pushtail(&ri);
+    return *this; }
+
+template <typename cookie_t>
+rpcservice<cookie_t>::multiregistration::~multiregistration() {
+    content.flush(); }
+
+template <typename cookie_t> rpcregistration<cookie_t> *
+rpcservice<cookie_t>::registeriface(const multiregistration &mr) {
+    auto res(new class rpcregistration<cookie_t>(this));
+    auto token(mux.lock());
+    for (auto it1(mr.content.start()); !it1.finished(); it1.next()) {
+        for (auto it2(registrations.start()); !it2.finished(); it2.next()) {
+            for (auto it3((*it2)->content.start());
+                 !it3.finished();
+                 it3.next()) {
+                assert((*it3)->tag != (*it1)->tag); } }
+        res->content.pushtail(*it1); }
+    registrations.pushtail(res);
+    mux.unlock(&token);
+    return res; }
+
+template <typename cookie_t> typename rpcservice<cookie_t>::lookupres
+rpcservice<cookie_t>::lookup(wireproto::msgtag tag) {
+    auto token(mux.lock());
+    auto reg(unknownregistration);
+    rpcinterface<cookie_t> *iface(&unknowninterface);
+    for (auto it(registrations.start());
+         !it.finished();
+         it.next()) {
+        for (auto it2((*it)->content.start());
+             !it2.finished();
+             it2.next()) {
+            if ((*it2)->tag == tag) {
+                reg = *it;
+                iface = *it2;
+                break; } } }
+    reg->start();
+    mux.unlock(&token);
+    lookupres res;
+    res.reg = reg;
+    res.iface = iface;
+    return res; }
+
+template <typename cookie_t> void
+rpcservice<cookie_t>::deregister(rpcregistration<cookie_t> *what) {
+    auto token(mux.lock());
+    for (auto it(registrations.start()); !it.finished(); it.next()) {
+        if (*it == what) {
+            it.remove();
+            mux.unlock(&token);
+            return; } }
+    mux.unlock(&token);
+    abort(); }
+
+template <typename cookie_t> void
+rpcservice<cookie_t>::destroy() {
+    while (!registrations.empty()) registrations.peekhead()->destroy();
+    delete this; }
+
+template <typename cookie_t>
+rpcservice<cookie_t>::~rpcservice() {
+    assert(registrations.empty()); }
+
+#endif /* !RPCSERVICE_TMPL__ */

@@ -3,6 +3,7 @@
 
 #include "controlserver.H"
 #include "proto.H"
+#include "rpcinterface.H"
 
 class error;
 template <typename> class maybe;
