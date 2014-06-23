@@ -57,7 +57,9 @@ public: orerror<const wireproto::rx_message *> receive(
     /* Receive the reply to a message with a particular sequence
        number while also waiting for events on a particular
        subscriber. */
-public: orerror<receiveres> receive(subscriber &, wireproto::sequencenr);
+public: orerror<receiveres> receive(subscriber &,
+                                    wireproto::sequencenr,
+                                    maybe<timestamp> deadline = Nothing);
 
     /* Connect to a remote master server, using the results of the
        beacon protocol. */

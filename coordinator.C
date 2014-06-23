@@ -106,8 +106,9 @@ coordinatorconn::timerthread::run() {
                    fields::mk(owner->conn.peer()));
             finished = true;
             continue; }
+        auto deadline(timestamp::now() + timedelta::seconds(1));
         while (!finished) {
-            auto rxres(owner->conn.receive(sub, snr));
+            auto rxres(owner->conn.receive(sub, snr, deadline));
             owner->conn.putsequencenr(snr);
             if (rxres.isfailure()) {
                 logmsg(loglevel::failure,

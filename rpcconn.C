@@ -39,14 +39,16 @@ rpcconn::receive(maybe<timestamp> deadline) {
     return r.success().message(); }
 
 orerror<rpcconn::receiveres>
-rpcconn::receive(subscriber &sub, wireproto::sequencenr snr) {
+rpcconn::receive(subscriber &sub,
+                 wireproto::sequencenr snr,
+                 maybe<timestamp> deadline) {
     for (auto it(pendingrx.start()); !it.finished(); it.next()) {
         if ((*it)->sequence == snr) {
             auto res(*it);
             it.remove();
             return receiveres(res); } }
     while (1) {
-        auto m = _receive(sub, Nothing);
+        auto m = _receive(sub, deadline);
         if (m.isfailure()) return m.failure();
         if (m.success().issubscription()) {
             return receiveres(m.success().subscription()); }
