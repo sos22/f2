@@ -12,11 +12,9 @@
 #include "rpcservice.H"
 #include "util.H"
 #include "waitbox.H"
-#include "waitqueue.H"
 
 #include "list.tmpl"
 #include "waitbox.tmpl"
-#include "waitqueue.tmpl"
 #include "rpcconnthread.tmpl"
 #include "rpcregistration.tmpl"
 #include "rpcservice.tmpl"
@@ -171,7 +169,6 @@ rpcserver<cookie_t>::~rpcserver() {
     template class list<rpcinterface<ctxt> *>;                          \
     template class list<rpcregistration<ctxt> *>;                       \
     template class list<rpcconnthread<ctxt> *>;                         \
-    template class waitqueue<rpcconnthread<ctxt> *>;                    \
     template class waitbox<ctxt>;
 
 #endif /* !RPCSERVER_TMPL__ */

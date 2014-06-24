@@ -26,12 +26,10 @@
 #include "unixsocket.H"
 #include "util.H"
 #include "waitbox.H"
-#include "waitqueue.H"
 #include "wireproto.H"
 
 #include "list.tmpl"
 #include "rpcserver.tmpl"
-#include "waitqueue.tmpl"
 
 #include "fieldfinal.H"
 

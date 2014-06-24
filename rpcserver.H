@@ -4,7 +4,6 @@
 #include "listenfd.H"
 #include "thread.H"
 #include "waitbox.H"
-#include "waitqueue.H"
 
 template <typename> class list;
 template <typename> class orerror;
