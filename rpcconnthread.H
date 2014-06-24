@@ -5,18 +5,18 @@ template <typename cookie_t>
 class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
 private: thread *thr_;
-private: rpcserver<cookie_t> *owner;
+private: rpcservice<cookie_t> *service;
 private: waitbox<cookie_t> ctxt;
 private: rpcconn conn;
 private: waitbox<bool> &shutdownall;
 private: waitbox<bool> shutdownone;
 private: rpcconnthread(
-    rpcserver<cookie_t> *_owner,
+    rpcservice<cookie_t> *_service,
     socket_t _fd,
     const peername &_peer,
     waitbox<bool> &_shutdown)
     : thr_(NULL),
-      owner(_owner),
+      service(_service),
       ctxt(),
       conn(_fd, _peer),
       shutdownall(_shutdown),

@@ -67,7 +67,7 @@ rpcconnthread<cookie_t>::runcommand(
     auto tag(r.success()->t);
     logmsg(loglevel::verbose, "run command " + fields::mk(tag));
     
-    auto reg(owner->service->lookup(tag));
+    auto reg(service->lookup(tag));
     
     auto res(reg.iface->message(*r.success(), ctxt.get(), conn.outgoing));
     
@@ -90,7 +90,10 @@ rpcconnthread<cookie_t>::spawn(
     waitbox<bool> &localshutdown) {
     auto peer(fd.peer());
     if (peer.isfailure()) return peer.failure();
-    auto res(new rpcconnthread(owner, fd, peer.success(), localshutdown));
+    auto res(new rpcconnthread(owner->service,
+                               fd,
+                               peer.success(),
+                               localshutdown));
     
     auto t(thread::spawn(res, &res->thr_,
                          "RPC client thread for " + fields::mk(fd.peer())));
