@@ -48,6 +48,10 @@ rpcserver<cookie_t>::rootthread::run() {
             if (!owner->shutdown.ready()) continue;
             logmsg(loglevel::info,
                    fields::mk("control interface received local shutdown"));
+            auto token(threadsmux.lock());
+            for (auto it(threads.start()); !it.finished(); it.next()) {
+                if (!(*it)->shutdown.ready()) (*it)->shutdown.set(true); }
+            threadsmux.unlock(&token);
         } else if (r == &socksub) {
             if (owner->shutdown.ready()) {
                 /* We're shutting down, so go back to waiting without
@@ -135,7 +139,7 @@ rpcserver<cookie_t>::killconn(rpcconn &conn) {
     auto token(root.threadsmux.lock());
     for (auto it(root.threads.start()); !it.finished(); it.next()) {
         if (&conn == &(*it)->conn) {
-            (*it)->shutdownone.set(true);
+            if (!(*it)->shutdown.ready()) (*it)->shutdown.set(true);
             root.threadsmux.unlock(&token);
             return; } }
     root.threadsmux.unlock(&token);

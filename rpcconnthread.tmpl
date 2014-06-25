@@ -11,16 +11,13 @@ rpcconnthread<cookie_t>::run() {
     die = false;
     
     subscriber sub;
-    subscription shutdownallsub(sub, shutdownall.pub);
-    subscription shutdownonesub(sub, shutdownone.pub);
+    subscription shutdownsub(sub, shutdown.pub);
     {   subscription ctxtsub(sub, ctxt.pub);
         if (ctxt.ready()) ctxtsub.set();
         while (!die) {
             auto r(sub.wait());
-            if (r == &shutdownallsub) {
-                if (shutdownall.ready()) die = true;
-            } else if (r == &shutdownonesub) {
-                if (shutdownone.ready()) die = true;
+            if (r == &shutdownsub) {
+                if (shutdown.ready()) die = true;
             } else if (r == &ctxtsub) {
                 break;
             } else {
@@ -30,10 +27,8 @@ rpcconnthread<cookie_t>::run() {
     while (!die) {
         fields::flush();
         auto r(sub.wait());
-        if (r == &shutdownallsub) {
-            if (shutdownall.ready()) die = true;
-        } else if (r == &shutdownonesub) {
-            if (shutdownone.ready()) die = true;
+        if (r == &shutdownsub) {
+            if (shutdown.ready()) die = true;
         } else if (r == &insub) {
             auto t(conn.incoming.receive(conn.fd));
             insub.rearm();
@@ -87,13 +82,13 @@ template <typename cookie_t> orerror<rpcconnthread<cookie_t> *>
 rpcconnthread<cookie_t>::spawn(
     rpcserver<cookie_t> *owner,
     socket_t fd,
-    waitbox<bool> &localshutdown) {
+    mutex_t::token tok) {
+    tok.formux(owner->mux);
     auto peer(fd.peer());
     if (peer.isfailure()) return peer.failure();
     auto res(new rpcconnthread(owner->service,
                                fd,
-                               peer.success(),
-                               localshutdown));
+                               peer.success()));
     
     auto t(thread::spawn(res, &res->thr_,
                          "RPC client thread for " + fields::mk(fd.peer())));
@@ -106,7 +101,7 @@ rpcconnthread<cookie_t>::spawn(
         logmsg(loglevel::failure,
                "connection from " + fields::mk(res->conn.peer()) +
                " rejected by implementation: " + fields::mk(ctxt.failure()));
-        res->shutdownone.set(true);
+        res->shutdown.set(true);
         res->thr_->join();
         delete res;
         return ctxt.failure();

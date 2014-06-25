@@ -8,19 +8,16 @@ private: thread *thr_;
 private: rpcservice<cookie_t> *service;
 private: waitbox<cookie_t> ctxt;
 private: rpcconn conn;
-private: waitbox<bool> &shutdownall;
-private: waitbox<bool> shutdownone;
+private: waitbox<bool> shutdown; /* set under the server mux */
 private: rpcconnthread(
     rpcservice<cookie_t> *_service,
     socket_t _fd,
-    const peername &_peer,
-    waitbox<bool> &_shutdown)
+    const peername &_peer)
     : thr_(NULL),
       service(_service),
       ctxt(),
       conn(_fd, _peer),
-      shutdownall(_shutdown),
-      shutdownone() {}
+      shutdown() {}
 private: void run();
 private: bool runcommand(bool *die);
 public:  thread *thr() const;
