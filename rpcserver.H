@@ -1,6 +1,7 @@
 #ifndef RPCSERVER_H__
 #define RPCSERVER_H__
 
+#include "rpcconnthread.H"
 #include "listenfd.H"
 #include "thread.H"
 #include "waitbox.H"
@@ -10,7 +11,6 @@ template <typename> class orerror;
 class peername;
 class rpcconn;
 
-template <typename> class rpcconnthread;
 template <typename> class rpcservice;
 template <typename> class rpcregistration;
 
@@ -20,6 +20,12 @@ class rpcserver {
     friend class rpcconnthread<cookie_t>;
 
 private:   class rootthread : public threadfn {
+    private: class startconn : public rpcconnthread<cookie_t>::startconn {
+        private: rootthread &owner;
+        public:  startconn(rootthread &_owner);
+        public:  orerror<cookie_t> operator()(rpcconn &conn);
+        };
+    public:  startconn startconn_;
     public:  list<rpcconnthread<cookie_t> *> threads;
     public:  mutex_t threadsmux;
     private: rpcserver *owner;

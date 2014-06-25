@@ -10,18 +10,14 @@ rpcconnthread<cookie_t>::run() {
     bool die;
     die = false;
     
+    auto newctxt(startconn_(conn));
+    if (newctxt.isfailure()) {
+        newctxt.failure().warn("acception connection from " + fields::mk(peer));
+        die = true;
+    } else {
+        ctxt = newctxt.success(); }
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
-    {   subscription ctxtsub(sub, ctxt.pub);
-        if (ctxt.ready()) ctxtsub.set();
-        while (!die) {
-            auto r(sub.wait());
-            if (r == &shutdownsub) {
-                if (shutdown.ready()) die = true;
-            } else if (r == &ctxtsub) {
-                break;
-            } else {
-                abort(); } } }
     iosubscription insub(sub, conn.fd.poll(POLLIN));
     iosubscription outsub(sub, conn.fd.poll(POLLOUT));
     while (!die) {
@@ -64,7 +60,7 @@ rpcconnthread<cookie_t>::runcommand(
     
     auto reg(service->lookup(tag));
     
-    auto res(reg.iface->message(*r.success(), ctxt.get(), conn.outgoing));
+    auto res(reg.iface->message(*r.success(), ctxt, conn.outgoing));
     
     reg.reg->finished();
 
@@ -81,12 +77,14 @@ rpcconnthread<cookie_t>::thr() const {
 template <typename cookie_t> orerror<rpcconnthread<cookie_t> *>
 rpcconnthread<cookie_t>::spawn(
     rpcserver<cookie_t> *owner,
+    startconn &sc,
     socket_t fd,
     mutex_t::token tok) {
     tok.formux(owner->mux);
     auto peer(fd.peer());
     if (peer.isfailure()) return peer.failure();
-    auto res(new rpcconnthread(owner->service,
+    auto res(new rpcconnthread(sc,
+                               owner->service,
                                fd,
                                peer.success()));
     
@@ -96,17 +94,6 @@ rpcconnthread<cookie_t>::spawn(
         delete res;
         return t.just();
     }
-    auto ctxt(owner->startconn(res->conn));
-    if (ctxt.isfailure()) {
-        logmsg(loglevel::failure,
-               "connection from " + fields::mk(res->conn.peer()) +
-               " rejected by implementation: " + fields::mk(ctxt.failure()));
-        res->shutdown.set(true);
-        res->thr_->join();
-        delete res;
-        return ctxt.failure();
-    }
-    res->ctxt.set(ctxt.success());
     owner->_startconn(res);
     return res; }
 

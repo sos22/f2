@@ -22,9 +22,20 @@
 #include "fieldfinal.H"
 
 template <typename cookie_t>
+rpcserver<cookie_t>::rootthread::startconn::startconn(
+    rootthread &_owner)
+    : owner(_owner) {}
+
+template <typename cookie_t> orerror<cookie_t>
+rpcserver<cookie_t>::rootthread::startconn::operator()(
+    rpcconn &conn) {
+    return owner.owner->startconn(conn); }
+
+template <typename cookie_t>
 rpcserver<cookie_t>::rootthread::rootthread(
     rpcserver<cookie_t> *_owner)
-    : threads(),
+    : startconn_(*this),
+      threads(),
       threadsmux(),
       owner(_owner) {}
 
@@ -67,8 +78,9 @@ rpcserver<cookie_t>::rootthread::run() {
                    fields::mk(newfd.success().peer()));
             auto token(threadsmux.lock());
             auto tr(rpcconnthread<cookie_t>::spawn(owner,
+                                                   startconn_,
                                                    newfd.success(),
-                                                   owner->shutdown));
+                                                   token));
             if (tr.isfailure()) {
                 error::from_errno().warn(
                     "Cannot build thread for new client " +
@@ -87,7 +99,7 @@ rpcserver<cookie_t>::rootthread::run() {
             logmsg(loglevel::info,
                    "control interface reaping client thread" +
                    fields::mk(*thr->thr()));
-            owner->endconn(thr->ctxt.get());
+            owner->endconn(thr->ctxt);
             thr->thr()->join();
             auto token(threadsmux.lock());
             for (auto it(threads.start()); true; it.next()) {
