@@ -24,7 +24,7 @@ class coordinatorconn {
 public: class timerthread : public threadfn {
     private: coordinatorconn *const owner;
     public:  timerthread(coordinatorconn *_owner);
-    private: void run();
+    private: void run(clientio);
     };
 public: mutex_t mux;
 public: int active;
@@ -69,9 +69,9 @@ private: list<coordinatorconn *> connections;
 public:  coordinatorimpl(const mastersecret &ms,
                          const registrationsecret &rs,
                          controlserver *cs);
-private: orerror<coordinatorconn *> startconn(rpcconn &);
-private: void endconn(coordinatorconn *);
-private: void destroy();
+private: orerror<coordinatorconn *> startconn(clientio, rpcconn &);
+private: void endconn(clientio, coordinatorconn *);
+private: void destroy(clientio);
 };
 
 coordinatorconn::timerthread::timerthread(
@@ -79,7 +79,7 @@ coordinatorconn::timerthread::timerthread(
     : owner(_owner) {}
 
 void
-coordinatorconn::timerthread::run() {
+coordinatorconn::timerthread::run(clientio io) {
     subscriber sub;
     subscription shutdownsub(sub, owner->shutdown.pub);
     auto nextping(timestamp::now() + timedelta::seconds(1));
@@ -99,6 +99,7 @@ coordinatorconn::timerthread::run() {
                "sending ping to " + fields::mk(owner->conn.peer()));
         auto snr(owner->conn.allocsequencenr());
         auto pingres(owner->conn.send(
+                         io,
                          wireproto::req_message(proto::PING::tag, snr)));
         if (pingres.isjust()) {
             logmsg(loglevel::failure,
@@ -108,8 +109,7 @@ coordinatorconn::timerthread::run() {
             continue; }
         auto deadline(timestamp::now() + timedelta::seconds(1));
         while (!finished) {
-            auto rxres(owner->conn.receive(sub, snr, deadline));
-            owner->conn.putsequencenr(snr);
+            auto rxres(owner->conn.receive(io, sub, snr, deadline));
             if (rxres.isfailure()) {
                 logmsg(loglevel::failure,
                        "error " + fields::mk(rxres.failure()) +
@@ -126,7 +126,8 @@ coordinatorconn::timerthread::run() {
             logmsg(loglevel::info,
                    "ping from " + fields::mk(owner->conn.peer()));
             owner->contact();
-            break; } }
+            break; }
+        owner->conn.putsequencenr(snr); }
     owner->owner->killconn(owner->conn); }
 
 void
@@ -152,12 +153,12 @@ coordinatorimpl::coordinatorimpl(
       controlregistration(cs->service->registeriface(statusiface)) {}
 
 orerror<coordinatorconn *>
-coordinatorimpl::startconn(rpcconn &conn) {
+coordinatorimpl::startconn(clientio io, rpcconn &conn) {
     /* Rate limit incoming connections, just because we can. */
     if (!newconnlimiter.probe()) return error::ratelimit;
     auto from(conn.peer());
     /* First message must be HELLO */
-    auto hello_r(conn.receive());
+    auto hello_r(conn.receive(io));
     if (hello_r.isfailure()) return hello_r.failure();
     auto msg(hello_r.success());
     if (msg->t != proto::HELLO::tag) return error::unrecognisedmessage;
@@ -194,7 +195,8 @@ coordinatorimpl::startconn(rpcconn &conn) {
     /* Send the hello response with a short deadline, because the
        queue should currently be empty and if we have to block at all
        the client must be doing something stupid. */
-    auto r(conn.send(wireproto::resp_message(*msg),
+    auto r(conn.send(io,
+                     wireproto::resp_message(*msg),
                      timestamp::now() + timedelta::seconds(1)));
     msg->finish();
     if (r.isjust()) {
@@ -222,7 +224,7 @@ coordinatorimpl::startconn(rpcconn &conn) {
     return res; }
 
 void
-coordinatorimpl::endconn(coordinatorconn *conn) {
+coordinatorimpl::endconn(clientio io, coordinatorconn *conn) {
     /* Start shutting down timer thread. */
     assert(!conn->shutdown.ready());
     conn->shutdown.set(true);
@@ -246,16 +248,16 @@ coordinatorimpl::endconn(coordinatorconn *conn) {
             sub.wait(); }
     
     /* Wait for timer thread to finish shutting down. */
-    conn->timerthreadhandle->join();
+    conn->timerthreadhandle->join(io);
     
     /* Safe to delete. */
     delete conn; }
 
 void
-coordinatorimpl::destroy() {
-    stop();
+coordinatorimpl::destroy(clientio io) {
+    stop(io);
     controlregistration->destroy();
-    rpcserver::destroy(); }
+    rpcserver::destroy(io); }
 
 orerror<coordinator *>
 coordinator::build(

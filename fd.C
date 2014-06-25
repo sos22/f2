@@ -30,7 +30,7 @@ fd_t::polled(const struct pollfd &pfd) const
 }
 
 orerror<size_t>
-fd_t::read(void *buf, size_t sz, maybe<timestamp> deadline) const {
+fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
     if (deadline != Nothing) {
         while (1) {
             struct pollfd pfd = poll(POLLIN);
@@ -50,7 +50,10 @@ fd_t::read(void *buf, size_t sz, maybe<timestamp> deadline) const {
 }
 
 orerror<size_t>
-fd_t::write(const void *buf, size_t sz, maybe<timestamp> deadline) const {
+fd_t::write(clientio,
+            const void *buf,
+            size_t sz,
+            maybe<timestamp> deadline) const {
     if (deadline != Nothing) {
         while (1) {
             struct pollfd pfd = poll(POLLOUT);

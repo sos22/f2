@@ -12,7 +12,9 @@ template <typename cookie_t>
 class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
     public: class startconn {
-        public: virtual orerror<cookie_t> operator()(rpcconn &conn) = 0;
+        public: virtual orerror<cookie_t> operator()(
+            clientio,
+            rpcconn &conn) = 0;
     };
 private: startconn &startconn_;
 private: thread *thr_;
@@ -31,7 +33,7 @@ private: rpcconnthread(
       ctxt(),
       conn(_fd, _peer),
       shutdown() {}
-private: void run();
+private: void run(clientio);
 private: bool runcommand(bool *die);
 public:  thread *thr() const;
 public:  static orerror<rpcconnthread<cookie_t> *> spawn(

@@ -26,9 +26,10 @@ class storageslave {
     rpcregistration<controlconn *> *controlregistration;
     rpcconn *masterconn;
     storageslave(controlserver *);
-    maybe<error> connect(const registrationsecret &);
+    maybe<error> connect(clientio, const registrationsecret &);
 public:
     static orerror<storageslave *> build(
+        clientio io,
         const registrationsecret &rs,
         controlserver *);
     void destroy() const;

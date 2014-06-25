@@ -73,7 +73,11 @@ private: bool registered; /* Are we currently registered with the poll
                              mux. */
     /* Construct a new iosubscription connecting the subscriber to a
      * given poll descriptor. */
-public:  iosubscription(subscriber &, struct pollfd);
+    /* The type here isn't quite right: it isn't constructing the
+     * iosubscription which waits for the client, but waiting on the
+     * subscriber.  We can't encode that in the typesystem, though, so
+     * use this as a usually-reasonable approximation. */
+public:  iosubscription(clientio, subscriber &, struct pollfd);
     /* IO subscriptions are by default single-shot, so that once
      * they've been notified once they won't be notified again if
      * further IO becomes possible.  Calling rearm() resets the
@@ -120,11 +124,11 @@ public: ~subscriber();
 };
 
 void initpubsub();
-void deinitpubsub();
+void deinitpubsub(clientio);
 
 class test;
 namespace tests {
-void pubsub(test &);
+void pubsub(clientio, test &);
 }
 
 #endif /* !PUBSUB_H__ */

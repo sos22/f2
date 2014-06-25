@@ -17,16 +17,16 @@ private: bool shutdown;
 private: list<iosubscription *> what;
 private: fd_t readcontrolfd;
 private: fd_t writecontrolfd;
-private: void run();
+private: void run(clientio);
 public:  void start();
 public:  void attach(iosubscription &);
 public:  void detach(iosubscription &);
-public:  void stop();
+public:  void stop(clientio);
 };
 static iopollingthread pollthread;
 
 void
-iopollingthread::run() {
+iopollingthread::run(clientio io) {
     int nralloced = 8;
     struct pollfd *pfds = (struct pollfd *)calloc(sizeof(*pfds), nralloced);
     auto token(mux.lock());
@@ -56,7 +56,7 @@ iopollingthread::run() {
                 /* Control FD is handled as part of the general loop
                  * processing. */
                 char b;
-                auto readres(readcontrolfd.read(&b, 1));
+                auto readres(readcontrolfd.read(io, &b, 1));
                 if (readres.isfailure()) {
                     readres.failure().fatal("reading poller control FD"); }
                 i++;
@@ -103,7 +103,11 @@ iopollingthread::attach(iosubscription &sub) {
     sub.registered = true;
     what.pushtail(&sub);
     mux.unlock(&token);
-    auto r(writecontrolfd.write("Y", 1));
+    /* This could in theory block, if the polling thread has fallen
+       massively far behind, but it shouldn't do so very often, and if
+       we're that far behind then a bit of backpressure is probably a
+       good thing. */
+    auto r(writecontrolfd.write(clientio::CLIENTIO, "Y", 1));
     if (r.isfailure()) {
         r.failure().fatal("waking up poller thread for new FD"); } }
 
@@ -132,16 +136,16 @@ iopollingthread::detach(iosubscription &sub) {
        listening on this FD; what would be the point? */ }
 
 void
-iopollingthread::stop() {
+iopollingthread::stop(clientio io) {
     assert(thrd != NULL);
     auto token(mux.lock());
     assert(!shutdown);
     shutdown = true;
-    auto r(writecontrolfd.write("X", 1));
+    auto r(writecontrolfd.write(io, "X", 1));
     mux.unlock(&token);
     if (r.isfailure()) {
         r.failure().fatal("writing to poller control FD for shutdown"); }
-    thrd->join();
+    thrd->join(io);
     thrd = NULL; }
 
 publisher::publisher()
@@ -212,6 +216,7 @@ subscription::~subscription() {
     detach(); }
 
 iosubscription::iosubscription(
+    clientio,
     subscriber &_sub,
     struct pollfd _pfd)
     : subscriptionbase(_sub),
@@ -294,11 +299,11 @@ initpubsub() {
     pollthread.start(); }
 
 void
-deinitpubsub() {
-    pollthread.stop(); }
+deinitpubsub(clientio io) {
+    pollthread.stop(io); }
 
 void
-tests::pubsub(test &support) {
+tests::pubsub(clientio io, test &support) {
     auto epsilon(timedelta::milliseconds(10));
     support.msg("Publisher in isolation");
     support.detail("construct/destruct");
@@ -416,9 +421,9 @@ tests::pubsub(test &support) {
     {   subscriber s;
         auto p(fd_t::pipe());
         if (p.isfailure()) p.failure().fatal("creating pipe");
-        iosubscription sub(s, p.success().read.poll(POLLIN));
+        iosubscription sub(io, s, p.success().read.poll(POLLIN));
         assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p.success().write.write("foo", 3);
+        p.success().write.write(io, "foo", 3);
         
         /* This should arguably be asserting that sub becomes ready
          * immediately, rather than that it becomes ready after
@@ -432,16 +437,16 @@ tests::pubsub(test &support) {
         assert(s.wait(timestamp::now() + epsilon) == NULL);
         char buf[3];
         sub.rearm();
-        p.success().read.read(buf, 1);
+        p.success().read.read(io, buf, 1);
         assert(s.wait(timestamp::now()) == &sub);
         assert(s.wait(timestamp::now() + epsilon) == NULL);
         sub.rearm();
         assert(s.wait(timestamp::now()) == &sub);
         assert(s.wait(timestamp::now() + epsilon) == NULL);
         sub.rearm();
-        p.success().read.read(buf, 2);
+        p.success().read.read(io, buf, 2);
         assert(s.wait(timestamp::now()) == &sub);
         assert(s.wait(timestamp::now() + epsilon) == NULL);
         sub.rearm();
         assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    deinitpubsub(); }
+    deinitpubsub(io); }

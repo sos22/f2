@@ -7,6 +7,7 @@
 #include "pubsub.H"
 #include "tid.H"
 
+class clientio;
 class error;
 class mutex_t;
 
@@ -16,7 +17,7 @@ class field;
 
 class threadfn {
 public:
-    virtual void run() = 0;
+    virtual void run(clientio) = 0;
     virtual ~threadfn() {}
 };
 
@@ -45,7 +46,7 @@ public:
                               const fields::field &name);
     /* Wait for the thread to finish and tear down the thread
      * structure. */
-    void join();
+    void join(clientio);
     /* Check whether the thread has exitted yet.  Note that this might
      * return false for a little while after the thread function
      * returns.  That lag will always be short and finite.  The

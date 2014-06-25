@@ -4,13 +4,13 @@
 #include "fieldfinal.H"
 
 template <typename cookie_t> void
-rpcconnthread<cookie_t>::run() {
+rpcconnthread<cookie_t>::run(clientio io) {
     peername peer(conn.peer());
     
     bool die;
     die = false;
     
-    auto newctxt(startconn_(conn));
+    auto newctxt(startconn_(io, conn));
     if (newctxt.isfailure()) {
         newctxt.failure().warn("acception connection from " + fields::mk(peer));
         die = true;
@@ -18,15 +18,15 @@ rpcconnthread<cookie_t>::run() {
         ctxt = newctxt.success(); }
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
-    iosubscription insub(sub, conn.fd.poll(POLLIN));
-    iosubscription outsub(sub, conn.fd.poll(POLLOUT));
+    iosubscription insub(io, sub, conn.fd.poll(POLLIN));
+    iosubscription outsub(io, sub, conn.fd.poll(POLLOUT));
     while (!die) {
         fields::flush();
         auto r(sub.wait());
         if (r == &shutdownsub) {
             if (shutdown.ready()) die = true;
         } else if (r == &insub) {
-            auto t(conn.incoming.receive(conn.fd));
+            auto t(conn.incoming.receive(io, conn.fd));
             insub.rearm();
             if (t.isjust()) {
                 t.just().warn("receiving from client " + fields::mk(peer));
@@ -37,7 +37,7 @@ rpcconnthread<cookie_t>::run() {
             if (conn.outgoing.empty()) {
                 /* Happens on initial iteration.  Just ignore it. */
             } else {
-                auto rr(conn.outgoing.send(conn.fd));
+                auto rr(conn.outgoing.send(io, conn.fd));
                 if (rr.isjust()) {
                     rr.just().warn("sending to client " + fields::mk(peer));
                     break; } }

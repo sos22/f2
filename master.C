@@ -48,11 +48,11 @@ main()
 
     auto r = s.get();
 
-    beacon.success()->destroy();
-    coord.success()->destroy();
-    c.success()->destroy();
+    beacon.success()->destroy(clientio::CLIENTIO);
+    coord.success()->destroy(clientio::CLIENTIO);
+    c.success()->destroy(clientio::CLIENTIO);
     deinitlogging();
-    deinitpubsub();
+    deinitpubsub(clientio::CLIENTIO);
     fields::flush();
     r.finish();
 }

@@ -20,27 +20,28 @@ rpcconn::rpcconn(socket_t _fd, const peername &_peer)
       peer_(_peer) {}
 
 orerror<rpcconn::receiveres>
-rpcconn::_receive(subscriber &sub, maybe<timestamp> deadline) {
+rpcconn::_receive(clientio io, subscriber &sub, maybe<timestamp> deadline) {
     while (1) {
         auto r(wireproto::rx_message::fetch(incoming));
         if (r.issuccess()) return receiveres(r.success());
         if (r.isfailure() && r.failure() != error::underflowed) {
             return r.failure(); }
-        auto t(incoming.receive(fd, sub, deadline));
+        auto t(incoming.receive(io, fd, sub, deadline));
         if (t.isfailure()) return t.failure();
         if (t.success()) return receiveres(t.success()); } }
 
 orerror<const wireproto::rx_message *>
-rpcconn::receive(maybe<timestamp> deadline) {
+rpcconn::receive(clientio io, maybe<timestamp> deadline) {
     if (!pendingrx.empty()) return pendingrx.pophead();
     subscriber sub;
-    auto r(_receive(sub, deadline));
+    auto r(_receive(io, sub, deadline));
     if (r.isfailure()) return r.failure();
     assert(r.success().ismessage());
     return r.success().message(); }
 
 orerror<rpcconn::receiveres>
-rpcconn::receive(subscriber &sub,
+rpcconn::receive(clientio io,
+                 subscriber &sub,
                  wireproto::sequencenr snr,
                  maybe<timestamp> deadline) {
     for (auto it(pendingrx.start()); !it.finished(); it.next()) {
@@ -49,7 +50,7 @@ rpcconn::receive(subscriber &sub,
             it.remove();
             return receiveres(res); } }
     while (1) {
-        auto m = _receive(sub, deadline);
+        auto m = _receive(io, sub, deadline);
         if (m.isfailure()) return m.failure();
         if (m.success().issubscription()) {
             return receiveres(m.success().subscription()); }
@@ -58,20 +59,21 @@ rpcconn::receive(subscriber &sub,
         pendingrx.pushtail(m.success().message()); } }
 
 orerror<rpcconn *>
-rpcconn::connect(const peername &p) {
-    auto sock(tcpsocket::connect(p));
+rpcconn::connect(clientio io, const peername &p) {
+    auto sock(tcpsocket::connect(io, p));
     if (sock.isfailure()) return sock.failure();
     else return new rpcconn(sock.success(), p); }
 
 orerror<rpcconn *>
-rpcconn::connectmaster(const beaconresult &beacon)
+rpcconn::connectmaster(clientio io, const beaconresult &beacon)
 {
     logmsg(loglevel::verbose,
            "connect with slavename " + fields::mk(beacon.slavename));
-    auto res(rpcconn::connect(beacon.mastername));
+    auto res(rpcconn::connect(io, beacon.mastername));
     if (res.isfailure()) return res.failure();
     auto snr(res.success()->allocsequencenr());
     auto hellores(res.success()->call(
+                      io,
                       wireproto::req_message(proto::HELLO::tag, snr)
                       .addparam(proto::HELLO::req::version, 1u)
                       .addparam(proto::HELLO::req::nonce, beacon.nonce)
@@ -94,21 +96,24 @@ rpcconn::~rpcconn() {
         pendingrx.pophead()->finish(); }
 
 maybe<error>
-rpcconn::send(const wireproto::tx_message &msg, maybe<timestamp> deadline) {
+rpcconn::send(
+    clientio io,
+    const wireproto::tx_message &msg,
+    maybe<timestamp> deadline) {
     {   auto r(msg.serialise(outgoing));
         if (r.isjust()) return r; }
     
     while (!outgoing.empty()) {
-        auto r(outgoing.send(fd, deadline));
+        auto r(outgoing.send(io, fd, deadline));
         if (r.isjust()) return r; }
     return Nothing; }
 
 orerror<const wireproto::rx_message *>
-rpcconn::call(const wireproto::req_message &msg) {
-    auto r = send(msg);
+rpcconn::call(clientio io, const wireproto::req_message &msg) {
+    auto r = send(io, msg);
     if (r.isjust()) return r.just();
     subscriber sub;
-    auto rr(receive(sub, msg.sequence.reply()));
+    auto rr(receive(io, sub, msg.sequence.reply()));
     if (rr.isfailure()) return rr.failure();
     assert(rr.success().ismessage());
     return rr.success().message(); }

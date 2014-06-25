@@ -37,7 +37,7 @@ thread::startfn(void *_ths)
     ths->startcond.broadcast(token);
     ths->startmux.unlock(&token);
 
-    ths->func->run();
+    ths->func->run(clientio::CLIENTIO);
 
     ths->finished_ = true;
     ths->pub_.publish();
@@ -102,7 +102,7 @@ thread::spawn(threadfn *fn, thread **out, const fields::field &name)
 }
 
 void
-thread::join()
+thread::join(clientio)
 {
     pthread_join(thr, NULL);
     free((void *)name);

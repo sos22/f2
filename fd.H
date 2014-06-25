@@ -1,6 +1,7 @@
 #ifndef FD_H__
 #define FD_H__
 
+#include "clientio.H"
 #include "maybe.H"
 #include "obj.H"
 #include "orerror.H"
@@ -48,12 +49,14 @@ public:
     void close() const;
     /* Write some bytes into the FD.  A very thin wrapper around
      * ::write() */
-    orerror<size_t> write(const void *buf,
+    orerror<size_t> write(clientio,
+                          const void *buf,
                           size_t bufsz,
                           maybe<timestamp> deadline = Nothing) const;
     /* Read some bytes from the FD.  A very thin wrapper around
      * ::read() */
-    orerror<size_t> read(void *buf,
+    orerror<size_t> read(clientio,
+                         void *buf,
                          size_t bufsz,
                          maybe<timestamp> deadline = Nothing) const;
     typedef __piperes<fd_t> piperes;

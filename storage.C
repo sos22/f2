@@ -24,6 +24,7 @@ main()
                peername::local("storageslave"), s));
     if (c.isfailure()) c.failure().fatal("build control interface");
     auto slave(storageslave::build(
+                   clientio::CLIENTIO,
                    registrationsecret::mk("<default password>"),
                    c.success()));
     if (slave.isfailure())
@@ -31,8 +32,8 @@ main()
 
     auto r = s.get();
     slave.success()->destroy();
-    c.success()->destroy();
-    deinitpubsub();
+    c.success()->destroy(clientio::CLIENTIO);
+    deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
     r.finish();
 }

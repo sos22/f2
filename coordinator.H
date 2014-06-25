@@ -20,7 +20,7 @@ public:  static orerror<coordinator *> build(
     const registrationsecret &,
     const peername &,
     controlserver *);
-public:  virtual void destroy() = 0;
+public:  virtual void destroy(clientio) = 0;
 };
 
 #endif /* !COORDINATOR_H__ */

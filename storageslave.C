@@ -23,21 +23,22 @@ storageslave::storageslave(controlserver *cs)
           cs->service->registeriface(statusinterface)) { }
 
 maybe<error>
-storageslave::connect(const registrationsecret &rs) {
+storageslave::connect(clientio io, const registrationsecret &rs) {
     auto br(beaconclient(rs));
     if (br.isfailure()) return br.failure();
-    auto cr(rpcconn::connectmaster(br.success()));
+    auto cr(rpcconn::connectmaster(io, br.success()));
     if (cr.isfailure()) return cr.failure();
     masterconn = cr.success();
     return Nothing;
 }
 
 orerror<storageslave *>
-storageslave::build(const registrationsecret &rs,
+storageslave::build(clientio io,
+                    const registrationsecret &rs,
                     controlserver *cs)
 {
     auto work(new storageslave(cs));
-    auto err(work->connect(rs));
+    auto err(work->connect(io, rs));
     if (err.isjust()) {
         delete work;
         return err.just();

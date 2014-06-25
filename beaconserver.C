@@ -123,10 +123,10 @@ beaconserver::listenthreadclass::listenthreadclass(beaconserver *_owner)
 {}
 
 void
-beaconserver::listenthreadclass::run()
+beaconserver::listenthreadclass::run(clientio io)
 {
     subscriber sub;
-    iosubscription iosub(sub, owner->listenfd.poll());
+    iosubscription iosub(io, sub, owner->listenfd.poll());
     subscription shutdown(sub, owner->shutdown.pub);
     while (!owner->shutdown.ready()) {
         auto notified(sub.wait());
@@ -231,14 +231,14 @@ beaconserver::listenthreadclass::run()
    wait, and is thus prone to deadlocks if called at the wrong
    time. */
 void
-beaconserver::destroy()
+beaconserver::destroy(clientio io)
 {
     if (!listenthread) {
         delete this;
         return; }
     controlregistration->destroy();
     shutdown.set(true);
-    listenthread->join();
+    listenthread->join(io);
     listenthread = NULL;
     listenfd.close();
     delete this;

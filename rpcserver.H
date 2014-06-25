@@ -23,7 +23,7 @@ private:   class rootthread : public threadfn {
     private: class startconn : public rpcconnthread<cookie_t>::startconn {
         private: rootthread &owner;
         public:  startconn(rootthread &_owner);
-        public:  orerror<cookie_t> operator()(rpcconn &conn);
+        public:  orerror<cookie_t> operator()(clientio, rpcconn &conn);
         };
     public:  startconn startconn_;
     public:  list<rpcconnthread<cookie_t> *> threads;
@@ -31,7 +31,7 @@ private:   class rootthread : public threadfn {
     private: rpcserver *owner;
     public:  subscriber sub;
     public:  rootthread(rpcserver *_owner);
-    private: void run();
+    private: void run(clientio);
     };
 public:    rpcservice<cookie_t> *service;
 private:   mutex_t mux;
@@ -57,7 +57,7 @@ private: void _startconn(rpcconnthread<cookie_t> *);
        connection arrives.  If this returns an error then the
        connection will be dropped immediately without calling
        endconn(). */
-private:   virtual orerror<cookie_t> startconn(rpcconn &conn) = 0;
+private:   virtual orerror<cookie_t> startconn(clientio, rpcconn &conn) = 0;
     
     /* Get a peername on with which other hosts can connect to this
      * server */
@@ -70,17 +70,17 @@ public:    void killconn(rpcconn &conn);
     /* Called by the rpcserver implementation whenever a connection
        ends, once all method invocations on that connection have
        finished. */
-private:   virtual void endconn(cookie_t) = 0;
+private:   virtual void endconn(clientio, cookie_t) = 0;
     
     /* Stop accepting new incoming operations and wait for any extant
        ones to finish.  Leaves the server in an invalid state from
        which the only valid operation is the destructor.  No-op if
        we've already stopped. */
-protected: void stop();
+protected: void stop(clientio);
 
     /* Release a server, stopping it first if necessary. */
     /* Not a true destructor because it can wait for things. */
-public:    void destroy();
+public:    void destroy(clientio);
 
     /* Ideally this would be private (destroy should be the only thing
        destructing these structures), but gcc doesn't allow that, for

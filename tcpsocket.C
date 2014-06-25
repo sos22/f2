@@ -9,7 +9,7 @@
 #include "socket.H"
 
 orerror<socket_t>
-tcpsocket::connect(const peername &p)
+tcpsocket::connect(clientio, const peername &p)
 {
     auto sa(p.sockaddr());
     int sock = ::socket(sa->sa_family, SOCK_STREAM, 0);

@@ -46,41 +46,51 @@ private: rpcconn(socket_t, const peername &);
     /* Receive a message from the remote system, bypassing the
        incoming queue. */
 private: orerror<receiveres> _receive(
+    clientio,
     subscriber &sub,
     maybe<timestamp> deadline = Nothing);
 
     /* Receive a message from the incoming queue, if it's non-empty,
        or from the remote system, otherwise. */
 public: orerror<const wireproto::rx_message *> receive(
+    clientio,
     maybe<timestamp> deadline = Nothing);
 
     /* Receive the reply to a message with a particular sequence
        number while also waiting for events on a particular
        subscriber. */
-public: orerror<receiveres> receive(subscriber &,
+public: orerror<receiveres> receive(clientio,
+                                    subscriber &,
                                     wireproto::sequencenr,
                                     maybe<timestamp> deadline = Nothing);
 
     /* Connect to a remote master server, using the results of the
        beacon protocol. */
-public: static orerror<rpcconn *> connectmaster(const beaconresult &p);
+public: static orerror<rpcconn *> connectmaster(
+    clientio,
+    const beaconresult &p);
 
     /* Raw connect: just connect to a given peername, without sending
      * a HELLO. */
-public: static orerror<rpcconn *> connect(const peername &);
+public: static orerror<rpcconn *> connect(
+    clientio,
+    const peername &);
 
 public: ~rpcconn();
 
     /* Send a message, without waiting for any kind of response.
      * Might block waiting for outgoing buffer space. */
-public: maybe<error> send(const wireproto::tx_message &msg,
-                          maybe<timestamp> deadline = Nothing);
+public: maybe<error> send(
+    clientio,
+    const wireproto::tx_message &msg,
+    maybe<timestamp> deadline = Nothing);
 
     /* Perform an RPC.  Send a given message and wait for a response
      * to come back.  This will receive any other messages which the
      * server deigns to send us and place them in the receive
      * queue. */
 public: orerror<const wireproto::rx_message *> call(
+    clientio,
     const wireproto::req_message &msg);
 
     /* Allocate a sequence number suitable for constructing a new

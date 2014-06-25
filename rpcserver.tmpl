@@ -28,8 +28,9 @@ rpcserver<cookie_t>::rootthread::startconn::startconn(
 
 template <typename cookie_t> orerror<cookie_t>
 rpcserver<cookie_t>::rootthread::startconn::operator()(
+    clientio io,
     rpcconn &conn) {
-    return owner.owner->startconn(conn); }
+    return owner.owner->startconn(io, conn); }
 
 template <typename cookie_t>
 rpcserver<cookie_t>::rootthread::rootthread(
@@ -50,8 +51,8 @@ template <typename cookie_t> struct rpcserverthreadsub : public subscription {
         if (thr->thr()->finished()) set(); } };
 
 template <typename cookie_t> void
-rpcserver<cookie_t>::rootthread::run() {
-    iosubscription socksub(sub, owner->sock.poll());
+rpcserver<cookie_t>::rootthread::run(clientio io) {
+    iosubscription socksub(io, sub, owner->sock.poll());
     subscription shutdownsub(sub, owner->shutdown.pub);
     while (!owner->shutdown.ready() || !threads.empty()) {
         auto r(sub.wait());
@@ -99,8 +100,12 @@ rpcserver<cookie_t>::rootthread::run() {
             logmsg(loglevel::info,
                    "control interface reaping client thread" +
                    fields::mk(*thr->thr()));
-            owner->endconn(thr->ctxt);
-            thr->thr()->join();
+            
+            /* XXX this really isn't a good place to be doing synchronous
+               client work. XXX */
+            owner->endconn(clientio::CLIENTIO, thr->ctxt);
+            
+            thr->thr()->join(io);
             auto token(threadsmux.lock());
             for (auto it(threads.start()); true; it.next()) {
                 assert(!it.finished());
@@ -158,17 +163,17 @@ rpcserver<cookie_t>::killconn(rpcconn &conn) {
     abort(); }
 
 template <typename cookie_t> void
-rpcserver<cookie_t>::stop() {
+rpcserver<cookie_t>::stop(clientio io) {
     if (roothandle == NULL) return;
     shutdown.set(true);
-    roothandle->join();
+    roothandle->join(io);
     roothandle = NULL;
     service->destroy();
     service = NULL; }
 
 template <typename cookie_t> void
-rpcserver<cookie_t>::destroy() {
-    stop();
+rpcserver<cookie_t>::destroy(clientio io) {
+    stop(io);
     delete this; }
 
 template <typename cookie_t>

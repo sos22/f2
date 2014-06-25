@@ -77,11 +77,11 @@ public:  controlserverimpl(waitbox<shutdowncode> &s)
 private: controlserverimpl(const controlserverimpl &) = delete;
 private: void operator=(const controlserverimpl &) = delete;
 
-private: orerror<controlconn *> startconn(rpcconn &);
-private: void endconn(controlconn *);
+private: orerror<controlconn *> startconn(clientio, rpcconn &);
+private: void endconn(clientio, controlconn *);
 
 public:  maybe<error> setup(const peername &);
-public:  void destroy();
+public:  void destroy(clientio);
 };
 
 maybe<error>
@@ -118,18 +118,18 @@ quitiface::message(const wireproto::rx_message &msg,
 
 /* not a destructor because it has non-trivial synchronisation rules. */
 void
-controlserverimpl::destroy() {
-    stop();
+controlserverimpl::destroy(clientio io) {
+    stop(io);
     registration->destroy();
-    rpcserver::destroy();
+    rpcserver::destroy(io);
 }
 
 orerror<controlconn *>
-controlserverimpl::startconn(rpcconn &conn) {
+controlserverimpl::startconn(clientio, rpcconn &conn) {
     return new controlconn(conn.peer()); }
 
 void
-controlserverimpl::endconn(controlconn *conn) {
+controlserverimpl::endconn(clientio, controlconn *conn) {
     delete conn; }
 
 maybe<error>
@@ -150,7 +150,9 @@ controlserver::build(const peername &p, waitbox<shutdowncode> &s)
     if (e.isnothing()) {
         return r;
     } else {
-        r->destroy();
+        /* This can't block for very long, because it's really just a
+           destructor, so doesn't need a clientio */
+        r->destroy(clientio::CLIENTIO);
         return e.just(); } }
 
 RPCSERVER(controlconn *)

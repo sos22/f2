@@ -64,7 +64,7 @@ public:    lookupres lookup(wireproto::msgtag);
 private:   void deregister(rpcregistration<cookie_t> *);
 
     /* Destroy the service, unregistering any remaining interfaces.
-     * Waits for any extant invocations on the service to finish. */
+     * There must not be any extant invocations when this starts. */
     /* Not a true destructor because it has non-trivial wait rules. */
 public:    void destroy();
 

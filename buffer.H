@@ -8,6 +8,7 @@
 #include "maybe.H"
 #include "timestamp.H"
 
+class clientio;
 class fd_t;
 template <typename> class orerror;
 class subscriber;
@@ -45,16 +46,17 @@ public:
      * a single write syscall, so won't block if poll returns POLLOUT.
      * Might leave some bytes in the buffer, even when it returns
      * success. */
-    maybe<error> send(fd_t, maybe<timestamp> deadline = Nothing);
+    maybe<error> send(clientio, fd_t, maybe<timestamp> deadline = Nothing);
     /* Grab some bytes from the fd and put them at the end of the
      * buffer.  Only ever makes a single read syscall, so won't block
      * if poll returns POLLIN. */
-    maybe<error> receive(fd_t, maybe<timestamp> deadline = Nothing);
+    maybe<error> receive(clientio, fd_t, maybe<timestamp> deadline = Nothing);
     /* Grab some bytes from the fd, waiting at most until the deadline
      * or until the subscriber becomes notified.  If the subscriber
      * becomes notified, clear and return the subscription.  If an
      * error occurs, return that error.  Otherwise, return NULL. */
-    orerror<subscriptionbase *> receive(fd_t,
+    orerror<subscriptionbase *> receive(clientio,
+                                        fd_t,
                                         subscriber &sub,
                                         maybe<timestamp> deadline = Nothing);
 

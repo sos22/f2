@@ -48,7 +48,7 @@ class beaconserver {
         listenthreadclass() = delete;
         listenthreadclass(const listenthreadclass &) = delete;
         void operator=(const listenthreadclass &) = delete;
-        void run();
+        void run(clientio);
     public:
         listenthreadclass(beaconserver *);
     };
@@ -86,7 +86,7 @@ public:
                                          controlserver *,
                                          const peername &mastername,
                                          const mastersecret &_mastersecret);
-    void destroy();
+    void destroy(clientio);
 };
 
 #endif /* !BEACONSERVER_H__ */

@@ -21,7 +21,7 @@ main(int argc, char *argv[])
         errx(1, "need a mode argument");
     initlogging("mastercli");
     initpubsub();
-    auto c(rpcconn::connect(peername::local("mastersock")));
+    auto c(rpcconn::connect(clientio::CLIENTIO, peername::local("mastersock")));
     int r;
 
     if (c.isfailure())
@@ -32,6 +32,7 @@ main(int argc, char *argv[])
         if (argc != 2) errx(1, "PING mode takes no arguments");
         auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
+            clientio::CLIENTIO,
             wireproto::req_message(proto::PING::tag, snr).
             addparam(proto::PING::req::msg, "Hello"));
         c.success()->putsequencenr(snr);
@@ -49,6 +50,7 @@ main(int argc, char *argv[])
         while (1) {
             auto snr(c.success()->allocsequencenr());
             auto m = c.success()->call(
+                clientio::CLIENTIO,
                 wireproto::req_message(proto::GETLOGS::tag, snr)
                 .addparam(proto::GETLOGS::req::startidx, cursor));
             c.success()->putsequencenr(snr);
@@ -72,6 +74,7 @@ main(int argc, char *argv[])
         if (argc != 2) errx(1, "BEACONSTATUS mode takes no arguments");
         auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
+            clientio::CLIENTIO,
             wireproto::req_message(proto::BEACONSTATUS::tag, snr));
         if (m.isfailure()) {
             fields::print(fields::mk(m.failure()));
@@ -94,6 +97,7 @@ main(int argc, char *argv[])
             code.failure().fatal(fields::mk("cannot parse shutdown code"));
         const char *message = argv[3];
         auto rv(c.success()->send(
+                    clientio::CLIENTIO,
                     wireproto::tx_message(proto::QUIT::tag)
                     .addparam(proto::QUIT::req::message, message)
                     .addparam(proto::QUIT::req::reason, code.success())));
@@ -104,7 +108,7 @@ main(int argc, char *argv[])
         r = 1;
     }
     delete c.success();
-    deinitpubsub();
+    deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
     return r;
 }

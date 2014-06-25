@@ -21,7 +21,7 @@ main(int argc, char *argv[])
     else if (!strcmp(argv[1], "logging"))
         logtest(t);
     else if (!strcmp(argv[1], "pubsub"))
-        tests::pubsub(t);
+        tests::pubsub(clientio::CLIENTIO, t);
     else if (!strcmp(argv[1], "wireproto"))
         wireproto::test(t);
     else
