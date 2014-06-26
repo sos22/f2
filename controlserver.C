@@ -120,7 +120,6 @@ quitiface::message(const wireproto::rx_message &msg,
 void
 controlserverimpl::destroy(clientio io) {
     stop(io);
-    registration->destroy();
     rpcserver::destroy(io);
 }
 
