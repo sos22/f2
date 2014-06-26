@@ -12,6 +12,7 @@ class peername;
 class rpcconn;
 
 template <typename> class rpcservice;
+template <typename> class rpcserverthreadsub;
 template <typename> class rpcregistration;
 
 template <typename cookie_t>
@@ -32,7 +33,7 @@ private:   class rootthread : public threadfn {
         };
     public:  startconn startconn_;
     public:  endconn endconn_;
-    public:  list<rpcconnthread<cookie_t> *> threads;
+    public:  list<rpcserverthreadsub<cookie_t> *> threads;
     public:  mutex_t threadsmux;
     private: rpcserver *owner;
     public:  subscriber sub;
@@ -55,9 +56,6 @@ protected: rpcserver();
        you've finished registering all of the needed interfaces.
        Abort if the interface is already running. */
 protected: maybe<error> start(const peername &p, const fields::field &name);
-    
-    /* Register a connection thread with the root thread. */
-private: void _startconn(rpcconnthread<cookie_t> *);
     
     /* Called by the rpcserver implementation whenever a new
        connection arrives.  If this returns an error then the

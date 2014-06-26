@@ -97,7 +97,6 @@ rpcconnthread<cookie_t>::spawn(
         delete res;
         return t.just();
     }
-    owner->_startconn(res);
     return res; }
 
 #endif /* !RPCCONNTHREAD_TMPL__ */

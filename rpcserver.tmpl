@@ -74,7 +74,8 @@ rpcserver<cookie_t>::rootthread::run(clientio io) {
                    fields::mk("control interface received local shutdown"));
             auto token(threadsmux.lock());
             for (auto it(threads.start()); !it.finished(); it.next()) {
-                if (!(*it)->shutdown.ready()) (*it)->shutdown.set(true); }
+                if (!(*it)->thr->shutdown.ready()) {
+                    (*it)->thr->shutdown.set(true); } }
             threadsmux.unlock(&token);
         } else if (r == &socksub) {
             if (owner->shutdown.ready()) {
@@ -101,7 +102,8 @@ rpcserver<cookie_t>::rootthread::run(clientio io) {
                     fields::mk(newfd.success().peer()));
                 newfd.success().close();
             } else {
-                threads.pushhead(tr.success());
+                threads.pushhead(
+                    new rpcserverthreadsub<cookie_t>(sub, tr.success()));
             }
             threadsmux.unlock(&token);
         } else {
@@ -109,21 +111,21 @@ rpcserver<cookie_t>::rootthread::run(clientio io) {
             auto subs((rpcserverthreadsub<cookie_t> *)r);
             assert(subs->magic == RPCSERVERTHREADSUBMAGIC);
             auto thr(subs->thr);
+            auto token(threadsmux.lock());
+            for (auto it(threads.start()); true; it.next()) {
+                assert(!it.finished());
+                if (*it == subs) {
+                    it.remove();
+                    break;
+                }
+            }
+            threadsmux.unlock(&token);
             delete subs;
             logmsg(loglevel::info,
                    "control interface reaping client thread" +
                    fields::mk(*thr->thr()));
             
             thr->thr()->join(io);
-            auto token(threadsmux.lock());
-            for (auto it(threads.start()); true; it.next()) {
-                assert(!it.finished());
-                if (*it == thr) {
-                    it.remove();
-                    break;
-                }
-            }
-            threadsmux.unlock(&token);
             delete thr; } }
     
     assert(threads.empty());
@@ -152,10 +154,6 @@ rpcserver<cookie_t>::start(const peername &p, const fields::field &name) {
         return threaderr.just(); }
     return threaderr; }
 
-template <typename cookie_t> void
-rpcserver<cookie_t>::_startconn(rpcconnthread<cookie_t> *thr) {
-    new rpcserverthreadsub<cookie_t>(root.sub, thr); }
-
 template <typename cookie_t> peername
 rpcserver<cookie_t>::localname() const {
     return sock.localname(); }
@@ -164,8 +162,8 @@ template <typename cookie_t> void
 rpcserver<cookie_t>::killconn(rpcconn &conn) {
     auto token(root.threadsmux.lock());
     for (auto it(root.threads.start()); !it.finished(); it.next()) {
-        if (&conn == &(*it)->conn) {
-            if (!(*it)->shutdown.ready()) (*it)->shutdown.set(true);
+        if (&conn == &(*it)->thr->conn) {
+            if (!(*it)->thr->shutdown.ready()) (*it)->thr->shutdown.set(true);
             root.threadsmux.unlock(&token);
             return; } }
     root.threadsmux.unlock(&token);
@@ -198,7 +196,7 @@ rpcserver<cookie_t>::~rpcserver() {
     template class rpcserverthreadsub<ctxt>;                            \
     template class list<rpcinterface<ctxt> *>;                          \
     template class list<rpcregistration<ctxt> *>;                       \
-    template class list<rpcconnthread<ctxt> *>;                         \
+    template class list<rpcserverthreadsub<ctxt> *>;                    \
     template class waitbox<ctxt>;
 
 #endif /* !RPCSERVER_TMPL__ */
