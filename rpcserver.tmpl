@@ -33,9 +33,21 @@ rpcserver<cookie_t>::rootthread::startconn::operator()(
     return owner.owner->startconn(io, conn); }
 
 template <typename cookie_t>
+rpcserver<cookie_t>::rootthread::endconn::endconn(
+    rootthread &_owner)
+    : owner(_owner) {}
+
+template <typename cookie_t> void
+rpcserver<cookie_t>::rootthread::endconn::operator()(
+    clientio io,
+    cookie_t cookie) {
+    owner.owner->endconn(io, cookie); }
+
+template <typename cookie_t>
 rpcserver<cookie_t>::rootthread::rootthread(
     rpcserver<cookie_t> *_owner)
     : startconn_(*this),
+      endconn_(*this),
       threads(),
       threadsmux(),
       owner(_owner) {}
@@ -80,6 +92,7 @@ rpcserver<cookie_t>::rootthread::run(clientio io) {
             auto token(threadsmux.lock());
             auto tr(rpcconnthread<cookie_t>::spawn(owner,
                                                    startconn_,
+                                                   endconn_,
                                                    newfd.success(),
                                                    token));
             if (tr.isfailure()) {
@@ -100,10 +113,6 @@ rpcserver<cookie_t>::rootthread::run(clientio io) {
             logmsg(loglevel::info,
                    "control interface reaping client thread" +
                    fields::mk(*thr->thr()));
-            
-            /* XXX this really isn't a good place to be doing synchronous
-               client work. XXX */
-            owner->endconn(clientio::CLIENTIO, thr->ctxt);
             
             thr->thr()->join(io);
             auto token(threadsmux.lock());

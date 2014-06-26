@@ -25,7 +25,13 @@ private:   class rootthread : public threadfn {
         public:  startconn(rootthread &_owner);
         public:  orerror<cookie_t> operator()(clientio, rpcconn &conn);
         };
+    private: class endconn : public rpcconnthread<cookie_t>::endconn {
+        private: rootthread &owner;
+        public:  endconn(rootthread &_owner);
+        public:  void operator()(clientio, cookie_t);
+        };
     public:  startconn startconn_;
+    public:  endconn endconn_;
     public:  list<rpcconnthread<cookie_t> *> threads;
     public:  mutex_t threadsmux;
     private: rpcserver *owner;

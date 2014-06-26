@@ -45,7 +45,8 @@ rpcconnthread<cookie_t>::run(clientio io) {
             abort(); }
         if (!conn.outgoing.empty()) outsub.rearm(); }
     
-    logmsg(loglevel::info, fields::mk("client thread finishing")); }
+    logmsg(loglevel::info, fields::mk("client thread finishing"));
+    endconn_(io, ctxt); }
 
 template <typename cookie_t> bool
 rpcconnthread<cookie_t>::runcommand(
@@ -78,12 +79,14 @@ template <typename cookie_t> orerror<rpcconnthread<cookie_t> *>
 rpcconnthread<cookie_t>::spawn(
     rpcserver<cookie_t> *owner,
     startconn &sc,
+    endconn &ec,
     socket_t fd,
     mutex_t::token tok) {
     tok.formux(owner->mux);
     auto peer(fd.peer());
     if (peer.isfailure()) return peer.failure();
     auto res(new rpcconnthread(sc,
+                               ec,
                                owner->service,
                                fd,
                                peer.success()));
