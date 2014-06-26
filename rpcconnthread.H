@@ -45,11 +45,11 @@ private: void run(clientio);
 private: bool runcommand(bool *die);
 public:  thread *thr() const;
 public:  static orerror<rpcconnthread<cookie_t> *> spawn(
-    rpcserver<cookie_t> *owner,
+    rpcservice<cookie_t> *service,
     startconn &,
     endconn &,
     socket_t fd,
-    mutex_t::token /* server mux */);
+    mutex_t::token);
 };
 
 #endif /* !RPCCONNTHREAD_H__ */

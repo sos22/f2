@@ -91,7 +91,7 @@ rpcserver<cookie_t>::rootthread::run(clientio io) {
                    "control interface accepting new client " +
                    fields::mk(newfd.success().peer()));
             auto token(threadsmux.lock());
-            auto tr(rpcconnthread<cookie_t>::spawn(owner,
+            auto tr(rpcconnthread<cookie_t>::spawn(owner->service,
                                                    startconn_,
                                                    endconn_,
                                                    newfd.success(),
