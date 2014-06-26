@@ -59,7 +59,8 @@ private: class statusinterface : public rpcinterface<controlconn *> {
     public:  statusinterface() : rpcinterface(proto::COORDINATORSTATUS::tag) {}
     private: maybe<error> message(const wireproto::rx_message &,
                                   controlconn *,
-                                  buffer &);
+                                  buffer &,
+                                  mutex_t::token);
     };
 private: statusinterface statusiface;
 private: rpcregistration<controlconn *> *controlregistration;
@@ -107,9 +108,9 @@ coordinatorconn::timerthread::run(clientio io) {
                    fields::mk(owner->conn.peer()));
             finished = true;
             continue; }
-        auto deadline(timestamp::now() + timedelta::seconds(1));
+        auto deadline(timestamp::now() + timedelta::seconds(120));
         while (!finished) {
-            auto rxres(owner->conn.receive(io, sub, snr, deadline));
+            auto rxres(owner->conn.receive(io, sub, snr.reply(), deadline));
             if (rxres.isfailure()) {
                 logmsg(loglevel::failure,
                        "error " + fields::mk(rxres.failure()) +
@@ -139,7 +140,8 @@ coordinatorconn::contact() {
 maybe<error>
 coordinatorimpl::statusinterface::message(const wireproto::rx_message &,
                                           controlconn *,
-                                          buffer &) {
+                                          buffer &,
+                                          mutex_t::token) {
     return error::unimplemented; }
 
 coordinatorimpl::coordinatorimpl(

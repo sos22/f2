@@ -43,6 +43,8 @@ namespace wireproto {
             { return val == o.val; }
         sequencenr reply() const
             { return sequencenr(val | 0x8000); }
+        bool isreply() const {
+            return !!(val & 0x8000); }
     };
     class sequencer {
         uint16_t last;
@@ -222,6 +224,7 @@ namespace wireproto {
             parameter<list<typ> >, list<typ> &out) const;
         void finish() const;
         rx_message *clone() const;
+        bool isreply() const;
     };
 
     class tx_compoundparameter {

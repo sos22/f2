@@ -13,7 +13,8 @@ template <typename cookie_t> maybe<error>
 rpcservice<cookie_t>::unknowniface::message(
     const wireproto::rx_message &msg,
     cookie_t,
-    buffer &) {
+    buffer &,
+    mutex_t::token) {
     logmsg(loglevel::failure,
            "Received an unrecognised message type " + fields::mk(msg.t));
     return error::unrecognisedmessage; }

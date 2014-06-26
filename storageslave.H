@@ -23,10 +23,21 @@ private: class statusiface : public rpcinterface<controlconn *> {
     private: maybe<error> message(
         const wireproto::rx_message &,
         controlconn *,
-        buffer &); };
+        buffer &,
+        mutex_t::token); };
+private: class pingiface : public rpcinterface<storageslavectxt *> {
+    public:  pingiface()
+        : rpcinterface(proto::PING::tag) {}
+    private: maybe<error> message(
+        const wireproto::rx_message &,
+        storageslavectxt *,
+        buffer &,
+        mutex_t::token); };
+private: pingiface pinginterface;
 private: statusiface statusinterface;
 private: rpcregistration<controlconn *> *controlregistration;
 private: rpcservice<storageslavectxt *> *const service;
+private: rpcregistration<storageslavectxt *> *const serviceregistration;
 private: rpcconnthread<storageslavectxt *> *masterconn;
 private: storageslave(controlserver *);
 private: maybe<error> connect(clientio, const registrationsecret &);

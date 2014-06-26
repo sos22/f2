@@ -24,7 +24,8 @@ class beaconserver {
         beaconserver *owner;
         maybe<error> message(const wireproto::rx_message &,
                              controlconn *,
-                             buffer &);
+                             buffer &,
+                             mutex_t::token);
         statusiface() = delete;
         statusiface(const statusiface &) = delete;
         void operator=(const statusiface &) = delete;
@@ -35,7 +36,8 @@ class beaconserver {
         beaconserver *owner;
         maybe<error> message(const wireproto::rx_message &,
                              controlconn *,
-                             buffer &);
+                             buffer &,
+                             mutex_t::token);
         configureiface() = delete;
         configureiface(const configureiface &) = delete;
         void operator=(const configureiface &) = delete;

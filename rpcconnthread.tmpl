@@ -26,7 +26,9 @@ rpcconnthread<cookie_t>::run(clientio io) {
         if (r == &shutdownsub) {
             if (shutdown.ready()) die = true;
         } else if (r == &insub) {
+            auto token(conn.rxlock.lock());
             auto t(conn.incoming.receive(io, conn.fd));
+            conn.rxlock.unlock(&token);
             insub.rearm();
             if (t.isjust()) {
                 t.just().warn("receiving from client " + fields::mk(peer));
@@ -51,18 +53,27 @@ rpcconnthread<cookie_t>::run(clientio io) {
 template <typename cookie_t> bool
 rpcconnthread<cookie_t>::runcommand(
     bool *die) {
+    auto rxtoken(conn.rxlock.lock());
     auto r(wireproto::rx_message::fetch(conn.incoming));
     if (r.isfailure()) {
+        conn.rxlock.unlock(&rxtoken);
         *die = r.failure() != error::underflowed;
         return false; }
     assert(r.success() != NULL);
+    if (r.success()->isreply()) {
+        conn.pendingrx.pushtail(r.success());
+        conn.rxlock.unlock(&rxtoken);
+        return true; }
+    conn.rxlock.unlock(&rxtoken);
     auto tag(r.success()->t);
     logmsg(loglevel::verbose, "run command " + fields::mk(tag));
     
     auto reg(service->lookup(tag));
     
-    auto res(reg.iface->message(*r.success(), ctxt, conn.outgoing));
-    
+    auto txtoken(conn.txlock.lock());
+    auto res(reg.iface->message(*r.success(), ctxt, conn.outgoing, txtoken));
+    conn.txlock.unlock(&txtoken);
+
     reg.reg->finished();
 
     if (res.isjust()) {

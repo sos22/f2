@@ -293,7 +293,8 @@ getlogsiface::getlogsiface()
 maybe<error>
 getlogsiface::message(const wireproto::rx_message &msg,
                       controlconn *,
-                      buffer &outgoing)
+                      buffer &outgoing,
+                      mutex_t::token)
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
                dflt(memlog_idx::min));

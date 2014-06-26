@@ -45,7 +45,8 @@ class pingiface : public rpcinterface<controlconn *> {
 public:  pingiface() : rpcinterface(proto::PING::tag) {}
 private: maybe<error> message(const wireproto::rx_message &,
                               controlconn *,
-                              buffer &);
+                              buffer &,
+                              mutex_t::token);
 };
 class quitiface : public rpcinterface<controlconn *> {
     waitbox<shutdowncode> &s;
@@ -57,7 +58,8 @@ public:  quitiface(waitbox<shutdowncode> &_s)
       s(_s) {}
 private: maybe<error> message(const wireproto::rx_message &,
                               controlconn *,
-                              buffer &);
+                              buffer &,
+                              mutex_t::token);
 };
 
 class controlserverimpl : public controlserver {
@@ -87,7 +89,8 @@ public:  void destroy(clientio);
 maybe<error>
 pingiface::message(const wireproto::rx_message &msg,
                    controlconn *conn,
-                   buffer &outgoing)
+                   buffer &outgoing,
+                   mutex_t::token)
 {
     logmsg(loglevel::info,
            "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)) +
@@ -105,7 +108,8 @@ pingiface::message(const wireproto::rx_message &msg,
 maybe<error>
 quitiface::message(const wireproto::rx_message &msg,
                    controlconn *conn,
-                   buffer &) {
+                   buffer &,
+                   mutex_t::token) {
     auto reason(msg.getparam(proto::QUIT::req::reason));
     if (!reason) return error::missingparameter;
     auto str(msg.getparam(proto::QUIT::req::message));

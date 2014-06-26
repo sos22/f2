@@ -25,11 +25,25 @@
 class storageslavectxt {
 };
 
+maybe<error>
+storageslave::pingiface::message(const wireproto::rx_message &msg,
+                                 storageslavectxt *,
+                                 buffer &outbuf,
+                                 mutex_t::token) {
+    logmsg(loglevel::info, fields::mk("storage ping"));
+    wireproto::resp_message m(msg);
+    auto r(m.serialise(outbuf));
+    if (r.isjust())
+        r.just().warn("sending pong");
+    return r; }
+
 storageslave::storageslave(controlserver *cs)
-    : statusinterface(this),
+    : pinginterface(),
+      statusinterface(this),
       controlregistration(
           cs->service->registeriface(statusinterface)),
       service(new rpcservice<storageslavectxt *>()),
+      serviceregistration(service->registeriface(pinginterface)),
       masterconn(NULL) { }
 
 maybe<error>
@@ -97,7 +111,8 @@ storageslave::destroy() const
 maybe<error>
 storageslave::statusiface::message(const wireproto::rx_message &,
                                    controlconn *,
-                                   buffer &)
+                                   buffer &,
+                                   mutex_t::token)
 {
     return error::unimplemented;
 }

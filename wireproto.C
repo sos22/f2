@@ -549,6 +549,10 @@ rx_message::clone() const
                           0, *newbuf, newindex, true);
 }
 
+bool
+rx_message::isreply() const {
+    return sequence.isreply(); }
+
 template <> maybe<error>
 rx_message::fetch(parameter<rx_compoundparameter> p, rx_compoundparameter &out) const
 {

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "rpcinterface.H"
+#include "mutex.H"
 #include "wireproto.H"
 
 class loglevel;
@@ -115,7 +116,8 @@ class controlconn;
 class getlogsiface : public rpcinterface<controlconn *> {
 private: maybe<error> message(const wireproto::rx_message &,
                               controlconn *,
-                              buffer &);
+                              buffer &,
+                              mutex_t::token);
 public:  getlogsiface();
 public:  static getlogsiface singleton;
 };

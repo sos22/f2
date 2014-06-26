@@ -67,7 +67,8 @@ beaconserver::statusiface::statusiface(beaconserver *server)
 maybe<error>
 beaconserver::statusiface::message(const wireproto::rx_message &msg,
                                    controlconn *,
-                                   buffer &outbuf)
+                                   buffer &outbuf,
+                                   mutex_t::token)
 {
     wireproto::resp_message m(msg);
     m.addparam(proto::BEACONSTATUS::resp::secret, owner->secret);
@@ -86,7 +87,8 @@ beaconserver::configureiface::configureiface(beaconserver *server)
 maybe<error>
 beaconserver::configureiface::message(const wireproto::rx_message &msg,
                                       controlconn *,
-                                      buffer &outbuf)
+                                      buffer &outbuf,
+                                      mutex_t::token)
 {
     wireproto::resp_message m(msg);
     /* No run-time configuration yet */

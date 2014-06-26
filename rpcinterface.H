@@ -1,6 +1,7 @@
 #ifndef RPCINTERFACE_H__
 #define RPCINTERFACE_H__
 
+#include "mutex.H"
 #include "wireproto.H"
 
 template <typename> class rpcconnthread;
@@ -14,7 +15,10 @@ private:   wireproto::msgtag tag;
 protected: rpcinterface(wireproto::msgtag _tag) : tag(_tag) {}
 private:   virtual maybe<error> message(const wireproto::rx_message &,
                                         cookie_t cookie,
-                                        buffer &) = 0;
+                                        buffer &,
+                                        mutex_t::token /* called with
+                                                        * rpcconn TX
+                                                        * lock held */) = 0;
 };
 
 #endif /* !RPCINTERFACE_H__ */
