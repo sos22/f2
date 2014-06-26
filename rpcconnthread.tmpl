@@ -81,9 +81,9 @@ rpcconnthread<cookie_t>::spawn(
     startconn &sc,
     endconn &ec,
     socket_t fd,
-    mutex_t::token /* server threadmux.  Not actually needed by this
-                    * function, just a warning that we're invoked
-                    * holding the mux. */) {
+    maybe<mutex_t::token> /* server threadmux.  Not actually needed by
+                           * this function, just a warning that we're
+                           * invoked holding the mux. */) {
     auto peer(fd.peer());
     if (peer.isfailure()) return peer.failure();
     auto res(new rpcconnthread(sc,
@@ -99,5 +99,14 @@ rpcconnthread<cookie_t>::spawn(
         return t.just();
     }
     return res; }
+
+template <typename cookie_t> typename rpcconnthread<cookie_t>::startconn
+rpcconnthread<cookie_t>::nostartconn;
+
+template <typename cookie_t> typename rpcconnthread<cookie_t>::endconn
+rpcconnthread<cookie_t>::noendconn;
+
+#define RPCCONNTHREAD(ctxt)                                             \
+    template class rpcconnthread<ctxt>;
 
 #endif /* !RPCCONNTHREAD_TMPL__ */

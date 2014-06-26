@@ -3,6 +3,7 @@
 
 #include "buffer.H"
 #include "either.H"
+#include "mutex.H"
 #include "peername.H"
 #include "socket.H"
 #include "wireproto.H"
@@ -16,9 +17,12 @@ class tcpsocket;
 
 class rpcconn {
     template <typename t> friend class rpcconnthread;
+private: mutex_t txlock;
 private: buffer outgoing;
+private: mutex_t rxlock;
 private: buffer incoming;
 private: socket_t fd;
+private: mutex_t sequencerlock;
 private: wireproto::sequencer sequencer;
 private: list<const wireproto::rx_message *> pendingrx;
 private: const peername peer_;
@@ -47,6 +51,7 @@ private: rpcconn(socket_t, const peername &);
        incoming queue. */
 private: orerror<receiveres> _receive(
     clientio,
+    mutex_t::token,
     subscriber &sub,
     maybe<timestamp> deadline = Nothing);
 
