@@ -11,7 +11,7 @@ const field &mk(const registrationsecret &);
 }
 
 class registrationsecret {
-    friend class registrationsecretfield;
+    friend const fields::field &fields::mk(const registrationsecret &);
     char *secret;
     explicit registrationsecret(const char *_secret);
     registrationsecret() = delete;
