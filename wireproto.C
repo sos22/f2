@@ -22,13 +22,13 @@ tx_message::tx_message(msgtag _t)
 {}
 
 resp_message::resp_message(const rx_message &o)
-    : tx_message(o.t), sequence(o.sequence.reply())
+    : tx_message(o.tag()), sequence(o.sequence().reply())
 {}
 
 err_resp_message::err_resp_message(const rx_message &o,
                                    const error &e)
-    : tx_message(o.t),
-      sequence(o.sequence.reply())
+    : tx_message(o.tag()),
+      sequence(o.sequence().reply())
 {
     addparam(wireproto::err_parameter, e);
 }
@@ -66,18 +66,18 @@ tx_message::serialise(buffer &buffer, sequencenr snr) const
     if (sz >= 0x8000)
         return error::overflowed;
 
-    buffer.queue(&sz, 2);
-    buffer.queue(&snr, sizeof(snr));
-    buffer.queue(&nrparams, sizeof(nrparams));
-    buffer.queue(&t.val, sizeof(t.val));
-    uint16_t consumed = 0;
+    unsigned initavail(buffer.avail());
+    wireheader hdr(sz, snr, nrparams, t);
+    buffer.queue(&hdr, sizeof(hdr));
+    uint16_t consumed = sizeof(hdr) + sizeof(index) * nrparams;
     for (auto it(params.start()); !it.finished(); it.next()) {
-        buffer.queue(&it->id, sizeof(it->id));
-        buffer.queue(&consumed, sizeof(consumed));
+        index idx(it->id, consumed);
+        buffer.queue(&idx, sizeof(idx));
         consumed += it->serialised_size();
     }
     for (auto it(params.start()); !it.finished(); it.next())
         it->serialise(buffer);
+    assert(buffer.avail() == initavail + consumed);
     return Nothing;
 }
 
@@ -113,162 +113,6 @@ req_message::serialise(buffer &buffer) const
 {
     return tx_message::serialise(buffer, sequence);
 }
-
-orerror<const rx_message *>
-rx_message::fetch(buffer &buffer)
-{
-    uint16_t sz;
-    sequencenr sequence(sequencenr::invalid);
-    uint16_t nrparams;
-    uint16_t tag;
-    if (buffer.avail() < sizeof(sz) + sizeof(nrparams))
-        return error::underflowed;
-    buffer.fetch(&sz, sizeof(sz));
-    if (buffer.avail() + sizeof(sz) < sz) {
-        buffer.pushback(&sz, sizeof(sz));
-        return error::underflowed;
-    }
-    if (sz < sizeof(sz) + sizeof(sequence) + sizeof(nrparams) + sizeof(tag))
-        return error::invalidmessage;
-    buffer.fetch(&sequence, sizeof(sequence));
-    buffer.fetch(&nrparams, sizeof(nrparams));
-    buffer.fetch(&tag, sizeof(tag));
-    if (nrparams > 512)
-        return error::overflowed;
-    if (sz < 6 + nrparams * 4)
-        return error::invalidmessage;
-
-    auto work(new rx_message(msgtag(tag),
-                             sequence,
-                             nrparams,
-                             sz - 8 - nrparams * 4,
-                             buffer.offset() + 4 * nrparams,
-                             buffer));
-    buffer.fetch(const_cast<idx *>(work->index), 4 * nrparams);
-    for (unsigned i = 0; i < nrparams; i++) {
-        if (work->index[i].offset > work->payload_size) {
-            work->finish();
-            return error::invalidmessage;
-        }
-    }
-    auto err(work->getparam(err_parameter));
-    if (err.isjust()) {
-        work->finish();
-        return err.just();
-    } else {
-        return work;
-    }
-}
-
-orerror<const rx_message *>
-rx_message::fetch(const bufslice &buf)
-{
-    unsigned long avail = buf.end - buf.start;
-    const void *buffer = buf.buf.linearise(buf.start, buf.end);
-    if (avail < 8)
-        return error::invalidmessage;
-    const uint16_t *header = (const uint16_t *)buffer;
-    uint16_t sz = header[0];
-    if (sz != avail)
-        return error::invalidmessage;
-    sequencenr sequence(sequencenr::invalid);
-    assert(sizeof(sequence) == sizeof(header[1]));
-    memcpy(&sequence, &header[1], sizeof(sequence));
-    uint16_t nrparams = header[2];
-    uint16_t tag = header[3];
-    if (nrparams > 128 || sz < 6 + nrparams * 4)
-        return error::invalidmessage;
-    const struct idx *index = (const struct idx *)((unsigned long)buffer + 8);
-    size_t payload_size = avail - 8 - 4 * nrparams;
-    for (unsigned i = 0; i < nrparams; i++) {
-        if (index[i].offset > payload_size) {
-            return error::invalidmessage;
-        }
-    }
-    auto work(new rx_message(msgtag(tag),
-                             sequence,
-                             nrparams,
-                             payload_size,
-                             buf.start + sizeof(header[0]) * 4 + nrparams * 4,
-                             buf.buf,
-                             index));
-    auto err(work->getparam(err_parameter));
-    if (err.isjust()) {
-        work->finish();
-        return err.just();
-    } else {
-        return work;
-    }
-}
-
-void
-rx_message::finish() const
-{
-    switch (flavour) {
-    case fl_buffer:
-        buf.discard(payload_size);
-        free(const_cast<idx *>(index));
-        break;
-    case fl_slice:
-        break;
-    case fl_clone:
-        delete &buf;
-        free(const_cast<idx *>(index));
-        break;
-    }
-    delete this;
-}
-
-rx_message::rx_message(msgtag _t,
-                       sequencenr _sequence,
-                       uint16_t _nrparams,
-                       size_t _payload_size,
-                       size_t _payload_offset,
-                       buffer &_buf)
-    : index((idx *)calloc(sizeof(index[0]), _nrparams)),
-      flavour(fl_buffer),
-      sequence(_sequence),
-      nrparams(_nrparams),
-      payload_size(_payload_size),
-      payload_offset(_payload_offset),
-      buf(_buf),
-      t(_t)
-{}
-
-rx_message::rx_message(msgtag _t,
-                       sequencenr _sequence,
-                       uint16_t _nrparams,
-                       size_t _payload_size,
-                       size_t _payload_offset,
-                       buffer &_buf,
-                       const struct idx *_index)
-    : index(_index),
-      flavour(fl_slice),
-      sequence(_sequence),
-      nrparams(_nrparams),
-      payload_size(_payload_size),
-      payload_offset(_payload_offset),
-      buf(_buf),
-      t(_t)
-{}
-
-rx_message::rx_message(msgtag _t,
-                       sequencenr _sequence,
-                       uint16_t _nrparams,
-                       size_t _payload_size,
-                       size_t _payload_offset,
-                       buffer &_buf,
-                       const struct idx *_index,
-                       bool)
-    : index(_index),
-      flavour(fl_clone),
-      sequence(_sequence),
-      nrparams(_nrparams),
-      payload_size(_payload_size),
-      payload_offset(_payload_offset),
-      buf(_buf),
-      t(_t)
-{}
 
 tx_message &
 tx_message::addparam(uint16_t id, const void *content, size_t sz)
@@ -444,84 +288,135 @@ tx_message::pinstance::pinstance()
     internal.sz = 0;
 }
 
+rx_message::rx_message(const rx_message &o)
+    : msg(o.owning
+          ? (struct wireheader *)malloc(o.msg->sz)
+          : o.msg),
+      owning(o.owning) {
+    if (owning) memcpy((void *)msg, o.msg, o.msg->sz); }
+
+rx_message::rx_message(rx_message &&o)
+    : msg(o.msg),
+      owning(o.owning) {
+    o.msg = NULL; }
+
+rx_message::rx_message(const wireheader *_msg,
+                       bool _owning)
+    : msg(_msg), owning(_owning) {}
+
+orerror<rx_message>
+rx_message::parse(const wireheader *msg,
+                  size_t sz,
+                  bool owning) {
+    if (sz < sizeof(*msg)) return error::invalidmessage;
+    if (msg->sz != sz) return error::invalidmessage;
+    if (msg->nrparams > 512) return error::overflowed;
+    size_t minsize = sizeof(*msg) + msg->nrparams * sizeof(msg->idx[0]);
+    if (sz < minsize || (msg->nrparams == 0 && sz != sizeof(*msg))) {
+        return error::invalidmessage; }
+    for (unsigned i = 0; i < msg->nrparams; i++) {
+        if (msg->idx[i].offset < minsize ||
+            msg->idx[i].offset > msg->sz ||
+            (i != 0 && msg->idx[i].offset < msg->idx[i-1].offset)) {
+            return error::invalidmessage; } }
+    return rx_message(msg, owning); }
+
+orerror<rx_message>
+rx_message::fetch(buffer &buffer) {
+    uint16_t sz;
+    if (buffer.avail() < sizeof(wireheader)) return error::underflowed;
+    buffer.fetch(&sz, sizeof(sz));
+    if (buffer.avail() + sizeof(sz) < sz) {
+        buffer.pushback(&sz, sizeof(sz));
+        return error::underflowed; }
+    wireheader *msg = (wireheader *)malloc(sz);
+    msg->sz = sz;
+    buffer.fetch((void *)((unsigned long)msg + 2), sz - 2);
+    auto res(parse(msg, sz, true));
+    if (res.isfailure()) {
+        free(msg);
+        return res.failure(); }
+    auto err(res.success().getparam(err_parameter));
+    if (err.isjust()) return err.just();
+    else return res.success(); }
+
+orerror<rx_message>
+rx_message::fetch(const bufslice &buf) {
+    auto res(parse((const struct wireheader *)buf.content, buf.sz, false));
+    if (res.isfailure()) return res.failure();
+    auto err(res.success().getparam(err_parameter));
+    if (err.isjust()) return err.just();
+    else return res.success(); }
+
+rx_message *
+rx_message::steal() {
+    auto res(new rx_message(msg, owning));
+    msg = NULL;
+    return res; }
+
+bool
+rx_message::isreply() const {
+    return sequence().isreply(); }
+
+sequencenr
+rx_message::sequence() const {
+    return msg->seq; }
+
+msgtag
+rx_message::tag() const {
+    return msg->tag; }
+
+rx_message::~rx_message() {
+    if (owning) free((void *)msg); }
+
+/* Note that this returns a pointer to the passed-in buffer, so
+   deserialised strings are only valid for as long as the message from
+   which they were deserialised. */
 template <> maybe<const char *>
-deserialise(bufslice &slice)
-{
-    if (slice.end == slice.start ||
-        slice.buf.idx(slice.end-1) != '\0')
-        return Nothing;
-    return (const char *)slice.buf.linearise(slice.start, slice.end);
-}
-template <> maybe<int>
-deserialise(bufslice &slice)
-{
-    if (slice.end - slice.start != 4)
-        return Nothing;
-    else
-        return *(int *)slice.buf.linearise(slice.start, slice.end);
-}
-template <> maybe<unsigned short>
-deserialise(bufslice &slice)
-{
-    if (slice.end - slice.start != 2)
-        return Nothing;
-    else
-        return *(unsigned short *)slice.buf.linearise(slice.start, slice.end);
-}
-template <> maybe<unsigned>
-deserialise(bufslice &slice)
-{
-    if (slice.end - slice.start != 4)
-        return Nothing;
-    else
-        return *(unsigned *)slice.buf.linearise(slice.start, slice.end);
-}
-template <> maybe<unsigned long>
-deserialise(bufslice &slice)
-{
-    if (slice.end - slice.start != 8)
-        return Nothing;
-    else
-        return *(unsigned long *)slice.buf.linearise(slice.start, slice.end);
-}
-template <> maybe<double>
-deserialise(bufslice &slice)
-{
-    if (slice.end - slice.start != 8)
-        return Nothing;
-    else
-        return *(double *)slice.buf.linearise(slice.start, slice.end);
-}
-template <> maybe<bool>
-deserialise(bufslice &slice)
-{
-    if (slice.end - slice.start != 1)
-        return Nothing;
-    else
-        return *(bool *)slice.buf.linearise(slice.start, slice.end);
-}
-template <typename typ> maybe<error> decode(bufslice &slice,
-                                            typ &out);
-
-template <> maybe<error>
-decode(bufslice &slice, rx_compoundparameter &out)
-{
+deserialise(bufslice &slice) {
+    const char *res = (const char *)slice.content;
+    if (slice.sz == 0 || res[slice.sz-1] != '\0') return Nothing;
+    else return res; }
+template <> maybe<rx_message>
+deserialise(bufslice &slice) {
     auto r(rx_message::fetch(slice));
-    if (r.isfailure()) return r.failure();
-    assert(out.content == NULL);
-    out.content = r.success();
-    return Nothing;
-}
-
-template <> maybe<rx_compoundparameter>
-deserialise(bufslice &slice)
-{
-    rx_compoundparameter res;
-    auto r(decode(slice, res));
-    if (r.isjust()) return Nothing;
-    else return res;
-}
-
+    if (r.isfailure()) return Nothing;
+    else return r.success(); }
+template <> maybe<bool>
+deserialise(bufslice &slice) {
+    if (slice.sz != 1) return Nothing;
+    unsigned char res(*(unsigned char *)slice.content);
+    if (res == 0) return false;
+    else if (res == 1) return true;
+    else return Nothing; }
+template <> maybe<short>
+deserialise(bufslice &slice) {
+    if (slice.sz != 2) return Nothing;
+    else return *(short *)slice.content; }
+template <> maybe<unsigned short>
+deserialise(bufslice &slice) {
+    if (slice.sz != 2) return Nothing;
+    else return *(unsigned short *)slice.content; }
+template <> maybe<int>
+deserialise(bufslice &slice) {
+    if (slice.sz != 4) return Nothing;
+    else return *(int *)slice.content; }
+template <> maybe<unsigned>
+deserialise(bufslice &slice) {
+    if (slice.sz != 4) return Nothing;
+    else return *(unsigned *)slice.content; }
+template <> maybe<long>
+deserialise(bufslice &slice) {
+    if (slice.sz != 8) return Nothing;
+    else return *(long *)slice.content; }
+template <> maybe<unsigned long>
+deserialise(bufslice &slice) {
+    if (slice.sz != 8) return Nothing;
+    else return *(unsigned long *)slice.content; }
+template <> maybe<double>
+deserialise(bufslice &slice) {
+    if (slice.sz != 8) return Nothing;
+    else return *(double *)slice.content; }
 
 template maybe<const char *> rx_message::getparam(parameter<const char *>)const;
 template maybe<unsigned short> rx_message::getparam(
@@ -531,53 +426,8 @@ template maybe<unsigned> rx_message::getparam(parameter<unsigned>) const;
 template maybe<unsigned long> rx_message::getparam(parameter<unsigned long>) const;
 template maybe<double> rx_message::getparam(parameter<double>) const;
 template maybe<error> rx_message::getparam(parameter<error>) const;
-template maybe<rx_compoundparameter> rx_message::getparam(
-    parameter<rx_compoundparameter>) const;
-
-rx_message *
-rx_message::clone() const
-{
-    idx *newindex = (idx *)calloc(sizeof(newindex[0]), nrparams);
-    for (unsigned x = 0; x < nrparams; x++) {
-        newindex[x].id = index[x].id;
-        newindex[x].offset = index[x].offset - index[0].offset;
-    }
-    buffer *newbuf = new buffer();
-    newbuf->queue(buf.linearise(payload_offset, payload_offset + payload_size),
-                  payload_size);
-    return new rx_message(t, sequence, nrparams, payload_size,
-                          0, *newbuf, newindex, true);
-}
-
-bool
-rx_message::isreply() const {
-    return sequence.isreply(); }
-
-template <> maybe<error>
-rx_message::fetch(parameter<rx_compoundparameter> p, rx_compoundparameter &out) const
-{
-    unsigned x;
-    for (x = 0; x < nrparams; x++) {
-        if (index[x].id == p.id)
-            break;
-    }
-    if (x == nrparams)
-        return error::from_errno(ENOENT);
-    bufslice slice(buf,
-                   payload_offset + index[x].offset,
-                   x + 1 == nrparams
-                     ? payload_offset + payload_size
-                     : payload_offset + index[x+1].offset);
-    return decode(slice, out);
-}
-
-orerror<rx_compoundparameter *>
-rx_compoundparameter::fetch(const bufslice &o)
-{
-    auto r(rx_message::fetch(o));
-    if (r.isfailure()) return r.failure();
-    else return new rx_compoundparameter(r.success());
-}
+template maybe<rx_message> rx_message::getparam(
+    parameter<rx_message>) const;
 
 const sequencenr sequencenr::invalid(0);
 const parameter<error> err_parameter(0, "error");
@@ -599,19 +449,19 @@ fields::mk(const wireproto::msgtag &t)
 const fields::field &
 fields::mk(const wireproto::rx_message *msg)
 {
-    auto *prefix(&("<rx_message " + fields::mk(msg->t)));
+    auto *prefix(&("<rx_message " + fields::mk(msg->tag())));
     for (unsigned x = 0;
-         x < msg->nrparams;
+         x < msg->msg->nrparams;
          x++) {
         prefix = &(*prefix + " ");
-        if (x > 14 && msg->nrparams > 16) {
+        if (x > 14 && msg->msg->nrparams > 16) {
             prefix =
-                &(*prefix + "..." + fields::mk(msg->nrparams - x) +
+                &(*prefix + "..." + fields::mk(msg->msg->nrparams - x) +
                   " more...");
             break;
         }
-        prefix = &(*prefix + fields::mk(msg->index[x].id) + "/" +
-                   fields::mk(msg->index[x].offset));
+        prefix = &(*prefix + fields::mk(msg->msg->idx[x].id) + "/" +
+                   fields::mk(msg->msg->idx[x].offset));
     }
     return *prefix + ">";
 }
@@ -633,8 +483,7 @@ test(class ::test &) {
         assert(r == Nothing); }
     {   auto rxm(rx_message::fetch(buf));
         assert(rxm.issuccess());
-        assert(rxm.success()->t == t);
-        rxm.success()->finish(); }
+        assert(rxm.success().tag() == t); }
     assert(buf.empty());
     
     {   auto r(tx_message(t)
@@ -643,10 +492,9 @@ test(class ::test &) {
         assert (r == Nothing); }
     {   auto rxm(rx_message::fetch(buf));
         assert(rxm.issuccess());
-        assert(rxm.success()->t == t);
-        assert(rxm.success()->getparam(p1) != Nothing);
-        assert(rxm.success()->getparam(p1).just() == 73);
-        rxm.success()->finish(); }
+        assert(rxm.success().tag() == t);
+        assert(rxm.success().getparam(p1) != Nothing);
+        assert(rxm.success().getparam(p1).just() == 73); }
     assert(buf.empty());
     
     {   auto r(tx_message(t)
@@ -656,13 +504,12 @@ test(class ::test &) {
         assert (r == Nothing); }
     {   auto rxm(rx_message::fetch(buf));
         assert(rxm.issuccess());
-        assert(rxm.success()->t == t);
-        assert(rxm.success()->getparam(p1) != Nothing);
-        assert(rxm.success()->getparam(p1).just() == 73);
-        assert(rxm.success()->getparam(p2) != Nothing);
-        assert(!strcmp(rxm.success()->getparam(p2).just(),
-                       "Hello world"));
-        rxm.success()->finish(); }
+        assert(rxm.success().tag() == t);
+        assert(rxm.success().getparam(p1) != Nothing);
+        assert(rxm.success().getparam(p1).just() == 73);
+        assert(rxm.success().getparam(p2) != Nothing);
+        assert(!strcmp(rxm.success().getparam(p2).just(),
+                       "Hello world")); }
     assert(buf.empty());
     
     parameter<list<const char * > > p3(7, "p3");
@@ -677,11 +524,11 @@ test(class ::test &) {
         assert (r == Nothing); }
     {   auto rxm(rx_message::fetch(buf));
         assert(rxm.issuccess());
-        assert(rxm.success()->t == t);
-        assert(rxm.success()->getparam(p1) == Nothing);
-        assert(rxm.success()->getparam(p2) == Nothing);
+        assert(rxm.success().tag() == t);
+        assert(rxm.success().getparam(p1) == Nothing);
+        assert(rxm.success().getparam(p2) == Nothing);
         list<const char *> l2;
-        auto fr(rxm.success()->fetch(p3, l2));
+        auto fr(rxm.success().fetch(p3, l2));
         assert(fr == Nothing);
         assert(l2.length() == 3);
         auto it(l2.start());
@@ -692,12 +539,11 @@ test(class ::test &) {
         assert(!strcmp(*it, "Z"));
         it.next();
         assert(it.finished());
-        l2.flush();
-        rxm.success()->finish(); }
+        l2.flush(); }
     assert(buf.empty());
     
     parameter<tx_compoundparameter> p4t(8, "p4t");
-    parameter<rx_compoundparameter> p4r(8, "p4r");
+    parameter<rx_message> p4r(8, "p4r");
     {   auto r(tx_message(t)
                .addparam(
                    p4t,
@@ -708,11 +554,10 @@ test(class ::test &) {
         assert(r == Nothing); }
     {   auto rxm(rx_message::fetch(buf));
         assert(rxm.issuccess());
-        assert(rxm.success()->getparam(p1).just() == 8);
-        assert(!strcmp(rxm.success()->getparam(p2).just(), "root"));
-        auto nested(rxm.success()->getparam(p4r));
-        assert(nested != Nothing);
-        rxm.success()->finish(); }
+        assert(rxm.success().getparam(p1).just() == 8);
+        assert(!strcmp(rxm.success().getparam(p2).just(), "root"));
+        auto nested(rxm.success().getparam(p4r));
+        assert(nested != Nothing); }
     assert(buf.empty());
     
     {   auto r(tx_message(t)
@@ -727,13 +572,12 @@ test(class ::test &) {
         assert(r == Nothing); }
     {   auto rxm(rx_message::fetch(buf));
         assert(rxm.issuccess());
-        assert(rxm.success()->getparam(p1).just() == 8);
-        assert(!strcmp(rxm.success()->getparam(p2).just(), "root"));
-        auto nested(rxm.success()->getparam(p4r));
+        assert(rxm.success().getparam(p1).just() == 8);
+        assert(!strcmp(rxm.success().getparam(p2).just(), "root"));
+        auto nested(rxm.success().getparam(p4r));
         assert(nested != Nothing);
         assert(nested.just().getparam(p1).just() == 7);
-        assert(!strcmp(nested.just().getparam(p2).just(), "nested"));
-        rxm.success()->finish(); }
+        assert(!strcmp(nested.just().getparam(p2).just(), "nested")); }
     assert(buf.empty()); }
 
 template maybe<error> rx_message::fetch(

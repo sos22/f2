@@ -41,6 +41,10 @@ public:
         assert(!errored);
         return *(const t *)buf;
     }
+    t &success() {
+        assert(!errored);
+        return *(t *)buf;
+    }
     const error &failure() const {
         return err;
     }

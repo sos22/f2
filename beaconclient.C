@@ -60,25 +60,23 @@ beaconclient(const registrationsecret &rs)
                        "failed to decode HAIL response from " +
                        fields::mk(rxfrom));
                 continue; }
-            auto *rxmsg(deserialiseres.success());
-            auto respversion(rxmsg->getparam(proto::HAIL::resp::version));
-            auto respmastername(rxmsg->getparam(proto::HAIL::resp::mastername));
-            auto respslavename(rxmsg->getparam(proto::HAIL::resp::slavename));
-            auto respnonce(rxmsg->getparam(proto::HAIL::resp::nonce));
-            auto respdigest(rxmsg->getparam(proto::HAIL::resp::digest));
+            auto &rxmsg(deserialiseres.success());
+            auto respversion(rxmsg.getparam(proto::HAIL::resp::version));
+            auto respmastername(rxmsg.getparam(proto::HAIL::resp::mastername));
+            auto respslavename(rxmsg.getparam(proto::HAIL::resp::slavename));
+            auto respnonce(rxmsg.getparam(proto::HAIL::resp::nonce));
+            auto respdigest(rxmsg.getparam(proto::HAIL::resp::digest));
             if (!respversion || !respmastername || !respslavename ||
                 !respnonce || !respdigest) {
                 logmsg(loglevel::failure,
                        "bad HAIL response from " + fields::mk(rxfrom) +
                        ": missing parameter");
-                rxmsg->finish();
                 continue; }
             if (respversion.just() != 1) {
                 logmsg(loglevel::failure,
                        "HAIL from " + fields::mk(rxfrom) +
                        " used version " + fields::mk(respversion.just()) +
                        ", but we only support version 1");
-                rxmsg->finish();
                 continue; }
             if (respdigest.just() !=
                 digest("A" +
@@ -88,13 +86,11 @@ beaconclient(const registrationsecret &rs)
                 logmsg(loglevel::failure,
                        "HAIL from " + fields::mk(rxfrom) +
                        " had a bad digest");
-                rxmsg->finish();
                 continue; }
             
             logmsg(loglevel::notice,
                    "Received a good HAIL response from " +
                    fields::mk(respmastername.just()));
-            rxmsg->finish();
             
             auto slavename(sock.success().localname());
             sock.success().close();

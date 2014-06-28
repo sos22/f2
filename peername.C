@@ -127,7 +127,7 @@ peername::getparam(wireproto::parameter<peername> tmpl,
                    const wireproto::rx_message &msg)
 {
     auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_compoundparameter>(tmpl)));
+               wireproto::parameter<wireproto::rx_message>(tmpl)));
     if (!packed) return Nothing;
     auto local(packed.just().getparam(proto::peername::local));
     if (local.isjust()) {

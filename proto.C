@@ -28,14 +28,10 @@ namespace wireproto {
         parameter<list<memlog_entry> >,
         list<memlog_entry> &) const;
     template <> maybe<memlog_entry> deserialise(
-        wireproto::bufslice &slice)
-    {
-        auto m(rx_compoundparameter::fetch(slice));
-        if (m.isfailure()) return Nothing;
-        auto res(memlog_entry::from_compound(*m.success()));
-        delete m.success();
-        return res;
-    }
+        wireproto::bufslice &slice) {
+        auto m(deserialise<rx_message>(slice));
+        if (!m) return Nothing;
+        else return memlog_entry::from_compound(m.just()); }
 };
 void
 memlog_entry::addparam(wireproto::parameter<memlog_entry> tmpl,
@@ -48,7 +44,7 @@ memlog_entry::addparam(wireproto::parameter<memlog_entry> tmpl,
                     addparam(proto::memlog_entry::idx, idx));
 }
 maybe<memlog_entry>
-memlog_entry::from_compound(const wireproto::rx_compoundparameter &p)
+memlog_entry::from_compound(const wireproto::rx_message &p)
 {
     auto msg_(p.getparam(proto::memlog_entry::msg));
     auto idx(p.getparam(proto::memlog_entry::idx));
@@ -58,15 +54,11 @@ memlog_entry::from_compound(const wireproto::rx_compoundparameter &p)
 }
 maybe<memlog_entry>
 memlog_entry::getparam(wireproto::parameter<memlog_entry> tmpl,
-                       const wireproto::rx_message &msg)
-{
-    wireproto::rx_compoundparameter c;
-    auto r(msg.fetch(
-               wireproto::parameter<wireproto::rx_compoundparameter>(tmpl),
-               c));
-    if (r.isjust()) return Nothing;
-    else return from_compound(c);
-}
+                       const wireproto::rx_message &msg) {
+    auto packed(msg.getparam(
+               wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (packed == Nothing) return Nothing;
+    else return memlog_entry::from_compound(packed.just()); }
 
 wireproto_wrapper_type(ratelimiter_status)
 void
@@ -88,7 +80,7 @@ ratelimiter_status::getparam(wireproto::parameter<ratelimiter_status> tmpl,
                              const wireproto::rx_message &msg)
 {
     auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_compoundparameter>(tmpl)));
+               wireproto::parameter<wireproto::rx_message>(tmpl)));
     if (!packed) return Nothing;
     auto max_rate(packed.just().getparam(proto::ratelimiter_status::max_rate));
     auto bucket_size(

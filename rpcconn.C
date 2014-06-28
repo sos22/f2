@@ -31,7 +31,7 @@ rpcconn::_receive(
     token.formux(rxlock);
     while (1) {
         auto r(wireproto::rx_message::fetch(incoming));
-        if (r.issuccess()) return receiveres(r.success());
+        if (r.issuccess()) return receiveres(r.success().steal());
         if (r.isfailure() && r.failure() != error::underflowed) {
             return r.failure(); }
         auto t(incoming.receive(io, fd, sub, deadline));
@@ -59,7 +59,7 @@ rpcconn::receive(clientio io,
                  maybe<timestamp> deadline) {
     auto token(rxlock.lock());
     for (auto it(pendingrx.start()); !it.finished(); it.next()) {
-        if ((*it)->sequence == snr) {
+        if ((*it)->sequence() == snr) {
             auto res(*it);
             it.remove();
             rxlock.unlock(&token);
@@ -72,7 +72,7 @@ rpcconn::receive(clientio io,
         if (m.success().issubscription()) {
             rxlock.unlock(&token);
             return receiveres(m.success().subscription()); }
-        if (m.success().message()->sequence == snr) {
+        if (m.success().message()->sequence() == snr) {
             rxlock.unlock(&token);
             return receiveres(m.success().message()); }
         pendingrx.pushtail(m.success().message()); } }
@@ -111,8 +111,7 @@ rpcconn::connectmaster(clientio io, const beaconresult &beacon)
 
 rpcconn::~rpcconn() {
     fd.close();
-    while (!pendingrx.empty())
-        pendingrx.pophead()->finish(); }
+    while (!pendingrx.empty()) delete pendingrx.pophead(); }
 
 maybe<error>
 rpcconn::send(

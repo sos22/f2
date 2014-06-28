@@ -8,59 +8,44 @@
 namespace wireproto {
 
 struct bufslice {
-    buffer &buf;
-    unsigned long start;
-    unsigned long end;
-    bufslice(buffer &_buf, unsigned long _start,
-             unsigned long _end)
-        : buf(_buf), start(_start), end(_end)
-        {}
+public: const void *content;
+public: const size_t sz;
+public: bufslice(const void *_content, size_t _sz)
+    : content(_content), sz(_sz) {}
 };
 
-template <typename typ> maybe<error> decode(bufslice &slice,
-                                            typ &out);
 template <typename typ> maybe<typ> deserialise(bufslice &slice);
 
 template <typename typ> maybe<typ>
 rx_message::getparam(parameter<typ> p) const
 {
     unsigned x;
-    for (x = 0; x < nrparams; x++) {
-        if (index[x].id == p.id)
-            break;
-    }
-    if (x == nrparams)
-        return Nothing;
-    bufslice slice(buf,
-                   payload_offset + index[x].offset,
-                   x + 1 == nrparams
-                     ? payload_offset + payload_size 
-                     : payload_offset + index[x+1].offset);
+    for (x = 0; x < msg->nrparams && msg->idx[x].id != p.id; x++)
+        ;
+    if (x == msg->nrparams) return Nothing;
+    bufslice slice((const void *)((unsigned long)msg + msg->idx[x].offset),
+                   (x + 1 == msg->nrparams
+                    ? msg->sz
+                    : msg->idx[x+1].offset) - msg->idx[x].offset);
     return deserialise<typ>(slice);
 }
 
 template <typename nested> maybe<error>
-rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const
-{
+rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const {
     out.flush();
-    for (unsigned x = 0; x < nrparams; x++) {
-        if (index[x].id == tmpl.id) {
-            bufslice slice(buf,
-                           payload_offset + index[x].offset,
-                           x + 1 == nrparams
-                           ? payload_offset + payload_size
-                           : payload_offset + index[x+1].offset);
+    for (unsigned x = 0; x < msg->nrparams; x++) {
+        if (msg->idx[x].id == tmpl.id) {
+            bufslice slice(
+                (const void *)((unsigned long)msg + msg->idx[x].offset),
+                (x + 1 == msg->nrparams
+                 ? msg->sz
+                 : msg->idx[x+1].offset) - msg->idx[x].offset);
             auto r(deserialise<nested>(slice));
             if (r == Nothing) {
                 out.flush();
-                return error::invalidmessage;
-            }
-            out.pushtail(r.just());
-        }
-    }
-    return Nothing;
-
-}
+                return error::invalidmessage; }
+            out.pushtail(r.just()); } }
+    return Nothing; }
 
 template <typename nested> tx_message &
 tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)

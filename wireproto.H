@@ -97,6 +97,23 @@ namespace wireproto {
             {}
     };
 
+    struct index {
+    public: uint16_t id;
+    public: uint16_t offset; /* From start of message, including
+                              * header and index. */
+    public: index(uint16_t _id, uint16_t _offset)
+        : id(_id), offset(_offset) {}
+    };
+    struct wireheader {
+    public: uint16_t sz; /* bytes */
+    public: sequencenr seq;
+    public: uint16_t nrparams;
+    public: msgtag tag;
+    public: index idx[];
+    public: wireheader(uint16_t _sz, sequencenr _seq,
+                       uint16_t _nrparams, msgtag _tag)
+        : sz(_sz), seq(_seq), nrparams(_nrparams), tag(_tag) {}
+    };
     class rx_message;
     class tx_compoundparameter;
     class tx_message {
@@ -172,59 +189,29 @@ namespace wireproto {
         maybe<error> serialise(buffer &buf) const;
     };
     class rx_message {
-        friend class rx_compoundparameter;
-        friend const fields::field &fields::mk(const rx_message *);
-        struct idx {
-            uint16_t id;
-            uint16_t offset;
-        };
-        const idx *const index;
-        enum flavour_t {
-            fl_buffer,
-            fl_slice,
-            fl_clone
-        };
-        const flavour_t flavour;
-    public:
-        const sequencenr sequence;
-    private:
-        const uint16_t nrparams;
-        const size_t payload_size;
-        const size_t payload_offset;
-        buffer &buf;
-        rx_message(msgtag _t,
-                   sequencenr _sequence,
-                   uint16_t _nrparams,
-                   size_t _payload_size,
-                   size_t _payload_offset,
-                   buffer &_buf,
-                   const idx *_index);
-        rx_message(msgtag _t,
-                   sequencenr _sequence,
-                   uint16_t _nrparams,
-                   size_t _payload_size,
-                   size_t _payload_offset,
-                   buffer &_buf);
-        rx_message(msgtag _t,
-                   sequencenr _sequence,
-                   uint16_t _nrparams,
-                   size_t _payload_size,
-                   size_t _payload_offset,
-                   buffer &_buf,
-                   const idx *_index,
-                   bool);
-    public:
-        const msgtag t;
-        static orerror<const rx_message *> fetch(const bufslice &buf);
-        static orerror<const rx_message *> fetch(buffer &buf);
-        template <typename typ> maybe<typ> getparam(parameter<typ>) const;
-        template <typename typ> maybe<error> fetch(
-            parameter<typ>, typ &out) const;
-        template <typename typ> maybe<error> fetch(
-            parameter<list<typ> >, list<typ> &out) const;
-        void finish() const;
-        rx_message *clone() const;
-        bool isreply() const;
+        friend const fields::field &fields::mk(const wireproto::rx_message *);
+    private: rx_message() = delete;
+    public:  rx_message(const rx_message &o);
+    public:  rx_message(rx_message &&o);
+    private: void operator=(const rx_message &) = delete;
+    private: const wireheader *msg;
+    private: bool owning; /* free() msg when we're done with it */
+    private: rx_message(const wireheader *, bool);
+    private: static orerror<rx_message> parse(const wireheader *,
+                                              size_t sz,
+                                              bool);
+    public:  static orerror<rx_message> fetch(const bufslice &buf);
+    public:  static orerror<rx_message> fetch(buffer &buf);
+    public:  template <typename typ> maybe<typ> getparam(parameter<typ>) const;
+    public:  template <typename typ> maybe<error> fetch(
+        parameter<typ>, typ &out) const;
+    public:  template <typename typ> maybe<error> fetch(
+        parameter<list<typ> >, list<typ> &out) const;
+    public:  rx_message *steal();
+    public:  bool isreply() const;
+    public:  sequencenr sequence() const;
+    public:  msgtag tag() const;
+    public:  ~rx_message();
     };
 
     class tx_compoundparameter {
@@ -253,28 +240,6 @@ namespace wireproto {
             parameter<t> tmpl, const t &val) {
             content->addparam(tmpl, val);
             return *this;
-        }
-    };
-    class rx_compoundparameter {
-    public:
-        const rx_message *content;
-    private:
-        void operator=(const rx_compoundparameter &) = delete;
-        rx_compoundparameter(const rx_message *_content)
-            : content(_content)
-            {}
-    public:
-        rx_compoundparameter()
-            : content(NULL)
-            {}
-        rx_compoundparameter(const rx_compoundparameter &o)
-            : content(o.content->clone())
-            {}
-        static orerror<rx_compoundparameter *> fetch(const bufslice &o);
-        ~rx_compoundparameter() { content->finish(); }
-        template <typename t> const maybe<t> getparam(
-            parameter<t> tmpl) const {
-            return content->getparam(tmpl);
         }
     };
 

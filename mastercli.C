@@ -36,14 +36,15 @@ main(int argc, char *argv[])
             wireproto::req_message(proto::PING::tag, snr).
             addparam(proto::PING::req::msg, "Hello"));
         c.success()->putsequencenr(snr);
-        if (m.issuccess())
+        if (m.issuccess()) {
             fields::print("master ping sequence " +
                           fields::mk(m.success()->getparam(proto::PING::resp::cntr)) +
                           ", message " +
                           fields::mk(m.success()->getparam(proto::PING::resp::msg)) +
                           "\n");
-        else
-            m.failure().fatal("sending ping");
+            delete m.success();
+        } else {
+            m.failure().fatal("sending ping"); }
     } else if (!strcmp(argv[1], "LOGS")) {
         if (argc != 2) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);
@@ -65,7 +66,7 @@ main(int argc, char *argv[])
                 printf("%9ld: %s\n", it->idx.as_long(), it->msg);
             msgs.flush();
             auto s(mm->getparam(proto::GETLOGS::resp::resume));
-            mm->finish();
+            delete mm;
             if (!s)
                 break; /* we're done */
             cursor = s.just();
@@ -88,6 +89,7 @@ main(int argc, char *argv[])
                               *mm, proto::BEACONSTATUS::resp::errors) + "\n"
                           + wireproto::paramfield(
                               *mm, proto::BEACONSTATUS::resp::rx) + "\n");
+            delete mm;
         }
     } else if (!strcmp(argv[1], "QUIT")) {
         if (argc != 4)

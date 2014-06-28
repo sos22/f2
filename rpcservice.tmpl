@@ -16,7 +16,7 @@ rpcservice<cookie_t>::unknowniface::message(
     buffer &,
     mutex_t::token) {
     logmsg(loglevel::failure,
-           "Received an unrecognised message type " + fields::mk(msg.t));
+           "Received an unrecognised message type " + fields::mk(msg.tag()));
     return error::unrecognisedmessage; }
 
 template <typename cookie_t>

@@ -123,7 +123,7 @@ coordinatorconn::timerthread::run(clientio io) {
                 continue; }
             /* Don't actually care about the contents of the message,
                just that the worker can still send them. */
-            rxres.success().message()->finish();
+            delete rxres.success().message();
             logmsg(loglevel::info,
                    "ping from " + fields::mk(owner->conn.peer()));
             owner->contact();
@@ -163,7 +163,7 @@ coordinatorimpl::startconn(clientio io, rpcconn &conn) {
     auto hello_r(conn.receive(io));
     if (hello_r.isfailure()) return hello_r.failure();
     auto msg(hello_r.success());
-    if (msg->t != proto::HELLO::tag) return error::unrecognisedmessage;
+    if (msg->tag() != proto::HELLO::tag) return error::unrecognisedmessage;
     auto version(msg->getparam(proto::HELLO::req::version));
     auto nonce(msg->getparam(proto::HELLO::req::nonce));
     auto slavename(msg->getparam(proto::HELLO::req::slavename));
@@ -200,7 +200,7 @@ coordinatorimpl::startconn(clientio io, rpcconn &conn) {
     auto r(conn.send(io,
                      wireproto::resp_message(*msg),
                      timestamp::now() + timedelta::seconds(1)));
-    msg->finish();
+    delete msg;
     if (r.isjust()) {
         logmsg(loglevel::failure,
                "failed to send ping reply to " + fields::mk(from));

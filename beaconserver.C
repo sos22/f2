@@ -152,13 +152,12 @@ beaconserver::listenthreadclass::run(clientio io)
             owner->errors++;
             continue;
         }
-        auto msg(rrr.success());
-        if (msg->t != proto::HAIL::tag) {
+        auto &msg(rrr.success());
+        if (msg.tag() != proto::HAIL::tag) {
             logmsg(loglevel::failure,
                    "unexpected message tag " +
-                   fields::mk(msg->t) +
+                   fields::mk(msg.tag()) +
                    " on beacon interface");
-            msg->finish();
             owner->errors++;
             continue;
         }
@@ -167,12 +166,11 @@ beaconserver::listenthreadclass::run(clientio io)
                "received beacon message from " +
                fields::mk(rr.success()));
         logmsg(loglevel::info, fields::mk("received HAIL"));
-        auto reqversion(msg->getparam(proto::HAIL::req::version));
-        auto reqnonce(msg->getparam(proto::HAIL::req::nonce));
+        auto reqversion(msg.getparam(proto::HAIL::req::version));
+        auto reqnonce(msg.getparam(proto::HAIL::req::nonce));
         if (!reqversion || !reqnonce) {
             logmsg(loglevel::failure,
                    fields::mk("HAIL was missing a mandatory parameter"));
-            msg->finish();
             continue;
         }
         logmsg(loglevel::debug, "version " + fields::mk(reqversion.just()));
@@ -187,7 +185,6 @@ beaconserver::listenthreadclass::run(clientio io)
                    fields::mk(reqversion.just()) +
                    " in HAIL message");
             owner->errors++;
-            msg->finish();
             continue;
         }
 
@@ -213,7 +210,6 @@ beaconserver::listenthreadclass::run(clientio io)
                        fields::mk(rr.success()) +
                    " HAIL");
             owner->errors++;
-            msg->finish();
             continue;
         }
         auto sendres(owner->listenfd.send(outbuffer, rr.success()));
@@ -224,7 +220,6 @@ beaconserver::listenthreadclass::run(clientio io)
             owner->errors++;
         }
 
-        msg->finish();
         continue;
     }
 }
