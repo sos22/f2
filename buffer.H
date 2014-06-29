@@ -7,6 +7,7 @@
 #include "list.H"
 #include "maybe.H"
 #include "timestamp.H"
+#include "wireproto.H"
 
 class clientio;
 class fd_t;
@@ -14,6 +15,24 @@ template <typename> class orerror;
 class subscriber;
 class subscriptionbase;
 class test;
+
+class bufferstatus {
+public: unsigned long prod;
+public: unsigned long cons;
+public: unsigned int nrfrags;
+public: bufferstatus(
+    unsigned long _prod,
+    unsigned long _cons,
+    unsigned int _nrfrags)
+    : prod(_prod),
+      cons(_cons),
+      nrfrags(_nrfrags) {}
+WIREPROTO_TYPE(bufferstatus);
+};
+
+namespace fields {
+const field &mk(const bufferstatus &);
+}
 
 class buffer {
     class subbuf {
@@ -110,6 +129,9 @@ public:
      * bytes extracted from the buffer before the returned one i.e. it
      * is in the same coordinate system as offset() */
     char idx(size_t i) const;
+
+public: typedef bufferstatus status_t;
+public: status_t status() const;
 
     static void test(class test &);
 };

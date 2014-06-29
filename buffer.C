@@ -3,12 +3,47 @@
 #include <string.h>
 
 #include "fd.H"
+#include "proto.H"
 #include "pubsub.H"
 #include "test.H"
 
 #include "list.tmpl"
+#include "wireproto.tmpl"
 
 template class list<buffer::subbuf>;
+
+wireproto_wrapper_type(buffer::status_t)
+void
+buffer::status_t::addparam(
+    wireproto::parameter<buffer::status_t> tmpl,
+    wireproto::tx_message &out) const {
+    out.addparam(
+        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+        wireproto::tx_compoundparameter()
+        .addparam(proto::bufferstatus::prod, prod)
+        .addparam(proto::bufferstatus::cons, cons)
+        .addparam(proto::bufferstatus::nrfrags, nrfrags)); }
+maybe<buffer::status_t>
+buffer::status_t::getparam(
+    wireproto::parameter<buffer::status_t> tmpl,
+    const wireproto::rx_message &msg) {
+    auto packed(msg.getparam(
+                    wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (!packed) return Nothing;
+    auto &p(packed.just());
+#define doparam(name) auto name(p.getparam(proto::bufferstatus::name))
+    doparam(prod);
+    doparam(cons);
+    doparam(nrfrags);
+#undef doparam
+    if (!prod || !cons || !nrfrags) return Nothing;
+    else return buffer::status_t(prod.just(), cons.just(), nrfrags.just()); }
+const fields::field &
+fields::mk(const buffer::status_t &o) {
+    return "<prod:" + mk(o.prod) +
+        " cons:" + mk(o.cons) +
+        " nrfrags:" + mk(o.nrfrags) +
+        ">"; }
 
 buffer::subbuf *
 buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
@@ -274,6 +309,12 @@ buffer::linearise(size_t start, size_t end)
     }
     return b->payload;
 }
+
+buffer::status_t
+buffer::status() const {
+    unsigned nrfrags = 0;
+    for (auto it(first); it; it = it->next) nrfrags++;
+    return status_t(prod, cons, nrfrags); }
 
 void
 buffer::test(class test &t)

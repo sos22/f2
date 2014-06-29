@@ -1,6 +1,7 @@
 #ifndef WIREPROTO_TMPL__
 #define WIREPROTO_TMPL__
 
+#include "fields.H"
 #include "orerror.H"
 
 #include "fieldfinal.H"
@@ -29,6 +30,14 @@ rx_message::getparam(parameter<typ> p) const
                     : msg->idx[x+1].offset) - msg->idx[x].offset);
     return deserialise<typ>(slice);
 }
+
+template <typename typ> maybe<list<typ> >
+rx_message::getparamlist(parameter<list<typ> > p) const
+{
+    list<typ> out;
+    auto r(fetch(p, out));
+    if (r.isjust()) return Nothing;
+    else return std::move(out); }
 
 template <typename nested> maybe<error>
 rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const {

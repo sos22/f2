@@ -16,11 +16,25 @@ class subscriptionbase;
 class tcpsocket;
 
 class rpcconnstatus {
+public: buffer::status_t outgoing;
+public: buffer::status_t incoming;
 public: fd_t::status_t fd;
+public: wireproto::sequencer::status_t sequencer;
+public: list<wireproto::rx_message::status_t> pendingrx;
 public: peername::status_t peername_;
-public: rpcconnstatus(fd_t::status_t _fd, peername::status_t _peername)
-    : fd(_fd),
+public: rpcconnstatus(const buffer::status_t &_outgoing,
+                      const buffer::status_t &_incoming,
+                      const fd_t::status_t &_fd,
+                      const wireproto::sequencer::status_t &_sequencer,
+                      const list<wireproto::rx_message::status_t> &_pendingrx,
+                      const peername::status_t &_peername)
+    : outgoing(_outgoing),
+      incoming(_incoming),
+      fd(_fd),
+      sequencer(_sequencer),
+      pendingrx(_pendingrx),
       peername_(_peername) {}
+public: ~rpcconnstatus() { pendingrx.flush(); }
 WIREPROTO_TYPE(rpcconnstatus);
 };
 namespace fields {
@@ -31,7 +45,7 @@ class rpcconn {
     template <typename t> friend class rpcconnthread;
 private: mutex_t txlock;
 private: buffer outgoing;
-private: mutex_t rxlock;
+private: mutable mutex_t rxlock;
 private: buffer incoming;
 private: socket_t fd;
 private: mutex_t sequencerlock;

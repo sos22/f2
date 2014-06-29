@@ -3,6 +3,7 @@
 
 #include "wireproto.H"
 
+class bufferstatus;
 class coordinatorconnstatus;
 class digest;
 class fd_tstatus;
@@ -21,6 +22,11 @@ class registrationsecret;
 namespace proto {
     using namespace wireproto;
 
+    namespace bufferstatus {
+        static const parameter<unsigned long> prod(1, "prod");
+        static const parameter<unsigned long> cons(2, "cons");
+        static const parameter<unsigned int> nrfrags(3, "nrfrags");
+    };
     namespace coordinatorconnstatus {
         static const parameter<int> active(1, "active");
         static const parameter<struct timeval> lastcontact(2, "lastcontact");
@@ -49,8 +55,14 @@ namespace proto {
         static const parameter<unsigned> dropped(4, "dropped");
     };
     namespace rpcconnstatus {
-        static const parameter<class ::fd_tstatus> fd(1, "fd");
-        static const parameter<class ::peername> peername(2, "peername");
+        static const parameter<class ::bufferstatus> outgoing(1, "outgoing");
+        static const parameter<class ::bufferstatus> incoming(2, "incoming");
+        static const parameter<class ::fd_tstatus> fd(3, "fd");
+        static const parameter<wireproto::sequencerstatus> sequencer(
+            4, "sequencer");
+        static const parameter<list<wireproto::rx_messagestatus> > pendingrx(
+            5, "pendingrx");
+        static const parameter<class ::peername> peername(6, "peername");
     };
     namespace timeval {
         static const parameter<long> tv_sec(1, "tv_sec");

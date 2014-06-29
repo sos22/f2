@@ -3,6 +3,7 @@
 #ifndef FIELDFINAL_H__
 #define FIELDFINAL_H__
 
+#include "list.H"
 #include "maybe.H"
 #include "orerror.H"
 
@@ -33,6 +34,15 @@ mk(const t *const &what)
     else
         return "[" + fields::mk(*what) + "]";
 }
+template <typename t> const field &
+mk(const list<t> &what) {
+    const field *acc = &mk("{");
+    bool first = true;
+    for (auto it(what.start()); !it.finished(); it.next()) {
+        if (!first) acc = &(*acc + " ");
+        acc = &(*acc + mk(*it)); }
+    return *acc + "}"; }
+
 };
 
 #endif /* !FIELDFINAL_H__ */

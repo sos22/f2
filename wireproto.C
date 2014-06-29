@@ -9,9 +9,10 @@
 #include "error.H"
 #include "fields.H"
 
-#include "fieldfinal.H"
-#include "list.tmpl"
 #include "wireproto.tmpl"
+#include "list.tmpl"
+
+#include "fieldfinal.H"
 
 namespace wireproto {
 
@@ -372,6 +373,10 @@ msgtag
 rx_message::tag() const {
     return msg->tag; }
 
+rx_message::status_t
+rx_message::status() const {
+    return status_t(msg->tag); }
+
 rx_message::~rx_message() {
     if (owning) free((void *)msg); }
 
@@ -423,6 +428,12 @@ template <> maybe<double>
 deserialise(bufslice &slice) {
     if (slice.sz != 8) return Nothing;
     else return *(double *)slice.content; }
+
+template <> maybe<msgtag>
+deserialise(bufslice &slice) {
+    auto r(deserialise<uint16_t>(slice));
+    if (!r) return Nothing;
+    else return msgtag(r.just()); }
 
 template maybe<const char *> rx_message::getparam(parameter<const char *>)const;
 template maybe<unsigned short> rx_message::getparam(
@@ -592,7 +603,63 @@ template maybe<error> rx_message::fetch(
     list<const char *> &) const;
 template tx_message &tx_message::addparam(
     parameter<list<const char *> >, const list<const char *> &);
+template tx_message &tx_message::addparam(
+    parameter<list<rx_message::status_t> >,
+    const list<rx_message::status_t> &);
+template maybe<error> rx_message::fetch(
+    parameter<list<rx_message::status_t> >,
+    list<rx_message::status_t> &) const;
+template <> maybe<rx_message::status_t> deserialise(
+    wireproto::bufslice &slice) {
+    auto r(deserialise<msgtag>(slice));
+    if (!r) return Nothing;
+    else return rx_message::status_t(r.just()); } }
 
-}
+wireproto_simple_wrapper_type(wireproto::sequencer::status_t, uint16_t, nextseq)
+wireproto_simple_wrapper_type(wireproto::msgtag, uint16_t, val)
+wireproto_simple_wrapper_type(wireproto::rx_message::status_t, msgtag, t)
+
+const fields::field &
+fields::mk(const wireproto::sequencer::status_t &o) {
+    return "<nextseq:" + mk(o.nextseq) + ">"; }
+
+const fields::field &
+fields::mk(const wireproto::rx_message::status_t &o) {
+    return "<tag:" + mk(o.t) + ">"; }
 
 template class list<const char *>;
+template list<wireproto::rx_message::status_t>::list();
+template list<wireproto::rx_message::status_t>::list(
+    const list<wireproto::rx_message::status_t> &o);
+template list<wireproto::rx_message::status_t>::list(
+    list<wireproto::rx_message::status_t> &&o);
+template bool list<wireproto::rx_message::status_t>::empty() const;
+template void list<wireproto::rx_message::status_t>::flush();
+template void list<wireproto::rx_message::status_t>::pushtail(
+    const wireproto::rx_message::status_t &);
+template list<wireproto::rx_message::status_t>::iter
+    list<wireproto::rx_message::status_t>::start();
+template list<wireproto::rx_message::status_t>::iter::iter(
+    list<wireproto::rx_message::status_t> *, bool);
+template void list<wireproto::rx_messagestatus>::iter::remove();
+template bool list<wireproto::rx_messagestatus>::iter::finished() const;
+template list<wireproto::rx_messagestatus>::const_iter
+    list<wireproto::rx_messagestatus>::start() const;
+template list<wireproto::rx_message::status_t>::const_iter::const_iter(
+    const list<wireproto::rx_message::status_t> *, bool);
+template const wireproto::rx_messagestatus &
+    list<wireproto::rx_messagestatus>::const_iter::operator*() const;
+template void list<wireproto::rx_messagestatus>::const_iter::next();
+template bool list<wireproto::rx_messagestatus>::const_iter::finished() const;
+template list<wireproto::rx_message::status_t>::~list();
+template maybe<list<wireproto::rx_message::status_t> >
+    wireproto::rx_message::getparamlist(
+        wireproto::parameter<list<wireproto::rx_message::status_t> >) const;
+template wireproto::rx_message::status_t std::function<
+    wireproto::rx_message::status_t (
+        wireproto::rx_message const* const&)>::operator()
+    (wireproto::rx_message const* const&) const;
+
+namespace fields {
+template const field &mk(const list<wireproto::rx_message::status_t> &);
+}

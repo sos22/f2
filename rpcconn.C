@@ -10,6 +10,7 @@
 #include "tcpsocket.H"
 
 #include "either.tmpl"
+#include "list.tmpl"
 #include "wireproto.tmpl"
 
 rpcconn::rpcconn(socket_t _fd, const peername &_peer)
@@ -167,12 +168,30 @@ rpcconn::peer() const {
     return peer_; }
 
 rpcconn::status_t
-rpcconn::status(mutex_t::token /*txlock_*/,
+rpcconn::status(mutex_t::token /* txlock */,
                 maybe<mutex_t::token> /*coordinatorlock*/) const {
-    return rpcconn::status_t(fd.status(), peer_.status()); }
+    auto token(rxlock.lock());
+    auto rxstat(incoming.status());
+    rxlock.unlock(&token);
+    return rpcconn::status_t(
+        outgoing.status(),
+        rxstat,
+        fd.status(),
+        sequencer.status(),
+        pendingrx.map<wireproto::rx_message::status_t>(
+            [] (const wireproto::rx_message *elem) {
+                return elem->status(); }),
+        peer_.status()); }
 const fields::field &
 fields::mk(const rpcconn::status_t &o) {
-    return "<fd:" + mk(o.fd) + " peername:" + mk(o.peername_) + ">"; }
+    return
+        "<outgoing:" + mk(o.outgoing) +
+        " incoming:" + mk(o.incoming) +
+        " fd:" + mk(o.fd) +
+        " sequencer:" + mk(o.sequencer) +
+        " pendingrx:" + mk(o.pendingrx) +
+        " peername:" + mk(o.peername_) +
+        ">"; }
 
 wireproto_wrapper_type(rpcconn::status_t)
 void
@@ -182,7 +201,11 @@ rpcconn::status_t::addparam(
     out.addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
         wireproto::tx_compoundparameter()
+        .addparam(proto::rpcconnstatus::outgoing, outgoing)
+        .addparam(proto::rpcconnstatus::incoming, incoming)
         .addparam(proto::rpcconnstatus::fd, fd)
+        .addparam(proto::rpcconnstatus::sequencer, sequencer)
+        .addparam(proto::rpcconnstatus::pendingrx, pendingrx)
         .addparam(proto::rpcconnstatus::peername, peername_)); }
 maybe<rpcconn::status_t>
 rpcconn::status_t::getparam(
@@ -192,9 +215,26 @@ rpcconn::status_t::getparam(
                     wireproto::parameter<wireproto::rx_message>(tmpl)));
     if (!packed) return Nothing;
     auto &p(packed.just());
-    auto fd(p.getparam(proto::rpcconnstatus::fd));
-    auto peername(p.getparam(proto::rpcconnstatus::peername));
-    if (!fd || !peername) return Nothing;
-    return rpcconn::status_t(fd.just(), peername.just()); }
+#define doparam(name) auto name(p.getparam(proto::rpcconnstatus::name))
+    doparam(outgoing);
+    doparam(incoming);
+    doparam(fd);
+    doparam(sequencer);
+    auto pendingrx(p.getparamlist(proto::rpcconnstatus::pendingrx));
+    doparam(peername);
+#undef doparam
+    if (!outgoing || !incoming || !fd || !sequencer ||
+        !pendingrx || !peername) {
+        return Nothing; }
+    return rpcconn::status_t(outgoing.just(),
+                             incoming.just(),
+                             fd.just(),
+                             sequencer.just(),
+                             pendingrx.just(),
+                             peername.just()); }
 
 template class either<subscriptionbase *, const wireproto::rx_message *>;
+template list<wireproto::rx_message::status_t>
+    list<wireproto::rx_message const*>::map<wireproto::rx_message::status_t>(
+        std::function<wireproto::rx_messagestatus
+                      (wireproto::rx_message const* const&)>) const;

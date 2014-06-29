@@ -24,7 +24,7 @@ public: struct timeval lastcontact;
 public: rpcconn::status_t conn;
 public: coordinatorconnstatus(int _active,
                               struct timeval _lastcontact,
-                              rpcconn::status_t _conn)
+                              const rpcconn::status_t &_conn)
     : active(_active),
       lastcontact(_lastcontact),
       conn(_conn) {}

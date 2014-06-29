@@ -14,17 +14,26 @@ class test;
 
 namespace wireproto {
 class msgtag;
-class rx_message;
 template <typename t> class parameter;
+class rx_message;
+class rx_messagestatus;
+class sequencerstatus;
 };
 
 namespace fields {
 class field;
 const field &mk(const wireproto::msgtag &);
 const field &mk(const wireproto::rx_message *);
+const field &mk(const wireproto::rx_messagestatus &);
+const field &mk(const wireproto::sequencerstatus &);
 template <typename t> const field &mk(const ::maybe<t> &);
 template <typename t> const field &mk(const wireproto::parameter<t> &);
 };
+
+#define WIREPROTO_TYPE(name)                                            \
+    void addparam(wireproto::parameter<name>, wireproto::tx_message &) const; \
+    static maybe<name> getparam(wireproto::parameter<name> p,           \
+                                const wireproto::rx_message &)
 
 namespace wireproto {
     struct bufslice;
@@ -46,6 +55,12 @@ namespace wireproto {
         bool isreply() const {
             return !!(val & 0x8000); }
     };
+    class sequencerstatus {
+    public: uint16_t nextseq;
+    public: sequencerstatus(uint16_t _nextseq)
+        : nextseq(_nextseq) {}
+        WIREPROTO_TYPE(sequencerstatus);
+    };
     class sequencer {
         uint16_t last;
     public:
@@ -57,6 +72,8 @@ namespace wireproto {
         }
         void put(sequencenr) {
         }
+    public: typedef sequencerstatus status_t;
+    public: status_t status() const { return status_t(last+1); }
     };
     class msgtag {
         friend const class fields::field &fields::mk(const msgtag &);
@@ -74,6 +91,7 @@ namespace wireproto {
         bool operator!=(const msgtag &o) const {
             return val != o.val;
         }
+        WIREPROTO_TYPE(msgtag);
     };
     template <typename _instanceT>
     class parameter {
@@ -188,6 +206,12 @@ namespace wireproto {
            make the virtual overloading work. */
         maybe<error> serialise(buffer &buf) const;
     };
+    class rx_messagestatus {
+    public: msgtag t;
+    public: rx_messagestatus(const msgtag &_t)
+        : t(_t) {}
+        WIREPROTO_TYPE(rx_messagestatus);
+    };
     class rx_message {
         friend const fields::field &fields::mk(const wireproto::rx_message *);
     private: rx_message() = delete;
@@ -203,6 +227,8 @@ namespace wireproto {
     public:  static orerror<rx_message> fetch(const bufslice &buf);
     public:  static orerror<rx_message> fetch(buffer &buf);
     public:  template <typename typ> maybe<typ> getparam(parameter<typ>) const;
+    public:  template <typename typ> maybe<list<typ> > getparamlist(
+        parameter<list<typ> >) const;
     public:  template <typename typ> maybe<error> fetch(
         parameter<typ>, typ &out) const;
     public:  template <typename typ> maybe<error> fetch(
@@ -211,6 +237,8 @@ namespace wireproto {
     public:  bool isreply() const;
     public:  sequencenr sequence() const;
     public:  msgtag tag() const;
+    public:  typedef rx_messagestatus status_t;
+    public:  status_t status() const;
     public:  ~rx_message();
     };
 
@@ -254,10 +282,5 @@ namespace wireproto {
 
     void test(class ::test &);
 };
-
-#define WIREPROTO_TYPE(name)                                            \
-    void addparam(wireproto::parameter<name>, wireproto::tx_message &) const; \
-    static maybe<name> getparam(wireproto::parameter<name> p,           \
-                                const wireproto::rx_message &)
 
 #endif /* !WIREPROTO_H__ */

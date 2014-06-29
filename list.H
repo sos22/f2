@@ -1,14 +1,18 @@
 #ifndef LIST_H__
 #define LIST_H__
 
+#include <functional>
+
 template <typename t>
 class list {
     struct member;
     member *head;
     member *tail;
-    list(const list &o) = delete;
     void operator=(const list &o) = delete;
 public:
+    list(const list &o);
+    list(list &&o);
+
     class iter {
         friend class list;
         list *const owner;
@@ -76,6 +80,11 @@ public:
 
     /* Check that the list looks vaguely reasonable */
     void sanitycheck() const;
+
+    /* Create a new list and initialise it by running a mapping
+       function over this list. */
+    template <typename other_t> list<other_t> map(
+        std::function<other_t (const t&)> what) const;
 };
 
 #endif /* !LIST_H__ */
