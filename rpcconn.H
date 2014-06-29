@@ -15,6 +15,18 @@ class subscriber;
 class subscriptionbase;
 class tcpsocket;
 
+class rpcconnstatus {
+public: fd_t::status_t fd;
+public: peername::status_t peername_;
+public: rpcconnstatus(fd_t::status_t _fd, peername::status_t _peername)
+    : fd(_fd),
+      peername_(_peername) {}
+WIREPROTO_TYPE(rpcconnstatus);
+};
+namespace fields {
+const field &mk(const rpcconnstatus &);
+}
+
 class rpcconn {
     template <typename t> friend class rpcconnthread;
 private: mutex_t txlock;
@@ -109,6 +121,11 @@ public: void putsequencenr(wireproto::sequencenr);
     /* Get a peername for the thing on the other end of the
      * connection. */
 public: peername peer() const;
+
+public: typedef rpcconnstatus status_t;
+public: status_t status(
+    mutex_t::token txlock,
+    maybe<mutex_t::token> coordinatorlock) const;
 };
 
 #endif

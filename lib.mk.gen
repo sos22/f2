@@ -10,6 +10,7 @@ function bits() {
     _ buffer
     _ cond
     _ controlserver
+    _ coordinator
     _ digest
     _ error
     _ fd

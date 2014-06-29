@@ -6,6 +6,7 @@
 #include "obj.H"
 #include "orerror.H"
 #include "timestamp.H"
+#include "wireproto.H"
 
 struct pollfd;
 class buffer;
@@ -23,6 +24,22 @@ namespace fields {
 class field;
 const field &mk(const fd_t &);
 };
+
+class fd_tstatus {
+public: int fd;
+public: maybe<struct timeval> lastrx;
+public: maybe<int> revents;
+public: fd_tstatus(
+    int _fd,
+    maybe<struct timeval> _lastrx,
+    maybe<int> _revents)
+    : fd(_fd),
+      lastrx(_lastrx),
+      revents(_revents) {}
+WIREPROTO_TYPE(fd_tstatus);
+};
+namespace fields {
+const field &mk(const fd_tstatus &); }
 
 class fd_t {
     friend class listenfd;
@@ -63,6 +80,9 @@ public:
     /* Wrapper around ::pipe().  Main advantage is that the read and
      * write FDs are named, rather than being fd[0] and fd[1]. */
     static orerror<piperes> pipe();
+
+public: typedef fd_tstatus status_t;
+public: status_t status() const;
 };
 
 #endif /* !FD_H__ */

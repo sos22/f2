@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "coordinator.H"
 #include "fields.H"
 #include "logging.H"
 #include "peername.H"
@@ -91,6 +92,27 @@ main(int argc, char *argv[])
                               *mm, proto::BEACONSTATUS::resp::rx) + "\n");
             delete mm;
         }
+    } else if (!strcmp(argv[1], "COORDINATORSTATUS")) {
+        if (argc != 2) errx(1, "COORDINATORSTATUS mode takes no arguments");
+        auto snr(c.success()->allocsequencenr());
+        auto m = c.success()->call(
+            clientio::CLIENTIO,
+            wireproto::req_message(proto::COORDINATORSTATUS::tag, snr));
+        if (m.isfailure()) {
+            fields::print(fields::mk(m.failure()));
+        } else {
+            auto mm(m.success());
+            fields::print(wireproto::paramfield(
+                             *mm, proto::COORDINATORSTATUS::resp::ratelimiter)
+                          + "\n");
+            list<coordinatorconnstatus> conns;
+            auto rr(mm->fetch(proto::COORDINATORSTATUS::resp::conns, conns));
+            if (rr.isjust()) {
+                rr.just().fatal("extracting conn list from status response"); }
+            for (auto it(conns.start()); !it.finished(); it.next()) {
+                fields::print("  " + fields::mk(*it) + "\n"); }
+            conns.flush();
+            delete mm; }
     } else if (!strcmp(argv[1], "QUIT")) {
         if (argc != 4)
             errx(1, "QUIT mode takes code and explanation arguments");

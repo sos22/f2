@@ -48,6 +48,10 @@ public:
     const struct sockaddr *sockaddr() const;
     /* And the sockaddr size */
     size_t sockaddrsize() const;
+
+    /* peernames are their own status representation */
+public: typedef peername status_t;
+public: status_t status() const { return *this; }
 };
 
 namespace fields {

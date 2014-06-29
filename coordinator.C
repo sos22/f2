@@ -12,8 +12,26 @@
 #include "timedelta.H"
 
 #include "rpcserver.tmpl"
+#include "wireproto.tmpl"
+
+#include "fieldfinal.H"
 
 class coordinatorimpl;
+
+class coordinatorconnstatus {
+public: int active;
+public: struct timeval lastcontact;
+public: rpcconn::status_t conn;
+public: coordinatorconnstatus(int _active,
+                              struct timeval _lastcontact,
+                              rpcconn::status_t _conn)
+    : active(_active),
+      lastcontact(_lastcontact),
+      conn(_conn) {}
+public: static maybe<coordinatorconnstatus> fromcompound(
+    const wireproto::rx_message &);
+WIREPROTO_TYPE(coordinatorconnstatus);
+};
 
 class coordinatorconn {
 /* Each coordinator connection has its own dedicated thread for
@@ -47,7 +65,8 @@ public: coordinatorconn(rpcconn &_conn, coordinatorimpl *_owner)
       timerthreadhandle(NULL),
       conn(_conn),
       owner(_owner) {}
-private: void contact(); };
+private: void contact();
+public:  coordinatorconnstatus status(mutex_t::token, mutex_t::token) const; };
 
 class coordinatorimpl : public coordinator {
 private: mastersecret ms;
@@ -56,7 +75,11 @@ private: registrationsecret rs;
 
     /* Control server interface */
 private: class statusinterface : public rpcinterface<controlconn *> {
-    public:  statusinterface() : rpcinterface(proto::COORDINATORSTATUS::tag) {}
+    private: coordinatorimpl *const owner;
+    public:  statusinterface(
+        coordinatorimpl *_owner)
+        : rpcinterface(proto::COORDINATORSTATUS::tag),
+          owner(_owner) {}
     private: maybe<error> message(const wireproto::rx_message &,
                                   controlconn *,
                                   buffer &,
@@ -74,6 +97,56 @@ private: orerror<coordinatorconn *> startconn(clientio, rpcconn &);
 private: void endconn(clientio, coordinatorconn *);
 private: void destroy(clientio);
 };
+
+wireproto_wrapper_type(coordinatorconnstatus)
+namespace wireproto {
+template maybe<error>
+rx_message::fetch(
+    parameter<list<coordinatorconnstatus> >,
+    list<coordinatorconnstatus> &) const;
+template <> maybe<coordinatorconnstatus> deserialise(
+    wireproto::bufslice &slice) {
+    auto m(deserialise<rx_message>(slice));
+    if (!m) return Nothing;
+    else return coordinatorconnstatus::fromcompound(m.just()); }
+}
+void
+coordinatorconnstatus::addparam(
+    wireproto::parameter<coordinatorconnstatus> tmpl,
+    wireproto::tx_message &tx_msg) const {
+    tx_msg.addparam(
+        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+        wireproto::tx_compoundparameter()
+        .addparam(proto::coordinatorconnstatus::active, active)
+        .addparam(proto::coordinatorconnstatus::lastcontact, lastcontact)
+        .addparam(proto::coordinatorconnstatus::conn, conn)); }
+
+maybe<coordinatorconnstatus>
+coordinatorconnstatus::fromcompound(
+    const wireproto::rx_message &p) {
+    auto active(p.getparam(proto::coordinatorconnstatus::active));
+    auto lastcontact(p.getparam(proto::coordinatorconnstatus::lastcontact));
+    auto conn(p.getparam(proto::coordinatorconnstatus::conn));
+    if (!active || !lastcontact || !conn) return Nothing;
+    return coordinatorconnstatus(active.just(),
+                                 lastcontact.just(),
+                                 conn.just()); }
+
+maybe<coordinatorconnstatus>
+coordinatorconnstatus::getparam(
+    wireproto::parameter<coordinatorconnstatus> tmpl,
+    const wireproto::rx_message &msg) {
+    auto packed(msg.getparam(
+                    wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (!packed) return Nothing;
+    return fromcompound(packed.just()); }
+
+const fields::field &
+fields::mk(const coordinatorconnstatus &s) {
+    return "<active:" + mk(s.active) +
+        " lastcontact:" + mk(s.lastcontact).asdate() +
+        " conn:" + mk(s.conn) +
+        ">"; }
 
 coordinatorconn::timerthread::timerthread(
     coordinatorconn *_owner)
@@ -137,12 +210,29 @@ coordinatorconn::contact() {
     lastcontact = timestamp::now();
     contactmux.unlock(&token); }
 
+coordinatorconnstatus
+coordinatorconn::status(mutex_t::token conntxlock,
+                        mutex_t::token coordinatorlock) const {
+    return coordinatorconnstatus(active,
+                                 lastcontact.as_timeval(),
+                                 conn.status(conntxlock, coordinatorlock)); }
+
 maybe<error>
-coordinatorimpl::statusinterface::message(const wireproto::rx_message &,
+coordinatorimpl::statusinterface::message(const wireproto::rx_message &rx,
                                           controlconn *,
-                                          buffer &,
-                                          mutex_t::token) {
-    return error::unimplemented; }
+                                          buffer &outbuf,
+                                          mutex_t::token connectiontx) {
+    wireproto::resp_message msg(rx);
+    msg.addparam(proto::COORDINATORSTATUS::resp::ratelimiter,
+                 owner->newconnlimiter.status());
+    list<coordinatorconnstatus> conns;
+    auto token(owner->mux.lock());
+    for (auto it(owner->connections.start()); !it.finished(); it.next()) {
+        conns.pushtail((*it)->status(connectiontx, token)); }
+    owner->mux.unlock(&token);
+    msg.addparam(proto::COORDINATORSTATUS::resp::conns, conns);
+    conns.flush();
+    return msg.serialise(outbuf); }
 
 coordinatorimpl::coordinatorimpl(
     const mastersecret &_ms,
@@ -151,7 +241,7 @@ coordinatorimpl::coordinatorimpl(
     : ms(_ms),
       newconnlimiter(frequency::hz(100), 100),
       rs(_rs),
-      statusiface(),
+      statusiface(this),
       controlregistration(cs->service->registeriface(statusiface)) {}
 
 orerror<coordinatorconn *>
@@ -276,3 +366,32 @@ coordinator::build(
 
 RPCSERVER(coordinatorconn *)
 template class list<coordinatorconn *>;
+template list<coordinatorconnstatus>::list();
+template void list<coordinatorconnstatus>::pushtail(
+    const coordinatorconnstatus &);
+template void list<coordinatorconnstatus>::flush();
+template bool list<coordinatorconnstatus>::empty() const;
+template list<coordinatorconnstatus>::iter list<coordinatorconnstatus>::start();
+template list<coordinatorconnstatus>::iter::iter(
+    list<coordinatorconnstatus>*,
+    bool);
+template coordinatorconnstatus &
+    list<coordinatorconnstatus>::iter::operator*();
+template void list<coordinatorconnstatus>::iter::remove();
+template void list<coordinatorconnstatus>::iter::next();
+template bool list<coordinatorconnstatus>::iter::finished() const;
+template list<coordinatorconnstatus>::const_iter
+    list<coordinatorconnstatus>::start() const;
+template list<coordinatorconnstatus>::const_iter::const_iter(
+    const list<coordinatorconnstatus>*,
+    bool);
+template const coordinatorconnstatus &
+    list<coordinatorconnstatus>::const_iter::operator*() const;
+template void list<coordinatorconnstatus>::const_iter::next();
+template bool list<coordinatorconnstatus>::const_iter::finished() const;
+template list<coordinatorconnstatus>::~list();
+namespace wireproto {
+template tx_message& tx_message::addparam<coordinatorconnstatus>(
+    parameter<list<coordinatorconnstatus> >,
+    list<coordinatorconnstatus> const&);
+}

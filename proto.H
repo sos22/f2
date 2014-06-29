@@ -3,20 +3,34 @@
 
 #include "wireproto.H"
 
+class coordinatorconnstatus;
 class digest;
+class fd_tstatus;
 class frequency;
 class masternonce;
 class memlog_idx;
 class memlog_entry;
 class nonce;
 class peername;
+class rpcconnstatus;
 class shutdowncode;
+struct timeval;
 class ratelimiter_status;
 class registrationsecret;
 
 namespace proto {
     using namespace wireproto;
 
+    namespace coordinatorconnstatus {
+        static const parameter<int> active(1, "active");
+        static const parameter<struct timeval> lastcontact(2, "lastcontact");
+        static const parameter<rpcconnstatus> conn(3, "conn");
+    };
+    namespace fd_tstatus {
+        static const parameter<int> fd(1, "fd");
+        static const parameter<timeval> lastrx(2, "lastrx");
+        static const parameter<int> revents(3, "revents");
+    };
     namespace memlog_entry {
         static const parameter<const char *> msg(1, "msg");
         static const parameter<memlog_idx> idx(2, "idx");
@@ -33,6 +47,14 @@ namespace proto {
         static const parameter<unsigned> bucket_size(2, "bucket_size");
         static const parameter<unsigned> bucket_content(3, "bucket_content");
         static const parameter<unsigned> dropped(4, "dropped");
+    };
+    namespace rpcconnstatus {
+        static const parameter<class ::fd_tstatus> fd(1, "fd");
+        static const parameter<class ::peername> peername(2, "peername");
+    };
+    namespace timeval {
+        static const parameter<long> tv_sec(1, "tv_sec");
+        static const parameter<long> tv_usec(1, "tv_usec");
     };
 
     /* Control interface */
@@ -118,6 +140,13 @@ namespace proto {
 
     namespace COORDINATORSTATUS {
         static const msgtag tag(9);
+        /* No request parameters */
+        namespace resp {
+            static const parameter<class ratelimiter_status>
+                ratelimiter(950, "ratelimiter");
+            static const parameter<list< ::coordinatorconnstatus> >
+                conns(951, "conns");
+        }
     }
 }
 

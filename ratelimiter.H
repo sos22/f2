@@ -41,7 +41,7 @@ public:
        Otherwise, return false. */
     bool probe() __attribute__((warn_unused_result));
 
-    operator ratelimiter_status() const;
+    ratelimiter_status status() const;
 };
 
 namespace fields {

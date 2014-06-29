@@ -24,3 +24,67 @@ parselong(const char *what)
         return error::noparse;
     return res;
 }
+
+template <typename t> t
+loadacquire(const t &what) {
+    t res;
+    switch (sizeof(t)) {
+    case 1:
+        asm volatile ("movb %1,%0\n"
+                      : "=r" (*(unsigned char *)&res)
+                      : "m" ((unsigned char *)&what)
+                      : "memory");
+        break;
+    case 2:
+        asm volatile ("movs %1,%0\n"
+                      : "=r" (*(unsigned short *)&res)
+                      : "m" ((unsigned short *)&what)
+                      : "memory");
+        break;
+    case 4:
+        asm volatile ("movl %1,%0\n"
+                      : "=r" (*(unsigned *)&res)
+                      : "m" ((unsigned *)&what)
+                      : "memory");
+        break;
+    case 8:
+        asm volatile ("movq %1,%0\n"
+                      : "=r" (*(unsigned long *)&res)
+                      : "m" ((unsigned long*)&what)
+                      : "memory");
+        break;
+    default: abort(); }
+    return res; }
+
+template <typename t> void
+storerelease(t *where, t what) {
+    switch (sizeof(what)) {
+    case 1:
+        asm volatile("movb %1, %0"
+                     : "=m" (*(unsigned char *)where)
+                     : "r" ((unsigned char)what)
+                     : "memory");
+        break;
+    case 2:
+        asm volatile("movs %1, %0"
+                     : "=m" (*(unsigned short *)where)
+                     : "r" ((unsigned short)what)
+                     : "memory");
+        break;
+    case 4:
+        asm volatile("movl %1, %0"
+                     : "=m" (*(unsigned *)where)
+                     : "r" ((unsigned)what)
+                     : "memory");
+        break;
+    case 8:
+        asm volatile("movq %1, %0"
+                     : "=m" (*(unsigned long *)where)
+                     : "r" ((unsigned long)what)
+                     : "memory");
+        break;
+    default:
+        abort(); } }
+
+template bool loadacquire(const bool &);
+template void storerelease(bool *, bool);

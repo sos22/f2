@@ -10,6 +10,7 @@
 #include "tcpsocket.H"
 
 #include "either.tmpl"
+#include "wireproto.tmpl"
 
 rpcconn::rpcconn(socket_t _fd, const peername &_peer)
     : txlock(),
@@ -164,5 +165,36 @@ rpcconn::putsequencenr(wireproto::sequencenr snr) {
 peername
 rpcconn::peer() const {
     return peer_; }
+
+rpcconn::status_t
+rpcconn::status(mutex_t::token /*txlock_*/,
+                maybe<mutex_t::token> /*coordinatorlock*/) const {
+    return rpcconn::status_t(fd.status(), peer_.status()); }
+const fields::field &
+fields::mk(const rpcconn::status_t &o) {
+    return "<fd:" + mk(o.fd) + " peername:" + mk(o.peername_) + ">"; }
+
+wireproto_wrapper_type(rpcconn::status_t)
+void
+rpcconn::status_t::addparam(
+    wireproto::parameter<rpcconn::status_t> tmpl,
+    wireproto::tx_message &out) const {
+    out.addparam(
+        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+        wireproto::tx_compoundparameter()
+        .addparam(proto::rpcconnstatus::fd, fd)
+        .addparam(proto::rpcconnstatus::peername, peername_)); }
+maybe<rpcconn::status_t>
+rpcconn::status_t::getparam(
+    wireproto::parameter<rpcconn::status_t> tmpl,
+    const wireproto::rx_message &msg) {
+    auto packed(msg.getparam(
+                    wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (!packed) return Nothing;
+    auto &p(packed.just());
+    auto fd(p.getparam(proto::rpcconnstatus::fd));
+    auto peername(p.getparam(proto::rpcconnstatus::peername));
+    if (!fd || !peername) return Nothing;
+    return rpcconn::status_t(fd.just(), peername.just()); }
 
 template class either<subscriptionbase *, const wireproto::rx_message *>;

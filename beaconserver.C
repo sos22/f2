@@ -73,7 +73,7 @@ beaconserver::statusiface::message(const wireproto::rx_message &msg,
     wireproto::resp_message m(msg);
     m.addparam(proto::BEACONSTATUS::resp::secret, owner->secret);
     m.addparam(proto::BEACONSTATUS::resp::limiter,
-               ratelimiter_status(owner->limiter));
+               owner->limiter.status());
     m.addparam(proto::BEACONSTATUS::resp::errors, owner->errors);
     m.addparam(proto::BEACONSTATUS::resp::rx, owner->rx);
     return m.serialise(outbuf);

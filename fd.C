@@ -1,11 +1,18 @@
 #include "fd.H"
 
+#include <sys/ioctl.h>
 #include <sys/poll.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include "fields.H"
 #include "maybe.H"
+#include "proto.H"
 #include "timedelta.H"
+
+#include "wireproto.tmpl"
+
+#include "fieldfinal.H"
 
 void
 fd_t::close(void) const
@@ -87,4 +94,56 @@ const fields::field &
 fields::mk(const fd_t &fd)
 {
     return "fd:" + fields::mk(fd.fd).nosep();
+}
+
+fd_t::status_t
+fd_t::status() const {
+    struct timeval lastrx;
+    maybe<struct timeval> lrx = Nothing;
+    if (ioctl(fd, SIOCGSTAMP, &lastrx) >= 0) lrx = lastrx;
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = ~0;
+    pfd.revents = 0;
+    maybe<int> revents = Nothing;
+    if (::poll(&pfd, 1, 0) >= 0) revents = pfd.revents;
+    return status_t(fd, lrx, revents); }
+
+wireproto_wrapper_type(fd_t::status_t)
+void
+fd_t::status_t::addparam(
+    wireproto::parameter<fd_t::status_t> tmpl,
+    wireproto::tx_message &out) const {
+    wireproto::tx_compoundparameter p;
+    p.addparam(proto::fd_tstatus::fd, fd);
+    if (lastrx.isjust()) p.addparam(proto::fd_tstatus::lastrx, lastrx.just());
+    if (revents.isjust()) {
+        p.addparam(proto::fd_tstatus::revents, revents.just()); }
+    out.addparam(
+        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+        p); }
+maybe<fd_t::status_t>
+fd_t::status_t::getparam(
+    wireproto::parameter<fd_t::status_t> tmpl,
+    const wireproto::rx_message &rxm) {
+    auto packed(rxm.getparam(
+                    wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (!packed) return Nothing;
+    auto &p(packed.just());
+    auto fd(p.getparam(proto::fd_tstatus::fd));
+    auto lastrx(p.getparam(proto::fd_tstatus::lastrx));
+    auto revents(p.getparam(proto::fd_tstatus::revents));
+    if (!fd) return Nothing;
+    return fd_t::status_t(fd.just(), lastrx, revents); }
+const fields::field &
+fields::mk(const fd_t::status_t &o) {
+    return "<fd:" + mk(o.fd) +
+        " lastrx:" + mk(o.lastrx) +
+        " revents:" + (o.revents.isjust()
+                       ? mk(o.revents.just()).base(2)
+                       : mk(o.revents)) +
+        ">"; }
+
+namespace fields {
+template const field &mk(const maybe<timeval> &);
 }

@@ -170,6 +170,12 @@ tx_message::addparam(parameter<unsigned long> tmpl, const unsigned long &val)
 }
 
 template <> tx_message &
+tx_message::addparam(parameter<long> tmpl, const long &val)
+{
+    return addparam(tmpl.id, &val, sizeof(val));
+}
+
+template <> tx_message &
 tx_message::addparam(parameter<double> tmpl, const double &val)
 {
     return addparam(tmpl.id, &val, sizeof(val));
@@ -423,6 +429,7 @@ template maybe<unsigned short> rx_message::getparam(
     parameter<unsigned short>) const;
 template maybe<int> rx_message::getparam(parameter<int>) const;
 template maybe<unsigned> rx_message::getparam(parameter<unsigned>) const;
+template maybe<long> rx_message::getparam(parameter<long>) const;
 template maybe<unsigned long> rx_message::getparam(parameter<unsigned long>) const;
 template maybe<double> rx_message::getparam(parameter<double>) const;
 template maybe<error> rx_message::getparam(parameter<error>) const;

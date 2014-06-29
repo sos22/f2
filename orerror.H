@@ -14,7 +14,6 @@ template <typename t> class orerror {
         char buf[sizeof(t)];
     };
     orerror() = delete;
-    void operator=(const orerror &o) = delete;
 public:
     orerror(const t &v)
         : errored(false)
@@ -31,6 +30,19 @@ public:
         {
             err = _err;
         }
+    void operator=(const orerror &o) {
+        if (isfailure()) {
+            if (o.isfailure()) {
+                err = o.failure();
+            } else {
+                failure().~error();
+                new (this->buf) t(o.success()); }
+        } else {
+            if (o.isfailure()) {
+                success().~t();
+                new (&this->err) error(o.failure());
+            } else {
+                success() = o.success(); } } }
     ~orerror() {
         if (errored)
             failure().~error();

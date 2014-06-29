@@ -3,7 +3,6 @@
 . shutil
 
 cc beaconserver.C
-cc coordinator.C
 cc master.C
 ld master beaconserver.o coordinator.o master.o lib.a
 

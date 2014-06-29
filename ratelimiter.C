@@ -48,7 +48,8 @@ ratelimiter::probe()
     return false;
 }
 
-ratelimiter::operator ratelimiter_status() const
+ratelimiter_status
+ratelimiter::status() const
 {
     auto token(mux.lock());
     refill(token);

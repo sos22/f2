@@ -23,4 +23,10 @@ public:  static orerror<coordinator *> build(
 public:  virtual void destroy(clientio) = 0;
 };
 
+class coordinatorconnstatus;
+
+namespace fields {
+const field &mk(const coordinatorconnstatus &);
+}
+
 #endif /* !COORDINATOR_H__ */
