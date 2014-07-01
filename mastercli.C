@@ -49,15 +49,23 @@ main(int argc, char *argv[])
     } else if (!strcmp(argv[1], "LOGS")) {
         if (argc != 2) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);
+        unsigned nr = 200;
         while (1) {
             auto snr(c.success()->allocsequencenr());
             auto m = c.success()->call(
                 clientio::CLIENTIO,
                 wireproto::req_message(proto::GETLOGS::tag, snr)
-                .addparam(proto::GETLOGS::req::startidx, cursor));
+                .addparam(proto::GETLOGS::req::startidx, cursor)
+                .addparam(proto::GETLOGS::req::nr, nr));
             c.success()->putsequencenr(snr);
-            if (m.isfailure())
-                m.failure().fatal(fields::mk("requesting logs"));
+            if (m.isfailure()) {
+                if (m.failure() == error::overflowed) {
+                    if (nr == 1) {
+                        m.failure().fatal(
+                            "overflowed with a single log message?"); }
+                    nr /= 2;
+                    continue; }
+                m.failure().fatal("requesting logs"); }
             auto mm(m.success());
             list<memlog_entry> msgs;
             auto rr(mm->fetch(proto::GETLOGS::resp::msgs, msgs));

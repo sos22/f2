@@ -86,6 +86,8 @@ namespace proto {
         namespace req {
             /* optional */
             static const parameter<memlog_idx> startidx(200, "startidx");
+            /* optional */
+            static const parameter<unsigned> nr(201, "nr");
         };
         namespace resp {
             static const parameter<memlog_idx> resume(250, "resume");

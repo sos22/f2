@@ -298,33 +298,21 @@ getlogsiface::message(const wireproto::rx_message &msg,
 {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
                dflt(memlog_idx::min));
+    auto nr(msg.getparam(proto::GETLOGS::req::nr).dflt(200));
+    if (nr == 0 || nr > 500) return error::invalidparameter;
     logmsg(loglevel::debug,
-           fields::mk("fetch logs from ") +
-           fields::mk(start.as_long()));
-    for (int limit = 200; limit > 0; ) {
-        list<memlog_entry> results;
-        auto resume(policy.memlog.fetch(start, limit, results));
-        wireproto::resp_message m(msg);
-        m.addparam(proto::GETLOGS::resp::msgs, results);
-        if (resume.isjust())
-            m.addparam(proto::GETLOGS::resp::resume, resume.just());
-        auto r(m.serialise(outgoing));
-        results.flush();
-        if (r == Nothing /* success */ ||
-            r.just() != error::overflowed /* unrecoverable error */)
-            return r;
-        limit /= 2;
-        logmsg(loglevel::verbose,
-               fields::mk("overflow sending ") +
-               fields::mk(limit) +
-               fields::mk(" log messages, trying ") +
-               fields::mk(limit / 2));
-    }
+           "fetch logs from " + fields::mk(start.as_long()) +
+           " for " + fields::mk(nr));
+    list<memlog_entry> results;
+    auto resume(policy.memlog.fetch(start, nr, results));
+    wireproto::resp_message m(msg);
+    m.addparam(proto::GETLOGS::resp::msgs, results);
+    if (resume.isjust())
+        m.addparam(proto::GETLOGS::resp::resume, resume.just());
+    auto r(m.serialise(outgoing));
+    results.flush();
+    return r; }
 
-    logmsg(loglevel::failure,
-           fields::mk("can't send even a single log message without overflowing buffer?"));
-    return error::overflowed;
-}
 getlogsiface
 getlogsiface::singleton;
 

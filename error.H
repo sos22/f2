@@ -68,6 +68,7 @@ public:
     static const error badversion; /* Unrecognised protocol version requested */
     static const error authenticationfailed; /* Authentication failure */
     static const error ratelimit; /* Blocked by rate limiter */
+    static const error invalidparameter; /* RPC message parameter is bad */
 };
 
 namespace fields {
