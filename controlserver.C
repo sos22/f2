@@ -43,10 +43,9 @@ namespace _controlserver {
 
 class pingiface : public rpcinterface<controlconn *> {
 public:  pingiface() : rpcinterface(proto::PING::tag) {}
-private: maybe<error> message(const wireproto::rx_message &,
-                              controlconn *,
-                              buffer &,
-                              mutex_t::token);
+private: messageresult message(
+    const wireproto::rx_message &,
+    controlconn *);
 };
 class quitiface : public rpcinterface<controlconn *> {
     waitbox<shutdowncode> &s;
@@ -56,10 +55,9 @@ class quitiface : public rpcinterface<controlconn *> {
 public:  quitiface(waitbox<shutdowncode> &_s)
     : rpcinterface(proto::QUIT::tag),
       s(_s) {}
-private: maybe<error> message(const wireproto::rx_message &,
-                              controlconn *,
-                              buffer &,
-                              mutex_t::token);
+private: messageresult message(
+    const wireproto::rx_message &,
+    controlconn *);
 };
 
 class controlserverimpl : public controlserver {
@@ -86,30 +84,22 @@ public:  maybe<error> setup(const peername &);
 public:  void destroy(clientio);
 };
 
-maybe<error>
+messageresult
 pingiface::message(const wireproto::rx_message &msg,
-                   controlconn *conn,
-                   buffer &outgoing,
-                   mutex_t::token)
+                   controlconn *conn)
 {
     logmsg(loglevel::info,
            "ping msg " + fields::mk(msg.getparam(proto::PING::req::msg)) +
            " from " + fields::mk(conn->peer));
-    wireproto::resp_message m(msg);
+    auto m(new wireproto::resp_message(msg));
     static int cntr;
-    m.addparam(proto::PING::resp::cntr, cntr++);
-    m.addparam(proto::PING::resp::msg, "response message");
-    auto r(m.serialise(outgoing));
-    if (r.isjust())
-        r.just().warn("sending pong");
-    return r;
-}
+    m->addparam(proto::PING::resp::cntr, cntr++);
+    m->addparam(proto::PING::resp::msg, "response message");
+    return m; }
 
-maybe<error>
+messageresult
 quitiface::message(const wireproto::rx_message &msg,
-                   controlconn *conn,
-                   buffer &,
-                   mutex_t::token) {
+                   controlconn *conn) {
     auto reason(msg.getparam(proto::QUIT::req::reason));
     if (!reason) return error::missingparameter;
     auto str(msg.getparam(proto::QUIT::req::message));
@@ -117,8 +107,7 @@ quitiface::message(const wireproto::rx_message &msg,
            "received a quit message: " + fields::mk(str) +
            "from " + fields::mk(conn->peer));
     s.set(reason.just());
-    return Nothing;
-}
+    return messageresult::noreply; }
 
 /* not a destructor because it has non-trivial synchronisation rules. */
 void

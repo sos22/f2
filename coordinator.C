@@ -66,7 +66,7 @@ public: coordinatorconn(rpcconn &_conn, coordinatorimpl *_owner)
       conn(_conn),
       owner(_owner) {}
 private: void contact();
-public:  coordinatorconnstatus status(mutex_t::token, mutex_t::token) const; };
+public:  coordinatorconnstatus status(mutex_t::token) const; };
 
 class coordinatorimpl : public coordinator {
 private: mastersecret ms;
@@ -80,10 +80,9 @@ private: class statusinterface : public rpcinterface<controlconn *> {
         coordinatorimpl *_owner)
         : rpcinterface(proto::COORDINATORSTATUS::tag),
           owner(_owner) {}
-    private: maybe<error> message(const wireproto::rx_message &,
-                                  controlconn *,
-                                  buffer &,
-                                  mutex_t::token);
+    private: messageresult message(
+        const wireproto::rx_message &,
+        controlconn *);
     };
 private: statusinterface statusiface;
 private: rpcregistration<controlconn *> *controlregistration;
@@ -211,28 +210,25 @@ coordinatorconn::contact() {
     contactmux.unlock(&token); }
 
 coordinatorconnstatus
-coordinatorconn::status(mutex_t::token conntxlock,
-                        mutex_t::token coordinatorlock) const {
+coordinatorconn::status(mutex_t::token coordinatorlock) const {
     return coordinatorconnstatus(active,
                                  lastcontact.as_timeval(),
-                                 conn.status(conntxlock, coordinatorlock)); }
+                                 conn.status(coordinatorlock)); }
 
-maybe<error>
+messageresult
 coordinatorimpl::statusinterface::message(const wireproto::rx_message &rx,
-                                          controlconn *,
-                                          buffer &outbuf,
-                                          mutex_t::token connectiontx) {
-    wireproto::resp_message msg(rx);
-    msg.addparam(proto::COORDINATORSTATUS::resp::ratelimiter,
-                 owner->newconnlimiter.status());
+                                          controlconn *) {
+    auto msg(new wireproto::resp_message(rx));
+    msg->addparam(proto::COORDINATORSTATUS::resp::ratelimiter,
+                  owner->newconnlimiter.status());
     list<coordinatorconnstatus> conns;
     auto token(owner->mux.lock());
     for (auto it(owner->connections.start()); !it.finished(); it.next()) {
-        conns.pushtail((*it)->status(connectiontx, token)); }
+        conns.pushtail((*it)->status(token)); }
     owner->mux.unlock(&token);
-    msg.addparam(proto::COORDINATORSTATUS::resp::conns, conns);
+    msg->addparam(proto::COORDINATORSTATUS::resp::conns, conns);
     conns.flush();
-    return msg.serialise(outbuf); }
+    return msg; }
 
 coordinatorimpl::coordinatorimpl(
     const mastersecret &_ms,

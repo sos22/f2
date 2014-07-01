@@ -20,19 +20,15 @@ private: class statusiface : public rpcinterface<controlconn *> {
         : rpcinterface(proto::BEACONSLAVESTATUS::tag),
           owner(_owner)
             {}
-    private: maybe<error> message(
+    private: messageresult message(
         const wireproto::rx_message &,
-        controlconn *,
-        buffer &,
-        mutex_t::token); };
+        controlconn *); };
 private: class pingiface : public rpcinterface<storageslavectxt *> {
     public:  pingiface()
         : rpcinterface(proto::PING::tag) {}
-    private: maybe<error> message(
+    private: messageresult message(
         const wireproto::rx_message &,
-        storageslavectxt *,
-        buffer &,
-        mutex_t::token); };
+        storageslavectxt *); };
 private: pingiface pinginterface;
 private: statusiface statusinterface;
 private: rpcregistration<controlconn *> *controlregistration;

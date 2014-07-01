@@ -114,10 +114,9 @@ void deinitlogging(void);
 
 class controlconn;
 class getlogsiface : public rpcinterface<controlconn *> {
-private: maybe<error> message(const wireproto::rx_message &,
-                              controlconn *,
-                              buffer &,
-                              mutex_t::token);
+private: messageresult message(
+    const wireproto::rx_message &,
+    controlconn *);
 public:  getlogsiface();
 public:  static getlogsiface singleton;
 };

@@ -138,7 +138,6 @@ public: peername peer() const;
 
 public: typedef rpcconnstatus status_t;
 public: status_t status(
-    mutex_t::token txlock,
     maybe<mutex_t::token> coordinatorlock) const;
 };
 

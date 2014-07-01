@@ -25,17 +25,11 @@
 class storageslavectxt {
 };
 
-maybe<error>
+messageresult
 storageslave::pingiface::message(const wireproto::rx_message &msg,
-                                 storageslavectxt *,
-                                 buffer &outbuf,
-                                 mutex_t::token) {
+                                 storageslavectxt *) {
     logmsg(loglevel::info, fields::mk("storage ping"));
-    wireproto::resp_message m(msg);
-    auto r(m.serialise(outbuf));
-    if (r.isjust())
-        r.just().warn("sending pong");
-    return r; }
+    return new wireproto::resp_message(msg); }
 
 storageslave::storageslave(controlserver *cs)
     : pinginterface(),
@@ -108,14 +102,10 @@ storageslave::destroy() const
     delete this;
 }
 
-maybe<error>
+messageresult
 storageslave::statusiface::message(const wireproto::rx_message &,
-                                   controlconn *,
-                                   buffer &,
-                                   mutex_t::token)
-{
-    return error::unimplemented;
-}
+                                   controlconn *) {
+    return error::unimplemented; }
 
 template class rpcconnthread<storageslavectxt *>;
 template class rpcinterface<storageslavectxt *>;

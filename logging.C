@@ -290,12 +290,9 @@ deinitlogging(void)
 getlogsiface::getlogsiface()
     : rpcinterface(proto::GETLOGS::tag)
 {}
-maybe<error>
+messageresult
 getlogsiface::message(const wireproto::rx_message &msg,
-                      controlconn *,
-                      buffer &outgoing,
-                      mutex_t::token)
-{
+                      controlconn *) {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
                dflt(memlog_idx::min));
     auto nr(msg.getparam(proto::GETLOGS::req::nr).dflt(200));
@@ -305,13 +302,11 @@ getlogsiface::message(const wireproto::rx_message &msg,
            " for " + fields::mk(nr));
     list<memlog_entry> results;
     auto resume(policy.memlog.fetch(start, nr, results));
-    wireproto::resp_message m(msg);
-    m.addparam(proto::GETLOGS::resp::msgs, results);
+    auto m(new wireproto::resp_message(msg));
+    m->addparam(proto::GETLOGS::resp::msgs, results);
     if (resume.isjust())
-        m.addparam(proto::GETLOGS::resp::resume, resume.just());
-    auto r(m.serialise(outgoing));
-    results.flush();
-    return r; }
+        m->addparam(proto::GETLOGS::resp::resume, resume.just());
+    return m; }
 
 getlogsiface
 getlogsiface::singleton;

@@ -8,10 +8,9 @@ class rpcservice {
     friend class rpcregistration<cookie_t>;
 private:   class unknowniface : public rpcinterface<cookie_t> {
     public:  unknowniface();
-    private: maybe<error> message(const wireproto::rx_message &,
-                                  cookie_t cookie,
-                                  buffer &,
-                                  mutex_t::token);
+    private: messageresult message(
+        const wireproto::rx_message &,
+        cookie_t cookie);
     };
 private:   mutex_t mux;
 private:   list<rpcregistration<cookie_t> *> registrations;

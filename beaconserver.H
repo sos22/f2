@@ -22,10 +22,9 @@ class beaconserver {
 
     class statusiface : public rpcinterface<controlconn *> {
         beaconserver *owner;
-        maybe<error> message(const wireproto::rx_message &,
-                             controlconn *,
-                             buffer &,
-                             mutex_t::token);
+        messageresult message(
+            const wireproto::rx_message &,
+            controlconn *);
         statusiface() = delete;
         statusiface(const statusiface &) = delete;
         void operator=(const statusiface &) = delete;
@@ -34,10 +33,9 @@ class beaconserver {
     };
     class configureiface : public rpcinterface<controlconn *> {
         beaconserver *owner;
-        maybe<error> message(const wireproto::rx_message &,
-                             controlconn *,
-                             buffer &,
-                             mutex_t::token);
+        messageresult message(
+            const wireproto::rx_message &,
+            controlconn *);
         configureiface() = delete;
         configureiface(const configureiface &) = delete;
         void operator=(const configureiface &) = delete;

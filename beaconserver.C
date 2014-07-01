@@ -64,36 +64,27 @@ beaconserver::statusiface::statusiface(beaconserver *server)
       owner(server)
 {}
 
-maybe<error>
+messageresult
 beaconserver::statusiface::message(const wireproto::rx_message &msg,
-                                   controlconn *,
-                                   buffer &outbuf,
-                                   mutex_t::token)
-{
-    wireproto::resp_message m(msg);
-    m.addparam(proto::BEACONSTATUS::resp::secret, owner->secret);
-    m.addparam(proto::BEACONSTATUS::resp::limiter,
-               owner->limiter.status());
-    m.addparam(proto::BEACONSTATUS::resp::errors, owner->errors);
-    m.addparam(proto::BEACONSTATUS::resp::rx, owner->rx);
-    return m.serialise(outbuf);
-}
+                                   controlconn *) {
+    auto m(new wireproto::resp_message(msg));
+    m->addparam(proto::BEACONSTATUS::resp::secret, owner->secret);
+    m->addparam(proto::BEACONSTATUS::resp::limiter,
+                owner->limiter.status());
+    m->addparam(proto::BEACONSTATUS::resp::errors, owner->errors);
+    m->addparam(proto::BEACONSTATUS::resp::rx, owner->rx);
+    return m; }
 
 beaconserver::configureiface::configureiface(beaconserver *server)
     : rpcinterface(proto::BEACONCONFIGURE::tag),
       owner(server)
 {}
 
-maybe<error>
-beaconserver::configureiface::message(const wireproto::rx_message &msg,
-                                      controlconn *,
-                                      buffer &outbuf,
-                                      mutex_t::token)
-{
-    wireproto::resp_message m(msg);
+messageresult
+beaconserver::configureiface::message(const wireproto::rx_message &,
+                                      controlconn *) {
     /* No run-time configuration yet */
-    return m.serialise(outbuf);
-}
+    return error::unimplemented; }
 
 maybe<error>
 beaconserver::listen()

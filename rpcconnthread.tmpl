@@ -68,16 +68,21 @@ rpcconnthread<cookie_t>::runcommand(
     logmsg(loglevel::verbose, "run command " + fields::mk(tag));
     
     auto reg(service->lookup(tag));
-    
-    auto txtoken(conn.txlock.lock());
-    auto res(reg.iface->message(r.success(), ctxt, conn.outgoing, txtoken));
-    conn.txlock.unlock(&txtoken);
-
+    auto res(reg.iface->message(r.success(), ctxt));
     reg.reg->finished();
 
-    if (res.isjust()) {
-        wireproto::err_resp_message(r.success(), res.just())
+    auto txtoken(conn.txlock.lock());
+    if (res.isreply()) {
+        auto rr(res.reply()->serialise(conn.outgoing));
+        if (rr.isjust()) {
+            rr.just().warn("processed message but couldn't send reply");
+            wireproto::err_resp_message(r.success(), rr.just())
+                .serialise(conn.outgoing); }
+    } else if (res.isfailure()) {
+        wireproto::err_resp_message(r.success(), res.failure())
             .serialise(conn.outgoing); }
+    conn.txlock.unlock(&txtoken);
+    if (res.isreply()) delete res.reply();
     return true; }
 
 template <typename cookie_t> thread *
