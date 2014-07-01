@@ -19,14 +19,11 @@ class test;
 class bufferstatus {
 public: unsigned long prod;
 public: unsigned long cons;
-public: unsigned int nrfrags;
 public: bufferstatus(
     unsigned long _prod,
-    unsigned long _cons,
-    unsigned int _nrfrags)
+    unsigned long _cons)
     : prod(_prod),
-      cons(_cons),
-      nrfrags(_nrfrags) {}
+      cons(_cons) {}
 WIREPROTO_TYPE(bufferstatus);
 };
 

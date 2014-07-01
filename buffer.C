@@ -21,8 +21,7 @@ buffer::status_t::addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
         wireproto::tx_compoundparameter()
         .addparam(proto::bufferstatus::prod, prod)
-        .addparam(proto::bufferstatus::cons, cons)
-        .addparam(proto::bufferstatus::nrfrags, nrfrags)); }
+        .addparam(proto::bufferstatus::cons, cons)); }
 maybe<buffer::status_t>
 buffer::status_t::getparam(
     wireproto::parameter<buffer::status_t> tmpl,
@@ -34,15 +33,13 @@ buffer::status_t::getparam(
 #define doparam(name) auto name(p.getparam(proto::bufferstatus::name))
     doparam(prod);
     doparam(cons);
-    doparam(nrfrags);
 #undef doparam
-    if (!prod || !cons || !nrfrags) return Nothing;
-    else return buffer::status_t(prod.just(), cons.just(), nrfrags.just()); }
+    if (!prod || !cons) return Nothing;
+    else return buffer::status_t(prod.just(), cons.just()); }
 const fields::field &
 fields::mk(const buffer::status_t &o) {
     return "<prod:" + mk(o.prod) +
         " cons:" + mk(o.cons) +
-        " nrfrags:" + mk(o.nrfrags) +
         ">"; }
 
 buffer::subbuf *
@@ -312,9 +309,7 @@ buffer::linearise(size_t start, size_t end)
 
 buffer::status_t
 buffer::status() const {
-    unsigned nrfrags = 0;
-    for (auto it(first); it; it = it->next) nrfrags++;
-    return status_t(prod, cons, nrfrags); }
+    return status_t(prod, cons); }
 
 void
 buffer::test(class test &t)

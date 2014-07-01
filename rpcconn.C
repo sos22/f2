@@ -170,16 +170,13 @@ rpcconn::peer() const {
 rpcconn::status_t
 rpcconn::status(mutex_t::token /* txlock */,
                 maybe<mutex_t::token> /*coordinatorlock*/) const {
-    auto token(rxlock.lock());
-    auto rxstat(incoming.status());
-    rxlock.unlock(&token);
     list<wireproto::rx_message::status_t> prx(
         pendingrx.map<wireproto::rx_message::status_t>(
             [] (const wireproto::rx_message *elem) {
                 return elem->status(); }));
     rpcconn::status_t res(
         outgoing.status(),
-        rxstat,
+        incoming.status(),
         fd.status(),
         sequencer.status(),
         prx,
