@@ -173,15 +173,20 @@ rpcconn::status(mutex_t::token /* txlock */,
     auto token(rxlock.lock());
     auto rxstat(incoming.status());
     rxlock.unlock(&token);
-    return rpcconn::status_t(
+    list<wireproto::rx_message::status_t> prx(
+        pendingrx.map<wireproto::rx_message::status_t>(
+            [] (const wireproto::rx_message *elem) {
+                return elem->status(); }));
+    rpcconn::status_t res(
         outgoing.status(),
         rxstat,
         fd.status(),
         sequencer.status(),
-        pendingrx.map<wireproto::rx_message::status_t>(
-            [] (const wireproto::rx_message *elem) {
-                return elem->status(); }),
-        peer_.status()); }
+        prx,
+        peer_.status());
+    prx.flush();
+    return res; }
+
 const fields::field &
 fields::mk(const rpcconn::status_t &o) {
     return
@@ -220,18 +225,21 @@ rpcconn::status_t::getparam(
     doparam(incoming);
     doparam(fd);
     doparam(sequencer);
-    auto pendingrx(p.getparamlist(proto::rpcconnstatus::pendingrx));
     doparam(peername);
 #undef doparam
-    if (!outgoing || !incoming || !fd || !sequencer ||
-        !pendingrx || !peername) {
+    if (!outgoing || !incoming || !fd || !sequencer || !peername) {
         return Nothing; }
-    return rpcconn::status_t(outgoing.just(),
-                             incoming.just(),
-                             fd.just(),
-                             sequencer.just(),
-                             pendingrx.just(),
-                             peername.just()); }
+    list<wireproto::rx_messagestatus> pendingrx;
+    auto r(p.fetch(proto::rpcconnstatus::pendingrx, pendingrx));
+    if (r.isjust()) return Nothing;
+    rpcconn::status_t res(outgoing.just(),
+                          incoming.just(),
+                          fd.just(),
+                          sequencer.just(),
+                          pendingrx,
+                          peername.just());
+    pendingrx.flush();
+    return res; }
 
 template class either<subscriptionbase *, const wireproto::rx_message *>;
 template list<wireproto::rx_message::status_t>

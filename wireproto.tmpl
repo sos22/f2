@@ -31,14 +31,6 @@ rx_message::getparam(parameter<typ> p) const
     return deserialise<typ>(slice);
 }
 
-template <typename typ> maybe<list<typ> >
-rx_message::getparamlist(parameter<list<typ> > p) const
-{
-    list<typ> out;
-    auto r(fetch(p, out));
-    if (r.isjust()) return Nothing;
-    else return std::move(out); }
-
 template <typename nested> maybe<error>
 rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const {
     out.flush();

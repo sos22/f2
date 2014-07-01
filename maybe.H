@@ -1,6 +1,8 @@
 #ifndef MAYBE_H__
 #define MAYBE_H__
 
+#include <algorithm>
+
 #include <assert.h>
 
 #include "obj.H"
@@ -21,6 +23,12 @@ public:
             if (!r)
                 new (content) t(o.just());
         }
+    maybe(maybe &&o)
+        : r(o.r)
+        {
+            if (!r)
+                new (content) t(std::move(o.just()));
+        }
     ~maybe()
         {
             if (isjust()) ((t *)content)->~t();
@@ -30,6 +38,11 @@ public:
         {
         }
     maybe(const t &what)
+        : r(false)
+        {
+            ::new (content) t(what);
+        }
+    maybe(t &&what)
         : r(false)
         {
             ::new (content) t(what);
@@ -46,6 +59,10 @@ public:
     bool operator!() const { return isnothing(); }
     bool isjust() const { return !r; }
     const t &just() const {
+        assert(isjust());
+        return *(t *)content;
+    }
+    t &just() {
         assert(isjust());
         return *(t *)content;
     }

@@ -227,8 +227,6 @@ namespace wireproto {
     public:  static orerror<rx_message> fetch(const bufslice &buf);
     public:  static orerror<rx_message> fetch(buffer &buf);
     public:  template <typename typ> maybe<typ> getparam(parameter<typ>) const;
-    public:  template <typename typ> maybe<list<typ> > getparamlist(
-        parameter<list<typ> >) const;
     public:  template <typename typ> maybe<error> fetch(
         parameter<typ>, typ &out) const;
     public:  template <typename typ> maybe<error> fetch(

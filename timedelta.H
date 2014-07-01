@@ -10,8 +10,8 @@ class timedelta {
     long v;
     timedelta(long _v) : v(_v) {}
 public:
-    static timedelta seconds(long nr);
-    static timedelta milliseconds(long nr);
+    static timedelta seconds(long nr) __attribute__((const));
+    static timedelta milliseconds(long nr) __attribute__((const));
     timestamp operator+(timestamp);
     double operator*(frequency);
 

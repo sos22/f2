@@ -559,7 +559,7 @@ test(class ::test &) {
         assert(it.finished());
         l2.flush(); }
     assert(buf.empty());
-    
+
     parameter<tx_compoundparameter> p4t(8, "p4t");
     parameter<rx_message> p4r(8, "p4r");
     {   auto r(tx_message(t)
@@ -652,9 +652,6 @@ template const wireproto::rx_messagestatus &
 template void list<wireproto::rx_messagestatus>::const_iter::next();
 template bool list<wireproto::rx_messagestatus>::const_iter::finished() const;
 template list<wireproto::rx_message::status_t>::~list();
-template maybe<list<wireproto::rx_message::status_t> >
-    wireproto::rx_message::getparamlist(
-        wireproto::parameter<list<wireproto::rx_message::status_t> >) const;
 template wireproto::rx_message::status_t std::function<
     wireproto::rx_message::status_t (
         wireproto::rx_message const* const&)>::operator()
