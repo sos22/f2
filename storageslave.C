@@ -36,7 +36,7 @@ storageslave::storageslave(controlserver *cs)
       statusinterface(this),
       controlregistration(
           cs->service->registeriface(statusinterface)),
-      service(new rpcservice<storageslavectxt *>()),
+      service(new rpcservice<storageslavectxt>()),
       serviceregistration(service->registeriface(pinginterface)),
       masterconn(NULL) { }
 
@@ -46,10 +46,10 @@ storageslave::connect(clientio io, const registrationsecret &rs) {
     if (br.isfailure()) return br.failure();
     auto sock(tcpsocket::connect(io, br.success().mastername));
     if (sock.isfailure()) return sock.failure();
-    auto sr(rpcconnthread<storageslavectxt*>::spawn(
+    auto sr(rpcconnthread<storageslavectxt>::spawn(
                 service,
-                rpcconnthread<storageslavectxt*>::nostartconn,
-                rpcconnthread<storageslavectxt*>::noendconn,
+                rpcconnthread<storageslavectxt>::nostartconn,
+                rpcconnthread<storageslavectxt>::noendconn,
                 sock.success(),
                 Nothing));
     if (sr.isfailure()) {
@@ -107,9 +107,9 @@ storageslave::statusiface::message(const wireproto::rx_message &,
                                    controlconn *) {
     return error::unimplemented; }
 
-template class rpcconnthread<storageslavectxt *>;
-template class rpcinterface<storageslavectxt *>;
-template class rpcregistration<storageslavectxt *>;
-template class rpcservice<storageslavectxt *>;
-template class list<rpcinterface<storageslavectxt *> *>;
-template class list<rpcregistration<storageslavectxt *> *>;
+template class rpcconnthread<storageslavectxt>;
+template class rpcinterface<storageslavectxt>;
+template class rpcregistration<storageslavectxt>;
+template class rpcservice<storageslavectxt>;
+template class list<rpcinterface<storageslavectxt> *>;
+template class list<rpcregistration<storageslavectxt> *>;

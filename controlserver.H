@@ -10,7 +10,7 @@ template <typename> class waitbox;
 
 class controlconn;
 
-class controlserver : public rpcserver<controlconn *> {
+class controlserver : public rpcserver<controlconn> {
     /* Create a new control server and start serving requests.  The
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you

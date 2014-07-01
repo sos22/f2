@@ -31,7 +31,7 @@ private:   wireproto::msgtag tag;
 protected: rpcinterface(wireproto::msgtag _tag) : tag(_tag) {}
 private:   virtual messageresult message(
     const wireproto::rx_message &,
-    cookie_t cookie) = 0;
+    cookie_t *cookie) = 0;
 };
 
 #endif /* !RPCINTERFACE_H__ */

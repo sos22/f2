@@ -14,7 +14,7 @@ class registrationsecret;
 
 class coordinatorconn;
 
-class coordinator : public rpcserver<coordinatorconn *> {
+class coordinator : public rpcserver<coordinatorconn> {
 public:  static orerror<coordinator *> build(
     const mastersecret &,
     const registrationsecret &,

@@ -24,12 +24,12 @@ private:   class rootthread : public threadfn {
     private: class startconn : public rpcconnthread<cookie_t>::startconn {
         private: rootthread &owner;
         public:  startconn(rootthread &_owner);
-        public:  orerror<cookie_t> operator()(clientio, rpcconn &conn);
+        public:  orerror<cookie_t *> operator()(clientio, rpcconn &conn);
         };
     private: class endconn : public rpcconnthread<cookie_t>::endconn {
         private: rootthread &owner;
         public:  endconn(rootthread &_owner);
-        public:  void operator()(clientio, cookie_t);
+        public:  void operator()(clientio, cookie_t *);
         };
     public:  startconn startconn_;
     public:  endconn endconn_;
@@ -61,7 +61,7 @@ protected: maybe<error> start(const peername &p, const fields::field &name);
        connection arrives.  If this returns an error then the
        connection will be dropped immediately without calling
        endconn(). */
-private:   virtual orerror<cookie_t> startconn(clientio, rpcconn &conn) = 0;
+private:   virtual orerror<cookie_t *> startconn(clientio, rpcconn &conn) = 0;
     
     /* Get a peername on with which other hosts can connect to this
      * server */
@@ -74,7 +74,7 @@ public:    void killconn(rpcconn &conn);
     /* Called by the rpcserver implementation whenever a connection
        ends, once all method invocations on that connection have
        finished. */
-private:   virtual void endconn(clientio, cookie_t) = 0;
+private:   virtual void endconn(clientio, cookie_t *) = 0;
     
     /* Stop accepting new incoming operations and wait for any extant
        ones to finish.  Leaves the server in an invalid state from

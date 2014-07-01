@@ -12,22 +12,22 @@ template <typename cookie_t>
 class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
 public: class startconn {
-        public: virtual orerror<cookie_t> operator()(
+        public: virtual orerror<cookie_t *> operator()(
             clientio,
-            rpcconn &) { return cookie_t(); };
+            rpcconn &) { return NULL; };
     };
 public: static startconn nostartconn;
 public: class endconn {
         public: virtual void operator()(
             clientio,
-            cookie_t) {};
+            cookie_t *) {};
     };
 public: static endconn noendconn;
 private: startconn &startconn_;
 private: endconn &endconn_;
 private: thread *thr_;
 private: rpcservice<cookie_t> *service;
-private: cookie_t ctxt;
+private: cookie_t *ctxt;
 public:  rpcconn conn;
 private: waitbox<bool> shutdown; /* set under the server mux */
 private: rpcconnthread(

@@ -10,7 +10,7 @@ private:   class unknowniface : public rpcinterface<cookie_t> {
     public:  unknowniface();
     private: messageresult message(
         const wireproto::rx_message &,
-        cookie_t cookie);
+        cookie_t *cookie);
     };
 private:   mutex_t mux;
 private:   list<rpcregistration<cookie_t> *> registrations;

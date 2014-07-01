@@ -41,13 +41,13 @@ public: controlconn(const peername &p) : peer(p) {} };
 
 namespace _controlserver {
 
-class pingiface : public rpcinterface<controlconn *> {
+class pingiface : public rpcinterface<controlconn> {
 public:  pingiface() : rpcinterface(proto::PING::tag) {}
 private: messageresult message(
     const wireproto::rx_message &,
     controlconn *);
 };
-class quitiface : public rpcinterface<controlconn *> {
+class quitiface : public rpcinterface<controlconn> {
     waitbox<shutdowncode> &s;
     quitiface() = delete;
     quitiface(const quitiface &) = delete;
@@ -63,14 +63,14 @@ private: messageresult message(
 class controlserverimpl : public controlserver {
 private: pingiface pinginterface;
 private: quitiface quitinterface;
-private: rpcregistration<controlconn *> *registration;
+private: rpcregistration<controlconn> *registration;
     
 public:  controlserverimpl(waitbox<shutdowncode> &s)
     : controlserver(),
       pinginterface(),
       quitinterface(s),
       registration(service->registeriface(
-                       rpcservice<controlconn *>::multiregistration()
+                       rpcservice<controlconn>::multiregistration()
                        .add(getlogsiface::singleton)
                        .add(pinginterface)
                        .add(quitinterface))) {}
@@ -147,4 +147,4 @@ controlserver::build(const peername &p, waitbox<shutdowncode> &s)
         r->destroy(clientio::CLIENTIO);
         return e.just(); } }
 
-RPCSERVER(controlconn *)
+RPCSERVER(controlconn)

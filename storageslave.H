@@ -14,7 +14,7 @@ class rpcconn;
 class storageslavectxt;
 
 class storageslave {
-private: class statusiface : public rpcinterface<controlconn *> {
+private: class statusiface : public rpcinterface<controlconn> {
     private: storageslave *owner;
     public:  statusiface(storageslave *_owner)
         : rpcinterface(proto::BEACONSLAVESTATUS::tag),
@@ -23,7 +23,7 @@ private: class statusiface : public rpcinterface<controlconn *> {
     private: messageresult message(
         const wireproto::rx_message &,
         controlconn *); };
-private: class pingiface : public rpcinterface<storageslavectxt *> {
+private: class pingiface : public rpcinterface<storageslavectxt> {
     public:  pingiface()
         : rpcinterface(proto::PING::tag) {}
     private: messageresult message(
@@ -31,10 +31,10 @@ private: class pingiface : public rpcinterface<storageslavectxt *> {
         storageslavectxt *); };
 private: pingiface pinginterface;
 private: statusiface statusinterface;
-private: rpcregistration<controlconn *> *controlregistration;
-private: rpcservice<storageslavectxt *> *const service;
-private: rpcregistration<storageslavectxt *> *const serviceregistration;
-private: rpcconnthread<storageslavectxt *> *masterconn;
+private: rpcregistration<controlconn> *controlregistration;
+private: rpcservice<storageslavectxt> *const service;
+private: rpcregistration<storageslavectxt> *const serviceregistration;
+private: rpcconnthread<storageslavectxt> *masterconn;
 private: storageslave(controlserver *);
 private: maybe<error> connect(clientio, const registrationsecret &);
 public:  static orerror<storageslave *> build(

@@ -113,7 +113,7 @@ void initlogging(const char *ident);
 void deinitlogging(void);
 
 class controlconn;
-class getlogsiface : public rpcinterface<controlconn *> {
+class getlogsiface : public rpcinterface<controlconn> {
 private: messageresult message(
     const wireproto::rx_message &,
     controlconn *);

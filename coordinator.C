@@ -74,7 +74,7 @@ private: ratelimiter newconnlimiter;
 private: registrationsecret rs;
 
     /* Control server interface */
-private: class statusinterface : public rpcinterface<controlconn *> {
+private: class statusinterface : public rpcinterface<controlconn> {
     private: coordinatorimpl *const owner;
     public:  statusinterface(
         coordinatorimpl *_owner)
@@ -85,7 +85,7 @@ private: class statusinterface : public rpcinterface<controlconn *> {
         controlconn *);
     };
 private: statusinterface statusiface;
-private: rpcregistration<controlconn *> *controlregistration;
+private: rpcregistration<controlconn> *controlregistration;
 
 private: mutex_t mux;
 private: list<coordinatorconn *> connections;
@@ -360,7 +360,7 @@ coordinator::build(
         return r.just(); }
     return res; }
 
-RPCSERVER(coordinatorconn *)
+RPCSERVER(coordinatorconn)
 template class list<coordinatorconn *>;
 template list<coordinatorconnstatus>::list();
 template void list<coordinatorconnstatus>::pushtail(

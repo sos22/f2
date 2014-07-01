@@ -12,7 +12,7 @@ rpcservice<cookie_t>::unknowniface::unknowniface()
 template <typename cookie_t> messageresult
 rpcservice<cookie_t>::unknowniface::message(
     const wireproto::rx_message &msg,
-    cookie_t) {
+    cookie_t *) {
     logmsg(loglevel::failure,
            "Received an unrecognised message type " + fields::mk(msg.tag()));
     return error::unrecognisedmessage; }

@@ -26,7 +26,7 @@ rpcserver<cookie_t>::rootthread::startconn::startconn(
     rootthread &_owner)
     : owner(_owner) {}
 
-template <typename cookie_t> orerror<cookie_t>
+template <typename cookie_t> orerror<cookie_t *>
 rpcserver<cookie_t>::rootthread::startconn::operator()(
     clientio io,
     rpcconn &conn) {
@@ -40,7 +40,7 @@ rpcserver<cookie_t>::rootthread::endconn::endconn(
 template <typename cookie_t> void
 rpcserver<cookie_t>::rootthread::endconn::operator()(
     clientio io,
-    cookie_t cookie) {
+    cookie_t *cookie) {
     owner.owner->endconn(io, cookie); }
 
 template <typename cookie_t>
