@@ -7,22 +7,6 @@
 template <typename> class rpcconnthread;
 template <typename> class rpcservice;
 
-class messageresult {
-private: orerror<maybe<wireproto::tx_message *> > const content;
-private: messageresult() : content(Nothing) {}
-public:  messageresult(error e) : content(e) {}
-public:  messageresult(wireproto::tx_message *m)
-    : content(m) { assert(m); }
-public:  static messageresult noreply;
-public:  bool isfailure() const { return content.isfailure(); }
-public:  error failure() const { return content.failure(); }
-public:  bool isreply() const {
-    return content.issuccess() && content.success().isjust(); }
-public:  wireproto::tx_message *reply() const {
-    assert(content.issuccess());
-    assert(content.success().isjust());
-    return content.success().just(); } };
-
 template <typename cookie_t>
 class rpcinterface {
     friend class rpcconnthread<cookie_t>;

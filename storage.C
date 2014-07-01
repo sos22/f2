@@ -1,9 +1,11 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include "controlserver.H"
 #include "fields.H"
 #include "logging.H"
 #include "peername.H"
+#include "pubsub.H"
 #include "registrationsecret.H"
 #include "shutdown.H"
 #include "storageslave.H"
@@ -31,7 +33,7 @@ main()
         slave.failure().fatal("build storage slave");
 
     auto r = s.get();
-    slave.success()->destroy();
+    slave.success()->destroy(clientio::CLIENTIO);
     c.success()->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();

@@ -62,7 +62,10 @@ public:
      * a single write syscall, so won't block if poll returns POLLOUT.
      * Might leave some bytes in the buffer, even when it returns
      * success. */
-    maybe<error> send(clientio, fd_t, maybe<timestamp> deadline = Nothing);
+    orerror<subscriptionbase *> send(clientio,
+                                     fd_t,
+                                     subscriber &sub,
+                                     maybe<timestamp> deadline = Nothing);
     /* Grab some bytes from the fd and put them at the end of the
      * buffer.  Only ever makes a single read syscall, so won't block
      * if poll returns POLLIN. */

@@ -4,7 +4,10 @@
 #ifndef COORDINATOR_H__
 #define COORDINATOR_H__
 
-#include "ratelimiter.H"
+#include "controlserver.H"
+#include "mastersecret.H"
+#include "registrationsecret.H"
+#include "rpcconn.H"
 #include "rpcserver.H"
 
 class controlserver;
@@ -15,28 +18,11 @@ class registrationsecret;
 
 class coordinatorconn;
 
-class coordinatorconnstatus {
-public: int active;
-public: struct timeval lastcontact;
-public: rpcconn::status_t conn;
-public: coordinatorconnstatus(int _active,
-                              struct timeval _lastcontact,
-                              const rpcconn::status_t &_conn)
-    : active(_active),
-      lastcontact(_lastcontact),
-      conn(_conn) {}
-public: static maybe<coordinatorconnstatus> fromcompound(
-    const wireproto::rx_message &);
-WIREPROTO_TYPE(coordinatorconnstatus);
-};
-
 class coordinatorstatus {
-public: ratelimiter_status limiter;
-public: list<coordinatorconnstatus> conns;
+public: list<rpcconn::status_t> conns;
 public: coordinatorstatus(
-    const ratelimiter_status &_limiter,
-    const list<coordinatorconnstatus> &_conns)
-    : limiter(_limiter), conns(_conns) {}
+    const list<rpcconn::status_t> &_conns)
+    : conns(_conns) {}
 public: ~coordinatorstatus() { conns.flush(); }
 WIREPROTO_TYPE(coordinatorstatus);
 };
@@ -45,14 +31,36 @@ const field &mk(const coordinatorstatus &);
 }
 
 class coordinator : public rpcserver<coordinatorconn> {
+    friend class coordinatorconn;
+private: mastersecret ms;
+private: registrationsecret rs;
+
+    /* Control server interface */
+private: class statusinterface : public ::statusinterface {
+    private: coordinator *const owner;
+    public:  statusinterface(
+        coordinator *_owner)
+        : owner(_owner) {}
+    private: void getstatus(wireproto::tx_message *, mutex_t::token) const;
+    };
+private: statusinterface statusiface;
+private: statusregistration controlregistration;
+
+private: mutable mutex_t mux;
+private: list<coordinatorconn *> connections;
+
 public:  static orerror<coordinator *> build(
     const mastersecret &,
     const registrationsecret &,
     const peername &,
     controlserver *);
-public:  virtual void destroy(clientio) = 0;
+private: coordinator(const mastersecret &,
+                     const registrationsecret &,
+                     controlserver *);
+private: orerror<coordinatorconn *> accept(socket_t);
+public:  void destroy(clientio);
 public:  typedef coordinatorstatus status_t;
-public:  virtual status_t status() const = 0;
+public:  status_t status() const;
 };
 
 class coordinatorconnstatus;

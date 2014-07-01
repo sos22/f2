@@ -52,6 +52,9 @@ public:
     /* peernames are their own status representation */
 public: typedef peername status_t;
 public: status_t status() const { return *this; }
+
+    /* Parse a peername from a string */
+public: static orerror<peername> parse(const char *);
 };
 
 namespace fields {

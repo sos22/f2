@@ -38,20 +38,25 @@ timestamp::as_timespec() const {
     res.tv_nsec = v % 1000000000;
     return res; }
 
-struct timeval
-timestamp::as_timeval() const {
-    /* Convert to the same clock as gettimeofday() uses. */
-    static mutex_t baselock;
-    static timestamp basetimestamp(timestamp::now());
-    static timeval basetimeval;
-    static bool havebase;
+static mutex_t baselock;
+static timestamp basetimestamp(timestamp::now());
+static timeval basetimeval;
+static bool havebase;
+
+static void
+inittimebase() {
     if (!loadacquire(havebase)) {
         auto token(baselock.lock());
         if (!havebase) {
-            basetimestamp = now();
+            basetimestamp = timestamp::now();
             gettimeofday(&basetimeval, NULL);
             storerelease(&havebase, true); }
-        baselock.unlock(&token); }
+        baselock.unlock(&token); } }
+
+struct timeval
+timestamp::as_timeval() const {
+    /* Convert to the same clock as gettimeofday() uses. */
+    inittimebase();
     long sincebasens = v - basetimestamp.v;
     timeval res(basetimeval);
     res.tv_sec += sincebasens / 1000000000;
@@ -63,3 +68,10 @@ timestamp::as_timeval() const {
         res.tv_sec--;
         res.tv_usec += 1000000; }
     return res; }
+
+timestamp
+timestamp::fromtimeval(timeval tv) {
+    inittimebase();
+    tv.tv_sec -= basetimeval.tv_sec;
+    tv.tv_usec -= basetimeval.tv_usec;
+    return timestamp(tv.tv_sec * 1000000000ul + tv.tv_usec + basetimestamp.v); }

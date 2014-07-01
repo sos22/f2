@@ -1,7 +1,6 @@
 #include "mutex.H"
 
 mutex_t::mutex_t()
-    : mux()
 {
     pthread_mutex_init(&mux, NULL);
 }

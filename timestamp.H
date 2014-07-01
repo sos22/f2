@@ -19,6 +19,7 @@ public:
     timespec as_timespec() const;
     timeval as_timeval() const;
     static timestamp now();
+    static timestamp fromtimeval(timeval);
 };
 
 #endif /* TIMESTAMP_H__ */

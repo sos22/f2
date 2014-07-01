@@ -179,15 +179,15 @@ subscriptionbase::set() {
         sub->mux.unlock(&tok); } }
 
 subscriptionbase::~subscriptionbase() {
-    bool r = false;
-    auto subtoken(sub->mux.lock());
+    auto token(sub->mux.lock());
+    bool found = false;
     for (auto it(sub->subscriptions.start()); !it.finished(); it.next()) {
         if (*it == this) {
+            found = true;
             it.remove();
-            r = true;
             break; } }
-    sub->mux.unlock(&subtoken);
-    assert(r); }
+    sub->mux.unlock(&token);
+    assert(found); }
 
 subscription::subscription(subscriber &_sub, const publisher &_pub)
     : subscriptionbase(_sub),
@@ -210,10 +210,7 @@ subscription::detach() {
     pub = NULL; }
 
 subscription::~subscription() {
-    assert(!!pub == !!sub);
-    if (!pub) return; /* subscriber destructor already did everything
-                       * for us */
-    detach(); }
+    if (pub) detach(); }
 
 iosubscription::iosubscription(
     clientio,

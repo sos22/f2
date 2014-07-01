@@ -21,6 +21,8 @@ class shutdowncode {
 public:
     WIREPROTO_TYPE(shutdowncode);
 
+    static const shutdowncode ok;
+
     /* Call exit() with the given code */
     void finish() __attribute__((noreturn));
 

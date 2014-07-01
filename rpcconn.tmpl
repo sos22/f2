@@ -1,0 +1,59 @@
+#ifndef RPCCONN_TMPL__
+#define RPCCONN_TMPL__
+
+#include "beaconclient.H"
+#include "fields.H"
+#include "logging.H"
+#include "proto.H"
+#include "peername.H"
+#include "rpcconn.H"
+#include "socket.H"
+#include "tcpsocket.H"
+#include "thread.H"
+
+template <typename conn_t> orerror<conn_t *>
+rpcconn::fromsocket(socket_t sock) {
+    auto peer(sock.peer());
+    if (peer.isfailure()) return peer.failure();
+    auto res(new conn_t(sock, peer.success()));
+    auto spawnres(thread::spawn(res, &res->thr,
+                                "IO:"+fields::mk(peer.success())));
+    if (spawnres.isjust()) {
+        delete res;
+        return spawnres.just(); }
+    return res; }
+
+template <typename conn_t> orerror<conn_t *>
+rpcconn::connectmaster(clientio io, const beaconresult &br) {
+    auto res(connect<conn_t>(io, br.mastername));
+    if (res.isfailure()) return res.failure();
+    auto conn(res.success());
+    auto snr(conn->allocsequencenr());
+    auto hellores(conn->call(
+                      io,
+                      wireproto::req_message(proto::HELLO::tag, snr)
+                      .addparam(proto::HELLO::req::version, 1u)
+                      .addparam(proto::HELLO::req::nonce, br.nonce)
+                      .addparam(proto::HELLO::req::slavename,
+                                br.slavename)
+                      .addparam(proto::HELLO::req::digest,
+                                digest("B" +
+                                       fields::mk(br.nonce) +
+                                       fields::mk(br.secret)))));
+    conn->putsequencenr(snr);
+    if (hellores.isfailure()) {
+        conn->destroy(io);
+        return hellores.failure(); }
+    logmsg(loglevel::notice,
+           "connected to master at " + fields::mk(br.mastername));
+    return conn; }
+
+template <typename conn_t> orerror<conn_t *>
+rpcconn::connect(clientio io, const peername &p) {
+    auto s(tcpsocket::connect(io, p));
+    if (s.isfailure()) return s.failure();
+    auto r(fromsocket<conn_t>(s.success()));
+    if (r.isfailure()) s.success().close();
+    return r; }
+
+#endif /* !RPCCONN_TMPL__ */

@@ -23,7 +23,8 @@ main(int argc, char *argv[])
         errx(1, "need a mode argument");
     initlogging("mastercli");
     initpubsub();
-    auto c(rpcconn::connect(clientio::CLIENTIO, peername::local("mastersock")));
+    auto c(rpcconn::connect<rpcconn>(
+               clientio::CLIENTIO, peername::local("mastersock")));
     int r;
 
     if (c.isfailure())
@@ -110,11 +111,12 @@ main(int argc, char *argv[])
                     .addparam(proto::QUIT::req::reason, code.success())));
         if (rv.isjust())
             rv.just().fatal(fields::mk("sending QUIT message"));
+        c.success()->drain(clientio::CLIENTIO);
     } else {
         printf("Unknown command %s.  Known: PING, LOGS\n", argv[1]);
         r = 1;
     }
-    delete c.success();
+    c.success()->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
     return r;

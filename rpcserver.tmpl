@@ -1,202 +1,92 @@
 #ifndef RPCSERVER_TMPL__
 #define RPCSERVER_TMPL__
 
-#include <sys/poll.h>
-#include <string.h>
+#include "rpcserver.H"
+#include "socket.H"
 
-#include "fields.H"
-#include "logging.H"
-#include "peername.H"
-#include "rpcconn.H"
-#include "rpcconnthread.H"
-#include "rpcservice.H"
-#include "util.H"
-#include "waitbox.H"
+template <typename conn_t>
+rpcserver<conn_t>::connsub::connsub(subscriber &_sub, conn_t *_conn)
+    : subscription(_sub, _conn->deathpublisher()),
+      conn(_conn) {
+    if (_conn->hasdied() != Nothing) set(); }
 
-#include "list.tmpl"
-#include "waitbox.tmpl"
-#include "rpcconnthread.tmpl"
-#include "rpcregistration.tmpl"
-#include "rpcservice.tmpl"
+template <typename conn_t> void
+rpcserver<conn_t>::run(clientio io) {
+    list<connsub *> threads;
+    subscriber sub;
+    subscription shutdownsub(sub, shutdown.pub);
+    iosubscription ios(io, sub, sock.poll());
 
-#include "fieldfinal.H"
-
-template <typename cookie_t>
-rpcserver<cookie_t>::rootthread::startconn::startconn(
-    rootthread &_owner)
-    : owner(_owner) {}
-
-template <typename cookie_t> orerror<cookie_t *>
-rpcserver<cookie_t>::rootthread::startconn::operator()(
-    clientio io,
-    rpcconn &conn) {
-    return owner.owner->startconn(io, conn); }
-
-template <typename cookie_t>
-rpcserver<cookie_t>::rootthread::endconn::endconn(
-    rootthread &_owner)
-    : owner(_owner) {}
-
-template <typename cookie_t> void
-rpcserver<cookie_t>::rootthread::endconn::operator()(
-    clientio io,
-    cookie_t *cookie) {
-    owner.owner->endconn(io, cookie); }
-
-template <typename cookie_t>
-rpcserver<cookie_t>::rootthread::rootthread(
-    rpcserver<cookie_t> *_owner)
-    : startconn_(*this),
-      endconn_(*this),
-      threads(),
-      threadsmux(),
-      owner(_owner) {}
-
-#define RPCSERVERTHREADSUBMAGIC 0x112233889aabul
-template <typename cookie_t> struct rpcserverthreadsub : public subscription {
-    unsigned long magic;
-    rpcconnthread<cookie_t> *thr;
-    rpcserverthreadsub(subscriber &_sub, rpcconnthread<cookie_t> *_thr)
-        : subscription(_sub, _thr->thr()->pub),
-          magic(RPCSERVERTHREADSUBMAGIC),
-          thr(_thr) {
-        if (thr->thr()->finished()) set(); } };
-
-template <typename cookie_t> void
-rpcserver<cookie_t>::rootthread::run(clientio io) {
-    iosubscription socksub(io, sub, owner->sock.poll());
-    subscription shutdownsub(sub, owner->shutdown.pub);
-    while (!owner->shutdown.ready() || !threads.empty()) {
-        auto r(sub.wait());
-        if (r == &shutdownsub) {
-            if (!owner->shutdown.ready()) continue;
-            logmsg(loglevel::info,
-                   fields::mk("control interface received local shutdown"));
-            auto token(threadsmux.lock());
+    while (!shutdown.ready() || !threads.empty()) {
+        auto s = sub.wait();
+        if (s == &shutdownsub) {
+            shutdownsub.detach();
             for (auto it(threads.start()); !it.finished(); it.next()) {
-                if (!(*it)->thr->shutdown.ready()) {
-                    (*it)->thr->shutdown.set(true); } }
-            threadsmux.unlock(&token);
-        } else if (r == &socksub) {
-            if (owner->shutdown.ready()) {
-                /* We're shutting down, so go back to waiting without
-                   accepting the new connection and without rearming
-                   the subscription. */
+                (*it)->conn->teardown(); }
+        } else if (s == &ios) {
+            /* Accept a new incoming connection */
+            auto newsock(sock.accept());
+            ios.rearm();
+            if (newsock.isfailure()) {
+                newsock.failure().warn("accepting incoming connection");
                 continue; }
-            auto newfd(owner->sock.accept());
-            socksub.rearm();
-            if (newfd.isfailure())
-                newfd.failure().fatal("accept on control interface");
-            logmsg(loglevel::info,
-                   "control interface accepting new client " +
-                   fields::mk(newfd.success().peer()));
-            auto token(threadsmux.lock());
-            auto tr(rpcconnthread<cookie_t>::spawn(owner->service,
-                                                   startconn_,
-                                                   endconn_,
-                                                   newfd.success(),
-                                                   token));
-            if (tr.isfailure()) {
-                error::from_errno().warn(
-                    "Cannot build thread for new client " +
-                    fields::mk(newfd.success().peer()));
-                newfd.success().close();
-            } else {
-                threads.pushhead(
-                    new rpcserverthreadsub<cookie_t>(sub, tr.success()));
-            }
-            threadsmux.unlock(&token);
+            if (shutdown.ready()) {
+                newsock.success().close();
+                /* Don't rearm, so we don't try and accept any more
+                 * connections. */
+                continue; }
+            auto conn(accept(newsock.success()));
+            if (conn.isfailure()) {
+                conn.failure().warn(
+                    "derived class rejected incoming connection");
+                newsock.success().close();
+                continue; }
+            threads.pushtail(new connsub(sub, conn.success()));
         } else {
-            /* It must be a thread dead subscription. */
-            auto subs((rpcserverthreadsub<cookie_t> *)r);
-            assert(subs->magic == RPCSERVERTHREADSUBMAGIC);
-            auto thr(subs->thr);
-            auto token(threadsmux.lock());
-            for (auto it(threads.start()); true; it.next()) {
-                assert(!it.finished());
-                if (*it == subs) {
+            /* Must have been a connection sub. */
+            auto cs(static_cast<connsub *>(s));
+            auto death(cs->conn->hasdied());
+            if (!death) continue;
+            /* Connection has died.  Finish tearing it down. */
+            bool found = false;
+            for (auto it(threads.start()); !it.finished(); it.next()) {
+                if (*it == cs) {
+                    found = true;
                     it.remove();
-                    break;
-                }
-            }
-            threadsmux.unlock(&token);
-            delete subs;
-            logmsg(loglevel::info,
-                   "control interface reaping client thread" +
-                   fields::mk(*thr->thr()));
-            
-            thr->thr()->join(io);
-            delete thr; } }
-    
-    assert(threads.empty());
-    assert(owner->shutdown.ready());
-    return; }
+                    break; } }
+            assert(found);
+            conn_t *conn = cs->conn;
+            delete cs;
+            conn->destroy(death.just()); } } }
 
-template <typename cookie_t>
-rpcserver<cookie_t>::rpcserver()
-    : service(new rpcservice<cookie_t>()),
-      mux(),
+template <typename conn_t>
+rpcserver<conn_t>::rpcserver()
+    : thr(NULL),
       shutdown(),
-      sock(),
-      roothandle(NULL),
-      root(this) {}
+      sock() {}
 
-template <typename cookie_t> maybe<error>
-rpcserver<cookie_t>::start(const peername &p, const fields::field &name) {
-    assert(!roothandle);
-    auto sl(socket_t::listen(p));
-    if (sl.isfailure()) return sl.failure();
-    sock = sl.success();
-    auto threaderr(thread::spawn(
-                       &root, &roothandle, name));
-    if (threaderr.isjust()) {
+template <typename conn_t> maybe<error>
+rpcserver<conn_t>::listen(const peername &p) {
+    auto s(socket_t::listen(p));
+    if (s.isfailure()) return s.failure();
+    sock = s.success();
+    auto spawnres(thread::spawn(this, &thr, "root " + fields::mk(p)));
+    if (spawnres.isjust()) {
         sock.close();
-        return threaderr.just(); }
-    return threaderr; }
+        return spawnres.just(); }
+    return Nothing; }
 
-template <typename cookie_t> peername
-rpcserver<cookie_t>::localname() const {
-    return sock.localname(); }
-
-template <typename cookie_t> void
-rpcserver<cookie_t>::killconn(rpcconn &conn) {
-    auto token(root.threadsmux.lock());
-    for (auto it(root.threads.start()); !it.finished(); it.next()) {
-        if (&conn == &(*it)->thr->conn) {
-            if (!(*it)->thr->shutdown.ready()) (*it)->thr->shutdown.set(true);
-            root.threadsmux.unlock(&token);
-            return; } }
-    root.threadsmux.unlock(&token);
-    abort(); }
-
-template <typename cookie_t> void
-rpcserver<cookie_t>::stop(clientio io) {
-    if (roothandle == NULL) return;
+template <typename conn_t> void
+rpcserver<conn_t>::destroy(clientio io) {
+    assert(thr);
     shutdown.set(true);
-    roothandle->join(io);
-    roothandle = NULL;
-    service->destroy();
-    service = NULL; }
-
-template <typename cookie_t> void
-rpcserver<cookie_t>::destroy(clientio io) {
-    stop(io);
+    thr->join(io);
+    thr = NULL;
+    sock.close();
     delete this; }
 
-template <typename cookie_t>
-rpcserver<cookie_t>::~rpcserver() {
-    assert(!roothandle); }
-
-#define RPCSERVER(ctxt)                                                 \
-    template class rpcserver<ctxt>;                                     \
-    template class rpcservice<ctxt>;                                    \
-    template class rpcconnthread<ctxt>;                                 \
-    template class rpcregistration<ctxt>;                               \
-    template class rpcinterface<ctxt>;                                  \
-    template class rpcserverthreadsub<ctxt>;                            \
-    template class list<rpcinterface<ctxt> *>;                          \
-    template class list<rpcregistration<ctxt> *>;                       \
-    template class list<rpcserverthreadsub<ctxt> *>;                    \
-    template class waitbox<ctxt>;
+template <typename conn_t>
+rpcserver<conn_t>::~rpcserver() {
+    assert(thr == NULL); }
 
 #endif /* !RPCSERVER_TMPL__ */

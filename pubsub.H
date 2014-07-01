@@ -53,9 +53,12 @@ private:  const publisher *pub;
     /* Construct a new subscription connecting a given publisher to a
      * given subscriber. */
 public:  subscription(subscriber &, const publisher &);
-    /* Detach the subscription, disconnecting from the publisher and
-     * the subscriber.  The caller must ensure that this does not run
-     * concurrently with the subscriber destructor.*/
+    /* Detach the subscription, disconnecting it from the publisher.
+     * The subscription remains attached to the subscriber, although
+     * that doesn't usually matter a great deal unless somebody calls
+     * the subscriptionbase set() method directly.  The caller must
+     * ensure that this does not run concurrently with the subscriber
+     * destructor.*/
 public:  void detach();
     /* Destruct the subscription, detaching it first if necessary. */
 public:  ~subscription();

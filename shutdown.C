@@ -33,3 +33,6 @@ fields::mk(const shutdowncode &code)
 {
     return "<shutdowncode:" + fields::mk(code.code) + ">";
 }
+
+const shutdowncode
+shutdowncode::ok(0);

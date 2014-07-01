@@ -4,6 +4,7 @@
 #include <algorithm>
 
 #include <assert.h>
+#include <string.h>
 
 #include "obj.H"
 
@@ -36,6 +37,8 @@ public:
     maybe(_Nothing)
         : r(true)
         {
+            /* Shut the compiler up */
+            memset(content, 0xbb, sizeof(content));
         }
     maybe(const t &what)
         : r(false)

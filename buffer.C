@@ -2,6 +2,7 @@
 
 #include <string.h>
 
+#include "either.H"
 #include "fd.H"
 #include "proto.H"
 #include "pubsub.H"
@@ -105,29 +106,31 @@ buffer::receive(clientio io,
     else return NULL; }
 
 
-maybe<error>
-buffer::send(clientio io, fd_t fd, maybe<timestamp> deadline)
-{
-    while (1) {
-        /* Shouldn't try to send an empty buffer */
+orerror<subscriptionbase *>
+buffer::send(clientio io,
+             fd_t fd,
+             subscriber &sub,
+             maybe<timestamp> deadline) {
+    {   iosubscription ios(io, sub, fd.poll(POLLOUT));
+        auto r(sub.wait(deadline));
+        if (r == NULL) return error::timeout;
+        if (r != &ios) return r; }
+    assert(first);
+    while (first->prod == first->cons) {
+        auto b = first;
+        first = b->next;
         assert(first);
-        if (first->prod == first->cons) {
-            auto b = first;
-            first = b->next;
-            free(b);
-            continue;
-        }
-        auto wrote(fd.write(io,
-                            first->payload + first->cons,
-                            first->prod - first->cons,
-                            deadline));
-        if (wrote.isfailure())
-            return wrote.failure();
-        first->cons += wrote.success();
-        cons += wrote.success();
-        return Nothing;
-    }
-}
+        free(b);
+        continue; }
+    auto wrote(fd.write(io,
+                        first->payload + first->cons,
+                        first->prod - first->cons,
+                        deadline));
+    if (wrote.isfailure())
+        return wrote.failure();
+    first->cons += wrote.success();
+    cons += wrote.success();
+    return NULL; }
 
 void
 buffer::queue(const void *buf, size_t sz)

@@ -11,20 +11,6 @@ template <typename> class rpcservice;
 template <typename cookie_t>
 class rpcconnthread : threadfn {
     friend class rpcserver<cookie_t>;
-public: class startconn {
-        public: virtual orerror<cookie_t *> operator()(
-            clientio,
-            rpcconn &) { return NULL; };
-    };
-public: static startconn nostartconn;
-public: class endconn {
-        public: virtual void operator()(
-            clientio,
-            cookie_t *) {};
-    };
-public: static endconn noendconn;
-private: startconn &startconn_;
-private: endconn &endconn_;
 private: thread *thr_;
 private: rpcservice<cookie_t> *service;
 private: cookie_t *ctxt;

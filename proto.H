@@ -35,16 +35,9 @@ namespace proto {
         static const parameter<unsigned long> cons(2, "cons");
         static const parameter<unsigned int> nrfrags(3, "nrfrags");
     };
-    namespace coordinatorconnstatus {
-        static const parameter<int> active(1, "active");
-        static const parameter<struct timeval> lastcontact(2, "lastcontact");
-        static const parameter<rpcconnstatus> conn(3, "conn");
-    };
     namespace coordinatorstatus {
-        static const parameter<class ratelimiter_status>
-            ratelimiter(1, "ratelimiter");
-        static const parameter<list< ::coordinatorconnstatus> >
-            conns(2, "conns");
+        static const parameter<list< ::rpcconnstatus> >
+            conns(1, "conns");
     };
     namespace fd_tstatus {
         static const parameter<int> fd(1, "fd");
@@ -70,13 +63,13 @@ namespace proto {
     };
     namespace rpcconnstatus {
         static const parameter<class ::bufferstatus> outgoing(1, "outgoing");
-        static const parameter<class ::bufferstatus> incoming(2, "incoming");
-        static const parameter<class ::fd_tstatus> fd(3, "fd");
-        static const parameter<wireproto::sequencerstatus> sequencer(
-            4, "sequencer");
-        static const parameter<list<wireproto::rx_messagestatus> > pendingrx(
-            5, "pendingrx");
-        static const parameter<class ::peername> peername(6, "peername");
+        static const parameter<class ::fd_tstatus> fd(2, "fd");
+        static const parameter<wireproto::sequencerstatus>
+            sequencer(3, "sequencer");
+        static const parameter<list<wireproto::rx_messagestatus> >
+            pendingrx(4, "pendingrx");
+        static const parameter<class ::peername> peername(5, "peername");
+        static const parameter<struct ::timeval> lastcontact(6, "lastcontact");
     };
     namespace timeval {
         static const parameter<long> tv_sec(1, "tv_sec");

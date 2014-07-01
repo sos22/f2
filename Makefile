@@ -7,6 +7,7 @@ include master.mk
 include storage.mk
 include mastercli.mk
 include test.mk
+include tests.mk
 
 config: config.gen
 	./$< $@ > $@.tmp && mv -f $@.tmp $@

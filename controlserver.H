@@ -9,6 +9,7 @@ class shutdowncode;
 template <typename> class waitbox;
 
 class controlconn;
+class controlserver;
 
 class statusinterface {
 public: virtual void getstatus(
@@ -16,32 +17,32 @@ public: virtual void getstatus(
     mutex_t::token /* status lock */) const = 0;
 };
 
-namespace _controlserver {
-class controlserverimpl;
-}
-
 class statusregistration {
-    friend class _controlserver::controlserverimpl;
+    friend class controlserver;
 private: statusinterface *what;
-private: _controlserver::controlserverimpl *owner;
+private: controlserver *owner;
 private: statusregistration(
     statusinterface *,
-    _controlserver::controlserverimpl *);
+    controlserver *);
 public:  void unregister();
 };
 
 class controlserver : public rpcserver<controlconn> {
+    friend class controlconn;
+    friend class statusregistration;
+private: list<statusinterface *> statusifaces;
+private: mutex_t statuslock;
+private: waitbox<shutdowncode> &shutdown;
+private: controlserver(waitbox<shutdowncode> &_shutdown);
     /* Create a new control server and start serving requests.  The
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you
        call destroy(). */
-public: static orerror<controlserver *> build(const peername &listenon,
-                                              waitbox<shutdowncode> &s);
-    /* Release the control server interface, stopping it first if
-     * necessary. */
-public: virtual void destroy(clientio) = 0;
+public:  static orerror<controlserver *> build(const peername &listenon,
+                                               waitbox<shutdowncode> &s);
+private: orerror<controlconn *> accept(socket_t);
     /* Register a new status interface with the control server */
-public: virtual statusregistration registeriface(statusinterface &) = 0;
+public:  statusregistration registeriface(statusinterface &);
 };
 
 #endif /* !CONTROLSERVER_H__ */

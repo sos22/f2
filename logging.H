@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "rpcinterface.H"
 #include "mutex.H"
 #include "wireproto.H"
 
@@ -112,14 +111,11 @@ public:
 void initlogging(const char *ident);
 void deinitlogging(void);
 
-class controlconn;
-class getlogsiface : public rpcinterface<controlconn> {
-private: messageresult message(
-    const wireproto::rx_message &,
-    controlconn *);
-public:  getlogsiface();
-public:  static getlogsiface singleton;
-};
+class messageresult;
+namespace wireproto {
+class rx_message;
+}
+messageresult getlogs(const wireproto::rx_message &);
 
 void logtest(class test &);
 

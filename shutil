@@ -33,8 +33,10 @@ function cc() {
 	    local dep=${src%.C}.d
 	    cat <<EOF
 include $dep
-$dep $obj: $src $mkfile
-	g++ -O -g -std=gnu++0x -fno-implicit-templates -fno-operator-names -fno-exceptions -Wunused-parameter -fno-strict-aliasing -Wsuggest-attribute=noreturn -Wundef -Wmissing-declarations -Wshadow -Wall -Wextra -Werror -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp $src $* && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+$obj: $src $mkfile
+	g++ -I. -O -g -std=gnu++0x -fno-implicit-templates -fno-operator-names -fno-exceptions -Wunused-parameter -fno-strict-aliasing -Wsuggest-attribute=noreturn -Wundef -Wmissing-declarations -Wshadow -Wall -Wextra -Werror -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp $src $* && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+$dep: $src
+	g++ -I. -std=gnu++0x -M -MF ${dep}.tmp $src $* && mv ${dep}.tmp ${dep}
 clean::
 	rm -f $dep $obj
 EOF

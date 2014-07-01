@@ -17,6 +17,7 @@
 #include "maybe.H"
 #include "mutex.H"
 #include "proto.H"
+#include "rpcconn.H"
 
 #include "list.tmpl"
 
@@ -183,9 +184,8 @@ public:
 };
 
 class logpolicy {
-    friend class getlogsiface;
-    memlog_sink memlog;
-    syslog_sink syslog;
+public:  memlog_sink memlog;
+private: syslog_sink syslog;
     filelog_sink filelog;
     stdio_sink stdiolog;
     list<log_sink *> sinks[7];
@@ -287,30 +287,6 @@ deinitlogging(void)
     policy.deinit();
 }
 
-getlogsiface::getlogsiface()
-    : rpcinterface(proto::GETLOGS::tag)
-{}
-messageresult
-getlogsiface::message(const wireproto::rx_message &msg,
-                      controlconn *) {
-    auto start(msg.getparam(proto::GETLOGS::req::startidx).
-               dflt(memlog_idx::min));
-    auto nr(msg.getparam(proto::GETLOGS::req::nr).dflt(200));
-    if (nr == 0 || nr > 500) return error::invalidparameter;
-    logmsg(loglevel::debug,
-           "fetch logs from " + fields::mk(start.as_long()) +
-           " for " + fields::mk(nr));
-    list<memlog_entry> results;
-    auto resume(policy.memlog.fetch(start, nr, results));
-    auto m(new wireproto::resp_message(msg));
-    m->addparam(proto::GETLOGS::resp::msgs, results);
-    if (resume.isjust())
-        m->addparam(proto::GETLOGS::resp::resume, resume.just());
-    return m; }
-
-getlogsiface
-getlogsiface::singleton;
-
 loglevel::iter
 loglevel::begin()
 {
@@ -382,6 +358,24 @@ const fields::field &
 fields::mk(const memlog_entry &e) {
     return "<memlog_entry:" + fields::mk(e.idx) +
         "=" + fields::mk(e.msg) + ">"; }
+
+messageresult
+getlogs(const wireproto::rx_message &msg) {
+    auto start(msg.getparam(proto::GETLOGS::req::startidx).
+               dflt(memlog_idx::min));
+    auto nr(msg.getparam(proto::GETLOGS::req::nr).dflt(200));
+    if (nr == 0 || nr > 500) return error::invalidparameter;
+    logmsg(loglevel::debug,
+           "fetch logs from " + fields::mk(start.as_long()) +
+           " for " + fields::mk(nr));
+    list<memlog_entry> results;
+    auto resume(policy.memlog.fetch(start, nr, results));
+    auto m(new wireproto::resp_message(msg));
+    m->addparam(proto::GETLOGS::resp::msgs, results);
+    if (resume.isjust())
+        m->addparam(proto::GETLOGS::resp::resume, resume.just());
+    results.flush();
+    return m; }
 
 void
 logtest(class test &) {

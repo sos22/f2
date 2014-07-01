@@ -9,6 +9,7 @@
 #include "error.H"
 #include "fields.H"
 #include "proto.H"
+#include "util.H"
 #include "wireproto.H"
 
 #include "fieldfinal.H"
@@ -221,6 +222,51 @@ peername::sockaddr() const {
 size_t
 peername::sockaddrsize() const {
     return sockaddrsize_; }
+
+orerror<peername>
+peername::parse(const char *what) {
+    size_t l(strlen(what));
+    if (what[l-1] != '/') return error::noparse;
+    if (!strncmp(what, "unix://", 7)) {
+        struct sockaddr_un sun;
+        if (l - 8 > sizeof(sun.sun_path)) return error::overflowed;
+        sun.sun_family = AF_UNIX;
+        strcpy(sun.sun_path, what + 7);
+        return peername((const struct sockaddr *)&sun, sizeof(sun)); }
+    char *w = strdup(what);
+    w[l-1] = '\0';
+    const char *sep = strrchr(w, ':');
+    if (!sep) { free(w); return error::noparse; }
+    auto port(parselong(sep + 1));
+    free(w);
+    if (port.isfailure()) return port.failure();
+    if (port.success() <= 0 || port.success() >= 0x10000) {
+        return error::noparse; }
+    sep = strrchr(what, ':');
+
+    if (!strncmp(what, "ip://", 5)) {
+        struct sockaddr_in sin;
+        if (sep - what >= INET_ADDRSTRLEN + 4) return error::noparse;
+        char buf[INET_ADDRSTRLEN];
+        memcpy(buf, what + 5, sep - what - 5);
+        buf[sep - what - 5] = 0;
+        if (inet_pton(AF_INET, buf, &sin.sin_addr) <= 0) return error::noparse;
+        sin.sin_family = AF_INET;
+        sin.sin_port = htons(port.success());
+        return peername((const struct sockaddr *)&sin, sizeof(sin));
+    } else if (!strncmp(what, "ip6://", 6)) {
+        struct sockaddr_in6 sin6;
+        if (sep - what >= INET_ADDRSTRLEN + 5) return error::noparse;
+        char buf[INET6_ADDRSTRLEN];
+        memcpy(buf, what + 5, sep - what - 6);
+        buf[sep - what - 5] = 0;
+        if (inet_pton(AF_INET6, buf, &sin6.sin6_addr) <= 0) {
+              return error::noparse; }
+        sin6.sin6_family = AF_INET6;
+        sin6.sin6_port = htons(port.success());
+        return peername((const struct sockaddr *)&sin6, sizeof(sin6));
+    } else {
+        return error::noparse; } }
 
 namespace fields {
 template const field &mk<peername>(const orerror<peername> &);
