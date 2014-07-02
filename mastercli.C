@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "beaconserver.H"
 #include "coordinator.H"
 #include "fields.H"
 #include "logging.H"
@@ -80,46 +81,20 @@ main(int argc, char *argv[])
                 break; /* we're done */
             cursor = s.just();
         }
-    } else if (!strcmp(argv[1], "BEACONSTATUS")) {
-        if (argc != 2) errx(1, "BEACONSTATUS mode takes no arguments");
+    } else if (!strcmp(argv[1], "STATUS")) {
+        if (argc != 2) errx(1, "STATUS mode takes no arguments");
         auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
             clientio::CLIENTIO,
-            wireproto::req_message(proto::BEACONSTATUS::tag, snr));
+            wireproto::req_message(proto::STATUS::tag, snr));
         if (m.isfailure()) {
             fields::print(fields::mk(m.failure()));
         } else {
             auto mm(m.success());
             fields::print(wireproto::paramfield(
-                              *mm, proto::BEACONSTATUS::resp::secret) + "\n"
-                          + wireproto::paramfield(
-                              *mm, proto::BEACONSTATUS::resp::limiter) + "\n"
-                          + wireproto::paramfield(
-                              *mm, proto::BEACONSTATUS::resp::errors) + "\n"
-                          + wireproto::paramfield(
-                              *mm, proto::BEACONSTATUS::resp::rx) + "\n");
-            delete mm;
-        }
-    } else if (!strcmp(argv[1], "COORDINATORSTATUS")) {
-        if (argc != 2) errx(1, "COORDINATORSTATUS mode takes no arguments");
-        auto snr(c.success()->allocsequencenr());
-        auto m = c.success()->call(
-            clientio::CLIENTIO,
-            wireproto::req_message(proto::COORDINATORSTATUS::tag, snr));
-        if (m.isfailure()) {
-            fields::print(fields::mk(m.failure()));
-        } else {
-            auto mm(m.success());
-            fields::print(wireproto::paramfield(
-                             *mm, proto::COORDINATORSTATUS::resp::ratelimiter)
-                          + "\n");
-            list<coordinatorconnstatus> conns;
-            auto rr(mm->fetch(proto::COORDINATORSTATUS::resp::conns, conns));
-            if (rr.isjust()) {
-                rr.just().fatal("extracting conn list from status response"); }
-            for (auto it(conns.start()); !it.finished(); it.next()) {
-                fields::print("  " + fields::mk(*it) + "\n"); }
-            conns.flush();
+                              *mm, proto::STATUS::resp::beacon) + "\n" +
+                          wireproto::paramfield(
+                              *mm, proto::STATUS::resp::coordinator) + "\n");
             delete mm; }
     } else if (!strcmp(argv[1], "QUIT")) {
         if (argc != 4)

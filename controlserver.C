@@ -37,9 +37,15 @@
 
 class controlconn {
 public: peername peer;
-public: controlconn(const peername &p) : peer(p) {} };
+public: _controlserver::controlserverimpl *owner;
+public: controlconn(_controlserver::controlserverimpl *_owner,
+                    const peername &p)
+    : peer(p),
+      owner(_owner) {} };
 
 namespace _controlserver {
+
+class controlserverimpl;
 
 class pingiface : public rpcinterface<controlconn> {
 public:  pingiface() : rpcinterface(proto::PING::tag) {}
@@ -60,18 +66,34 @@ private: messageresult message(
     controlconn *);
 };
 
+class statusiface : public rpcinterface<controlconn> {
+private: controlserverimpl *owner;
+public:  statusiface(controlserverimpl *_owner)
+    : rpcinterface<controlconn>(proto::STATUS::tag),
+      owner(_owner) {}
+private: messageresult message(
+    const wireproto::rx_message &,
+    controlconn *);
+};
 class controlserverimpl : public controlserver {
+    friend class ::statusregistration;
+    friend class statusiface;
 private: pingiface pinginterface;
 private: quitiface quitinterface;
+private: statusiface statusinterface_;
 private: rpcregistration<controlconn> *registration;
-    
+private: list<statusinterface *> statusifaces;
+private: mutex_t statuslock;
+
 public:  controlserverimpl(waitbox<shutdowncode> &s)
     : controlserver(),
       pinginterface(),
       quitinterface(s),
+      statusinterface_(this),
       registration(service->registeriface(
                        rpcservice<controlconn>::multiregistration()
                        .add(getlogsiface::singleton)
+                       .add(statusinterface_)
                        .add(pinginterface)
                        .add(quitinterface))) {}
 private: controlserverimpl(const controlserverimpl &) = delete;
@@ -81,6 +103,7 @@ private: orerror<controlconn *> startconn(clientio, rpcconn &);
 private: void endconn(clientio, controlconn *);
 
 public:  maybe<error> setup(const peername &);
+public:  statusregistration registeriface(statusinterface &);
 public:  void destroy(clientio);
 };
 
@@ -109,6 +132,17 @@ quitiface::message(const wireproto::rx_message &msg,
     s.set(reason.just());
     return messageresult::noreply; }
 
+messageresult
+statusiface::message(const wireproto::rx_message &msg, controlconn *conn) {
+    auto res(new wireproto::resp_message(msg));
+    auto token(conn->owner->statuslock.lock());
+    for (auto it(conn->owner->statusifaces.start());
+         !it.finished();
+         it.next()) {
+        (*it)->getstatus(res, token); }
+    conn->owner->statuslock.unlock(&token);
+    return res; }
+
 /* not a destructor because it has non-trivial synchronisation rules. */
 void
 controlserverimpl::destroy(clientio io) {
@@ -118,7 +152,7 @@ controlserverimpl::destroy(clientio io) {
 
 orerror<controlconn *>
 controlserverimpl::startconn(clientio, rpcconn &conn) {
-    return new controlconn(conn.peer()); }
+    return new controlconn(this, conn.peer()); }
 
 void
 controlserverimpl::endconn(clientio, controlconn *conn) {
@@ -128,6 +162,13 @@ maybe<error>
 controlserverimpl::setup(
     const peername &p) {
     return start(p, fields::mk("control server")); }
+
+statusregistration
+controlserverimpl::registeriface(statusinterface &what) {
+    auto token(statuslock.lock());
+    statusifaces.pushtail(&what);
+    statuslock.unlock(&token);
+    return statusregistration(&what, this); }
 
 } /* end of _controlserver namespace */
 
@@ -147,4 +188,23 @@ controlserver::build(const peername &p, waitbox<shutdowncode> &s)
         r->destroy(clientio::CLIENTIO);
         return e.just(); } }
 
+statusregistration::statusregistration(
+    statusinterface *_what,
+    _controlserver::controlserverimpl *_owner)
+    : what(_what), owner(_owner) {}
+
+void
+statusregistration::unregister() {
+    auto token(owner->statuslock.lock());
+    bool found = false;
+    for (auto it(owner->statusifaces.start()); !it.finished(); it.next()) {
+        if (*it == what) {
+            found = true;
+            it.remove();
+            break; } }
+    assert(found);
+    owner->statuslock.unlock(&token); }
+
 RPCSERVER(controlconn)
+
+template class list<statusinterface*>;

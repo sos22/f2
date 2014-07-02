@@ -2,8 +2,7 @@
 
 . shutil
 
-cc beaconserver.C
 cc master.C
-ld master beaconserver.o coordinator.o master.o lib.a
+ld master master.o lib.a
 
 target master

@@ -7,6 +7,7 @@ function bits() {
     function _() {
         echo $1$suffix
     }
+    _ beaconserver
     _ buffer
     _ cond
     _ controlserver

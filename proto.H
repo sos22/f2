@@ -3,7 +3,9 @@
 
 #include "wireproto.H"
 
+class beaconstatus;
 class bufferstatus;
+class coordinatorstatus;
 class coordinatorconnstatus;
 class digest;
 class fd_tstatus;
@@ -22,6 +24,12 @@ class registrationsecret;
 namespace proto {
     using namespace wireproto;
 
+    namespace beaconstatus {
+        static const parameter<registrationsecret> secret(1, "secret");
+        static const parameter<class ratelimiter_status> limiter(2, "limiter");
+        static const parameter<unsigned> errors(3, "errors");
+        static const parameter<unsigned> rx(3, "rx");
+    };
     namespace bufferstatus {
         static const parameter<unsigned long> prod(1, "prod");
         static const parameter<unsigned long> cons(2, "cons");
@@ -31,6 +39,12 @@ namespace proto {
         static const parameter<int> active(1, "active");
         static const parameter<struct timeval> lastcontact(2, "lastcontact");
         static const parameter<rpcconnstatus> conn(3, "conn");
+    };
+    namespace coordinatorstatus {
+        static const parameter<class ratelimiter_status>
+            ratelimiter(1, "ratelimiter");
+        static const parameter<list< ::coordinatorconnstatus> >
+            conns(2, "conns");
     };
     namespace fd_tstatus {
         static const parameter<int> fd(1, "fd");
@@ -104,20 +118,14 @@ namespace proto {
         /* No response */
     };
 
-    namespace BEACONSTATUS {
+    namespace STATUS {
         static const msgtag tag(4);
         /* no request parameters */
         namespace resp {
-            static const parameter<registrationsecret> secret(450, "secret");
-            static const parameter<class ratelimiter_status> limiter(451,
-                                                                     "limiter");
-            static const parameter<unsigned> errors(452, "errors");
-            static const parameter<unsigned> rx(453, "rx");
+            static const parameter< ::beaconstatus> beacon(450, "beacon");
+            static const parameter< ::coordinatorstatus>
+                coordinator(451, "coordinator");
         };
-    };
-
-    namespace BEACONCONFIGURE {
-        static const msgtag tag(5);
     };
 
     /* Beacon interface */
@@ -138,10 +146,6 @@ namespace proto {
         }
     }
 
-    namespace BEACONSLAVESTATUS {
-        static const msgtag tag(7);
-    };
-
     namespace HELLO {
         static const msgtag tag(8);
         namespace req {
@@ -149,17 +153,6 @@ namespace proto {
             static const parameter<class masternonce> nonce(801, "nonce");
             static const parameter<class peername> slavename(802, "slavename");
             static const parameter<class digest> digest(803, "digest");
-        }
-    }
-
-    namespace COORDINATORSTATUS {
-        static const msgtag tag(9);
-        /* No request parameters */
-        namespace resp {
-            static const parameter<class ratelimiter_status>
-                ratelimiter(950, "ratelimiter");
-            static const parameter<list< ::coordinatorconnstatus> >
-                conns(951, "conns");
         }
     }
 }

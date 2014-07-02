@@ -17,6 +17,47 @@
 #include "udpsocket.H"
 #include "waitbox.H"
 
+#include "wireproto.tmpl"
+
+wireproto_wrapper_type(beaconstatus);
+void
+beaconserver::status_t::addparam(
+    wireproto::parameter<beaconserver::status_t> tmpl,
+    wireproto::tx_message &tx_msg) const {
+    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                    wireproto::tx_compoundparameter()
+                    .addparam(proto::beaconstatus::secret, secret)
+                    .addparam(proto::beaconstatus::limiter, limiter)
+                    .addparam(proto::beaconstatus::errors, errors)
+                    .addparam(proto::beaconstatus::rx, rx)); }
+maybe<beaconserver::status_t>
+beaconserver::status_t::getparam(
+    wireproto::parameter<beaconserver::status_t> tmpl,
+    const wireproto::rx_message &msg) {
+    auto packed(msg.getparam(
+               wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (!packed) return Nothing;
+#define doparam(name)                                           \
+    auto name(packed.just().getparam(proto::beaconstatus::name)); \
+    if (!name) return Nothing;
+    doparam(secret);
+    doparam(limiter);
+    doparam(errors);
+    doparam(rx);
+#undef doparam
+    return beaconserver::status_t(secret.just(),
+                                  limiter.just(),
+                                  errors.just(),
+                                  rx.just()); }
+const fields::field &
+fields::mk(const beaconserver::status_t &o) {
+    return
+        "<secret:" + mk(o.secret) +
+        " limiter:" + mk(o.limiter) +
+        " errors:" + mk(o.errors) +
+        " rx:" + mk(o.rx) +
+        ">"; }
+
 orerror<beaconserver *>
 beaconserver::build(const registrationsecret &secret,
                     frequency max_response,
@@ -39,13 +80,8 @@ beaconserver::beaconserver(const registrationsecret &_secret,
                            controlserver *cs,
                            const peername &_mastername,
                            const mastersecret &_mastersecret)
-    : statusinterface(this),
-      configureinterface(this),
-      controlregistration(
-          cs->service->registeriface(
-              rpcservice<controlconn>::multiregistration()
-              .add(statusinterface)
-              .add(configureinterface))),
+    : statusiface_(this),
+      statusregistration_(cs->registeriface(statusiface_)),
       secret(_secret),
       mastername(_mastername),
       mastersecret_(_mastersecret),
@@ -60,31 +96,27 @@ beaconserver::beaconserver(const registrationsecret &_secret,
 }
 
 beaconserver::statusiface::statusiface(beaconserver *server)
-    : rpcinterface(proto::BEACONSTATUS::tag),
-      owner(server)
-{}
+    : owner(server) {}
 
-messageresult
-beaconserver::statusiface::message(const wireproto::rx_message &msg,
-                                   controlconn *) {
-    auto m(new wireproto::resp_message(msg));
-    m->addparam(proto::BEACONSTATUS::resp::secret, owner->secret);
-    m->addparam(proto::BEACONSTATUS::resp::limiter,
-                owner->limiter.status());
-    m->addparam(proto::BEACONSTATUS::resp::errors, owner->errors);
-    m->addparam(proto::BEACONSTATUS::resp::rx, owner->rx);
-    return m; }
+beaconserver::status_t
+beaconserver::status() const {
+    return status_t(secret, limiter.status(), errors, rx); }
 
-beaconserver::configureiface::configureiface(beaconserver *server)
-    : rpcinterface(proto::BEACONCONFIGURE::tag),
-      owner(server)
-{}
+void
+beaconserver::statusiface::getstatus(wireproto::tx_message *msg,
+                                     mutex_t::token) const {
+    msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
-messageresult
-beaconserver::configureiface::message(const wireproto::rx_message &,
-                                      controlconn *) {
-    /* No run-time configuration yet */
-    return error::unimplemented; }
+#if 0
+statusinterface::getstatusres
+beaconserver::statusiface::getstatus(mutex_t::token) const {
+    auto m(new wireproto::tx_compoundparameter());
+    m->addparam(proto::beaconstatus::secret, owner->secret);
+    m->addparam(proto::beaconstatus::limiter,owner->limiter.status());
+    m->addparam(proto::beaconstatus::errors, owner->errors);
+    m->addparam(proto::beaconstatus::rx, owner->rx);
+    return getstatusres(m, proto::STATUS::resp::beacon); }
+#endif
 
 maybe<error>
 beaconserver::listen()
@@ -224,7 +256,7 @@ beaconserver::destroy(clientio io)
     if (!listenthread) {
         delete this;
         return; }
-    controlregistration->destroy();
+    statusregistration_.unregister();
     shutdown.set(true);
     listenthread->join(io);
     listenthread = NULL;

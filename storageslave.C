@@ -31,11 +31,8 @@ storageslave::pingiface::message(const wireproto::rx_message &msg,
     logmsg(loglevel::info, fields::mk("storage ping"));
     return new wireproto::resp_message(msg); }
 
-storageslave::storageslave(controlserver *cs)
+storageslave::storageslave(controlserver *)
     : pinginterface(),
-      statusinterface(this),
-      controlregistration(
-          cs->service->registeriface(statusinterface)),
       service(new rpcservice<storageslavectxt>()),
       serviceregistration(service->registeriface(pinginterface)),
       masterconn(NULL) { }
@@ -101,11 +98,6 @@ storageslave::destroy() const
     delete this->masterconn;
     delete this;
 }
-
-messageresult
-storageslave::statusiface::message(const wireproto::rx_message &,
-                                   controlconn *) {
-    return error::unimplemented; }
 
 template class rpcconnthread<storageslavectxt>;
 template class rpcinterface<storageslavectxt>;

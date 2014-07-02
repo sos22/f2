@@ -16,31 +16,34 @@
 
 class frequency;
 
+class beaconstatus {
+public: registrationsecret secret;
+public: ratelimiter_status limiter;
+public: unsigned errors;
+public: unsigned rx;
+public: beaconstatus(const registrationsecret &_secret,
+                     const ratelimiter_status &_limiter,
+                     unsigned _errors,
+                     unsigned _rx)
+    : secret(_secret),
+      limiter(_limiter),
+      errors(_errors),
+      rx(_rx) {}
+WIREPROTO_TYPE(beaconstatus);
+};
+
+namespace fields {
+const field &mk(const beaconstatus &);
+}
+
 class beaconserver {
     friend class statusiface;
     friend class configureiface;
 
-    class statusiface : public rpcinterface<controlconn> {
-        beaconserver *owner;
-        messageresult message(
-            const wireproto::rx_message &,
-            controlconn *);
-        statusiface() = delete;
-        statusiface(const statusiface &) = delete;
-        void operator=(const statusiface &) = delete;
-    public:
-        statusiface(beaconserver *_owner);
-    };
-    class configureiface : public rpcinterface<controlconn> {
-        beaconserver *owner;
-        messageresult message(
-            const wireproto::rx_message &,
-            controlconn *);
-        configureiface() = delete;
-        configureiface(const configureiface &) = delete;
-        void operator=(const configureiface &) = delete;
-    public:
-        configureiface(beaconserver *_owner);
+    class statusiface : public statusinterface {
+    private: beaconserver *owner;
+    public:  statusiface(beaconserver *_owner);
+    private: void getstatus(wireproto::tx_message *, mutex_t::token) const;
     };
 
     class listenthreadclass : public threadfn {
@@ -53,9 +56,8 @@ class beaconserver {
         listenthreadclass(beaconserver *);
     };
 
-    statusiface statusinterface;
-    configureiface configureinterface;
-    rpcregistration<controlconn> *controlregistration;
+    statusiface statusiface_;
+    statusregistration statusregistration_;
     registrationsecret secret;
     peername mastername;
     mastersecret mastersecret_;
@@ -87,6 +89,9 @@ public:
                                          const peername &mastername,
                                          const mastersecret &_mastersecret);
     void destroy(clientio);
+
+public: typedef beaconstatus status_t;
+public: status_t status() const;
 };
 
 #endif /* !BEACONSERVER_H__ */

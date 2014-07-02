@@ -18,20 +18,7 @@
 
 class coordinatorimpl;
 
-class coordinatorconnstatus {
-public: int active;
-public: struct timeval lastcontact;
-public: rpcconn::status_t conn;
-public: coordinatorconnstatus(int _active,
-                              struct timeval _lastcontact,
-                              const rpcconn::status_t &_conn)
-    : active(_active),
-      lastcontact(_lastcontact),
-      conn(_conn) {}
-public: static maybe<coordinatorconnstatus> fromcompound(
-    const wireproto::rx_message &);
-WIREPROTO_TYPE(coordinatorconnstatus);
-};
+wireproto_wrapper_type(coordinatorstatus);
 
 class coordinatorconn {
 /* Each coordinator connection has its own dedicated thread for
@@ -74,20 +61,17 @@ private: ratelimiter newconnlimiter;
 private: registrationsecret rs;
 
     /* Control server interface */
-private: class statusinterface : public rpcinterface<controlconn> {
+private: class statusinterface : public ::statusinterface {
     private: coordinatorimpl *const owner;
     public:  statusinterface(
         coordinatorimpl *_owner)
-        : rpcinterface(proto::COORDINATORSTATUS::tag),
-          owner(_owner) {}
-    private: messageresult message(
-        const wireproto::rx_message &,
-        controlconn *);
+        : owner(_owner) {}
+    private: void getstatus(wireproto::tx_message *, mutex_t::token) const;
     };
 private: statusinterface statusiface;
-private: rpcregistration<controlconn> *controlregistration;
+private: statusregistration controlregistration;
 
-private: mutex_t mux;
+private: mutable mutex_t mux;
 private: list<coordinatorconn *> connections;
 public:  coordinatorimpl(const mastersecret &ms,
                          const registrationsecret &rs,
@@ -95,6 +79,7 @@ public:  coordinatorimpl(const mastersecret &ms,
 private: orerror<coordinatorconn *> startconn(clientio, rpcconn &);
 private: void endconn(clientio, coordinatorconn *);
 private: void destroy(clientio);
+private: status_t status() const;
 };
 
 wireproto_wrapper_type(coordinatorconnstatus)
@@ -215,20 +200,37 @@ coordinatorconn::status(mutex_t::token coordinatorlock) const {
                                  lastcontact.as_timeval(),
                                  conn.status(coordinatorlock)); }
 
-messageresult
-coordinatorimpl::statusinterface::message(const wireproto::rx_message &rx,
-                                          controlconn *) {
-    auto msg(new wireproto::resp_message(rx));
-    msg->addparam(proto::COORDINATORSTATUS::resp::ratelimiter,
-                  owner->newconnlimiter.status());
+void
+coordinatorimpl::statusinterface::getstatus(
+    wireproto::tx_message *msg, mutex_t::token) const {
+    msg->addparam(proto::STATUS::resp::coordinator, owner->status()); }
+
+coordinator::status_t
+coordinatorimpl::status() const {
+    list<coordinatorconnstatus> c;
+    auto token(mux.lock());
+    for (auto it(connections.start()); !it.finished(); it.next()) {
+        c.pushtail((*it)->status(token)); }
+    mux.unlock(&token);
+    coordinator::status_t res(newconnlimiter.status(), c);
+    c.flush();
+    return res; }
+
+#if 0
+coordinator::status_t
+coordinatorimpl::status() const {
+    auto msg(new wireproto::tx_compoundparameter());
+    msg->addparam(proto::coordinatorstatus::ratelimiter,
+                  newconnlimiter.status());
     list<coordinatorconnstatus> conns;
-    auto token(owner->mux.lock());
-    for (auto it(owner->connections.start()); !it.finished(); it.next()) {
+    auto token(mux.lock());
+    for (auto it(connections.start()); !it.finished(); it.next()) {
         conns.pushtail((*it)->status(token)); }
-    owner->mux.unlock(&token);
-    msg->addparam(proto::COORDINATORSTATUS::resp::conns, conns);
+    mux.unlock(&token);
+    msg->addparam(proto::coordinatorstatus::conns, conns);
     conns.flush();
-    return msg; }
+    return getstatusres(msg, proto::STATUS::resp::coordinator); }
+#endif
 
 coordinatorimpl::coordinatorimpl(
     const mastersecret &_ms,
@@ -238,7 +240,7 @@ coordinatorimpl::coordinatorimpl(
       newconnlimiter(frequency::hz(100), 100),
       rs(_rs),
       statusiface(this),
-      controlregistration(cs->service->registeriface(statusiface)) {}
+      controlregistration(cs->registeriface(statusiface)) {}
 
 orerror<coordinatorconn *>
 coordinatorimpl::startconn(clientio io, rpcconn &conn) {
@@ -344,7 +346,7 @@ coordinatorimpl::endconn(clientio io, coordinatorconn *conn) {
 void
 coordinatorimpl::destroy(clientio io) {
     stop(io);
-    controlregistration->destroy();
+    controlregistration.unregister();
     rpcserver::destroy(io); }
 
 orerror<coordinator *>
@@ -360,8 +362,50 @@ coordinator::build(
         return r.just(); }
     return res; }
 
+void
+coordinator::status_t::addparam(
+    wireproto::parameter<coordinator::status_t> tmpl,
+    wireproto::tx_message &tx_msg) const {
+    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                    wireproto::tx_compoundparameter()
+                    .addparam(proto::coordinatorstatus::ratelimiter, limiter)
+                    .addparam(proto::coordinatorstatus::conns, conns)); }
+maybe<coordinator::status_t>
+coordinator::status_t::getparam(
+    wireproto::parameter<coordinator::status_t> tmpl,
+    const wireproto::rx_message &msg) {
+    auto packed(msg.getparam(
+               wireproto::parameter<wireproto::rx_message>(tmpl)));
+    if (!packed) return Nothing;
+    auto ratelimiter(packed.just().getparam(
+                         proto::coordinatorstatus::ratelimiter));
+    if (!ratelimiter) return Nothing;
+    list<coordinatorconnstatus> conns;
+    auto r(packed.just().fetch(proto::coordinatorstatus::conns, conns));
+    if (r.isjust()) return Nothing;
+    coordinator::status_t res(ratelimiter.just(), conns);
+    conns.flush();
+    return res; }
+const fields::field &
+fields::mk(const coordinatorstatus &o) {
+    const field *res = &("<limiter: " + mk(o.limiter) + " conns:{");
+    bool first = true;
+    for (auto it(o.conns.start()); !it.finished(); it.next()) {
+        if (!first) res = &(*res + ",");
+        res = &(*res + mk(*it)); }
+    return *res + "}>"; }
+
 RPCSERVER(coordinatorconn)
+template coordinatorconnstatus std::function<
+    coordinatorconnstatus (coordinatorconn* const&)>::operator()(
+        coordinatorconn* const&) const;
 template class list<coordinatorconn *>;
+template list<coordinatorconnstatus>
+    list<coordinatorconn*>::map<coordinatorconnstatus>(
+        std::function<coordinatorconnstatus (coordinatorconn* const&)>) const;
+template list<coordinatorconnstatus>::list(list<coordinatorconnstatus> const&);
+template list<coordinatorconnstatus>::list(list<coordinatorconnstatus>&&);
+template list<coordinatorconnstatus>::~list();
 template list<coordinatorconnstatus>::list();
 template void list<coordinatorconnstatus>::pushtail(
     const coordinatorconnstatus &);
@@ -371,10 +415,14 @@ template list<coordinatorconnstatus>::iter list<coordinatorconnstatus>::start();
 template list<coordinatorconnstatus>::iter::iter(
     list<coordinatorconnstatus>*,
     bool);
+#if 0
 template coordinatorconnstatus &
     list<coordinatorconnstatus>::iter::operator*();
+#endif
 template void list<coordinatorconnstatus>::iter::remove();
+#if 0
 template void list<coordinatorconnstatus>::iter::next();
+#endif
 template bool list<coordinatorconnstatus>::iter::finished() const;
 template list<coordinatorconnstatus>::const_iter
     list<coordinatorconnstatus>::start() const;
@@ -385,7 +433,9 @@ template const coordinatorconnstatus &
     list<coordinatorconnstatus>::const_iter::operator*() const;
 template void list<coordinatorconnstatus>::const_iter::next();
 template bool list<coordinatorconnstatus>::const_iter::finished() const;
+#if 0
 template list<coordinatorconnstatus>::~list();
+#endif
 namespace wireproto {
 template tx_message& tx_message::addparam<coordinatorconnstatus>(
     parameter<list<coordinatorconnstatus> >,
