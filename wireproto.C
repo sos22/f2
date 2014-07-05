@@ -509,7 +509,6 @@ wireproto() {
             ::buffer buf;
             parameter<int> p1(5, "p1");
             {   auto r(tx_message(t)
-                       .addparam(p1, 73)
                        .serialise(buf));
                 assert (r == Nothing); }
             {   auto rxm(rx_message::fetch(buf));
