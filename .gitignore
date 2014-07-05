@@ -6,6 +6,7 @@
 *~
 *.a
 *.mk
+*-cov-report
 config
 master
 master-c

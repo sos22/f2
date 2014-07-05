@@ -6,10 +6,12 @@
 #include "fd.H"
 #include "proto.H"
 #include "pubsub.H"
+#include "spark.H"
 #include "test.H"
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "spark.tmpl"
 #include "wireproto.tmpl"
 
 template class list<buffer::subbuf>;
@@ -352,7 +354,7 @@ tests::buffer(void)
         "buffer",
         "fuzz",
         [] (support &t) {
-            static const int nr_iters = 2;
+            static const int nr_iters = 10;
             for (int i = 0; i < nr_iters; i++) {
                 t.msg("iteration %d/%d", i, nr_iters);
                 auto b = new ::buffer();
@@ -583,8 +585,12 @@ tests::buffer(void)
                                                     4));
                 assert(res.issuccess());
                 assert(res.success() == 4); }
-            {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
-                assert(res.isnothing());
+            {   subscriber sub;
+                auto res(buf.receive(clientio::CLIENTIO,
+                                     pipe.success().read,
+                                     sub));
+                assert(res.issuccess());
+                assert(res.success() == NULL);
                 assert(buf.avail() == 4);
                 char bb[4];
                 buf.fetch(bb, 4);
@@ -608,4 +614,28 @@ tests::buffer(void)
             char *z = (char *)buf.linearise(sizeof(b), sizeof(b) * 31);
             for (unsigned i = 0; i < sizeof(b) * 30; i++) {
                 assert(z[i] == 'Z'); } });
+
+    testcaseV("buffer", "receivenotify", [] () {
+            initpubsub();
+            ::buffer buf;
+            auto pipe(fd_t::pipe());
+            subscriber sub;
+            publisher pub;
+            subscription scn(sub, pub);
+            spark<bool> worker([&pub] () {
+                    sleep(1);
+                    pub.publish();
+                    return true;});
+            auto res(buf.receive(clientio::CLIENTIO,
+                                 pipe.success().read,
+                                 sub));
+            assert(worker.ready());
+            assert(res.issuccess());
+            assert(res.success() == &scn);
+            assert(worker.get() == true);
+            pipe.success().close();
+            deinitpubsub(clientio::CLIENTIO); });
 }
+
+template class spark<bool>;
+template class std::function<bool ()>;

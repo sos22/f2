@@ -84,10 +84,10 @@ function testmodule()
 {
     cat <<EOF
 $1-cov-report: test-c
-	rm -f *.gcda && ./test-c $1 '*' && gcov *.gcda && cat $1.C.gcov $1.H.gcov > $1-cov-report
+	rm -f *.gcda && ./test-c $1 '*' && gcov *.gcda > /dev/null && cat $1.C.gcov $1.H.gcov > $1-cov-report
 .PHONY: $1-cov
 $1-cov: $1-cov-report
-	if grep -q '#####' $1-cov-report; then echo "FAILED"; false; else true; fi
+	@if grep -q '#####' $1-cov-report; then echo "$1 FAILED"; false; else echo "$1 passed"; true; fi
 coverage:: $1-cov
 clean::
 	rm -f $1-cov-report

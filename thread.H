@@ -2,14 +2,18 @@
 #define THREAD_H__
 
 #include <pthread.h>
+#include <functional>
+
 #include "cond.H"
 #include "maybe.H"
 #include "pubsub.H"
 #include "tid.H"
+#include "waitbox.H"
 
 class clientio;
 class error;
 class mutex_t;
+class thread;
 
 namespace fields {
 class field;
@@ -19,6 +23,12 @@ class threadfn {
 public:
     virtual void run(clientio) = 0;
     virtual ~threadfn() {}
+};
+
+template <typename t>
+class sparkbox : public waitbox<t> {
+private: thread *thr;
+public:  ~sparkbox();
 };
 
 class thread {

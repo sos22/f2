@@ -1,0 +1,28 @@
+#ifndef SPARK_TMPL__
+#define SPARK_TMPL__
+
+#include "fields.H"
+#include "spark.H"
+#include "thread.H"
+
+template <typename t>
+spark<t>::spark(std::function<t ()> _what)
+    : wb(),
+      thr(NULL),
+      what(_what),
+      pub(wb.pub) {
+    auto r(thread::spawn(this, &thr, fields::mk("spark")));
+    assert(r == Nothing); }
+
+template <typename t> void
+spark<t>::run(clientio) {
+    wb.set(what()); }
+
+template <typename t>
+spark<t>::~spark() {
+    /* We rely here on the fact that sparks are required to be very
+       quick functions (and do not receive a clientio token), so
+       joining them should also be very quick. */
+    thr->join(clientio::CLIENTIO); }
+
+#endif /* !SPARK_TMPL__ */
