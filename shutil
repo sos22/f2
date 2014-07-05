@@ -1,9 +1,13 @@
 # A bunch of helpers for building makefiles
 
+set -e
+
 mkfile=$1
 
+. config
+
 cat <<EOF
-$mkfile: $0 shutil
+$mkfile: $0 shutil config
 clean::
 	rm -f $mkfile
 EOF
@@ -13,11 +17,15 @@ EOF
 function ld() {
     local target=$1
     shift
+    x=${@/%.o/-c.o}
+    x=${x/%.a/-c.a}
     cat <<EOF
 $target: $* $mkfile
-	gcc -g -o \$@.tmp $* -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
+	gcc -o \$@.tmp $* -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
+${target}-c: $x $mkfile
+	gcc -fprofile-arcs  -o \$@.tmp $x -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
 clean::
-	rm -f $target $target.tmp
+	rm -f $target $target.tmp ${target}-c.tmp ${target}-c
 EOF
 }
 
@@ -33,12 +41,14 @@ function cc() {
 	    local dep=${src%.C}.d
 	    cat <<EOF
 include $dep
-$obj: $src $mkfile
-	g++ -I. -O -g -std=gnu++0x -fno-implicit-templates -fno-operator-names -fno-exceptions -Wunused-parameter -fno-strict-aliasing -Wsuggest-attribute=noreturn -Wundef -Wmissing-declarations -Wshadow -Wall -Wextra -Werror -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp $src $* && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
-$dep: $src
-	g++ -I. -std=gnu++0x -M -MF ${dep}.tmp $src $* && mv ${dep}.tmp ${dep}
+$obj: $src config
+	g++ -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
+${obj/.o/-c.o}: $src config
+	g++ -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+$dep: $src config
+	g++ ${CPPFLAGS} -M -MF ${dep}.tmp $src \$< && mv ${dep}.tmp ${dep}
 clean::
-	rm -f $dep $obj
+	rm -f $dep $obj ${obj/.o/-c.o} ${obj}.tmp ${obj}-c.tmp
 EOF
 	    ;;
 	*)
@@ -55,8 +65,10 @@ function ar() {
     cat <<EOF
 $target: $* $mkfile
 	ar cqs \$@.tmp $* && mv \$@.tmp \$@
+${target/%.a/-c.a}: ${@/%.o/-c.o} $mkfile
+	ar cqs \$@.tmp ${@/%.o/-c.o} && mv \$@.tmp \$@
 clean::
-	rm -f $target
+	rm -f $target ${target/%.a/-c.a}
 EOF
 }
 
@@ -64,5 +76,6 @@ function target()
 {
     cat <<EOF
 realall:: $1
+covall:: ${1}-c
 EOF
 }

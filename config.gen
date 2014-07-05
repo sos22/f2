@@ -1,3 +1,11 @@
 #! /bin/bash
 
-echo
+cat <<EOF
+CPPFLAGS="${CPPFLAGS}"
+CPPFLAGS+="-I. -Wundef -std=gnu++0x"
+CXXFLAGS="${CXXFLAGS}"
+CXXFLAGS+=" \${CPPFLAGS}"
+CXXFLAGS+=" -O -g -fno-implicit-templates -fno-operator-names -fno-exceptions"
+CXXFLAGS+=" -Wmissing-declarations -Wshadow -Wall -Wextra -Werror"
+EOF
+
