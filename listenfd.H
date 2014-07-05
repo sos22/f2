@@ -15,7 +15,6 @@ const field &mk(const listenfd &);
 /* A file descriptor for listening on, rather than performing normal
    IO on. */
 class listenfd {
-    friend class unixsocket;
     friend const fields::field &fields::mk(const listenfd &);
     friend class socket_t;
     int fd;

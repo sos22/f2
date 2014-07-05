@@ -44,7 +44,6 @@ const field &mk(const fd_tstatus &); }
 
 class fd_t {
     friend class listenfd;
-    friend class unixsocket;
     friend const fields::field &fields::mk(const fd_t &);
     friend class udpsocket;
     friend class tcpsocket;

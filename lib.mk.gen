@@ -20,7 +20,6 @@ function bits() {
     _ listenfd
     _ logging
     _ mastersecret
-    _ maybe
     _ mutex
     _ nonce
     _ obj
@@ -30,7 +29,6 @@ function bits() {
     _ ratelimiter
     _ registrationsecret
     _ rpcconn
-#    _ rpcinterface
     _ shutdown
     _ socket
     _ tcpsocket
@@ -40,7 +38,6 @@ function bits() {
     _ timestamp
     _ thread
     _ udpsocket
-    _ unixsocket
     _ util
     _ waitbox
     _ wireproto

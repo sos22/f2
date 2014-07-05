@@ -537,6 +537,7 @@ void flush()
 }
 
 template const field &mk(const maybe<int> &);
+template const field &mk(const maybe<unsigned int> &);
 template const field &mk(const maybe<const char *> &);
 
 }
