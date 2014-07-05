@@ -83,13 +83,22 @@ maybe<error>
 buffer::receive(clientio io, fd_t fd, maybe<timestamp> deadline)
 {
     subbuf *b;
-    if (last && last->sz - last->prod >= 4096)
+    bool unlinked;
+    if (last && last->sz - last->prod >= 4096) {
         b = last;
-    else
-        b = extend_end();
+        unlinked = false;
+    } else {
+        b = unlinked_subbuf(0);
+        unlinked = true; }
     auto read(fd.read(io, b->payload + b->prod, b->sz - b->prod, deadline));
-    if (read.isfailure())
-        return read.failure();
+    if (read.isfailure()) {
+        if (unlinked) delete b;
+        return read.failure(); }
+    if (unlinked) {
+        b->next = NULL;
+        if (last) last->next = b;
+        else first = b;
+        last = b; }
     b->prod += read.success();
     prod += read.success();
     assert(b->cons != b->prod);
@@ -635,6 +644,15 @@ tests::buffer(void)
             assert(worker.get() == true);
             pipe.success().close();
             deinitpubsub(clientio::CLIENTIO); });
+
+    testcaseV("buffer", "receivefailure", [] () {
+            ::buffer buf;
+            auto pipe(fd_t::pipe());
+            pipe.success().close();
+            auto t(buf.receive(clientio::CLIENTIO, pipe.success().read));
+            assert(t.isjust());
+            assert(t.just() == error::from_errno(EBADF));
+            assert(buf.empty()); });
 }
 
 template class spark<bool>;
