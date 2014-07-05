@@ -65,7 +65,7 @@ function ar() {
     cat <<EOF
 $target: $*
 	ar cqs \$@.tmp $* && mv \$@.tmp \$@
-${target/%.a/-c.a}: ${@/%.o/-c.o} $mkfile
+${target/%.a/-c.a}: ${@/%.o/-c.o}
 	ar cqs \$@.tmp ${@/%.o/-c.o} && mv \$@.tmp \$@
 clean::
 	rm -f $target ${target/%.a/-c.a}

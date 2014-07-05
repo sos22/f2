@@ -207,9 +207,13 @@ namespace wireproto {
     };
     class rx_messagestatus {
     public: msgtag t;
-    public: rx_messagestatus(const msgtag &_t)
+    public: explicit rx_messagestatus(const msgtag &_t)
         : t(_t) {}
+    public: rx_messagestatus()
+        : t(0) {}
         WIREPROTO_TYPE(rx_messagestatus);
+    public: bool operator==(const rx_messagestatus &o) const {
+        return o.t == t; }
     };
     class rx_message {
         friend const fields::field &fields::mk(const wireproto::rx_message *);
