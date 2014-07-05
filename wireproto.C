@@ -549,9 +549,13 @@ template tx_message &tx_message::addparam(
 template tx_message &tx_message::addparam(
     parameter<list<rx_message::status_t> >,
     const list<rx_message::status_t> &);
+template tx_message& tx_message::addparam(
+    parameter<list<msgtag> >, list<msgtag> const&);
 template maybe<error> rx_message::fetch(
     parameter<list<rx_message::status_t> >,
     list<rx_message::status_t> &) const;
+template maybe<error> rx_message::fetch(
+    parameter<list<msgtag> >, list<msgtag>&) const;
 template maybe<error> rx_message::fetch<int>(
     parameter<list<int> >, list<int>&) const;
 template <> maybe<rx_message::status_t> deserialise(
@@ -586,6 +590,9 @@ template list<wireproto::rx_message::status_t>::iter
     list<wireproto::rx_message::status_t>::start();
 template list<wireproto::rx_message::status_t>::iter::iter(
     list<wireproto::rx_message::status_t> *, bool);
+template wireproto::rx_messagestatus &
+    list<wireproto::rx_messagestatus>::iter::operator*();
+template void list<wireproto::rx_messagestatus>::iter::next();
 template void list<wireproto::rx_messagestatus>::iter::remove();
 template bool list<wireproto::rx_messagestatus>::iter::finished() const;
 template list<wireproto::rx_messagestatus>::const_iter
@@ -601,6 +608,25 @@ template wireproto::rx_message::status_t std::function<
     wireproto::rx_message::status_t (
         wireproto::rx_message const* const&)>::operator()
     (wireproto::rx_message const* const&) const;
+template list<wireproto::msgtag>::list();
+template bool list<wireproto::msgtag>::empty() const;
+template void list<wireproto::msgtag>::pushtail(wireproto::msgtag const&);
+template list<wireproto::msgtag>::iter list<wireproto::msgtag>::start();
+template list<wireproto::msgtag>::iter::iter(list<wireproto::msgtag>*, bool);
+template wireproto::msgtag &list<wireproto::msgtag>::iter::operator*();
+template void list<wireproto::msgtag>::iter::remove();
+template void list<wireproto::msgtag>::iter::next();
+template bool list<wireproto::msgtag>::iter::finished() const;
+template list<wireproto::msgtag>::const_iter
+    list<wireproto::msgtag>::start() const;
+template list<wireproto::msgtag>::const_iter::const_iter(
+    list<wireproto::msgtag> const*, bool);
+template const wireproto::msgtag &
+    list<wireproto::msgtag>::const_iter::operator*() const;
+template void list<wireproto::msgtag>::const_iter::next();
+template bool list<wireproto::msgtag>::const_iter::finished() const;
+template void list<wireproto::msgtag>::flush();
+template list<wireproto::msgtag>::~list();
 
 namespace fields {
 template const field &mk(const list<wireproto::rx_message::status_t> &);
@@ -1030,4 +1056,46 @@ tests::wireproto() {
             assert(fr.just() == error::invalidmessage);
             assert(l.empty()); });
 
+    testcaseV("wireproto", "msgtaglist", [t] () {
+            parameter<list<msgtag> > p(1);
+            ::buffer buf;
+            list<msgtag> l;
+            l.pushtail(msgtag(1));
+            l.pushtail(msgtag(2));
+            tx_message(t).addparam(p, l).serialise(buf);
+            auto rxm(rx_message::fetch(buf));
+            list<msgtag> l2;
+            auto fr(rxm.success().fetch(p, l2));
+            assert(fr == Nothing);
+            auto it1(l.start());
+            auto it2(l2.start());
+            while (1) {
+                assert(it1.finished() == it2.finished());
+                if (it1.finished()) break;
+                assert(*it1 == *it2);
+                it1.next();
+                it2.next(); }
+            l.flush();
+            l2.flush(); });
+
+    testcaseV("wireproto", "msgstatuslist", [t] () {
+            parameter<list<rx_message::status_t> > p(1);
+            ::buffer buf;
+            list<rx_message::status_t> l;
+            l.pushtail(rx_message::status_t(msgtag(7)));
+            tx_message(t).addparam(p, l).serialise(buf);
+            auto rxm(rx_message::fetch(buf));
+            list<rx_message::status_t> l2;
+            auto fr(rxm.success().fetch(p, l2));
+            assert(fr == Nothing);
+            auto it1(l.start());
+            auto it2(l2.start());
+            while (1) {
+                assert(it1.finished() == it2.finished());
+                if (it1.finished()) break;
+                assert(*it1 == *it2);
+                it1.next();
+                it2.next(); }
+            l.flush();
+            l2.flush(); });
 }
