@@ -756,4 +756,36 @@ tests::fields()
             fieldbuf buf;
             mk_double(5.0).fmt(buf);
             assert(!strcmp(buf.c_str(), "5.000000")); });
+
+    testcaseV("fields", "multibufs", [] () {
+            auto buf1(new fieldbuf());
+            auto buf2(new fieldbuf());
+            auto buf3(new fieldbuf());
+            delete buf2;
+            delete buf1;
+            delete buf3;});
+
+    testcaseV("fields", "ts1", [] () {
+            fieldbuf buf;
+            struct timeval tv = {72, 99};
+            mk(tv).fmt(buf);
+            assert(!strcmp(buf.c_str(), "72.000099"));});
+
+    testcaseV("fields", "ts2", [] () {
+            fieldbuf buf;
+            struct timeval tv = {72, 99};
+            mk(tv).asdate().fmt(buf);
+            assert(!strcmp(buf.c_str(), "1970-01-01 00:01:12.000099"));});
+
+    testcaseV("fields", "ts3", [] () {
+            fieldbuf buf;
+            struct timeval tv = {1404546593, 123456};
+            mk(tv).asdate().fmt(buf);
+            assert(!strcmp(buf.c_str(), "2014-07-05 07:49:53.123456"));});
+
+    /* Not really a useful test case, but it makes the coverage 100%,
+     * and the print() function's simple enough that just confirming
+     * it doesn't crash is good enough. */
+    testcaseV("fields", "print", [] () {
+            print(mk("hello")); });
 }
