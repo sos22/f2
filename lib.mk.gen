@@ -54,3 +54,4 @@ done
 ar lib.a $(bits .o)
 
 testmodule buffer
+testmodule fields

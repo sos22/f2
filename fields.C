@@ -7,6 +7,7 @@
 
 #include "list.H"
 #include "test.H"
+#include "spark.H"
 #include "thread.H"
 
 #include "list.tmpl"
@@ -676,4 +677,83 @@ tests::fields()
             mk(123456).sep(fields::mk("ABC"), 1).fmt(buf);
             assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));
             flush(); });
+
+    testcaseV("fields", "period", [] () {
+            fieldbuf buf;
+            period.fmt(buf);
+            assert(!strcmp(buf.c_str(), "."));
+            flush();});
+
+    testcaseV("fields", "threads", [] () {
+            fieldbuf buf1;
+            mk("Hello").fmt(buf1);
+            assert(!strcmp(buf1.c_str(), "Hello"));
+            /* Flushing from another thread shouldn't affect this
+             * one. */
+            spark<bool> w([] () {
+                    fieldbuf buf2;
+                    mk("goodbye").fmt(buf2);
+                    assert(!strcmp(buf2.c_str(), "goodbye"));
+                    flush();
+                    return true; });
+            w.get();
+            assert(!strcmp(buf1.c_str(), "Hello")); });
+
+    testcaseV("fields", "bigstr", [] () {
+            char *f = (char *)malloc(1000001);
+            memset(f, 'c', 1000000);
+            f[1000000] = 0;
+            fieldbuf buf1;
+            mk(f).fmt(buf1);
+            assert(!strcmp(buf1.c_str(), f));
+            free(f);});
+
+    testcaseV("fields", "lotsofbufs", [] () {
+            fieldbuf buf;
+            const field *acc = &mk("");
+            for (int i = 0; i < 100; i++) {
+                acc = &(*acc + padleft(mk("hello"), 1000)); }
+            acc->fmt(buf);
+            char reference[1001];
+            reference[1000] = 0;
+            memset(reference, ' ', 1000);
+            memcpy(reference+995, "hello", 5);
+            for (int i = 0; i < 100; i++) {
+                assert(!memcmp(buf.c_str() + i * 1000,
+                               reference,
+                               1000)); } });
+
+    testcaseV("fields", "empty", [] () {
+            fieldbuf buf;
+            assert(!strcmp(buf.c_str(), "")); });
+
+    testcaseV("fields", "padnoop", [] () {
+            fieldbuf buf;
+            padleft(mk("foo"), 1).fmt(buf);
+            assert(!strcmp(buf.c_str(), "foo")); });
+
+    testcaseV("fields", "conc1", [] () {
+            fieldbuf buf;
+            (mk("foo") + "bar").fmt(buf);
+            assert(!strcmp(buf.c_str(), "foobar")); });
+
+    testcaseV("fields", "conc2", [] () {
+            fieldbuf buf;
+            ("foo" + mk("bar")).fmt(buf);
+            assert(!strcmp(buf.c_str(), "foobar")); });
+
+    testcaseV("fields", "alwayssign", [] () {
+            fieldbuf buf;
+            mk(5).alwayssign().fmt(buf);
+            assert(!strcmp(buf.c_str(), "+5")); });
+
+    testcaseV("fields", "zero", [] () {
+            fieldbuf buf;
+            mk((long)0).fmt(buf);
+            assert(!strcmp(buf.c_str(), "0")); });
+
+    testcaseV("fields", "double1", [] () {
+            fieldbuf buf;
+            mk_double(5.0).fmt(buf);
+            assert(!strcmp(buf.c_str(), "5.000000")); });
 }
