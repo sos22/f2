@@ -16,6 +16,7 @@ struct __piperes {
     __piperes() : read(), write() {}
     __fd_t read;
     __fd_t write;
+    void close() { read.close(); write.close(); }
 };
 
 class fd_t;

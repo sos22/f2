@@ -43,6 +43,7 @@ fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
             struct pollfd pfd = poll(POLLIN);
             auto remaining(
                 (deadline.just() - timestamp::now()).as_milliseconds());
+            if (remaining < 0) return error::timeout;
             int r = ::poll(&pfd, 1, remaining);
             if (r < 0) return error::from_errno();
             if (r == 1) break;

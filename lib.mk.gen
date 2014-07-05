@@ -52,3 +52,5 @@ do
 done
 
 ar lib.a $(bits .o)
+
+testmodule buffer

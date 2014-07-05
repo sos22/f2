@@ -7,6 +7,7 @@
 #include "proto.H"
 #include "pubsub.H"
 #include "test.H"
+#include "timedelta.H"
 
 #include "list.tmpl"
 #include "wireproto.tmpl"
@@ -89,6 +90,7 @@ buffer::receive(clientio io, fd_t fd, maybe<timestamp> deadline)
         return read.failure();
     b->prod += read.success();
     prod += read.success();
+    assert(b->cons != b->prod);
     return Nothing;
 }
 
@@ -116,12 +118,7 @@ buffer::send(clientio io,
         if (r == NULL) return error::timeout;
         if (r != &ios) return r; }
     assert(first);
-    while (first->prod == first->cons) {
-        auto b = first;
-        first = b->next;
-        assert(first);
-        free(b);
-        continue; }
+    assert(first->prod != first->cons);
     auto wrote(fd.write(io,
                         first->payload + first->cons,
                         first->prod - first->cons,
@@ -129,6 +126,11 @@ buffer::send(clientio io,
     if (wrote.isfailure())
         return wrote.failure();
     first->cons += wrote.success();
+    if (first->cons == first->prod) {
+        auto b = first;
+        first = b->next;
+        free(b);
+        if (!first) last = NULL; }
     cons += wrote.success();
     return NULL; }
 
@@ -140,17 +142,14 @@ buffer::queue(const void *buf, size_t sz)
         tl = extend_end(sz);
     memcpy(tl->payload + tl->prod, buf, sz);
     tl->prod += sz;
+    assert(tl->prod > tl->cons);
     prod += sz;
 }
 
 bool
 buffer::empty() const
 {
-    for (auto i(first); i; i = i->next) {
-        if (i->cons < i->prod)
-            return false;
-    }
-    return true;
+    return first == NULL;
 }
 
 buffer::~buffer(void)
@@ -158,6 +157,7 @@ buffer::~buffer(void)
     auto i(first);
     auto n(first);
     while (i) {
+        assert(i->cons < i->prod);
         n = i->next;
         free(i);
         i = n;
@@ -169,8 +169,9 @@ buffer::avail() const
 {
     size_t ack;
     ack = 0;
-    for (auto it(first); it; it = it->next)
-        ack += it->prod - it->cons;
+    for (auto it(first); it; it = it->next) {
+        assert(it->cons < it->prod);
+        ack += it->prod - it->cons; }
     return ack;
 }
 
@@ -184,7 +185,8 @@ buffer::fetch(void *buf, size_t sz)
         /* Caller should check that there's enough stuff available before
            calling. */
         assert(first);
-        if (sz <= first->prod - first->cons) {
+        assert(first->cons < first->prod);
+        if (sz < first->prod - first->cons) {
             if (buf)
                 memcpy(buf, first->payload + first->cons, sz);
             first->cons += sz;
@@ -201,6 +203,9 @@ buffer::fetch(void *buf, size_t sz)
         auto n(first->next);
         free(first);
         first = n;
+        if (!first) {
+            assert(sz == 0);
+            last = NULL; }
     }
 }
 
@@ -208,12 +213,10 @@ void
 buffer::pushback(const void *what, size_t sz)
 {
     assert(cons >= sz);
+    if (!sz) return;
     auto b(first);
-    if (b && b->cons == b->prod && b->sz >= sz && b->cons < sz) {
-        b->prod = (sz + b->sz) / 2;
-        b->cons = b->prod;
-        assert(b->cons <= b->sz);
-    } else if (!(b && b->cons >= sz)) {
+    assert(!b || b->cons < b->prod);
+    if (!(b && b->cons >= sz)) {
         b = extend_start(sz);
         assert(b->cons <= b->sz);
     }
@@ -244,6 +247,7 @@ buffer::idx(size_t off) const
     auto it(first);
     while (1) {
         assert(it);
+        assert(it->cons < it->prod);
         if (off < it->prod - it->cons)
             return it->payload[it->cons + off];
         off -= it->prod - it->cons;
@@ -254,18 +258,28 @@ buffer::idx(size_t off) const
 const void *
 buffer::linearise(size_t start, size_t end)
 {
+    subbuf *prev;
     assert(start >= cons);
     assert(end <= prod);
     assert(start <= end);
+    if (start == end) {
+        /* Caller asked for an empty buffer.  It doesn't matter what
+           we give them, so just use a static buffer to make our lives
+           a bit easier. */
+        static unsigned char b;
+        return &b; }
     start -= cons;
     end -= cons;
+    prev = NULL;
     auto it(first);
     while (1) {
         assert(it);
+        assert(it->cons < it->prod);
         if (start >= it->prod - it->cons) {
             start -= it->prod - it->cons;
             end -= it->prod - it->cons;
-            it = it->next;
+            prev = it;
+            it = prev->next;
             continue;
         }
         if (end <= it->prod - it->cons)
@@ -273,6 +287,8 @@ buffer::linearise(size_t start, size_t end)
         break;
     }
     /* Going to have to actually linearise. */
+    assert(it != last);
+    assert(it->next != NULL);
     auto b(unlinked_subbuf(end - start));
     memcpy(b->payload,
            it->payload + it->cons + start,
@@ -280,25 +296,39 @@ buffer::linearise(size_t start, size_t end)
     b->prod = it->prod - it->cons - start;
     assert(b->cons == 0);
     assert(b->sz >= end - start);
-    it->prod = it->cons + start;
-    auto n(it->next);
-    b->next = n;
-    it->next = b;
-    it = n;
+    if (start == 0) {
+        /* Remove @it from list completely and replace it with b*/
+        if (prev) {
+            prev->next = b;
+        } else {
+            first = b; }
+        b->next = it->next;
+        free(it);
+    } else {
+        /* Trim the end of @it */
+        it->prod = it->cons + start;
+        auto n(it->next);
+        b->next = n;
+        it->next = b;
+    }
+    assert(b->next != first);
+    prev = b;
+    it = prev->next;
     end -= start;
+    assert(it != first);
     while (b->prod < end) {
+        assert(it != first);
         assert(it);
-        if (it->prod - it->cons < end - b->prod) {
+        if (it->prod - it->cons <= end - b->prod) {
             memcpy(b->payload + b->prod,
                    it->payload + it->cons,
                    it->prod - it->cons);
             b->prod += it->prod - it->cons;
-            it->cons = it->prod;
-            /* Could unlink @it from the list here, but it's easier to
-               leave it around, and it might be useful later if we
-               continue manipulating the list. */
-            assert(it->next);
-            it = it->next;
+            if (it == last) {
+                last = prev; }
+            prev->next = it->next;
+            free(it);
+            it = prev->next;
         } else {
             memcpy(b->payload + b->prod,
                    it->payload + it->cons,
@@ -307,6 +337,7 @@ buffer::linearise(size_t start, size_t end)
             b->prod = end;
         }
     }
+    if (!first) last = NULL;
     return b->payload;
 }
 
@@ -321,8 +352,9 @@ tests::buffer(void)
         "buffer",
         "fuzz",
         [] (support &t) {
-            for (int i = 0; i < 10; i++) {
-                t.msg("iteration %d/%d", i, 10);
+            static const int nr_iters = 2;
+            for (int i = 0; i < nr_iters; i++) {
+                t.msg("iteration %d/%d", i, nr_iters);
                 auto b = new ::buffer();
 
                 char *content;
@@ -421,4 +453,159 @@ tests::buffer(void)
                 delete b;
             }
         });
+
+    /* A couple more test cases to get to 100% coverage */
+    testcaseV("buffer", "status", [] () {
+            ::buffer buf;
+            buf.queue("Hello", 5);
+            char b[3];
+            buf.fetch(b, 3);
+            auto s(buf.status());
+            assert(s.prod == 5);
+            assert(s.cons == 3);
+            fields::fieldbuf fb;
+            fields::mk(s).fmt(fb);
+            assert(!strcmp(fb.c_str(), "<prod:5 cons:3>")); } );
+
+    testcaseV("buffer", "statuswire", [] () {
+            ::buffer buf1;
+            buf1.queue("Hello", 5);
+            char b[3];
+            buf1.fetch(b, 3);
+            auto s(buf1.status());
+            wireproto::parameter<buffer::status_t> param(7, "param");
+            wireproto::msgtag tag(99);
+            {   ::buffer buf2;
+                wireproto::tx_message(tag).serialise(buf2);
+                auto r(wireproto::rx_message::fetch(buf2));
+                assert(r.issuccess());
+                assert(r.success().getparam(param) == Nothing); }
+            {   ::buffer buf2;
+                wireproto::tx_message(tag).addparam(param,s).serialise(buf2);
+                auto r(wireproto::rx_message::fetch(buf2));
+                assert(r.issuccess());
+                assert(r.success().getparam(param).isjust());
+                assert(r.success().getparam(param).just().cons == s.cons);
+                assert(r.success().getparam(param).just().prod == s.prod); }});
+
+    testcaseV("buffer", "pushbackempty", [] () {
+            ::buffer buf;
+            buf.queue("Hello", 5);
+            char b[5];
+            buf.fetch(b, 5);
+            buf.pushback(b, 5);
+            char b2[5];
+            buf.fetch(b2, 5);
+            assert(!memcmp(b2, "Hello", 5)); });
+
+    testcaseV("buffer", "send", [] () {
+            auto pipe(fd_t::pipe());
+            assert(pipe.issuccess());
+            ::buffer buf;
+            buf.queue("ABC", 3);
+            {   subscriber sub;
+                auto res(buf.send(clientio::CLIENTIO,
+                                  pipe.success().write,
+                                  sub,
+                                  Nothing));
+                assert(res.issuccess());
+                assert(res.success() == NULL); }
+            assert(buf.empty());
+            buf.queue("D", 1);
+            {   subscriber sub;
+                auto res(buf.send(clientio::CLIENTIO,
+                                  pipe.success().write,
+                                  sub,
+                                  Nothing));
+                assert(res.issuccess());
+                assert(res.success() == NULL); }
+            assert(buf.empty());
+            char bb[4];
+            auto res(pipe.success().read.read(clientio::CLIENTIO,
+                                              bb,
+                                              4,
+                                              Nothing));
+            assert(res.issuccess());
+            assert(res.success() == 4);
+            assert(!memcmp(bb, "ABCD", 4));
+            pipe.success().close(); });
+
+    testcaseV("buffer", "senderror", [] () {
+            auto pipe(fd_t::pipe());
+            pipe.success().close();
+            ::buffer buf;
+            buf.queue("HELLO", 5);
+            subscriber sub;
+            auto r(buf.send(clientio::CLIENTIO, pipe.success().write, sub));
+            assert(r.isfailure());
+            assert(r.failure() == error::from_errno(EBADF)); });
+
+    testcaseV("buffer", "receive", [] () {
+            auto pipe(fd_t::pipe());
+            assert(pipe.issuccess());
+            {   auto res(pipe.success().write.write(clientio::CLIENTIO,
+                                                    "GHI",
+                                                    3));
+                assert(res.issuccess());
+                assert(res.success() == 3); }
+            ::buffer buf;
+            {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
+                assert(res.isnothing());
+                assert(buf.avail() == 3);
+                char bb[2];
+                buf.fetch(bb, 2);
+                assert(!memcmp(bb, "GH", 2)); }
+            {   auto res(pipe.success().write.write(clientio::CLIENTIO,
+                                                    "JKLM",
+                                                    4));
+                assert(res.issuccess());
+                assert(res.success() == 4); }
+            {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
+                assert(res.isnothing());
+                assert(buf.avail() == 5);
+                char bb[5];
+                buf.fetch(bb, 5);
+                assert(!memcmp(bb, "IJKLM", 5)); }
+            pipe.success().close(); });
+
+    testcaseV("buffer", "receivetimeout", [] () {
+            auto pipe(fd_t::pipe());
+            assert(pipe.issuccess());
+            ::buffer buf;
+            {   auto res(buf.receive(
+                             clientio::CLIENTIO,
+                             pipe.success().read,
+                             timestamp::now() + timedelta::milliseconds(10)));
+                assert(res.isjust());
+                assert(res.just() == error::timeout); }
+            {   auto res(pipe.success().write.write(clientio::CLIENTIO,
+                                                    "JKLM",
+                                                    4));
+                assert(res.issuccess());
+                assert(res.success() == 4); }
+            {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
+                assert(res.isnothing());
+                assert(buf.avail() == 4);
+                char bb[4];
+                buf.fetch(bb, 4);
+                assert(!memcmp(bb, "JKLM", 4)); }
+            pipe.success().close(); });
+
+    testcaseV("buffer", "linearisestartofbuf", [] () {
+            ::buffer buf;
+            char b[16384];
+            memset(b, 'Z', sizeof(b));
+            for (int i = 0; i < 32; i++) buf.queue(b, sizeof(b));
+            char *z = (char *)buf.linearise(0, sizeof(b) * 32);
+            for (unsigned i = 0; i < sizeof(b) * 32; i++) {
+                assert(z[i] == 'Z'); } });
+
+    testcaseV("buffer", "linearisemultiplebuf", [] () {
+            ::buffer buf;
+            char b[16389];
+            memset(b, 'Z', sizeof(b));
+            for (int i = 0; i < 32; i++) buf.queue(b, sizeof(b));
+            char *z = (char *)buf.linearise(sizeof(b), sizeof(b) * 31);
+            for (unsigned i = 0; i < sizeof(b) * 30; i++) {
+                assert(z[i] == 'Z'); } });
 }
