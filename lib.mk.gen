@@ -53,5 +53,6 @@ done
 
 ar lib.a $(bits .o)
 
-testmodule buffer
-testmodule fields
+testmodule buffer buffer.C buffer.H
+testmodule fields fields.C fieldfinal.H
+#testmodule wireproto wireprot.C wireproto.H wireproto.tmpl
