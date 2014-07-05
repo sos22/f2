@@ -83,19 +83,20 @@ main(int argc, char *argv[])
             cursor = s.just();
         }
     } else if (!strcmp(argv[1], "STATUS")) {
+        using namespace proto::STATUS;
         if (argc != 2) errx(1, "STATUS mode takes no arguments");
         auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
             clientio::CLIENTIO,
-            wireproto::req_message(proto::STATUS::tag, snr));
+            wireproto::req_message(tag, snr));
         if (m.isfailure()) {
             fields::print(fields::mk(m.failure()));
         } else {
             auto mm(m.success());
-            fields::print(wireproto::paramfield(
-                              *mm, proto::STATUS::resp::beacon) + "\n" +
-                          wireproto::paramfield(
-                              *mm, proto::STATUS::resp::coordinator) + "\n");
+            fields::print("beacon: " + fields::mk(mm->getparam(resp::beacon)) +
+                          "\ncoordinator: " +
+                              fields::mk(mm->getparam(resp::beacon)) +
+                          "\n");
             delete mm; }
     } else if (!strcmp(argv[1], "QUIT")) {
         if (argc != 4)

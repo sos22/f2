@@ -496,10 +496,6 @@ template maybe<rx_message> rx_message::getparam(
 
 const sequencenr sequencenr::invalid(0);
 const parameter<error> err_parameter(0, "error");
-
-template const fields::field &paramfield<unsigned int>(
-    const wireproto::rx_message &msg,
-    const wireproto::parameter<unsigned int> &);
 };
 
 template class list<const wireproto::rx_message *>;

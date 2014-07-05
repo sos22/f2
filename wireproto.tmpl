@@ -56,13 +56,6 @@ tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
     return *this;
 }
 
-template <typename t> const fields::field &paramfield(
-    const rx_message &msg, const parameter<t> &param)
-{
-    return fields::mk(param) + ": " +
-        fields::mk(msg.getparam(param));
-}
-
 }
 
 namespace fields {
@@ -88,9 +81,6 @@ mk(const wireproto::parameter<t> &param)
         {                                                               \
             return wrapper_type::getparam(p, *this);                    \
         }                                                               \
-        template const fields::field &paramfield(                       \
-            const rx_message &,                                         \
-            const parameter<wrapper_type> &);                           \
     }                                                                   \
     namespace fields {                                                  \
         template const field &mk(                                       \

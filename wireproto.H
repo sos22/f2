@@ -272,9 +272,6 @@ namespace wireproto {
         }
     };
 
-    template <typename t> const fields::field &paramfield(
-        const rx_message &msg, const parameter<t> &param);
-
     /* Special parameter whose presence indicates that the message
        represents an error.  rx_message will return an error and
        discard the message if this is present.  If present, this must
