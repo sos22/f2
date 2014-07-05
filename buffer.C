@@ -317,8 +317,8 @@ buffer::status() const {
 void
 buffer::test(class test &t)
 {
-    for (int i = 0; i < 1000; i++) {
-        t.msg("iteration %d/%d", i, 1000);
+    for (int i = 0; i < 10; i++) {
+        t.msg("iteration %d/%d", i, 10);
         auto b = new buffer();
 
         char *content;
