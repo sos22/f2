@@ -40,6 +40,7 @@ mk(const list<t> &what) {
     bool first = true;
     for (auto it(what.start()); !it.finished(); it.next()) {
         if (!first) acc = &(*acc + " ");
+        first = false;
         acc = &(*acc + mk(*it)); }
     return *acc + "}"; }
 
