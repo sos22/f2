@@ -28,6 +28,7 @@ support::detail(const char *, ...)
 {
 }
 
+#if TESTING
 static mutex_t eventslock;
 static list<eventwaiter *> events;
 
@@ -76,6 +77,7 @@ eventwaiter::~eventwaiter() {
        supposed to be short, and they don't have a clientio token
        either, so it's not completely unreasonable. */
     while (refcount) sub.wait(); }
+#endif /* if TESTING */
 
 struct test {
     const char *name;

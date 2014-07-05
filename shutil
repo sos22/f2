@@ -19,13 +19,19 @@ function ld() {
     shift
     x=${@/%.o/-c.o}
     x=${x/%.a/-c.a}
+    y=${@/%.o/-t.o}
+    y=${y/%.a/-t.a}
     cat <<EOF
 $target: $* $mkfile
 	gcc -o \$@.tmp $* -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-c: $x $mkfile
 	gcc -fprofile-arcs  -o \$@.tmp $x -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
+${target}-t: $y $mkfile
+	gcc -o \$@.tmp $y -lstdc++ -lrt -lpthread && mv -f \$@.tmp \$@
 clean::
-	rm -f $target $target.tmp ${target}-c.tmp ${target}-c
+	rm -f $target $target.tmp
+	rm -f ${target}-c.tmp ${target}-c
+	rm -f ${target}-t.tmp ${target}-t
 EOF
 }
 
@@ -42,13 +48,17 @@ function cc() {
 	    cat <<EOF
 include $dep
 $obj: $src config
-	g++ -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
+	g++ -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
+${obj/.o/-t.o}: $src config
+	g++ -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
-	g++ -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+	g++ -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
 $dep: $src config
 	g++ ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o}" -MF ${dep}.tmp $src \$< && mv ${dep}.tmp ${dep}
 clean::
-	rm -f $dep $obj ${obj/.o/-c.o} ${obj}.tmp ${obj}-c.tmp
+	rm -f $dep $obj ${obj}.tmp
+	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
+	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
 EOF
 	    ;;
 	*)
@@ -67,8 +77,10 @@ $target: $*
 	ar cqs \$@.tmp $* && mv \$@.tmp \$@
 ${target/%.a/-c.a}: ${@/%.o/-c.o}
 	ar cqs \$@.tmp ${@/%.o/-c.o} && mv \$@.tmp \$@
+${target/%.a/-t.a}: ${@/%.o/-t.o}
+	ar cqs \$@.tmp ${@/%.o/-t.o} && mv \$@.tmp \$@
 clean::
-	rm -f $target ${target/%.a/-c.a}
+	rm -f $target ${target/%.a/-c.a} ${target/%.a/-t.a}
 EOF
 }
 
@@ -77,6 +89,7 @@ function target()
     cat <<EOF
 realall:: $1
 covall:: ${1}-c
+testall:: ${1}-t
 EOF
 }
 

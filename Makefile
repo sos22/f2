@@ -9,6 +9,10 @@ include mastercli.mk
 include test.mk
 include tests.mk
 
+# The all target only builds things which most people would want.  The
+# coverage check and test suite are under a different target.
+everything: realall covall testall
+
 config: config.gen
 	./$< $@ > $@.tmp && mv -f $@.tmp $@
 clean::

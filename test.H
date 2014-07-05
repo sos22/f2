@@ -25,6 +25,7 @@ public:
 /* Caution: destructing an eventwaiter waits for any outstanding
  * invocations of the event to finish, despite not having a clientio
  * token.  The action function must therefore be simple. */
+#if TESTING
 void event(const char *name);
 class eventwaiter {
 public: const char *name;
@@ -34,6 +35,12 @@ public: publisher idle;
 public: eventwaiter(const char *, std::function<void ()>);
 public: ~eventwaiter();
 };
+#else
+static inline void event(const char *) {}
+class eventwaiter {
+public: eventwaiter(const char *, std::function<void ()>) {}
+};
+#endif
 
 void testcaseS(
     const char *component,

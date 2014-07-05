@@ -7,14 +7,11 @@
 *.a
 *.mk
 *-cov-report
+*-t
+*-c
+*.log
 config
 master
-master-c
-master.log
 mastercli
-mastercli-c
 storage
-storage-c
-storage.log
 test
-test-c
