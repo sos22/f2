@@ -35,7 +35,6 @@ class field {
 protected:
     field();
     static void *operator new(size_t sz);
-    virtual ~field() {}
 public:
     virtual void fmt(fieldbuf &) const = 0;
 };
