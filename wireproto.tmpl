@@ -62,7 +62,7 @@ namespace fields {
 template <typename t> const field &
 mk(const wireproto::parameter<t> &param)
 {
-    return "<param:" + mk(param.description) + "@" + mk(param.id) + ">";
+    return "<param:" + mk(param.id) + ">";
 }
 
 }

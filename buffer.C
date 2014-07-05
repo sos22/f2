@@ -475,7 +475,7 @@ tests::buffer(void)
             char b[3];
             buf1.fetch(b, 3);
             auto s(buf1.status());
-            wireproto::parameter<buffer::status_t> param(7, "param");
+            wireproto::parameter<buffer::status_t> param(7);
             wireproto::msgtag tag(99);
             {   ::buffer buf2;
                 wireproto::tx_message(tag).serialise(buf2);

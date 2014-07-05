@@ -25,66 +25,64 @@ namespace proto {
     using namespace wireproto;
 
     namespace beaconstatus {
-        static const parameter<registrationsecret> secret(1, "secret");
-        static const parameter<class ratelimiter_status> limiter(2, "limiter");
-        static const parameter<unsigned> errors(3, "errors");
-        static const parameter<unsigned> rx(3, "rx");
+        static const parameter<registrationsecret> secret(1);
+        static const parameter<class ratelimiter_status> limiter(2);
+        static const parameter<unsigned> errors(3);
+        static const parameter<unsigned> rx(3);
     };
     namespace bufferstatus {
-        static const parameter<unsigned long> prod(1, "prod");
-        static const parameter<unsigned long> cons(2, "cons");
-        static const parameter<unsigned int> nrfrags(3, "nrfrags");
+        static const parameter<unsigned long> prod(1);
+        static const parameter<unsigned long> cons(2);
+        static const parameter<unsigned int> nrfrags(3);
     };
     namespace coordinatorstatus {
-        static const parameter<list< ::rpcconnstatus> >
-            conns(1, "conns");
+        static const parameter<list< ::rpcconnstatus> > conns(1);
     };
     namespace fd_tstatus {
-        static const parameter<int> fd(1, "fd");
-        static const parameter<timeval> lastrx(2, "lastrx");
-        static const parameter<int> revents(3, "revents");
+        static const parameter<int> fd(1);
+        static const parameter<timeval> lastrx(2);
+        static const parameter<int> revents(3);
     };
     namespace memlog_entry {
-        static const parameter<const char *> msg(1, "msg");
-        static const parameter<memlog_idx> idx(2, "idx");
+        static const parameter<const char *> msg(1);
+        static const parameter<memlog_idx> idx(2);
     };
     namespace peername {
-        static const parameter<const char *> local(1, "local");
-        static const parameter<uint16_t> port(2, "port");
-        static const parameter<uint32_t> ipv4(3, "ipv4");
-        static const parameter<uint64_t> ipv6a(3, "ipv6a");
-        static const parameter<uint64_t> ipv6b(3, "ipv6b");
+        static const parameter<const char *> local(1);
+        static const parameter<uint16_t> port(2);
+        static const parameter<uint32_t> ipv4(3);
+        static const parameter<uint64_t> ipv6a(3);
+        static const parameter<uint64_t> ipv6b(3);
     };
     namespace ratelimiter_status {
-        static const parameter<frequency> max_rate(1, "max_rate");
-        static const parameter<unsigned> bucket_size(2, "bucket_size");
-        static const parameter<unsigned> bucket_content(3, "bucket_content");
-        static const parameter<unsigned> dropped(4, "dropped");
+        static const parameter<frequency> max_rate(1);
+        static const parameter<unsigned> bucket_size(2);
+        static const parameter<unsigned> bucket_content(3);
+        static const parameter<unsigned> dropped(4);
     };
     namespace rpcconnstatus {
-        static const parameter<class ::bufferstatus> outgoing(1, "outgoing");
-        static const parameter<class ::fd_tstatus> fd(2, "fd");
-        static const parameter<wireproto::sequencerstatus>
-            sequencer(3, "sequencer");
+        static const parameter<class ::bufferstatus> outgoing(1);
+        static const parameter<class ::fd_tstatus> fd(2);
+        static const parameter<wireproto::sequencerstatus> sequencer(3);
         static const parameter<list<wireproto::rx_messagestatus> >
-            pendingrx(4, "pendingrx");
-        static const parameter<class ::peername> peername(5, "peername");
-        static const parameter<struct ::timeval> lastcontact(6, "lastcontact");
+            pendingrx(4);
+        static const parameter<class ::peername> peername(5);
+        static const parameter<struct ::timeval> lastcontact(6);
     };
     namespace timeval {
-        static const parameter<long> tv_sec(1, "tv_sec");
-        static const parameter<long> tv_usec(1, "tv_usec");
+        static const parameter<long> tv_sec(1);
+        static const parameter<long> tv_usec(1);
     };
 
     /* Control interface */
     namespace PING {
         static const msgtag tag(1);
         namespace req {
-            static const parameter<const char *> msg(100, "msg");
+            static const parameter<const char *> msg(100);
         };
         namespace resp {
-            static const parameter<int> cntr(150, "cntr");
-            static const parameter<const char *> msg(151, "msg");
+            static const parameter<int> cntr(150);
+            static const parameter<const char *> msg(151);
         };
     };
 
@@ -92,21 +90,21 @@ namespace proto {
         static const msgtag tag(2);
         namespace req {
             /* optional */
-            static const parameter<memlog_idx> startidx(200, "startidx");
+            static const parameter<memlog_idx> startidx(200);
             /* optional */
-            static const parameter<unsigned> nr(201, "nr");
+            static const parameter<unsigned> nr(201);
         };
         namespace resp {
-            static const parameter<memlog_idx> resume(250, "resume");
-            static const parameter<list< ::memlog_entry> > msgs(251, "msgs");
+            static const parameter<memlog_idx> resume(250);
+            static const parameter<list< ::memlog_entry> > msgs(251);
         };
     };
 
     namespace QUIT {
         static const msgtag tag(3);
         namespace req {
-            static const parameter<const char *> message(300, "message");
-            static const parameter<shutdowncode> reason(301, "reason");
+            static const parameter<const char *> message(300);
+            static const parameter<shutdowncode> reason(301);
         };
         /* No response */
     };
@@ -115,9 +113,8 @@ namespace proto {
         static const msgtag tag(4);
         /* no request parameters */
         namespace resp {
-            static const parameter< ::beaconstatus> beacon(450, "beacon");
-            static const parameter< ::coordinatorstatus>
-                coordinator(451, "coordinator");
+            static const parameter< ::beaconstatus> beacon(450);
+            static const parameter< ::coordinatorstatus> coordinator(451);
         };
     };
 
@@ -125,27 +122,25 @@ namespace proto {
     namespace HAIL {
         static const msgtag tag(6);
         namespace req {
-            static const parameter<unsigned> version(600, "version");
-            static const parameter<class nonce> nonce(601, "nonce");
+            static const parameter<unsigned> version(600);
+            static const parameter<class nonce> nonce(601);
         }
         namespace resp {
-            static const parameter<unsigned> version(650, "version");
-            static const parameter<class peername> mastername(651,
-                                                              "mastername");
-            static const parameter<class peername> slavename(652,
-                                                             "slavename");
-            static const parameter<class masternonce> nonce(653, "nonce");
-            static const parameter<class digest> digest(654, "digest");
+            static const parameter<unsigned> version(650);
+            static const parameter<class peername> mastername(651);
+            static const parameter<class peername> slavename(652);
+            static const parameter<class masternonce> nonce(653);
+            static const parameter<class digest> digest(654);
         }
     }
 
     namespace HELLO {
         static const msgtag tag(8);
         namespace req {
-            static const parameter<unsigned> version(800, "version");
-            static const parameter<class masternonce> nonce(801, "nonce");
-            static const parameter<class peername> slavename(802, "slavename");
-            static const parameter<class digest> digest(803, "digest");
+            static const parameter<unsigned> version(800);
+            static const parameter<class masternonce> nonce(801);
+            static const parameter<class peername> slavename(802);
+            static const parameter<class digest> digest(803);
         }
     }
 }

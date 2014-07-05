@@ -98,18 +98,15 @@ namespace wireproto {
         friend class rx_message;
         friend const fields::field &fields::mk<>(const parameter &);
         uint16_t id;
-        const char *description;
-    public:
-        typedef _instanceT instanceT;
-        explicit parameter(int _id, const char *_description)
-            : id(_id), description(_description)
-            {}
+    public: typedef _instanceT instanceT;
+    public: explicit parameter(int _id)
+            : id(_id) {}
 
         /* because I can't figure out how to make parameter<int> be a
            friend of parameter<long> */
-        uint16_t ___get_id___() const { return id; }
+    public: uint16_t ___get_id___() const { return id; }
 
-        template<typename o> explicit parameter(parameter<o> _o)
+    public: template<typename o> explicit parameter(parameter<o> _o)
             : id(_o.___get_id___())
             {}
     };

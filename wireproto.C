@@ -495,7 +495,7 @@ template maybe<rx_message> rx_message::getparam(
     parameter<rx_message>) const;
 
 const sequencenr sequencenr::invalid(0);
-const parameter<error> err_parameter(0, "error");
+const parameter<error> err_parameter(0);
 };
 
 template class list<const wireproto::rx_message *>;
@@ -621,7 +621,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "missing", [t] () {
             ::buffer buf;
-            parameter<int> p1(5, "p1");
+            parameter<int> p1(5);
             {   auto r(tx_message(t)
                        .serialise(buf));
                 assert (r == Nothing); }
@@ -633,8 +633,8 @@ tests::wireproto() {
 
     testcaseV("wireproto", "intparam", [t] () {
             ::buffer buf;
-            parameter<int> p1(5, "p1");
-            parameter<unsigned> p2(6, "p1");
+            parameter<int> p1(5);
+            parameter<unsigned> p2(6);
             {   auto r(tx_message(t)
                        .addparam(p1, 73)
                        .addparam(p2, 3u)
@@ -650,9 +650,9 @@ tests::wireproto() {
 
     testcaseV("wireproto", "boolparam", [t] () {
             ::buffer buf;
-            parameter<bool> p1(5, "p1");
-            parameter<bool> p2(6, "p2");
-            parameter<bool> p3(7, "p3");
+            parameter<bool> p1(5);
+            parameter<bool> p2(6);
+            parameter<bool> p3(7);
             {   auto r(tx_message(t)
                        .addparam(p1, true)
                        .addparam(p2, false)
@@ -669,9 +669,9 @@ tests::wireproto() {
 
     testcaseV("wireproto", "charparam", [t] () {
             ::buffer buf;
-            parameter<char> p1(5, "p1");
-            parameter<unsigned char> p2(6, "p2");
-            parameter<char> p3(7, "p3");
+            parameter<char> p1(5);
+            parameter<unsigned char> p2(6);
+            parameter<char> p3(7);
             {   auto r(tx_message(t)
                        .addparam(p1, 'a')
                        .addparam(p2, (unsigned char)8)
@@ -688,8 +688,8 @@ tests::wireproto() {
 
     testcaseV("wireproto", "shortparam", [t] () {
             ::buffer buf;
-            parameter<short> p1(5, "p1");
-            parameter<unsigned short> p2(6, "p2");
+            parameter<short> p1(5);
+            parameter<unsigned short> p2(6);
             {   auto r(tx_message(t)
                        .addparam(p1, (short)-93)
                        .addparam(p2, (unsigned short)2)
@@ -704,8 +704,8 @@ tests::wireproto() {
 
     testcaseV("wireproto", "longparam", [t] () {
             ::buffer buf;
-            parameter<long> p1(5, "p1");
-            parameter<unsigned long> p2(6, "p2");
+            parameter<long> p1(5);
+            parameter<unsigned long> p2(6);
             {   auto r(tx_message(t)
                        .addparam(p1, -0x10000000000l)
                        .addparam(p2, 0xffe51340000ul)
@@ -720,7 +720,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "doubleparam", [t] () {
             ::buffer buf;
-            parameter<double> p1(1, "p1");
+            parameter<double> p1(1);
             {   auto r(tx_message(t)
                        .addparam(p1, 7.)
                        .serialise(buf));
@@ -733,8 +733,8 @@ tests::wireproto() {
 
     testcaseV("wireproto", "strparam", [t] () {
             ::buffer buf;
-            parameter<int> p1(5, "p1");
-            parameter<const char *> p2(6, "p2");
+            parameter<int> p1(5);
+            parameter<const char *> p2(6);
             {   auto r(tx_message(t)
                        .addparam(p1, 73)
                        .addparam(p2, "Hello world")
@@ -752,7 +752,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "strlist", [t] () {
             ::buffer buf;
-            parameter<list<const char * > > p3(7, "p3");
+            parameter<list<const char * > > p3(7);
             {   list<const char *> l1;
                 l1.pushtail("X");
                 l1.pushtail("Y");
@@ -782,10 +782,10 @@ tests::wireproto() {
 
     testcaseV("wireproto", "emptycompound", [t] () {
             ::buffer buf;
-            parameter<int> p1(5, "p1");
-            parameter<const char *> p2(6, "p2");
-            parameter<tx_compoundparameter> p4t(8, "p4t");
-            parameter<rx_message> p4r(8, "p4r");
+            parameter<int> p1(5);
+            parameter<const char *> p2(6);
+            parameter<tx_compoundparameter> p4t(8);
+            parameter<rx_message> p4r(8);
             {   auto r(tx_message(t)
                        .addparam(
                            p4t,
@@ -804,10 +804,10 @@ tests::wireproto() {
 
     testcaseV("wireproto", "usedcompound", [t] () {
             ::buffer buf;
-            parameter<tx_compoundparameter> p4t(8, "p4t");
-            parameter<rx_message> p4r(8, "p4r");
-            parameter<int> p1(5, "p1");
-            parameter<const char *> p2(6, "p2");
+            parameter<tx_compoundparameter> p4t(8);
+            parameter<rx_message> p4r(8);
+            parameter<int> p1(5);
+            parameter<const char *> p2(6);
             {   auto r(tx_message(t)
                        .addparam(
                            p4t,
@@ -830,7 +830,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "reqmessage", [t] () {
             ::buffer buf;
-            parameter<int> p1(12, "p1");
+            parameter<int> p1(12);
             sequencer s;
             auto snr(s.get());
             req_message(t, snr).addparam(p1, 99).serialise(buf);
@@ -840,7 +840,7 @@ tests::wireproto() {
             assert(rxm.success().sequence() == snr);
             assert(rxm.success().getparam(p1).isjust());
             assert(rxm.success().getparam(p1).just() == 99);
-            parameter<int> p2(13, "p2");
+            parameter<int> p2(13);
             resp_message(rxm.success()).addparam(p2, 11).serialise(buf);
             auto rxm2(rx_message::fetch(buf));
             assert(buf.empty());
@@ -863,7 +863,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "external", [t] () {
             ::buffer buf;
-            parameter<const char *> s(1, "s");
+            parameter<const char *> s(1);
             char ss[5001];
             for (int i = 0; i < 5000; i++) {
                 ss[i] = "qwertyuiopasdfghjklzxcvbnm"[(i*7)%26]; }
@@ -878,9 +878,9 @@ tests::wireproto() {
 
     testcaseV("wireproto", "externalinner", [t] () {
             ::buffer buf;
-            parameter<const char *> s(1, "s");
-            parameter<tx_compoundparameter> txp(1, "p");
-            parameter<rx_message> rxp(1, "p");
+            parameter<const char *> s(1);
+            parameter<tx_compoundparameter> txp(1);
+            parameter<rx_message> rxp(1);
             char ss[5001];
             for (int i = 0; i < 5000; i++) {
                 ss[i] = "qwertyuiopasdfghjklzxcvbnm"[(i*7)%26]; }
@@ -903,11 +903,11 @@ tests::wireproto() {
 
     testcaseV("wireproto", "innerinner", [t] () {
             ::buffer buf;
-            parameter<tx_compoundparameter> txouter(1, "p");
-            parameter<rx_message> rxouter(1, "p");
-            parameter<tx_compoundparameter> txmid(1, "p");
-            parameter<rx_message> rxmid(1, "p");
-            parameter<int> inner(1, "s");
+            parameter<tx_compoundparameter> txouter(1);
+            parameter<rx_message> rxouter(1);
+            parameter<tx_compoundparameter> txmid(1);
+            parameter<rx_message> rxmid(1);
+            parameter<int> inner(1);
             tx_message(t)
                 .addparam(
                     txouter,
@@ -926,7 +926,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "underflow", [t] () {
             ::buffer buf;
-            parameter<int> p(1, "p");
+            parameter<int> p(1);
             tx_message(t).addparam(p, 5).serialise(buf);
             ::buffer b2;
             b2.queue(buf.linearise(0, buf.avail() - 1), buf.avail() - 1);
@@ -945,7 +945,7 @@ tests::wireproto() {
 
     testcaseV("wireproto", "steal", [t] () {
             ::buffer buf;
-            parameter<const char *> p(1, "p");
+            parameter<const char *> p(1);
             tx_message(t).addparam(p, "HELLO").serialise(buf);
             rx_message *r;
             {  auto rxm(rx_message::fetch(buf));
@@ -957,14 +957,14 @@ tests::wireproto() {
     testcaseV("wireproto", "rxstatus", [t] () {
             rx_message::status_t stat;
             {   ::buffer buf;
-                {   parameter<int> p(1, "p");
+                {   parameter<int> p(1);
                     tx_message(t).addparam(p, 5).serialise(buf); }
                 auto rxm(rx_message::fetch(buf));
                 stat = rxm.success().status(); }
             {   fields::fieldbuf buf;
                 fields::mk(stat).fmt(buf);
                 assert(!strcmp(buf.c_str(), "<tag:99>")); }
-            parameter<rx_message::status_t> p(2, "p");
+            parameter<rx_message::status_t> p(2);
             ::buffer buf;
             tx_message(t).addparam(p, stat).serialise(buf);
             auto rxm(rx_message::fetch(buf));
@@ -973,8 +973,8 @@ tests::wireproto() {
     testcaseV("wireproto", "rxfield", [t] () {
             rx_message::status_t stat;
             ::buffer buf;
-            parameter<int> p(1, "p");
-            parameter<int> p2(73, "p");
+            parameter<int> p(1);
+            parameter<int> p2(73);
             tx_message(t).addparam(p, 5).addparam(p2, 99).serialise(buf);
             auto rxm(rx_message::fetch(buf));
             fields::fieldbuf fb;
@@ -986,7 +986,7 @@ tests::wireproto() {
             ::buffer buf;
             tx_message txm(t);
             for (int i = 1; i < 30; i++) {
-                parameter<char> p(i, "p");
+                parameter<char> p(i);
                 txm.addparam(p, (char)i); }
             txm.serialise(buf);
             auto rxm(rx_message::fetch(buf));
@@ -1001,7 +1001,7 @@ tests::wireproto() {
             sequencer snr;
             snr.get();
             snr.get();
-            parameter<sequencer::status_t> p(1, "p");
+            parameter<sequencer::status_t> p(1);
             ::buffer buf;
             tx_message(t).addparam(p, snr.status()).serialise(buf);
             auto rxm(rx_message::fetch(buf));
@@ -1011,11 +1011,11 @@ tests::wireproto() {
 
     testcaseV("wireproto", "paramfield", [t] () {
             fields::fieldbuf fb;
-            fields::mk(parameter<int>(7, "description")).fmt(fb);
-            assert(!strcmp(fb.c_str(), "<param:description@7>"));});
+            fields::mk(parameter<int>(7)).fmt(fb);
+            assert(!strcmp(fb.c_str(), "<param:7>"));});
 
     testcaseV("wireproto", "badlist", [t] () {
-            parameter<list<int> > p(1, "p");
+            parameter<list<int> > p(1);
             tx_message txm(t);
             txm.addparam(parameter<int>(p), 5);
             txm.addparam(parameter<int>(p), 6);
