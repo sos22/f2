@@ -783,9 +783,50 @@ tests::fields()
             mk(tv).asdate().fmt(buf);
             assert(!strcmp(buf.c_str(), "2014-07-05 07:49:53.123456"));});
 
+    testcaseV("fields", "maybe", [] () {
+            fieldbuf buf;
+            maybe<int> x(Nothing);
+            mk(x).fmt(buf);
+            assert(!strcmp(buf.c_str(), "Nothing"));
+            buf.reset();
+            x = 91;
+            mk(x).fmt(buf);
+            assert(!strcmp(buf.c_str(), "<91>")); });
+
+    testcaseV("fields", "orerror", [] () {
+            fieldbuf buf;
+            orerror<int> x(error::disconnected);
+            mk(x).fmt(buf);
+            assert(!strcmp(buf.c_str(), "<failed:disconnected>"));
+            buf.reset();
+            x = 18;
+            mk(x).fmt(buf);
+            assert(!strcmp(buf.c_str(), "<18>"));});
+
+    testcaseV("fields", "list", [] () {
+            fieldbuf buf;
+            list<int> l;
+            mk(l).fmt(buf);
+            assert(!strcmp(buf.c_str(), "{}"));
+            l.pushtail(1);
+            buf.reset();
+            mk(l).fmt(buf);
+            assert(!strcmp(buf.c_str(), "{1}"));
+            l.pushtail(12);
+            buf.reset();
+            mk(l).fmt(buf);
+            assert(!strcmp(buf.c_str(), "{1 12}"));
+            l.flush(); });
+
     /* Not really a useful test case, but it makes the coverage 100%,
      * and the print() function's simple enough that just confirming
      * it doesn't crash is good enough. */
     testcaseV("fields", "print", [] () {
-            print(mk("hello")); });
+            print(mk("hello\n")); });
 }
+
+namespace fields {
+template const field &mk(const orerror<int> &);
+template const field &mk(const list<int> &);
+}
+template class list<int>;
