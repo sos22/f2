@@ -8,7 +8,7 @@
 #include "error.H"
 
 template <typename t> class orerror {
-    const bool errored;
+    bool errored;
     union {
         error err;
         char buf[sizeof(t)];
@@ -36,10 +36,12 @@ public:
                 err = o.failure();
             } else {
                 failure().~error();
+                errored = false;
                 new (this->buf) t(o.success()); }
         } else {
             if (o.isfailure()) {
                 success().~t();
+                errored = true;
                 new (&this->err) error(o.failure());
             } else {
                 success() = o.success(); } } }
@@ -58,6 +60,7 @@ public:
         return *(t *)buf;
     }
     const error &failure() const {
+        assert(errored);
         return err;
     }
     bool issuccess() const {
