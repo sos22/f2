@@ -129,9 +129,8 @@ public: ~subscriber();
 void initpubsub();
 void deinitpubsub(clientio);
 
-class test;
 namespace tests {
-void pubsub(clientio, test &);
+void pubsub();
 }
 
 #endif /* !PUBSUB_H__ */

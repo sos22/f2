@@ -133,7 +133,10 @@ public:
 public: typedef bufferstatus status_t;
 public: status_t status() const;
 
-    static void test(class test &);
 };
+
+namespace tests {
+void buffer();
+}
 
 #endif /* !BUFFER_H__ */

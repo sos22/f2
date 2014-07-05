@@ -117,6 +117,8 @@ class rx_message;
 }
 messageresult getlogs(const wireproto::rx_message &);
 
-void logtest(class test &);
+namespace tests {
+void logging();
+}
 
 #endif /* !LOGGING_H__ */

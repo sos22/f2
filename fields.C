@@ -538,117 +538,142 @@ void flush()
 template const field &mk(const maybe<int> &);
 template const field &mk(const maybe<const char *> &);
 
-void test(::test &)
-{
-    flush();
-
-    fieldbuf buf;
-    mk("Hello world").fmt(buf);
-    assert(!strcmp(buf.c_str(), "Hello world"));
-    flush();
-    assert(!strcmp(buf.c_str(), "<flushed>"));
-
-    buf.reset();
-    trunc(mk("Hello world"), 3).fmt(buf);
-    assert(!strcmp(buf.c_str(), "Hel"));
-    flush();
-
-    buf.reset();
-    padleft(trunc(mk("Hello world"), 3), 5).fmt(buf);
-    assert(!strcmp(buf.c_str(), "  Hel"));
-    flush();
-
-    buf.reset();
-    padright(trunc(mk("Hello world"), 3), 5).fmt(buf);
-    assert(!strcmp(buf.c_str(), "Hel  "));
-    flush();
-
-    buf.reset();
-    padcenter(trunc(mk("Hello world"), 3), 5).fmt(buf);
-    assert(!strcmp(buf.c_str(), " Hel "));
-    flush();
-
-    buf.reset();
-    padcenter(trunc(mk("Hello world"), 3), 10, mk("-->"), mk("<--"))
-        .fmt(buf);
-    assert(!strcmp(buf.c_str(), "-->Hel<--<"));
-    flush();
-
-    buf.reset();
-    padcenter(trunc(mk("Hello world"), 3), 11, mk("-->"), mk("<--"))
-        .fmt(buf);
-    assert(!strcmp(buf.c_str(), ">-->Hel<--<"));
-    flush();
-
-    buf.reset();
-    (mk("hello") + space + mk("world")).fmt(buf);
-    assert(!strcmp(buf.c_str(), "hello world"));
-    flush();
-
-    buf.reset();
-    mk(5).fmt(buf);
-    assert(!strcmp(buf.c_str(), "5"));
-    flush();
-
-    buf.reset();
-    mk(-5).fmt(buf);
-    assert(!strcmp(buf.c_str(), "-5"));
-    flush();
-
-    buf.reset();
-    mk(-5).base(2).fmt(buf);
-    assert(!strcmp(buf.c_str(), "-101{2}"));
-    flush();
-
-    buf.reset();
-    mk(-5).base(3).fmt(buf);
-    assert(!strcmp(buf.c_str(), "-12{3}"));
-    flush();
-
-    buf.reset();
-    mk(5).base(3).fmt(buf);
-    assert(!strcmp(buf.c_str(), "12{3}"));
-    flush();
-
-    buf.reset();
-    mk(10).base(16).fmt(buf);
-    assert(!strcmp(buf.c_str(), "a{16}"));
-    flush();
-
-    buf.reset();
-    mk(10).base(16).uppercase().fmt(buf);
-    assert(!strcmp(buf.c_str(), "A{16}"));
-    flush();
-
-    buf.reset();
-    mk(1000).fmt(buf);
-    assert(!strcmp(buf.c_str(), "1,000"));
-    flush();
-
-    buf.reset();
-    mk(1234567).fmt(buf);
-    assert(!strcmp(buf.c_str(), "1,234,567"));
-    flush();
-
-    buf.reset();
-    mk(72).base(2).fmt(buf);
-    assert(!strcmp(buf.c_str(), "1,001,000{2}"));
-    flush();
-
-    buf.reset();
-    mk(0x123456).base(16).fmt(buf);
-    assert(!strcmp(buf.c_str(), "123,456{16}"));
-    flush();
-
-    buf.reset();
-    mk(123456).nosep().fmt(buf);
-    assert(!strcmp(buf.c_str(), "123456"));
-    flush();
-    
-    buf.reset();
-    mk(123456).sep(fields::mk("ABC"), 1).fmt(buf);
-    assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));
-    flush();
 }
 
-};
+void
+tests::fields()
+{
+    using namespace fields;
+    testcaseV("fields", "helloworld",
+        [] () {
+            fieldbuf buf;
+            mk("Hello world").fmt(buf);
+            assert(!strcmp(buf.c_str(), "Hello world"));
+            flush();
+            assert(!strcmp(buf.c_str(), "<flushed>")); });
+
+    testcaseV("fields", "trunc",
+        [] () {
+            fieldbuf buf;
+            trunc(mk("Hello world"), 3).fmt(buf);
+            assert(!strcmp(buf.c_str(), "Hel"));
+            flush(); });
+
+    testcaseV("fields", "padleft",
+             [] () {
+                 fieldbuf buf;
+                 padleft(trunc(mk("Hello world"), 3), 5).fmt(buf);
+                 assert(!strcmp(buf.c_str(), "  Hel")); });
+
+    testcaseV("fields", "padright",
+             [] () {
+                 fieldbuf buf;
+                 padright(trunc(mk("Hello world"), 3), 5).fmt(buf);
+                 assert(!strcmp(buf.c_str(), "Hel  "));
+                 flush(); });
+
+    testcaseV("fields", "padcenter",
+             [] () {
+                 fieldbuf buf;
+                 padcenter(trunc(mk("Hello world"), 3), 5).fmt(buf);
+                 assert(!strcmp(buf.c_str(), " Hel "));
+                 flush(); });
+
+    testcaseV("fields", "arrowpad1", [] () {
+            fieldbuf buf;
+            padcenter(trunc(mk("Hello world"), 3), 10, mk("-->"), mk("<--"))
+                .fmt(buf);
+            assert(!strcmp(buf.c_str(), "-->Hel<--<"));
+            flush(); });
+
+    testcaseV("fields", "arrowpad2", [] () {
+            fieldbuf buf;
+            padcenter(trunc(mk("Hello world"), 3), 11, mk("-->"), mk("<--"))
+                .fmt(buf);
+            assert(!strcmp(buf.c_str(), ">-->Hel<--<"));
+            flush(); });
+
+    testcaseV("fields", "strconcat", [] () {
+            fieldbuf buf;
+            (mk("hello") + space + mk("world")).fmt(buf);
+            assert(!strcmp(buf.c_str(), "hello world"));
+            flush(); });
+
+    testcaseV("fields", "integers", [] () {
+            fieldbuf buf;
+            mk(5).fmt(buf);
+            assert(!strcmp(buf.c_str(), "5"));
+            flush(); });
+
+    testcaseV("fields", "negint", [] () {
+            fieldbuf buf;
+            mk(-5).fmt(buf);
+            assert(!strcmp(buf.c_str(), "-5"));
+            flush(); });
+
+    testcaseV("fields", "negbinint", [] () {
+            fieldbuf buf;
+            mk(-5).base(2).fmt(buf);
+            assert(!strcmp(buf.c_str(), "-101{2}"));
+            flush(); });
+
+    testcaseV("fields", "negtrinint", [] () {
+            fieldbuf buf;
+            mk(-5).base(3).fmt(buf);
+            assert(!strcmp(buf.c_str(), "-12{3}"));
+            flush(); });
+
+    testcaseV("fields", "trinint", [] () {
+            fieldbuf buf;
+            mk(5).base(3).fmt(buf);
+            assert(!strcmp(buf.c_str(), "12{3}"));
+            flush(); });
+
+    testcaseV("fields", "hexint", [] () {
+            fieldbuf buf;
+            mk(10).base(16).fmt(buf);
+            assert(!strcmp(buf.c_str(), "a{16}"));
+            flush(); });
+
+    testcaseV("fields", "HEXint", [] () {
+            fieldbuf buf;
+            mk(10).base(16).uppercase().fmt(buf);
+            assert(!strcmp(buf.c_str(), "A{16}"));
+            flush(); });
+
+    testcaseV("fields", "thousandsep", [] () {
+            fieldbuf buf;
+            mk(1000).fmt(buf);
+            assert(!strcmp(buf.c_str(), "1,000"));
+            flush(); });
+
+    testcaseV("fields", "thousandsep2", [] () {
+            fieldbuf buf;
+            mk(1234567).fmt(buf);
+            assert(!strcmp(buf.c_str(), "1,234,567"));
+            flush(); });
+
+    testcaseV("fields", "binthousandsep", [] () {
+            fieldbuf buf;
+            mk(72).base(2).fmt(buf);
+            assert(!strcmp(buf.c_str(), "1,001,000{2}"));
+            flush(); });
+
+    testcaseV("fields", "hexthousandsep", [] () {
+            fieldbuf buf;
+            mk(0x123456).base(16).fmt(buf);
+            assert(!strcmp(buf.c_str(), "123,456{16}"));
+            flush(); });
+
+    testcaseV("fields", "nosep", [] () {
+            fieldbuf buf;
+            mk(123456).nosep().fmt(buf);
+            assert(!strcmp(buf.c_str(), "123456"));
+            flush(); });
+
+    testcaseV("fields", "complexsep", [] () {
+            fieldbuf buf;
+            mk(123456).sep(fields::mk("ABC"), 1).fmt(buf);
+            assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));
+            flush(); });
+}

@@ -10,7 +10,6 @@
 #include "orerror.H"
 
 class buffer;
-class test;
 
 namespace wireproto {
 class msgtag;
@@ -277,8 +276,10 @@ namespace wireproto {
        discard the message if this is present.  If present, this must
        be the only parameter. */
     extern const parameter<error> err_parameter;
-
-    void test(class ::test &);
 };
+
+namespace tests {
+void wireproto();
+}
 
 #endif /* !WIREPROTO_H__ */

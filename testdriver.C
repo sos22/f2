@@ -10,21 +10,14 @@
 int
 main(int argc, char *argv[])
 {
-    test t;
+    tests::buffer();
+    tests::fields();
+    tests::logging();
+    tests::pubsub();
+    tests::wireproto();
 
-    if (argc != 2)
-        errx(1, "need a single argument, the test to run");
-    if (!strcmp(argv[1], "buffer"))
-        buffer::test(t);
-    else if (!strcmp(argv[1], "fields"))
-        fields::test(t);
-    else if (!strcmp(argv[1], "logging"))
-        logtest(t);
-    else if (!strcmp(argv[1], "pubsub"))
-        tests::pubsub(clientio::CLIENTIO, t);
-    else if (!strcmp(argv[1], "wireproto"))
-        wireproto::test(t);
-    else
-        errx(1, "unknown test %s", argv[1]);
-    return 0;
-}
+    switch (argc) {
+    case 1: tests::listcomponents(); break;
+    case 2: tests::listtests(argv[1]); break;
+    case 3: tests::runtest(argv[1], argv[2]); break;
+    default: errx(1, "need zero, one, or two arguments"); } }

@@ -315,105 +315,110 @@ buffer::status() const {
     return status_t(prod, cons); }
 
 void
-buffer::test(class test &t)
+tests::buffer(void)
 {
-    for (int i = 0; i < 10; i++) {
-        t.msg("iteration %d/%d", i, 10);
-        auto b = new buffer();
+    testcaseS(
+        "buffer",
+        "fuzz",
+        [] (support &t) {
+            for (int i = 0; i < 10; i++) {
+                t.msg("iteration %d/%d", i, 10);
+                auto b = new ::buffer();
 
-        char *content;
-        size_t size;
-        long prod;
-        long cons;
+                char *content;
+                size_t size;
+                long prod;
+                long cons;
 
-        int cntr;
+                int cntr;
 
-        content = NULL;
-        size = 0;
-        prod = 0;
-        cons = 0;
-        cntr = 0;
+                content = NULL;
+                size = 0;
+                prod = 0;
+                cons = 0;
+                cntr = 0;
 
-        for (int j = 0; j < 1000; j++) {
-            assert(b->empty() == (size == 0));
-            assert(b->avail() == size);
-            assert(b->offset() == (unsigned long)cons);
-            assert(size == (size_t)(prod - cons));
-            switch (random() % 6) {
-            case 0: {
-                size_t sz = random() % 65536;
-                t.detail(" queue %zd", sz);
-                content = (char *)realloc(content, size + sz);
-                for (unsigned k = 0; k < sz; k++)
-                    content[k + size] = cntr++;
-                b->queue(content + size, sz);
-                size += sz;
-                prod += sz;
-                break;
+                for (int j = 0; j < 1000; j++) {
+                    assert(b->empty() == (size == 0));
+                    assert(b->avail() == size);
+                    assert(b->offset() == (unsigned long)cons);
+                    assert(size == (size_t)(prod - cons));
+                    switch (random() % 6) {
+                    case 0: {
+                        size_t sz = random() % 65536;
+                        t.detail(" queue %zd", sz);
+                        content = (char *)realloc(content, size + sz);
+                        for (unsigned k = 0; k < sz; k++)
+                            content[k + size] = cntr++;
+                        b->queue(content + size, sz);
+                        size += sz;
+                        prod += sz;
+                        break;
+                    }
+                    case 1: {
+                        if (!size)
+                            continue;
+                        size_t sz = random() % size;
+                        t.detail(" fetch %zd", sz);
+                        void *buffer = malloc(sz);
+                        b->fetch(buffer, sz);
+                        cons += sz;
+                        for (unsigned k = 0; k < sz; k++)
+                            assert( ((char *)buffer)[k] == (char)content[k] );
+                        memmove(content, content + sz, size - sz);
+                        size -= sz;
+                        free(buffer);
+                        break;
+                    }
+                    case 2: {
+                        if (!cons)
+                            continue;
+                        size_t sz = random() % cons;
+                        t.detail(" pushback %zd", sz);
+                        content = (char *)realloc(content, size + sz);
+                        memmove(content + sz, content, size);
+                        for (unsigned k = 0; k < sz; k++)
+                            content[k] = cntr++;
+                        b->pushback(content, sz);
+                        cons -= sz;
+                        size += sz;
+                        break;
+                    }
+                    case 3: {
+                        if (!size)
+                            continue;
+                        size_t sz = random() % size;
+                        t.detail(" discard %zd", sz);
+                        b->discard(sz);
+                        memmove(content, content + sz, size - sz);
+                        cons += sz;
+                        size -= sz;
+                        break;
+                    }
+                    case 4: {
+                        if (size <= 1)
+                            continue;
+                        size_t start = cons + (random() % (size - 1));
+                        size_t end = start + (random() % (prod - start));
+                        t.detail(" linearise %zd %zd", start, end);
+                        const void *buf = b->linearise(start, end);
+                        assert(buf);
+                        for (unsigned k = 0; k < end - start; k++)
+                            assert( ((char *)buf)[k] == content[k+start-cons]);
+                        break;
+                    }
+                    case 5: {
+                        if (!size)
+                            continue;
+                        size_t off = cons + (random() % size);
+                        t.detail(" idx %zd", off);
+                        assert(b->idx(off) == content[off - cons]);
+                        break;
+                    }
+                    }
+                }
+                free(content);
+                delete b;
             }
-            case 1: {
-                if (!size)
-                    continue;
-                size_t sz = random() % size;
-                t.detail(" fetch %zd", sz);
-                void *buffer = malloc(sz);
-                b->fetch(buffer, sz);
-                cons += sz;
-                for (unsigned k = 0; k < sz; k++)
-                    assert( ((char *)buffer)[k] == (char)content[k] );
-                memmove(content, content + sz, size - sz);
-                size -= sz;
-                free(buffer);
-                break;
-            }
-            case 2: {
-                if (!cons)
-                    continue;
-                size_t sz = random() % cons;
-                t.detail(" pushback %zd", sz);
-                content = (char *)realloc(content, size + sz);
-                memmove(content + sz, content, size);
-                for (unsigned k = 0; k < sz; k++)
-                    content[k] = cntr++;
-                b->pushback(content, sz);
-                cons -= sz;
-                size += sz;
-                break;
-            }
-            case 3: {
-                if (!size)
-                    continue;
-                size_t sz = random() % size;
-                t.detail(" discard %zd", sz);
-                b->discard(sz);
-                memmove(content, content + sz, size - sz);
-                cons += sz;
-                size -= sz;
-                break;
-            }
-            case 4: {
-                if (size <= 1)
-                    continue;
-                size_t start = cons + (random() % (size - 1));
-                size_t end = start + (random() % (prod - start));
-                t.detail(" linearise %zd %zd", start, end);
-                const void *buf = b->linearise(start, end);
-                assert(buf);
-                for (unsigned k = 0; k < end - start; k++)
-                    assert( ((char *)buf)[k] == content[k + start - cons]);
-                break;
-            }
-            case 5: {
-                if (!size)
-                    continue;
-                size_t off = cons + (random() % size);
-                t.detail(" idx %zd", off);
-                assert(b->idx(off) == content[off - cons]);
-                break;
-            }
-            }
-        }
-        free(content);
-        delete b;
-    }
+        });
 }

@@ -300,150 +300,149 @@ deinitpubsub(clientio io) {
     pollthread.stop(io); }
 
 void
-tests::pubsub(clientio io, test &support) {
+tests::pubsub() {
     auto epsilon(timedelta::milliseconds(10));
-    support.msg("Publisher in isolation");
-    support.detail("construct/destruct");
-    { publisher p; }
-    support.detail("empty publish");
-    { publisher().publish(); }
-    support.msg("Subscriber in isolation");
-    support.detail("construct/destruct");
-    { subscriber s; }
-    support.detail("Empty wait times out");
-    assert(subscriber().wait(timestamp::now()) == NULL);
-    assert(subscriber().wait(timestamp::now() + epsilon) == NULL);
-    support.msg("Cross-class tests");
-    support.detail("Basic sub/unsub");
-    {   publisher p;
-        subscriber s;
-        subscription a(s, p);
-        assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    support.detail("Non-concurrent notifications");
-    {   publisher p;
-        subscriber s;
-        subscription a(s, p);
-        p.publish();
-        assert(s.wait(timestamp::now()) == &a);
-        assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    support.detail("Multiple non-concurrent notifications");
-    {   publisher p;
-        subscriber s;
-        subscription a(s, p);
-        p.publish();
-        p.publish();
-        assert(s.wait(timestamp::now()) == &a);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p.publish();
-        assert(s.wait(timestamp::now()) == &a);
-        assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    support.detail("Notification after unsubscribe");
-    {   publisher p;
-        subscriber s;
-        {   subscription a(s, p);
+    testcaseV("pubsub", "pubcons", [] () {
+            publisher p; });
+    testcaseV("pubsub", "pubpub", [] () {
+            publisher().publish(); });
+    testcaseV("pubsub", "subcons", [] () {
+            subscriber s; });
+    testcaseV("pubsub", "subemptytimeout", [epsilon] () {
+            assert(subscriber().wait(timestamp::now()) == NULL);
+            assert(subscriber().wait(timestamp::now() + epsilon) == NULL);});
+
+    testcaseV("pubsub", "basic1", [epsilon] () {
+            publisher p;
+            subscriber s;
+            subscription a(s, p);
+            assert(s.wait(timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "nonconcurrentnotification", [epsilon] () {
+            publisher p;
+            subscriber s;
+            subscription a(s, p);
             p.publish();
-            assert(s.wait(timestamp::now()) == &a); }
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p.publish();
-        assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    support.detail("One publisher, one subscriber, multiple subscriptions");
-    {   publisher p;
-        subscriber s;
-        {   subscription a(s, p);
-            {   subscription b(s, p);
+            assert(s.wait(timestamp::now()) == &a);
+            assert(s.wait(timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "multinonconcurrentnotification", [epsilon] () {
+            publisher p;
+            subscriber s;
+            subscription a(s, p);
+            p.publish();
+            p.publish();
+            assert(s.wait(timestamp::now()) == &a);
+            assert(s.wait(timestamp::now() + epsilon) == NULL);
+            p.publish();
+            assert(s.wait(timestamp::now()) == &a);
+            assert(s.wait(timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "notificationafterunsub", [epsilon] () {
+            publisher p;
+            subscriber s;
+            {   subscription a(s, p);
                 p.publish();
-                auto f(s.wait(timestamp::now()));
-                auto g(s.wait(timestamp::now()));
-                auto h(s.wait(timestamp::now() + epsilon));
-                assert(f != g);
-                assert(f == &a || f == &b);
-                assert(g == &a || g == &b);
-                assert(h == NULL); }
+            assert(s.wait(timestamp::now()) == &a); }
             assert(s.wait(timestamp::now() + epsilon) == NULL);
             p.publish();
-            assert(s.wait(timestamp::now()) == &a);
-            assert(s.wait(timestamp::now() + epsilon) == NULL); }
-        p.publish();
-        assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    support.detail("Same, but unsubscribe while notified.");
-    {   publisher p;
-        subscriber s;
-        {   subscription a(s, p);
-            {   subscription b(s, p);
-                p.publish(); }
-            assert(s.wait(timestamp::now()) == &a);
-            assert(s.wait(timestamp::now() + epsilon) == NULL);
+            assert(s.wait(timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "1pub1subNsubS", [epsilon] () {
+            publisher p;
+            subscriber s;
+            {   subscription a(s, p);
+                {   subscription b(s, p);
+                    p.publish();
+                    auto f(s.wait(timestamp::now()));
+                    auto g(s.wait(timestamp::now()));
+                    auto h(s.wait(timestamp::now() + epsilon));
+                    assert(f != g);
+                    assert(f == &a || f == &b);
+                    assert(g == &a || g == &b);
+                    assert(h == NULL); }
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                p.publish();
+                assert(s.wait(timestamp::now()) == &a);
+                assert(s.wait(timestamp::now() + epsilon) == NULL); }
             p.publish();
-            assert(s.wait(timestamp::now()) == &a);
-            assert(s.wait(timestamp::now() + epsilon) == NULL); } }
-    support.detail("One publisher, two subscribers");
-    {   publisher p;
-        subscriber s1;
-        subscription a(s1, p);
-        {   subscriber s2;
-            subscription b(s2, p);
+            assert(s.wait(timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "unsubnotified", [epsilon] () {
+            publisher p;
+            subscriber s;
+            {   subscription a(s, p);
+                {   subscription b(s, p);
+                    p.publish(); }
+                assert(s.wait(timestamp::now()) == &a);
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                p.publish();
+                assert(s.wait(timestamp::now()) == &a);
+                assert(s.wait(timestamp::now() + epsilon) == NULL); } });
+    testcaseV("pubsub", "1pub2sub", [epsilon] () {
+            publisher p;
+            subscriber s1;
+            subscription a(s1, p);
+            {   subscriber s2;
+                subscription b(s2, p);
+                p.publish();
+                assert(s1.wait(timestamp::now()) == &a);
+                assert(s1.wait(timestamp::now() + epsilon) == NULL);
+                assert(s2.wait(timestamp::now()) == &b);
+                assert(s2.wait(timestamp::now() + epsilon) == NULL); }
             p.publish();
             assert(s1.wait(timestamp::now()) == &a);
-            assert(s1.wait(timestamp::now() + epsilon) == NULL);
-            assert(s2.wait(timestamp::now()) == &b);
-            assert(s2.wait(timestamp::now() + epsilon) == NULL); }
-        p.publish();
-        assert(s1.wait(timestamp::now()) == &a);
-        assert(s1.wait(timestamp::now() + epsilon) == NULL); }
-    support.detail("Two publishers, one subscriber");
-    {   publisher p1;
-        publisher p2;
-        subscriber s;
-        subscription a(s, p1);
-        subscription b(s, p2);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p1.publish();
-        assert(s.wait(timestamp::now()) == &a);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p2.publish();
-        assert(s.wait(timestamp::now()) == &b);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p1.publish();
-        p2.publish();
-        auto f(s.wait(timestamp::now()));
-        auto g(s.wait(timestamp::now()));
-        auto h(s.wait(timestamp::now() + epsilon));
-        assert(f != g);
-        assert(f == &a || f == &b);
-        assert(g == &a || g == &b);
-        assert(h == NULL); }
-    support.msg("IO subscriptions");
-    initpubsub();
-    support.detail("basic operation");
-    {   subscriber s;
-        auto p(fd_t::pipe());
-        if (p.isfailure()) p.failure().fatal("creating pipe");
-        iosubscription sub(io, s, p.success().read.poll(POLLIN));
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        p.success().write.write(io, "foo", 3);
+            assert(s1.wait(timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "2pub1sub", [epsilon] () {
+            publisher p1;
+            publisher p2;
+            subscriber s;
+            subscription a(s, p1);
+            subscription b(s, p2);
+            assert(s.wait(timestamp::now() + epsilon) == NULL);
+            p1.publish();
+            assert(s.wait(timestamp::now()) == &a);
+            assert(s.wait(timestamp::now() + epsilon) == NULL);
+            p2.publish();
+            assert(s.wait(timestamp::now()) == &b);
+            assert(s.wait(timestamp::now() + epsilon) == NULL);
+            p1.publish();
+            p2.publish();
+            auto f(s.wait(timestamp::now()));
+            auto g(s.wait(timestamp::now()));
+            auto h(s.wait(timestamp::now() + epsilon));
+            assert(f != g);
+            assert(f == &a || f == &b);
+            assert(g == &a || g == &b);
+            assert(h == NULL); } );
+    testcaseV("pubsub", "basicIO", [epsilon] () {
+            clientio io(clientio::CLIENTIO);
+            initpubsub();
+            {   subscriber s;
+                auto p(fd_t::pipe());
+                if (p.isfailure()) p.failure().fatal("creating pipe");
+                iosubscription sub(io, s, p.success().read.poll(POLLIN));
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                p.success().write.write(io, "foo", 3);
         
-        /* This should arguably be asserting that sub becomes ready
-         * immediately, rather than that it becomes ready after
-         * epsilon, because it is, but that's much harder to implement
-         * and won't matter for any real users of the interface. */
-        assert(s.wait(timestamp::now() + epsilon) == &sub);
+                /* This should arguably be asserting that sub becomes
+                 * ready immediately, rather than that it becomes
+                 * ready after epsilon, because it is, but that's much
+                 * harder to implement and won't matter for any real
+                 * users of the interface. */
+                assert(s.wait(timestamp::now() + epsilon) == &sub);
         
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        sub.rearm();
-        assert(s.wait(timestamp::now()) == &sub);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        char buf[3];
-        sub.rearm();
-        p.success().read.read(io, buf, 1);
-        assert(s.wait(timestamp::now()) == &sub);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        sub.rearm();
-        assert(s.wait(timestamp::now()) == &sub);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        sub.rearm();
-        p.success().read.read(io, buf, 2);
-        assert(s.wait(timestamp::now()) == &sub);
-        assert(s.wait(timestamp::now() + epsilon) == NULL);
-        sub.rearm();
-        assert(s.wait(timestamp::now() + epsilon) == NULL); }
-    deinitpubsub(io); }
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                sub.rearm();
+                assert(s.wait(timestamp::now()) == &sub);
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                char buf[3];
+                sub.rearm();
+                p.success().read.read(io, buf, 1);
+                assert(s.wait(timestamp::now()) == &sub);
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                sub.rearm();
+                assert(s.wait(timestamp::now()) == &sub);
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                sub.rearm();
+                p.success().read.read(io, buf, 2);
+                assert(s.wait(timestamp::now()) == &sub);
+                assert(s.wait(timestamp::now() + epsilon) == NULL);
+                sub.rearm();
+                assert(s.wait(timestamp::now() + epsilon) == NULL); }
+            deinitpubsub(io); } ); }

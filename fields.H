@@ -8,8 +8,6 @@
 #include "maybe.H"
 #include "tid.H"
 
-class test;
-
 namespace fields {
 
 class fieldbuf {
@@ -112,10 +110,12 @@ const timefield &mk(const struct timeval &);
 void flush();
 void print(const field &f);
 
-void test(class ::test &);
-
 template <typename t> const field &mk(const ::maybe<t> &m);
 
 };
+
+namespace tests {
+void fields();
+}
 
 #endif /* !FIELDS_H__ */
