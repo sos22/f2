@@ -1,0 +1,14 @@
+#ifndef TIMEDELTA_TMPL__
+#define TIMEDELTA_TMPL__
+
+#include "timedelta.H"
+#include "timestamp.H"
+
+template <typename t> timeres<t>
+timedelta::time(std::function<t ()> what) {
+    timestamp start(timestamp::now());
+    t res(what());
+    timestamp end(timestamp::now());
+    return timeres<t>(end - start, res); }
+
+#endif /* !TIMEDELTA_TMPL__ */

@@ -2,13 +2,16 @@
 
 #include <sys/poll.h>
 
+#include "buffer.H"
 #include "fields.H"
 #include "logging.H"
+#include "spark.H"
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "timedelta.tmpl"
 
 class iopollingthread : public threadfn {
 private: thread *thrd;
@@ -42,7 +45,7 @@ iopollingthread::run(clientio io) {
         mux.unlock(&token);
         int r(::poll(pfds, nr, -1));
         token = mux.lock();
-        if (r < 0) {
+        if (!COVERAGE && r < 0) {
             error::from_errno().fatal(
                 "poll()ing for IO with " + fields::mk(nr) + " fds"); }
         int i = 0;
@@ -57,7 +60,7 @@ iopollingthread::run(clientio io) {
                  * processing. */
                 char b;
                 auto readres(readcontrolfd.read(io, &b, 1));
-                if (readres.isfailure()) {
+                if (!COVERAGE && readres.isfailure()) {
                     readres.failure().fatal("reading poller control FD"); }
                 i++;
                 continue; }
@@ -87,7 +90,7 @@ iopollingthread::start() {
     assert(thrd == NULL);
     assert(!shutdown);
     auto pr(fd_t::pipe());
-    if (pr.isfailure()) {
+    if (!COVERAGE && pr.isfailure()) {
         pr.failure().fatal("creating polling thread control pipe"); }
     readcontrolfd = pr.success().read;
     writecontrolfd = pr.success().write;
@@ -98,8 +101,9 @@ void
 iopollingthread::attach(iosubscription &sub) {
     auto token(mux.lock());
     assert(!sub.registered);
-    for (auto it(what.start()); !it.finished(); it.next()) {
-        assert(*it != &sub); }
+    if (!COVERAGE) {
+        for (auto it(what.start()); !it.finished(); it.next()) {
+            assert(*it != &sub); } }
     sub.registered = true;
     what.pushtail(&sub);
     mux.unlock(&token);
@@ -108,7 +112,7 @@ iopollingthread::attach(iosubscription &sub) {
        we're that far behind then a bit of backpressure is probably a
        good thing. */
     auto r(writecontrolfd.write(clientio::CLIENTIO, "Y", 1));
-    if (r.isfailure()) {
+    if (!COVERAGE && r.isfailure()) {
         r.failure().fatal("waking up poller thread for new FD"); } }
 
 void
@@ -143,10 +147,11 @@ iopollingthread::stop(clientio io) {
     shutdown = true;
     auto r(writecontrolfd.write(io, "X", 1));
     mux.unlock(&token);
-    if (r.isfailure()) {
+    if (!COVERAGE && r.isfailure()) {
         r.failure().fatal("writing to poller control FD for shutdown"); }
     thrd->join(io);
-    thrd = NULL; }
+    thrd = NULL;
+    shutdown = false; }
 
 publisher::publisher()
     : mux(),
@@ -179,6 +184,7 @@ subscriptionbase::set() {
         sub->mux.unlock(&tok); } }
 
 subscriptionbase::~subscriptionbase() {
+    if (!sub) return;
     auto token(sub->mux.lock());
     bool found = false;
     for (auto it(sub->subscriptions.start()); !it.finished(); it.next()) {
@@ -244,7 +250,9 @@ iosubscription::detach() {
     /* This isn't properly synchronised with the IO polling thread, so
        we could double unregister.  Polling thread is tolerant of
        that. */
-    if (registered) pollthread.detach(*this); }
+    if (registered) {
+        tests::event("iosubdetachrace");
+        pollthread.detach(*this); } }
 
 iosubscription::~iosubscription() {
     detach(); }
@@ -445,4 +453,146 @@ tests::pubsub() {
                 assert(s.wait(timestamp::now() + epsilon) == NULL);
                 sub.rearm();
                 assert(s.wait(timestamp::now() + epsilon) == NULL); }
-            deinitpubsub(io); } ); }
+            deinitpubsub(io); } );
+
+    testcaseV("pubsub", "race pub+unsub", [] () {
+            /* One thread constantly publishes the condition in a
+               tight loop, the other constantly subscribes and
+               unsubscribes.  Doesn't really do a great deal beyond
+               confirming that we don't crash. */
+            publisher pub;
+            timestamp deadline(timestamp::now() + timedelta::milliseconds(200));
+            int cntr;
+            cntr = 0;
+            spark<bool> t1([&pub,deadline] () {
+                    while (timestamp::now() < deadline) {
+                        pub.publish(); }
+                    return true; });
+            spark<bool> t2([&pub,&cntr,deadline] () {
+                    subscriber sub;
+                    while (timestamp::now() < deadline) {
+                        subscription ss(sub, pub);
+                        timestamp startwait(timestamp::now());
+                        sub.wait(deadline);
+                        timestamp endwait(timestamp::now());
+                        assert(endwait - startwait <
+                               timedelta::milliseconds(10));
+                        cntr++; }
+                    return true; } );
+            t1.get();
+            t2.get();
+            assert(cntr >= 10000); });
+
+    testcaseV("pubsub", "pingpong", [] () {
+            /* Ping-pong back and forth between two threads for a
+             * bit. */
+            bool thread1;
+            publisher pub1;
+            publisher pub2;
+            timestamp deadline(timestamp::now() + timedelta::milliseconds(200));
+            thread1 = true;
+            int cntr1;
+            int cntr2;
+            cntr1 = 0;
+            cntr2 = 0;
+            spark<bool> t1([&thread1, &pub1, &pub2, deadline, &cntr1] () {
+                    subscriber sub;
+                    subscription ss(sub, pub1);
+                    while (timestamp::now() < deadline) {
+                        assert(timedelta::time<bool>([&thread1, &ss, &sub,
+                                                      deadline] () {
+                                    while (!thread1) {
+                                        auto r(sub.wait(deadline));
+                                        assert(
+                                            r == &ss ||
+                                            timestamp::now() >= deadline); }
+                                    return true; }).td
+                            < timedelta::milliseconds(10));
+                        assert(thread1);
+                        thread1 = false;
+                        pub2.publish();
+                        cntr1++; }
+                    return true; });
+            spark<bool> t2([&thread1, &pub1, &pub2, &cntr2, deadline] () {
+                    subscriber sub;
+                    subscription ss(sub, pub2);
+                    while (timestamp::now() < deadline) {
+                        assert(timedelta::time<bool>([&thread1, &ss, &sub,
+                                                      deadline] () {
+                                    while (thread1) {
+                                        auto r(sub.wait(deadline));
+                                        assert(
+                                            r == &ss ||
+                                            timestamp::now() >= deadline); }
+                                    return true; }).td
+                            < timedelta::milliseconds(10));
+                        assert(!thread1);
+                        thread1 = true;
+                        pub1.publish();
+                        cntr2++; }
+                    return true; });;
+            t1.get();
+            t2.get();
+            assert(cntr1 - cntr2 >= -1 && cntr1 - cntr2 <= 1);
+            assert(cntr1 >= 10000); });
+
+    testcaseV("pubsub", "ioshutdownrace", [] () {
+            auto pipe(fd_t::pipe());
+            subscriber sub;
+            initpubsub();
+            {   iosubscription ios(clientio::CLIENTIO,
+                                   sub,
+                                   pipe.success().read.poll(POLLIN));
+                (timestamp::now() + timedelta::milliseconds(10)).sleep(); }
+            pipe.success().close();
+            (timestamp::now() + timedelta::milliseconds(10)).sleep();
+            deinitpubsub(clientio::CLIENTIO); });
+
+    testcaseV("pubsub", "iounsubscriberace", [] {
+            auto pipe(fd_t::pipe());
+            timestamp deadline(timestamp::now() + timedelta::seconds(1));
+            initpubsub();
+            /* We get a slightly different path through the
+               iosubscription logic if an FD becomes readable at the
+               iosubdetachrace event.  Give it a quick once-over. */
+            eventwaiter evt1(
+                "iosubdetachrace",
+                [fd = pipe.success().write] () {
+                    fd.write(clientio::CLIENTIO, "X", 1);
+                    (timestamp::now() + timedelta::milliseconds(10)).sleep();});
+            spark<bool> reader([fd = pipe.success().read, deadline] () {
+                    subscriber sub;
+                    iosubscription ios(clientio::CLIENTIO,
+                                       sub,
+                                       fd.poll(POLLIN));
+                    return true; });
+            reader.get();
+            deinitpubsub(clientio::CLIENTIO); });
+
+    testcaseV("pubsub", "iosublots", [] {
+            fd_t::piperes pipes[32];
+            initpubsub();
+            subscriber ss;
+            list<iosubscription *> subs;
+            for (int i = 0; i < 32; i++) {
+                pipes[i] = fd_t::pipe().success();
+                subs.pushtail(new iosubscription(clientio::CLIENTIO,
+                                                 ss,
+                                                 pipes[i].read.poll(POLLIN))); }
+            for (int i = 0; i < 32; i++) {
+                pipes[i].write.write(clientio::CLIENTIO, "X", 1);
+                auto r(ss.wait());
+                assert(r == subs.pophead());
+                delete (iosubscription *)r; }
+            deinitpubsub(clientio::CLIENTIO); });
+
+    testcaseV("pubsub", "lateunsub", [] {
+            publisher pub;
+            subscription *ss;
+            {   subscriber sub;
+                ss = new subscription(sub, pub); }
+            delete ss; });
+
+}
+
+template timeres<bool> timedelta::time<bool>(std::function<bool ()>);

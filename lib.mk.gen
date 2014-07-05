@@ -55,4 +55,5 @@ ar lib.a $(bits .o)
 
 testmodule buffer buffer.C buffer.H
 testmodule fields fields.C fieldfinal.H
+testmodule pubsub pubsub.C
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl

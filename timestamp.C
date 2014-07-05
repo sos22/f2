@@ -75,3 +75,13 @@ timestamp::fromtimeval(timeval tv) {
     tv.tv_sec -= basetimeval.tv_sec;
     tv.tv_usec -= basetimeval.tv_usec;
     return timestamp(tv.tv_sec * 1000000000ul + tv.tv_usec + basetimestamp.v); }
+
+void
+timestamp::sleep() const {
+    while (1) {
+        long left = v - now().v;
+        if (left < 0) return;
+        struct timespec ts;
+        ts.tv_sec = left / 1000000000;
+        ts.tv_nsec = left % 1000000000;
+        nanosleep(&ts, NULL); } }

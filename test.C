@@ -28,6 +28,55 @@ support::detail(const char *, ...)
 {
 }
 
+static mutex_t eventslock;
+static list<eventwaiter *> events;
+
+void
+event(const char *name) {
+    list<eventwaiter *> l;
+    auto token(eventslock.lock());
+    for (auto it(events.start()); !it.finished(); it.next()) {
+        if (!strcmp(name, (*it)->name)) {
+            (*it)->refcount++;
+            l.pushtail(*it); } }
+    eventslock.unlock(&token);
+    for (auto it(l.start()); !it.finished(); it.next()) {
+        (*it)->action();
+        token = eventslock.lock();
+        (*it)->refcount--;
+        if ((*it)->refcount == 0) (*it)->idle.publish();
+        eventslock.unlock(&token); }
+    l.flush(); }
+
+eventwaiter::eventwaiter(
+    const char *_name,
+    std::function<void ()> _action)
+    : name(_name),
+      action(_action),
+      refcount(0),
+      idle() {
+    auto token(eventslock.lock());
+    events.pushtail(this);
+    eventslock.unlock(&token); }
+
+eventwaiter::~eventwaiter() {
+    auto token(eventslock.lock());
+    bool found = false;
+    for (auto it(events.start()); !it.finished(); it.next()) {
+        if (*it == this) {
+            it.remove();
+            found = true;
+            break; } }
+    eventslock.unlock(&token);
+    assert(found);
+    subscriber sub;
+    subscription ss(sub, idle);
+    /* Waiting for the action callbacks without a clientio token isn't
+       really ideal.  On the other hand, the action callbacks are
+       supposed to be short, and they don't have a clientio token
+       either, so it's not completely unreasonable. */
+    while (refcount) sub.wait(); }
+
 struct test {
     const char *name;
     std::function<void (support &)> doit;
@@ -97,5 +146,6 @@ void runtest(const char *component, const char *t) {
 
 template class list<tests::testcomponent>;
 template class list<tests::test>;
+template class list<tests::eventwaiter *>;
 template class std::function<void (tests::support&)>;
 template class std::function<void (void)>;

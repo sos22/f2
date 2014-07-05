@@ -23,6 +23,10 @@ timedelta
 timedelta::milliseconds(long nr) {
     return nr * 1000000l; }
 
+timedelta
+timedelta::microseconds(long nr) {
+    return nr * 1000l; }
+
 long
 timedelta::as_milliseconds() const {
     return (v + 500000) / 1000000; }
