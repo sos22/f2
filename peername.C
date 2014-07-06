@@ -48,6 +48,11 @@ peername::~peername()
     free(sockaddr_);
 }
 
+bool
+peername::operator==(const peername &o) const {
+    return sockaddrsize_ == o.sockaddrsize_ &&
+        !memcmp(sockaddr_, o.sockaddr_, sockaddrsize_); }
+
 const fields::field &
 fields::mk(const peername &p) {
     auto sa(p.sockaddr());

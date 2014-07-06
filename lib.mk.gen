@@ -7,6 +7,7 @@ function bits() {
     function _() {
         echo $1$suffix
     }
+    _ beaconclient
     _ beaconserver
     _ buffer
     _ cond
@@ -50,6 +51,7 @@ done
 
 ar lib.a $(bits .o)
 
+testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H
 testmodule buffer buffer.C buffer.H
 testmodule fields fields.C fieldfinal.H
 testmodule pubsub pubsub.C

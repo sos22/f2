@@ -2,9 +2,8 @@
 
 . shutil
 
-cc beaconclient.C
 cc storage.C
 cc storageslave.C
-ld storage beaconclient.o storage.o storageslave.o lib.a
+ld storage storage.o storageslave.o lib.a
 
 target storage

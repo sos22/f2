@@ -65,6 +65,7 @@ beaconserver::build(const beaconserverconfig &config,
     auto res = new beaconserver(config, cs);
     auto r(res->listen(config.port_));
     if (r.isjust()) {
+        res->statusregistration_.unregister();
         delete res;
         return r.just();
     }
@@ -100,17 +101,6 @@ beaconserver::statusiface::getstatus(wireproto::tx_message *msg,
                                      mutex_t::token) const {
     msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
-#if 0
-statusinterface::getstatusres
-beaconserver::statusiface::getstatus(mutex_t::token) const {
-    auto m(new wireproto::tx_compoundparameter());
-    m->addparam(proto::beaconstatus::secret, owner->secret);
-    m->addparam(proto::beaconstatus::limiter,owner->limiter.status());
-    m->addparam(proto::beaconstatus::errors, owner->errors);
-    m->addparam(proto::beaconstatus::rx, owner->rx);
-    return getstatusres(m, proto::STATUS::resp::beacon); }
-#endif
-
 maybe<error>
 beaconserver::listen(peername::port port)
 {
@@ -122,7 +112,7 @@ beaconserver::listen(peername::port port)
     listenfd = r.success();
     auto rr(thread::spawn(&listenthreadfn, &listenthread,
                           fields::mk("beacon listener")));
-    if (rr.isjust()) {
+    if (!COVERAGE && rr.isjust()) {
         listenfd.close();
         listenfd = udpsocket();
         return rr.just();
@@ -157,7 +147,7 @@ beaconserver::listenthreadclass::run(clientio io)
             /* DOS protection: drop things over the rate limit */
             continue;
         }
-        if (rr.isfailure()) {
+        if (!COVERAGE && rr.isfailure()) {
             rr.failure().warn("reading beacon interface");
             owner->errors++;
             continue;
@@ -219,7 +209,7 @@ beaconserver::listenthreadclass::run(clientio io)
                              fields::mk(reqnonce.just()) +
                              fields::mk(owner->secret)))
             .serialise(outbuffer));
-        if (serialiseres.isjust()) {
+        if (!COVERAGE && serialiseres.isjust()) {
             logmsg(loglevel::failure,
                    "error " + fields::mk(serialiseres.just()) +
                    "serialising response to slave " +
@@ -229,7 +219,7 @@ beaconserver::listenthreadclass::run(clientio io)
             continue;
         }
         auto sendres(owner->listenfd.send(outbuffer, rr.success()));
-        if (sendres.isjust()) {
+        if (!COVERAGE && sendres.isjust()) {
             logmsg(loglevel::failure,
                    fields::mk(sendres.just()) + " sending HAIL response to " +
                    fields::mk(rr.success()));
@@ -246,9 +236,7 @@ beaconserver::listenthreadclass::run(clientio io)
 void
 beaconserver::destroy(clientio io)
 {
-    if (!listenthread) {
-        delete this;
-        return; }
+    assert(listenthread);
     statusregistration_.unregister();
     shutdown.set(true);
     listenthread->join(io);

@@ -7,7 +7,11 @@
 
 #include <functional>
 
+#include "controlserver.H"
 #include "list.H"
+#include "peername.H"
+#include "shutdown.H"
+#include "waitbox.H"
 
 #include "list.tmpl"
 
@@ -96,6 +100,12 @@ struct testregistry : public list<testcomponent> {
 static testregistry components;
 
 void
+testcaseV(const char *c_name,
+          const char *t_name,
+          std::function<void ()> doit) {
+    testcaseS(c_name, t_name, [doit] (support &) { doit(); }); }
+
+void
 testcaseS(const char *c_name,
           const char *t_name,
           std::function<void (support &)> doit) {
@@ -115,10 +125,27 @@ testcaseS(const char *c_name,
     t->doit = doit; }
 
 void
-testcaseV(const char *c_name,
-          const char *t_name,
-          std::function<void ()> doit) {
-    testcaseS(c_name, t_name, [doit] (support &) { doit(); }); }
+testcaseCS(const char *c_name,
+           const char *t_name,
+           std::function<void (controlserver *)> doit) {
+    testcaseS(c_name,
+              t_name,
+              [doit] (support &) {
+                  waitbox<shutdowncode> s;
+                  unlink("testcontroller");
+                  initpubsub();
+                  auto cs(controlserver::build(
+                              peername::local("testcontroller"),
+                              s));
+                  assert(cs.issuccess());
+                  doit(cs.success());
+                  /* XXX it's possible that someone could have
+                     connected to the controller while we were running
+                     the test, in which case destroying it could take
+                     a while and the CLIENTIO is wrong.  Good enough
+                     for a test case, though. */
+                  cs.success()->destroy(clientio::CLIENTIO);
+                  deinitpubsub(clientio::CLIENTIO); }); }
 
 void listcomponents() {
     for (auto it(components.start()); !it.finished(); it.next()) {
@@ -151,3 +178,4 @@ template class list<tests::test>;
 template class list<tests::eventwaiter *>;
 template class std::function<void (tests::support&)>;
 template class std::function<void (void)>;
+template class std::function<void (controlserver*)>;

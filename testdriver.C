@@ -1,6 +1,6 @@
 #include <err.h>
-#include <string.h>
 
+#include "beacontest.H"
 #include "buffer.H"
 #include "fields.H"
 #include "logging.H"
@@ -10,6 +10,7 @@
 int
 main(int argc, char *argv[])
 {
+    tests::beacon();
     tests::buffer();
     tests::fields();
     tests::logging();

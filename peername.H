@@ -17,6 +17,7 @@ public:
     void operator=(const peername &);
     ~peername();
     peername(const struct sockaddr *s, size_t s_size);
+    bool operator==(const peername &o) const;
 
     /* A representation of the port part of an address.  Only really
        meaningful for IP and IP6 addresses; UNIX sockets return a

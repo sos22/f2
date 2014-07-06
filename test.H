@@ -7,6 +7,8 @@
 
 #include "pubsub.H"
 
+class controlserver;
+
 namespace tests {
 
 class support {
@@ -42,14 +44,21 @@ public: eventwaiter(const char *, std::function<void ()>) {}
 };
 #endif
 
-void testcaseS(
-    const char *component,
-    const char *test,
-    std::function<void (support &)> doit);
+/* Different test cases need different arguments, and for some reason
+   overloading doesn't work properly with lambdas, so have a bunch of
+   different functions for registering cases. */
 void testcaseV(
     const char *component,
     const char *test,
     std::function<void ()> doit);
+void testcaseS(
+    const char *component,
+    const char *test,
+    std::function<void (support &)> doit);
+void testcaseCS(
+    const char *component,
+    const char *test,
+    std::function<void (controlserver *)> doit);
 
 void listcomponents();
 void listtests(const char *component);

@@ -2,7 +2,8 @@
 
 . shutil
 
+cc beacontest.C
 cc testdriver.C
-ld test testdriver.o lib.a
+ld test beacontest.o testdriver.o lib.a
 
 target test

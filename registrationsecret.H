@@ -20,7 +20,8 @@ public:
     registrationsecret(const registrationsecret &);
     ~registrationsecret();
     registrationsecret();;
-    void operator=(const registrationsecret &);;
+    void operator=(const registrationsecret &);
+    bool operator==(const registrationsecret &) const;
     static registrationsecret mk(const char *what);
 };
 

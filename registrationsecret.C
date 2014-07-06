@@ -18,6 +18,15 @@ registrationsecret::~registrationsecret()
     free(secret);
 }
 
+void
+registrationsecret::operator=(const registrationsecret &o) {
+    free(secret);
+    secret = strdup(o.secret); }
+
+bool
+registrationsecret::operator==(const registrationsecret &o) const {
+    return !strcmp(secret, o.secret); }
+
 registrationsecret
 registrationsecret::mk(const char *what)
 {

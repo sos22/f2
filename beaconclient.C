@@ -31,7 +31,7 @@ beaconclient(const beaconclientconfig &config)
                               .addparam(proto::HAIL::req::version, 1u)
                               .addparam(proto::HAIL::req::nonce, n)
                               .serialise(outbuf));
-            if (serialiseres.isjust()) {
+            if (!COVERAGE && serialiseres.isjust()) {
                 sock.success().close();
                 return serialiseres.just(); } }
         {   auto sendres(sock.success().send(
