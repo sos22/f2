@@ -145,7 +145,7 @@ coordinator::status_t::getparam(
     conns.flush();
     return res; }
 const fields::field &
-fields::mk(const coordinatorstatus &o) {
+fields::mk(const coordinator::status_t &o) {
     const field *res = &fields::mk("<conns:{");
     bool first = true;
     for (auto it(o.conns.start()); !it.finished(); it.next()) {

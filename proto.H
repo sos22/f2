@@ -40,8 +40,13 @@ namespace proto {
     };
     namespace fd_tstatus {
         static const parameter<int> fd(1);
-        static const parameter<timeval> lastrx(2);
-        static const parameter<int> revents(3);
+        static const parameter<int> domain(2);
+        static const parameter<int> protocol(3);
+        static const parameter<int> sndbuf(4);
+        static const parameter<int> rcvbuf(5);
+        static const parameter<int> sndqueue(6);
+        static const parameter<int> rcvqueue(7);
+        static const parameter<int> revents(8);
     };
     namespace memlog_entry {
         static const parameter<const char *> msg(1);

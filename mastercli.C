@@ -95,7 +95,7 @@ main(int argc, char *argv[])
             auto mm(m.success());
             fields::print("beacon: " + fields::mk(mm->getparam(resp::beacon)) +
                           "\ncoordinator: " +
-                              fields::mk(mm->getparam(resp::beacon)) +
+                              fields::mk(mm->getparam(resp::coordinator)) +
                           "\n");
             delete mm; }
     } else if (!strcmp(argv[1], "QUIT")) {

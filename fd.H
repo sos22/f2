@@ -28,15 +28,33 @@ const field &mk(const fd_t &);
 
 class fd_tstatus {
 public: int fd;
-public: maybe<struct timeval> lastrx;
-public: maybe<int> revents;
+#define _fd_tstatus_params(iter, iter1) \
+    iter(domain)                        \
+    iter(protocol)                      \
+    iter(sndbuf)                        \
+    iter(rcvbuf)                        \
+    iter(sndqueue)                      \
+    iter(rcvqueue)                      \
+    iter1(revents)
+#define fd_tstatus_params(iter) _fd_tstatus_params(iter, iter)
+#define doparam(name) public: maybe<int> name;
+    fd_tstatus_params(doparam);
+#undef doparam
 public: fd_tstatus(
     int _fd,
-    maybe<struct timeval> _lastrx,
-    maybe<int> _revents)
+#define doparam1(name) maybe<int> _ ## name
+#define doparam(name) doparam1(name),
+    _fd_tstatus_params(doparam, doparam1)
+#undef doparam
+#undef doparam1
+    )
     : fd(_fd),
-      lastrx(_lastrx),
-      revents(_revents) {}
+#define doparam1(name) name(_##name)
+#define doparam(name) doparam1(name),
+    _fd_tstatus_params(doparam, doparam1)
+#undef doparam
+#undef doparam1
+        {}
 WIREPROTO_TYPE(fd_tstatus);
 };
 namespace fields {

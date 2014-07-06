@@ -99,16 +99,38 @@ fields::mk(const fd_t &fd)
 
 fd_t::status_t
 fd_t::status() const {
-    struct timeval lastrx;
-    maybe<struct timeval> lrx = Nothing;
-    if (ioctl(fd, SIOCGSTAMP, &lastrx) >= 0) lrx = lastrx;
+#define doparam(name) maybe<int> name(Nothing);
+    fd_tstatus_params(doparam);
+#undef doparam
+#define sockopt(name, level, opt)                                       \
+    {   int value;                                                      \
+        socklen_t optlen(sizeof(value));                                \
+        if (getsockopt(fd, (level), (opt), &value, &optlen) >= 0 &&     \
+            optlen == sizeof(value)) name = value; }
+    sockopt(domain, SOL_SOCKET, SO_DOMAIN);
+    sockopt(protocol, SOL_SOCKET, SO_PROTOCOL);
+    sockopt(rcvbuf, SOL_SOCKET, SO_RCVBUF);
+    sockopt(sndbuf, SOL_SOCKET, SO_SNDBUF);
+#undef sockopt
+    {   int value;
+        if (ioctl(fd, FIONREAD, &value) >= 0) rcvqueue = value;
+        else error::from_errno().warn("FIONREAD"); }
+    {   int value;
+        if (ioctl(fd, TIOCOUTQ, &value) >= 0) sndqueue = value;
+        else error::from_errno().warn("TIOCOUTQ"); }
     struct pollfd pfd;
     pfd.fd = fd;
     pfd.events = ~0;
     pfd.revents = 0;
-    maybe<int> revents = Nothing;
     if (::poll(&pfd, 1, 0) >= 0) revents = pfd.revents;
-    return status_t(fd, lrx, revents); }
+    return status_t(
+        fd,
+#define doparam1(name) name
+#define doparam(name) doparam1(name),
+        _fd_tstatus_params(doparam, doparam1)
+#undef doparam
+#undef doparam1
+        ); }
 
 wireproto_wrapper_type(fd_t::status_t)
 void
@@ -117,9 +139,10 @@ fd_t::status_t::addparam(
     wireproto::tx_message &out) const {
     wireproto::tx_compoundparameter p;
     p.addparam(proto::fd_tstatus::fd, fd);
-    if (lastrx.isjust()) p.addparam(proto::fd_tstatus::lastrx, lastrx.just());
-    if (revents.isjust()) {
-        p.addparam(proto::fd_tstatus::revents, revents.just()); }
+#define doparam(name)                                                   \
+    if (name.isjust()) p.addparam(proto::fd_tstatus::name, name.just());
+    fd_tstatus_params(doparam)
+#undef doparam
     out.addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
         p); }
@@ -131,18 +154,27 @@ fd_t::status_t::getparam(
                     wireproto::parameter<wireproto::rx_message>(tmpl)));
     if (!packed) return Nothing;
     auto &p(packed.just());
-    auto fd(p.getparam(proto::fd_tstatus::fd));
-    auto lastrx(p.getparam(proto::fd_tstatus::lastrx));
-    auto revents(p.getparam(proto::fd_tstatus::revents));
+#define doparam(name)                                   \
+    auto name(p.getparam(proto::fd_tstatus::name));
+    doparam(fd);
+    fd_tstatus_params(doparam);
+#undef doparam
     if (!fd) return Nothing;
-    return fd_t::status_t(fd.just(), lastrx, revents); }
+    return fd_t::status_t(
+        fd.just(),
+#define doparam1(name) name
+#define doparam(name) doparam1(name),
+        _fd_tstatus_params(doparam, doparam1)
+#undef doparam
+#undef doparam1
+        ); }
 const fields::field &
 fields::mk(const fd_t::status_t &o) {
     return "<fd:" + mk(o.fd) +
-        " lastrx:" + mk(o.lastrx) +
-        " revents:" + (o.revents.isjust()
-                       ? mk(o.revents.just()).base(2)
-                       : mk(o.revents)) +
+#define doparam(name)                           \
+        " " #name ":" + mk(o.name) +
+        fd_tstatus_params(doparam)
+#undef doparam
         ">"; }
 
 namespace fields {
