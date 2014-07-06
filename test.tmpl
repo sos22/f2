@@ -1,0 +1,53 @@
+#ifndef TEST_TMPL__
+#define TEST_TMPL__
+
+#if TESTING
+template <typename t> void
+tests::event<t>::trigger(t arg) {
+    if (listeners.empty()) return;
+    auto token(mux.lock());
+    list<void *> l;
+    for (auto it(listeners.start()); !it.finished(); it.next()) {
+        auto i(static_cast<eventwaiter<t> *>(*it));
+        l.pushtail(i);
+        i->refcount++; }
+    mux.unlock(&token);
+    for (auto it(l.start()); !it.finished(); it.next()) {
+        auto i(static_cast<eventwaiter<t> *>(*it));
+        i->action(arg);
+        i->refcount--;
+        if ( i->refcount == 0 ) i->idle.publish(); }
+    l.flush(); }
+
+template <typename t>
+tests::eventwaiter<t>::eventwaiter(event<t> &_evt,
+                                   std::function<void (t)> _action)
+    : evt(_evt),
+      action(_action),
+      refcount(0),
+      idle() {
+    auto token(evt.mux.lock());
+    evt.listeners.pushtail(this);
+    evt.mux.unlock(&token); }
+
+template <typename t>
+tests::eventwaiter<t>::~eventwaiter() {
+    auto token(evt.mux.lock());
+    bool found = false;
+    for (auto it(evt.listeners.start()); !it.finished(); it.next()) {
+        if (*it == this) {
+            it.remove();
+            found = true;
+            break; } }
+    assert(found);
+    evt.mux.unlock(&token);
+    /* Waiting for the action callbacks without a clientio token isn't
+       really ideal.  On the other hand, the action callbacks are
+       supposed to be short, and they don't have a clientio token
+       either, so it's not completely unreasonable. */
+    subscriber sub;
+    subscription ss(sub, idle);
+    while (refcount != 0) sub.wait(); }
+#endif /* !TESTING */
+
+#endif /* !TEST_TMPL__ */

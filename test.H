@@ -17,30 +17,45 @@ public:
     void detail(const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 };
 
-/* Test events are a way of controlling the scheduling of events
- * during a test case, making it easier to get races to go the right
- * way.  The idea is that interesting scheduling points call
- * tests::event() with a named event.  In a normal build, those are
- * all no-ops, but in a testing one they go and check whether there
- * are any eventwaiters on the same named event and, if there are,
- * give the waiters a chance to do something interesting. */
+/* Test events are a way of interfering with a program's operation
+ * while it runs, making it easier to explore races or error
+ * conditions.  The idea is that the program to be tested defines some
+ * event structures and arranges to call trigger() at interesting
+ * points.  The harness must arrange to construct an eventlistener for
+ * the relevant event before that happens, and it will then get the
+ * chance to mess round with either the state, or just screw with the
+ * scheduling. */
 /* Caution: destructing an eventwaiter waits for any outstanding
  * invocations of the event to finish, despite not having a clientio
  * token.  The action function must therefore be simple. */
 #if TESTING
-void event(const char *name);
-class eventwaiter {
-public: const char *name;
-public: std::function<void ()> action;
-public: int refcount;
-public: publisher idle;
-public: eventwaiter(const char *, std::function<void ()>);
-public: ~eventwaiter();
+template <typename t> class eventwaiter;
+template <typename t> class event {
+public: mutex_t mux;
+public: list<void *> listeners;
+public: void trigger(t);
+};
+class voidevent : private event<void *> {
+    friend class voideventwaiter;
+public: void trigger() { event<void *>::trigger(NULL); }
+};
+template <typename t> class eventwaiter {
+private: event<t> &evt;
+public:  std::function<void (t)> action;
+public:  int refcount;
+public:  publisher idle;
+public:  eventwaiter(event<t> &, std::function<void (t)>);
+public:  ~eventwaiter();
+};
+class voideventwaiter : private eventwaiter<void *> {
+public: voideventwaiter(voidevent &, std::function<void ()>);
 };
 #else
-static inline void event(const char *) {}
-class eventwaiter {
-public: eventwaiter(const char *, std::function<void ()>) {}
+template <typename t> class event {
+public: void trigger(t) {};
+};
+class voidevent {
+public: void trigger();
 };
 #endif
 

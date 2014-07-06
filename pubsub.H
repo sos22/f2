@@ -130,6 +130,8 @@ void initpubsub();
 void deinitpubsub(clientio);
 
 namespace tests {
+class voidevent;
+extern voidevent iosubdetachrace;
 void pubsub();
 }
 

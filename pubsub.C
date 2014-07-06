@@ -11,6 +11,7 @@
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "test.tmpl"
 #include "timedelta.tmpl"
 
 class iopollingthread : public threadfn {
@@ -251,7 +252,7 @@ iosubscription::detach() {
        we could double unregister.  Polling thread is tolerant of
        that. */
     if (registered) {
-        tests::event("iosubdetachrace");
+        tests::iosubdetachrace.trigger();
         pollthread.detach(*this); } }
 
 iosubscription::~iosubscription() {
@@ -548,6 +549,7 @@ tests::pubsub() {
             (timestamp::now() + timedelta::milliseconds(10)).sleep();
             deinitpubsub(clientio::CLIENTIO); });
 
+#if TESTING
     testcaseV("pubsub", "iounsubscriberace", [] {
             auto pipe(fd_t::pipe());
             timestamp deadline(timestamp::now() + timedelta::seconds(1));
@@ -555,8 +557,8 @@ tests::pubsub() {
             /* We get a slightly different path through the
                iosubscription logic if an FD becomes readable at the
                iosubdetachrace event.  Give it a quick once-over. */
-            eventwaiter evt1(
-                "iosubdetachrace",
+            voideventwaiter evt1(
+                iosubdetachrace,
                 [fd = pipe.success().write] () {
                     fd.write(clientio::CLIENTIO, "X", 1);
                     (timestamp::now() + timedelta::milliseconds(10)).sleep();});
@@ -568,6 +570,7 @@ tests::pubsub() {
                     return true; });
             reader.get();
             deinitpubsub(clientio::CLIENTIO); });
+#endif
 
     testcaseV("pubsub", "iosublots", [] {
             fd_t::piperes pipes[32];
@@ -594,5 +597,7 @@ tests::pubsub() {
             delete ss; });
 
 }
+
+tests::voidevent tests::iosubdetachrace;
 
 template timeres<bool> timedelta::time<bool>(std::function<bool ()>);
