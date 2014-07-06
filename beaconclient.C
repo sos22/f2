@@ -14,16 +14,17 @@
 #include "udpsocket.H"
 
 orerror<beaconresult>
-beaconclient(const registrationsecret &rs)
+beaconclient(const beaconclientconfig &config)
 {
     auto sock(udpsocket::client());
     if (sock.isfailure()) return sock.failure();
-    auto n(nonce::mk());
     
-    /* We keep trying to HAIL the master forever.  There's not much
-       point in giving up early here; it's not like we can do anything
-       useful if we can't contact the master. */
-    while (true) {
+    int counter;
+    counter = 0;
+    while (config.retrylimit_ == Nothing ||
+           counter < config.retrylimit_.just()) {
+        auto n(nonce::mk());
+        counter++;
         logmsg(loglevel::info, fields::mk("send a HAIL"));
         buffer outbuf;
         {   auto serialiseres(wireproto::tx_message(proto::HAIL::tag)
@@ -35,7 +36,7 @@ beaconclient(const registrationsecret &rs)
                 return serialiseres.just(); } }
         {   auto sendres(sock.success().send(
                     outbuf,
-                    peername::udpbroadcast(peername::port(9009))));
+                    peername::udpbroadcast(config.port_)));
             if (!outbuf.empty()) {
                 logmsg(loglevel::failure, fields::mk("HAIL message truncated"));
                 sock.success().close();
@@ -43,7 +44,7 @@ beaconclient(const registrationsecret &rs)
         
         /* Wait up to a second for a response before sending another
          * HAIL. */
-        auto respdeadline(timestamp::now() + timedelta::seconds(1));
+        auto respdeadline(timestamp::now() + config.retryinterval_);
         while (1) {
             buffer inbuf;
             auto recvres(sock.success().receive(inbuf, respdeadline));
@@ -82,7 +83,7 @@ beaconclient(const registrationsecret &rs)
                 digest("A" +
                        fields::mk(respmastername.just()) +
                        fields::mk(n) +
-                       fields::mk(rs))) {
+                       fields::mk(config.rs_))) {
                 logmsg(loglevel::failure,
                        "HAIL from " + fields::mk(rxfrom) +
                        " had a bad digest");
@@ -97,7 +98,8 @@ beaconclient(const registrationsecret &rs)
             return beaconresult(respnonce.just(),
                                 respslavename.just(),
                                 respmastername.just(),
-                                rs); } } }
+                                config.rs_); } }
+    return error::timeout; }
 
 beaconresult::beaconresult(const masternonce &_nonce,
                            const peername &_slavename,
