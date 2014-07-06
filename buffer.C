@@ -92,7 +92,7 @@ buffer::receive(clientio io, fd_t fd, maybe<timestamp> deadline)
         unlinked = true; }
     auto read(fd.read(io, b->payload + b->prod, b->sz - b->prod, deadline));
     if (read.isfailure()) {
-        if (unlinked) delete b;
+        if (unlinked) free(b);
         return read.failure(); }
     if (unlinked) {
         b->next = NULL;
