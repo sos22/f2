@@ -42,7 +42,11 @@ protected: maybe<error> listen(const peername &);
     /* We just accepted a new client and have a socket_t for them.
      * Turn that into a full conn_t.  This runs in the main server
      * thread, so should not do anything which involves waiting for
-     * the peer to do something. */
+     * the peer to do something.  The server implementation will call
+     * ready() on the returned connection as soon as accept() finishes
+     * (assuming that accept() succeeds) and the connection will then
+     * start receiving incoming messages through the
+     * rpcconn::message() interface. */
 private:   virtual orerror<conn_t *> accept(socket_t) = 0;
 
     /* Get a peername on with which other hosts can connect to this

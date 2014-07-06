@@ -65,6 +65,9 @@ class rpcconn : threadfn {
     /* Each rpcconn has an associated thread which does IO for it. */
 private: thread *thr;
 private: waitbox<bool> shutdown; /* To shut down the thread */
+private: waitbox<bool> ready_; /* Set once the derived class's state
+                                  is set up and ready to process
+                                  messages. */
 private: void run(clientio);
 
     /* The raw socket.  Accessible only to the connection thread. */
@@ -107,7 +110,7 @@ private: void operator=(const rpcconn &) = delete;
 
 protected: rpcconn(socket_t _sock, const peername &_peer);
 
-    /* Establising a connection */
+    /* Establising a connection. */
     /* Connect to a remote master server, using the results of the
      * beacon protocol.  Done as a template so that you can specify a
      * derived class with a more complete startconn(), message(), and
@@ -122,9 +125,15 @@ public: template<typename t> static orerror<t *> connect(
     const peername &);
 
     /* Establish a connection around an existing socket, without
-     * sending any messages. */
+     * sending any messages.  The resulting connection starts in a
+     * paused state, allowing you to do any necessary setup before you
+     * start accepting incoming messages from the side. */
 public: template<typename t> static orerror<t *> fromsocket(
     socket_t);
+
+    /* Post-fromsocket() per-connection state is established.  Start
+     * processing incoming messages. */
+public: void ready();
 
     /* Bits to process incoming messages.  Servers should override
      * these methods; the default implementation doesn't do very

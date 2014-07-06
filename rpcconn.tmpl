@@ -27,6 +27,10 @@ template <typename conn_t> orerror<conn_t *>
 rpcconn::connectmaster(clientio io, const beaconresult &br) {
     auto res(connect<conn_t>(io, br.mastername));
     if (res.isfailure()) return res.failure();
+    /* XXX we can receive incoming messages here, even though the
+       master's not authenticated to us yet.  There aren't any other
+       than ping at the moment, so that's not so bad, but it'll need
+       fixing soon-ish. */
     auto conn(res.success());
     auto snr(conn->allocsequencenr());
     auto hellores(conn->call(
@@ -54,6 +58,7 @@ rpcconn::connect(clientio io, const peername &p) {
     if (s.isfailure()) return s.failure();
     auto r(fromsocket<conn_t>(s.success()));
     if (r.isfailure()) s.success().close();
+    else r.success()->ready();
     return r; }
 
 #endif /* !RPCCONN_TMPL__ */
