@@ -11,10 +11,10 @@ class peername {
     void *sockaddr_;
     size_t sockaddrsize_;
     peername() = delete;
-    void operator=(const peername &) = delete;
 public:
     WIREPROTO_TYPE(peername);
     peername(const peername &);
+    void operator=(const peername &);
     ~peername();
     peername(const struct sockaddr *s, size_t s_size);
 

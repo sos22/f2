@@ -14,13 +14,13 @@ class registrationsecret {
     friend const fields::field &fields::mk(const registrationsecret &);
     char *secret;
     explicit registrationsecret(const char *_secret);
-    registrationsecret() = delete;
-    void operator=(const registrationsecret &) = delete;
 public:
     WIREPROTO_TYPE(registrationsecret);
 
     registrationsecret(const registrationsecret &);
     ~registrationsecret();
+    registrationsecret();;
+    void operator=(const registrationsecret &);;
     static registrationsecret mk(const char *what);
 };
 

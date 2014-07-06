@@ -30,9 +30,9 @@ public:
 class mastersecret {
     const char *secret;
     mastersecret() = delete;
-    void operator=(const mastersecret &) = delete;
 public:
     explicit mastersecret(const mastersecret &);
+    void operator=(const mastersecret &);
     explicit mastersecret(const char *);
     masternonce nonce(const peername &slavename);
     bool noncevalid(const masternonce &nonce,

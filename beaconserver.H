@@ -36,6 +36,27 @@ namespace fields {
 const field &mk(const beaconstatus &);
 }
 
+class beaconserverconfig {
+    friend class beaconserver;
+#define mkfield(type, name)                                     \
+    private: type name ##_;                                     \
+public:  beaconserverconfig name(const type &_ ## name) {       \
+    beaconserverconfig res(*this);                              \
+    res.name ##_ = _ ## name;                                   \
+    return res; }
+    mkfield(registrationsecret, rs)
+    mkfield(frequency, maxresponses)
+    mkfield(peername, coordinator)
+    mkfield(mastersecret, ms)
+#undef mkfield
+public: beaconserverconfig(const registrationsecret &_rs,
+                           const peername &_coordinator,
+                           const mastersecret &_ms)
+    : rs_(_rs),
+      maxresponses_(frequency::hz(10)),
+      coordinator_(_coordinator),
+      ms_(_ms) {} };
+
 class beaconserver {
     friend class statusiface;
     friend class configureiface;
@@ -70,11 +91,8 @@ class beaconserver {
     unsigned errors; /* total number of errors, ever */
     unsigned rx; /* total number of packets received, ever */
 
-    beaconserver(const registrationsecret &rs,
-                 frequency max_responses,
-                 controlserver *cs,
-                 const peername &mastername,
-                 const mastersecret &);
+    beaconserver(const beaconserverconfig &config,
+                 controlserver *cs);
 
     beaconserver() = delete;
     beaconserver(const beaconserver &) = delete;
@@ -83,11 +101,8 @@ class beaconserver {
     ~beaconserver();
     maybe<error> listen();
 public:
-    static orerror<beaconserver *> build(const registrationsecret &,
-                                         frequency max_responses,
-                                         controlserver *,
-                                         const peername &mastername,
-                                         const mastersecret &_mastersecret);
+    static orerror<beaconserver *> build(const beaconserverconfig &,
+                                         controlserver *);
     void destroy(clientio);
 
 public: typedef beaconstatus status_t;

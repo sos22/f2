@@ -39,11 +39,8 @@ main()
     if (coord.isfailure()) coord.failure().fatal("build worker coordinator");
     
     auto beacon(beaconserver::build(
-                    rs,
-                    frequency::hz(10),
-                    c.success(),
-                    coord.success()->localname(),
-                    ms));
+                    beaconserverconfig(rs, coord.success()->localname(), ms),
+                    c.success()));
     if (beacon.isfailure()) beacon.failure().fatal("build beacon server");
 
     auto r = s.get();

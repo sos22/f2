@@ -59,14 +59,10 @@ fields::mk(const beaconserver::status_t &o) {
         ">"; }
 
 orerror<beaconserver *>
-beaconserver::build(const registrationsecret &secret,
-                    frequency max_response,
-                    controlserver *cs,
-                    const peername &mastername,
-                    const mastersecret &_mastersecret)
+beaconserver::build(const beaconserverconfig &config,
+                    controlserver *cs)
 {
-    auto res = new beaconserver(secret, max_response, cs, mastername,
-                                _mastersecret);
+    auto res = new beaconserver(config, cs);
     auto r(res->listen());
     if (r.isjust()) {
         delete res;
@@ -75,17 +71,14 @@ beaconserver::build(const registrationsecret &secret,
     return res;
 }
 
-beaconserver::beaconserver(const registrationsecret &_secret,
-                           frequency max_response,
-                           controlserver *cs,
-                           const peername &_mastername,
-                           const mastersecret &_mastersecret)
+beaconserver::beaconserver(const beaconserverconfig &config,
+                           controlserver *cs)
     : statusiface_(this),
       statusregistration_(cs->registeriface(statusiface_)),
-      secret(_secret),
-      mastername(_mastername),
-      mastersecret_(_mastersecret),
-      limiter(max_response, 100),
+      secret(config.rs_),
+      mastername(config.coordinator_),
+      mastersecret_(config.ms_),
+      limiter(config.maxresponses_, 100),
       listenthreadfn(this),
       listenthread(NULL),
       listenfd(),
