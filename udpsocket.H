@@ -2,6 +2,7 @@
 #define UDPSOCKET_H__
 
 #include "maybe.H"
+#include "peername.H"
 #include "timestamp.H"
 
 class buffer;
@@ -14,17 +15,11 @@ class udpsocket {
     udpsocket(int _fd) : fd(_fd) {}
 public:
     udpsocket() : fd(-1) {}
-    class port {
-        friend class udpsocket;
-        int p;
-    public:
-        port(int _p) : p(_p) {}
-    };
 
     /* UDP sockets don't really listen, as such.  This creates a
        socket bound to a particular port (on 0.0.0.0) which receives
        packets sent on that port. */
-    static orerror<udpsocket> listen(port);
+    static orerror<udpsocket> listen(peername::port);
 
     /* Create a client UDP socket.  This can send to anywhere with
        send() and receive from anywhere on an OS-allocated port.

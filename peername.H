@@ -23,6 +23,7 @@ public:
        fixed dummy value. */
     class port {
         friend class peername;
+        friend class udpsocket;
         int p;
     public:
         explicit port(int);

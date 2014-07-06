@@ -63,7 +63,7 @@ beaconserver::build(const beaconserverconfig &config,
                     controlserver *cs)
 {
     auto res = new beaconserver(config, cs);
-    auto r(res->listen());
+    auto r(res->listen(config.port_));
     if (r.isjust()) {
         delete res;
         return r.just();
@@ -112,11 +112,11 @@ beaconserver::statusiface::getstatus(mutex_t::token) const {
 #endif
 
 maybe<error>
-beaconserver::listen()
+beaconserver::listen(peername::port port)
 {
     assert(!listenthread);
 
-    auto r(udpsocket::listen(udpsocket::port(9009)));
+    auto r(udpsocket::listen(port));
     if (r.isfailure()) return r.failure();
 
     listenfd = r.success();

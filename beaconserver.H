@@ -44,18 +44,20 @@ public:  beaconserverconfig name(const type &_ ## name) {       \
     beaconserverconfig res(*this);                              \
     res.name ##_ = _ ## name;                                   \
     return res; }
-    mkfield(registrationsecret, rs)
-    mkfield(frequency, maxresponses)
     mkfield(peername, coordinator)
+    mkfield(frequency, maxresponses)
     mkfield(mastersecret, ms)
+    mkfield(peername::port, port)
+    mkfield(registrationsecret, rs)
 #undef mkfield
 public: beaconserverconfig(const registrationsecret &_rs,
                            const peername &_coordinator,
                            const mastersecret &_ms)
-    : rs_(_rs),
+    : coordinator_(_coordinator),
       maxresponses_(frequency::hz(10)),
-      coordinator_(_coordinator),
-      ms_(_ms) {} };
+      ms_(_ms),
+      port_(9009),
+      rs_(_rs) {} };
 
 class beaconserver {
     friend class statusiface;
@@ -99,7 +101,7 @@ class beaconserver {
     void operator=(const beaconserver &) = delete;
 
     ~beaconserver();
-    maybe<error> listen();
+    maybe<error> listen(peername::port);
 public:
     static orerror<beaconserver *> build(const beaconserverconfig &,
                                          controlserver *);

@@ -13,7 +13,7 @@
 #include "timedelta.H"
 
 orerror<udpsocket>
-udpsocket::listen(port p) {
+udpsocket::listen(peername::port p) {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
         return error::from_errno();
