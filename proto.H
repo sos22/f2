@@ -47,6 +47,7 @@ namespace proto {
         static const parameter<int> sndqueue(6);
         static const parameter<int> rcvqueue(7);
         static const parameter<int> revents(8);
+        static const parameter<int> flags(9);
     };
     namespace memlog_entry {
         static const parameter<const char *> msg(1);

@@ -7,6 +7,7 @@
 
 class buffer;
 class error;
+class fd_t;
 template <typename> class orerror;
 class peername;
 
@@ -43,6 +44,11 @@ public:
        easily faked by an attacker). */
     orerror<peername> receive(buffer &buf,
                               maybe<timestamp> deadline = Nothing) const;
+
+    /* Extract an fd_t for this socket.  Be careful with this: udp
+       sockets don't behave quite the same as byte stream sockets, so
+       not everything will work as you might expect. */
+    fd_t asfd() const;
 
     /* Close the underlying FD. */
     void close() const;

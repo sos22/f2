@@ -4,11 +4,15 @@
 #include "beaconserver.H"
 #include "controlserver.H"
 #include "fields.H"
+#include "logging.H"
 #include "mastersecret.H"
+#include "pair.H"
 #include "peername.H"
 #include "pubsub.H"
 #include "registrationsecret.H"
 #include "test.H"
+
+#include "test.tmpl"
 
 void
 tests::beacon() {
@@ -86,4 +90,57 @@ tests::beacon() {
             assert(cntr <= 310);
             server.success()->destroy(clientio::CLIENTIO); });
 
-}
+    testcaseV("beacon", "clientsendtrunc", [] () {
+            auto doit([] (bool send0) {
+                    bool generatedlog;
+                    generatedlog = false;
+                    eventwaiter<loglevel> logwait(
+                        tests::logmsg,
+                        [&generatedlog] (loglevel level) {
+                            if (level >= loglevel::failure) {
+                                generatedlog = true; } } );
+                    fd_t piperead;
+                    eventwaiter< ::pair< ::fd_t, ::buffer *> > wait(
+                        tests::beaconclientreadytosend,
+                        [&piperead, send0]
+                        (::pair< ::fd_t, ::buffer *> args) {
+                            /* Replace the socket with a nearly-full pipe
+                               O_NONBLOCK pipe to see what happens when the
+                               send is truncated. */
+                            auto _pipe(fd_t::pipe());
+                            auto &pipe(_pipe.success());
+                            pipe.write.nonblock(true);
+                            pipe.read.nonblock(true);
+                            char b[4096];
+                            memset(b, 'x', sizeof(b));
+                            while (pipe.write.write(clientio::CLIENTIO,
+                                                    b,
+                                                    sizeof(b)).issuccess())
+                                ;
+                            while (pipe.write.write(clientio::CLIENTIO,
+                                                    b,
+                                                    1).issuccess())
+                                ;
+                            if (!send0) {
+                                /* Give it a little bit of space, but
+                                   not enough to complete the send. */
+                                auto r(pipe.read.read(clientio::CLIENTIO,
+                                                      b,
+                                                      10));
+                                assert(r.success() == 10); }
+                            auto r(pipe.write.dup2(args.first()));
+                            assert(r == Nothing);
+                            pipe.write.close();
+                            piperead = pipe.read; });
+                    auto r(beaconclient(
+                               beaconclientconfig(registrationsecret::mk("rs"))
+                               .port(peername::port(random()%32768 + 32768))));
+                    assert(r.failure() == error::truncated);
+                    assert(generatedlog);
+                    piperead.close(); });
+            doit(true);
+            doit(false); }); }
+
+template class tests::eventwaiter<pair<fd_t, buffer*> >;
+template class std::function<void (pair<fd_t, buffer*>)>;
+template class tests::event<pair<fd_t, buffer*> >;

@@ -118,6 +118,8 @@ class rx_message;
 messageresult getlogs(const wireproto::rx_message &);
 
 namespace tests {
+template <typename> class event;
+extern event< ::loglevel> logmsg;
 void logging();
 }
 

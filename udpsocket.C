@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "buffer.H"
+#include "fd.H"
 #include "fields.H"
 #include "logging.H"
 #include "peername.H"
@@ -61,6 +62,10 @@ udpsocket::poll() const {
     pfd.events = POLLIN;
     pfd.revents = 0;
     return pfd; }
+
+fd_t
+udpsocket::asfd() const {
+    return fd_t(fd); }
 
 void
 udpsocket::close() const {

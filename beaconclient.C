@@ -7,18 +7,21 @@
 #include "maybe.H"
 #include "nonce.H"
 #include "orerror.H"
+#include "pair.H"
 #include "peername.H"
 #include "proto.H"
 #include "registrationsecret.H"
+#include "test.H"
 #include "timedelta.H"
 #include "udpsocket.H"
 
 orerror<beaconresult>
 beaconclient(const beaconclientconfig &config)
 {
-    auto sock(udpsocket::client());
-    if (sock.isfailure()) return sock.failure();
-    
+    auto _sock(udpsocket::client());
+    if (_sock.isfailure()) return _sock.failure();
+    auto &sock(_sock.success());
+
     int counter;
     counter = 0;
     while (config.retrylimit_ == Nothing ||
@@ -32,14 +35,16 @@ beaconclient(const beaconclientconfig &config)
                               .addparam(proto::HAIL::req::nonce, n)
                               .serialise(outbuf));
             if (!COVERAGE && serialiseres.isjust()) {
-                sock.success().close();
+                sock.close();
                 return serialiseres.just(); } }
-        {   auto sendres(sock.success().send(
+        tests::beaconclientreadytosend.trigger(
+            pair<fd_t, buffer *>(sock.asfd(), &outbuf));
+        {   auto sendres(sock.send(
                     outbuf,
                     peername::udpbroadcast(config.port_)));
             if (!outbuf.empty()) {
                 logmsg(loglevel::failure, fields::mk("HAIL message truncated"));
-                sock.success().close();
+                sock.close();
                 return error::truncated; } }
         
         /* Wait up to a second for a response before sending another
@@ -47,12 +52,12 @@ beaconclient(const beaconclientconfig &config)
         auto respdeadline(timestamp::now() + config.retryinterval_);
         while (1) {
             buffer inbuf;
-            auto recvres(sock.success().receive(inbuf, respdeadline));
+            auto recvres(sock.receive(inbuf, respdeadline));
             if (recvres.isfailure()) {
                 if (recvres.failure() == error::timeout) {
 /**/                break; /* Send another HAIL */
                 } else {
-                    sock.success().close();
+                    sock.close();
                     return recvres.failure(); } }
             auto &rxfrom(recvres.success());
             auto deserialiseres(wireproto::rx_message::fetch(inbuf));
@@ -93,8 +98,8 @@ beaconclient(const beaconclientconfig &config)
                    "Received a good HAIL response from " +
                    fields::mk(respmastername.just()));
             
-            auto slavename(sock.success().localname());
-            sock.success().close();
+            auto slavename(sock.localname());
+            sock.close();
             return beaconresult(respnonce.just(),
                                 respslavename.just(),
                                 respmastername.just(),
@@ -107,3 +112,7 @@ beaconresult::beaconresult(const masternonce &_nonce,
                            const registrationsecret &_secret)
     : nonce(_nonce), slavename(_slavename),
       mastername(_mastername), secret(_secret) {}
+
+namespace tests {
+event< ::pair< ::fd_t, ::buffer *> > beaconclientreadytosend;
+}

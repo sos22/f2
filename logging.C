@@ -21,6 +21,7 @@
 #include "test.H"
 
 #include "list.tmpl"
+#include "test.tmpl"
 
 template class list<memlog_entry>;
 template class list<log_sink *>;
@@ -250,6 +251,7 @@ initlogging(const char *ident)
 void
 logpolicy::logmsg(loglevel level, const fields::field &fld)
 {
+    tests::logmsg.trigger(level);
     auto &sink(level_to_sink(level));
     if (sink.empty())
         return;
@@ -434,3 +436,10 @@ tests::logging() {
                 l.flush(); }
     
             ms.flush(); }); }
+
+namespace tests {
+event<loglevel> logmsg;
+template class eventwaiter<loglevel>;
+template class event<loglevel>;
+}
+template class std::function<void (loglevel)>;

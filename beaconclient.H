@@ -40,4 +40,12 @@ public: beaconclientconfig(const registrationsecret &_rs)
       retrylimit_(Nothing),
       port_(9009) {} };
 
+class buffer;
+template <typename, typename> class pair;
+class fd_t;
+namespace tests {
+template <typename> class event;
+extern event< ::pair< ::fd_t, ::buffer *> > beaconclientreadytosend;
+}
+
 #endif /* !BEACONCLIENT_H__ */

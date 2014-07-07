@@ -3,6 +3,7 @@
 #include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "fields.H"
@@ -79,6 +80,23 @@ fd_t::write(clientio,
     else
         return s; }
 
+maybe<error>
+fd_t::nonblock(bool fl) const {
+    int oldflags;
+    oldflags = ::fcntl(fd, F_GETFL);
+    if (oldflags < 0) return error::from_errno();
+    if (!!(oldflags & O_NONBLOCK) == fl) return Nothing;
+    if (::fcntl(fd, F_SETFL, oldflags ^ O_NONBLOCK) < 0) {
+        return error::from_errno(); }
+    else return Nothing; }
+
+maybe<error>
+fd_t::dup2(fd_t other) const {
+    int r;
+    r = ::dup2(fd, other.fd);
+    if (r < 0) return error::from_errno();
+    else return Nothing; }
+
 orerror<fd_t::piperes>
 fd_t::pipe()
 {
@@ -118,6 +136,9 @@ fd_t::status() const {
     {   int value;
         if (ioctl(fd, TIOCOUTQ, &value) >= 0) sndqueue = value;
         else error::from_errno().warn("TIOCOUTQ"); }
+    {   int value;
+        value = ::fcntl(fd, F_GETFL);
+        if (value >= 0) flags = value; }
     struct pollfd pfd;
     pfd.fd = fd;
     pfd.events = ~0;
