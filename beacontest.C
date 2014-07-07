@@ -6,8 +6,10 @@
 #include "fields.H"
 #include "logging.H"
 #include "mastersecret.H"
+#include "nonce.H"
 #include "pair.H"
 #include "peername.H"
+#include "proto.H"
 #include "pubsub.H"
 #include "registrationsecret.H"
 #include "test.H"
@@ -90,6 +92,7 @@ tests::beacon() {
             assert(cntr <= 310);
             server.success()->destroy(clientio::CLIENTIO); });
 
+#if TESTING
     testcaseV("beacon", "clientsendtrunc", [] () {
             auto doit([] (bool send0) {
                     bool generatedlog;
@@ -139,8 +142,122 @@ tests::beacon() {
                     assert(generatedlog);
                     piperead.close(); });
             doit(true);
-            doit(false); }); }
+            doit(false); });
 
-template class tests::eventwaiter<pair<fd_t, buffer*> >;
-template class std::function<void (pair<fd_t, buffer*>)>;
-template class tests::event<pair<fd_t, buffer*> >;
+    testcaseV("beacon", "clientreceivefailed", [] () {
+            eventwaiter<pair<udpsocket,nonce> > wait(
+                beaconclientreceiving,
+                [] (pair<udpsocket,nonce> args) {
+                    args.first().asfd().close(); });
+            auto r(beaconclient(
+                       beaconclientconfig(registrationsecret::mk("rs"))
+                       .port(peername::port(random()%32768 + 32768))));
+            assert(r.failure() == error::from_errno(EBADF));});
+
+    testcaseV("beacon", "clientreceivenodecode", [] () {
+            bool logged = false;
+            eventwaiter<loglevel> l(
+                logmsg,
+                [&logged] (loglevel ll) {
+                    if (ll >= loglevel::failure) logged = true; });
+            int cntr = 0;
+            eventwaiter<pair<udpsocket,nonce> > wait(
+                beaconclientreceiving,
+                [&cntr] (pair<udpsocket,nonce> args) {
+                    /* Arrange that the client reads an invalid
+                     * wire message. */
+                    if (cntr++ > 1) return;
+                    auto r(udpsocket::client());
+                    ::buffer buf;
+                    char b[1000];
+                    memset(b, 0xff, sizeof(b));
+                    buf.queue(b, sizeof(b));
+                    auto rr(r.success().send(buf, args.first().localname()));
+                    assert(rr == Nothing);
+                    r.success().close(); });
+            auto r(beaconclient(
+                       beaconclientconfig(registrationsecret::mk("rs"))
+                       .port(peername::port(random()%32768 + 32768))
+                       .retrylimit(1)
+                       .retryinterval(timedelta::milliseconds(10))));
+            assert(r.isfailure());
+            assert(logged);
+            assert(cntr < 10); });
+
+    auto sendfdmessage(
+        [] (udpsocket fd, const wireproto::tx_message &msg) {
+            ::buffer buf;
+            msg.serialise(buf);
+            auto r(udpsocket::client());
+            auto rr(r.success().send(buf, fd.localname()));
+            assert(rr == Nothing);
+            r.success().close(); });
+    testcaseV("beacon", "clientreceivemissingparam", [&sendfdmessage] () {
+            int cntr =0 ;
+            eventwaiter<pair<udpsocket,nonce> > wait(
+                beaconclientreceiving,
+                [&sendfdmessage, &cntr] (pair<udpsocket,nonce> args) {
+                    if (cntr++ > 0) return;
+                    sendfdmessage(
+                        args.first(),
+                        wireproto::tx_message(proto::HAIL::tag)); });
+            auto r(beaconclient(
+                       beaconclientconfig(registrationsecret::mk("rs"))
+                       .port(peername::port(random()%32768 + 32768))
+                       .retrylimit(1)
+                       .retryinterval(timedelta::milliseconds(10))));
+            assert(r.isfailure()); });
+    testcaseV("beacon", "clientreceivebadparam",
+              [&sendfdmessage] () {
+            /* Arrange for first message received to have a bad
+               version number, the second to have a bad digest, and
+               the thir to be valid, and make sure that the final
+               result is valid. */
+            int iter;
+            iter = 0;
+            registrationsecret rs(registrationsecret::mk("rs"));
+            masternonce mnonce(digest(fields::mk(random())));
+            eventwaiter<pair<udpsocket,nonce> > wait(
+                beaconclientreceiving,
+                [&sendfdmessage, &iter, &rs, &mnonce]
+                (pair<udpsocket,nonce> args) {
+                    assert(iter == 0 || iter == 1 || iter == 2);
+                    peername mastername(peername::local(
+                                            iter == 2
+                                            ? "GOOD1"
+                                            : "BAD"));
+                    sendfdmessage(
+                        args.first(),
+                        wireproto::tx_message(proto::HAIL::tag)
+                        .addparam(proto::HAIL::resp::version,
+                                  iter == 0 ? 2u : 1u)
+                        .addparam(proto::HAIL::resp::mastername, mastername)
+                        .addparam(proto::HAIL::resp::slavename,
+                                  iter == 2
+                                  ? peername::local("GOOD2")
+                                  : peername::local("BAD"))
+                        .addparam(proto::HAIL::resp::nonce,
+                                  iter == 2
+                                  ? mnonce
+                                  : masternonce(digest(fields::mk(random()))))
+                        .addparam(proto::HAIL::resp::digest,
+                                  iter == 1
+                                  ? digest(fields::mk(random()))
+                                  : digest("A" +
+                                           fields::mk(mastername) +
+                                           fields::mk(args.second()) +
+                                           fields::mk(rs))));
+                    iter++; });
+            auto r(beaconclient(
+                       beaconclientconfig(registrationsecret::mk("rs"))
+                       .port(peername::port(random()%32768 + 32768))
+                       .retrylimit(3)
+                       .retryinterval(timedelta::milliseconds(10))));
+            assert(r.issuccess());
+            assert(iter == 3);
+            assert(r.success().nonce == mnonce);
+            assert(r.success().slavename == peername::local("GOOD2"));
+            assert(r.success().mastername == peername::local("GOOD1"));
+            assert(r.success().secret == rs); });
+#endif /* TESTING */
+}

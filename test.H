@@ -35,7 +35,7 @@ public: mutex_t mux;
 public: list<void *> listeners;
 public: void trigger(t);
 };
-class voidevent : private event<void *> {
+template <> class event<void> : public event<void *> {
     friend class voideventwaiter;
 public: void trigger() { event<void *>::trigger(NULL); }
 };
@@ -47,8 +47,8 @@ public:  publisher idle;
 public:  eventwaiter(event<t> &, std::function<void (t)>);
 public:  ~eventwaiter();
 };
-class voideventwaiter : private eventwaiter<void *> {
-public: voideventwaiter(voidevent &, std::function<void ()>);
+template <> class eventwaiter<void> : private eventwaiter<void *> {
+public: eventwaiter(event<void> &, std::function<void ()>);
 };
 #else
 template <typename t> class event {

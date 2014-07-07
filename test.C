@@ -34,8 +34,8 @@ support::detail(const char *, ...)
 }
 
 #if TESTING
-tests::voideventwaiter::voideventwaiter(
-    tests::voidevent &_evt,
+tests::eventwaiter<void>::eventwaiter(
+    tests::event<void> &_evt,
     std::function<void ()> _action)
     : eventwaiter<void *>(_evt,
                           [_action] (void *) { _action(); }) {}

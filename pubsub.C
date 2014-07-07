@@ -557,7 +557,7 @@ tests::pubsub() {
             /* We get a slightly different path through the
                iosubscription logic if an FD becomes readable at the
                iosubdetachrace event.  Give it a quick once-over. */
-            voideventwaiter evt1(
+            eventwaiter<void> evt1(
                 iosubdetachrace,
                 [fd = pipe.success().write] () {
                     fd.write(clientio::CLIENTIO, "X", 1);
@@ -598,6 +598,6 @@ tests::pubsub() {
 
 }
 
-tests::voidevent tests::iosubdetachrace;
+tests::event<void> tests::iosubdetachrace;
 
 template timeres<bool> timedelta::time<bool>(std::function<bool ()>);

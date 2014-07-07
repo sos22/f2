@@ -43,9 +43,12 @@ public: beaconclientconfig(const registrationsecret &_rs)
 class buffer;
 template <typename, typename> class pair;
 class fd_t;
+class nonce;
+class udpsocket;
 namespace tests {
 template <typename> class event;
 extern event< ::pair< ::fd_t, ::buffer *> > beaconclientreadytosend;
+extern event< ::pair< ::udpsocket, ::nonce> > beaconclientreceiving;
 }
 
 #endif /* !BEACONCLIENT_H__ */

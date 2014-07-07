@@ -52,7 +52,7 @@ done
 
 ar lib.a $(bits .o)
 
-testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H
+testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
 testmodule fields fields.C fieldfinal.H
 testmodule pubsub pubsub.C

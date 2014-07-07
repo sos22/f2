@@ -25,6 +25,7 @@ public:
     WIREPROTO_TYPE(masternonce);
 
     explicit masternonce(const digest &d);
+    bool operator==(const masternonce &o) const { return d == o.d; }
 };
 
 class mastersecret {
