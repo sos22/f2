@@ -3,6 +3,7 @@
 
 #include "wireproto.H"
 
+class quickcheck;
 class registrationsecret;
 
 namespace fields {
@@ -19,10 +20,11 @@ public:
 
     registrationsecret(const registrationsecret &);
     ~registrationsecret();
-    registrationsecret();;
+    registrationsecret();
+    explicit registrationsecret(const quickcheck &);
     void operator=(const registrationsecret &);
     bool operator==(const registrationsecret &) const;
-    static registrationsecret mk(const char *what);
+    static maybe<registrationsecret> mk(const char *what);
 };
 
 #endif /* !REGISTRATIONSECRET_H__ */

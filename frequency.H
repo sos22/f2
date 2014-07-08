@@ -3,6 +3,7 @@
 
 #include "wireproto.H"
 
+class quickcheck;
 class timedelta;
 class frequency;
 
@@ -21,6 +22,8 @@ public:
     WIREPROTO_TYPE(frequency);
 
     static frequency hz(double);
+    frequency(const quickcheck &);
+    bool operator==(const frequency &) const;
 };
 
 timedelta operator/(double, frequency);

@@ -1,3 +1,4 @@
+#include <err.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -30,16 +31,18 @@ main()
            fields::mk("should use less guessable registration and master secrets"));
     mastersecret ms("<master secret>");
     auto rs(registrationsecret::mk("<default password>"));
-    
+    if (rs == Nothing) errx(1, "cannot build registration secret");
     auto coord(coordinator::build(
                    ms,
-                   rs,
+                   rs.just(),
                    peername::tcpany(),
                    c.success()));
     if (coord.isfailure()) coord.failure().fatal("build worker coordinator");
     
     auto beacon(beaconserver::build(
-                    beaconserverconfig(rs, coord.success()->localname(), ms),
+                    beaconserverconfig(rs.just(),
+                                       coord.success()->localname(),
+                                       ms),
                     c.success()));
     if (beacon.isfailure()) beacon.failure().fatal("build beacon server");
 

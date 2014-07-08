@@ -28,6 +28,7 @@ function bits() {
     _ peername
     _ proto
     _ pubsub
+    _ quickcheck
     _ ratelimiter
     _ registrationsecret
     _ rpcconn

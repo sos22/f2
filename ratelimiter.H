@@ -3,6 +3,7 @@
 
 #include "frequency.H"
 #include "mutex.H"
+#include "quickcheck.H"
 #include "timestamp.H"
 #include "wireproto.H"
 
@@ -20,6 +21,16 @@ struct ratelimiter_status {
         : max_rate(_max_rate), bucket_size(_bucket_size),
           bucket_content(_bucket_content), dropped(_dropped)
         {}
+    ratelimiter_status(const quickcheck &q)
+        : max_rate(q),
+          bucket_size(q),
+          bucket_content(q),
+          dropped(q) {}
+    bool operator==(const ratelimiter_status &o) const {
+        return max_rate == o.max_rate &&
+            bucket_size == o.bucket_size &&
+            bucket_content == o.bucket_content &&
+            dropped == o.dropped; }
 };
 
 class ratelimiter {

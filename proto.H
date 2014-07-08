@@ -28,7 +28,7 @@ namespace proto {
         static const parameter<registrationsecret> secret(1);
         static const parameter<class ratelimiter_status> limiter(2);
         static const parameter<unsigned> errors(3);
-        static const parameter<unsigned> rx(3);
+        static const parameter<unsigned> rx(4);
     };
     namespace bufferstatus {
         static const parameter<unsigned long> prod(1);

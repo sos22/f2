@@ -1,3 +1,4 @@
+#include <err.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -25,9 +26,11 @@ main()
     auto c(controlserver::build(
                peername::local("storageslave"), s));
     if (c.isfailure()) c.failure().fatal("build control interface");
+    auto rs(registrationsecret::mk("<default password>"));
+    if (rs == Nothing) errx(1, "cannot construct registration secret");
     auto slave(storageslave::build(
                    clientio::CLIENTIO,
-                   registrationsecret::mk("<default password>"),
+                   rs.just(),
                    c.success()));
     if (slave.isfailure())
         slave.failure().fatal("build storage slave");

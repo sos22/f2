@@ -6,6 +6,8 @@
 
 #include "fieldfinal.H"
 
+class quickcheck;
+
 namespace wireproto {
 
 struct bufslice {
@@ -55,6 +57,21 @@ tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
         addparam(parameter<nested>(tmpl), *it);
     return *this;
 }
+
+template <typename type> void
+roundtrip(unsigned nr = 1000) {
+    parameter<type> param(1);
+    for (unsigned x = 0; x < nr; x++) {
+        ::quickcheck q;
+        type thing(q);
+        ::buffer buf;
+        auto qq(tx_message(msgtag(1))
+                .addparam(param, thing)
+                .serialise(buf));
+        assert(qq == Nothing);
+        auto r(rx_message::fetch(buf));
+        auto rr(r.success().getparam(param));
+        assert(rr.just() == thing); } }
 
 }
 

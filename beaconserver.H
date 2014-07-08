@@ -7,6 +7,7 @@
 #include "controlserver.H"
 #include "mastersecret.H"
 #include "peername.H"
+#include "quickcheck.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
 #include "rpcconn.H"
@@ -29,6 +30,16 @@ public: beaconstatus(const registrationsecret &_secret,
       limiter(_limiter),
       errors(_errors),
       rx(_rx) {}
+public: beaconstatus(const quickcheck &q)
+    : secret(q),
+      limiter(q),
+      errors(q),
+      rx(q) {}
+public: bool operator==(const beaconstatus &o) const {
+    return secret == o.secret &&
+        limiter == o.limiter &&
+        errors == o.errors &&
+        rx == o.rx; }
 WIREPROTO_TYPE(beaconstatus);
 };
 
@@ -66,7 +77,7 @@ class beaconserver {
     class statusiface : public statusinterface {
     private: beaconserver *owner;
     public:  statusiface(beaconserver *_owner);
-    private: void getstatus(wireproto::tx_message *, mutex_t::token) const;
+    public:  void getstatus(wireproto::tx_message *, mutex_t::token) const;
     };
 
     class listenthreadclass : public threadfn {
@@ -79,8 +90,8 @@ class beaconserver {
         listenthreadclass(beaconserver *);
     };
 
-    statusiface statusiface_;
-    statusregistration statusregistration_;
+public:  statusiface statusiface_;
+private: statusregistration statusregistration_;
     registrationsecret secret;
     peername mastername;
     mastersecret mastersecret_;
@@ -110,5 +121,10 @@ public:
 public: typedef beaconstatus status_t;
 public: status_t status() const;
 };
+
+namespace tests {
+template <typename> class event;
+extern event<udpsocket> beaconserverreceive;
+}
 
 #endif /* !BEACONSERVER_H__ */

@@ -14,9 +14,12 @@
 #include "proto.H"
 #include "rpcregistration.H"
 #include "rpcservice.H"
+#include "test.H"
+#include "timedelta.H"
 #include "udpsocket.H"
 #include "waitbox.H"
 
+#include "test.tmpl"
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(beaconstatus);
@@ -137,6 +140,7 @@ beaconserver::listenthreadclass::run(clientio io)
     iosubscription iosub(io, sub, owner->listenfd.poll());
     subscription shutdown(sub, owner->shutdown.pub);
     while (!owner->shutdown.ready()) {
+        tests::beaconserverreceive.trigger(owner->listenfd);
         auto notified(sub.wait());
         if (notified == &shutdown) continue;
         assert(notified == &iosub);
@@ -147,9 +151,12 @@ beaconserver::listenthreadclass::run(clientio io)
             /* DOS protection: drop things over the rate limit */
             continue;
         }
-        if (!COVERAGE && rr.isfailure()) {
+        if (rr.isfailure()) {
             rr.failure().warn("reading beacon interface");
             owner->errors++;
+            /* Shouldn't happen, but back off a little bit if it does,
+               just to avoid spamming the logs when things are bad. */
+            (timestamp::now() + timedelta::milliseconds(100)).sleep();
             continue;
         }
         auto rrr(wireproto::rx_message::fetch(inbuffer));
@@ -244,3 +251,10 @@ beaconserver::destroy(clientio io)
     listenfd.close();
     delete this;
 }
+
+class tests::event<udpsocket> tests::beaconserverreceive;
+#if TESTING
+template class tests::eventwaiter<udpsocket>;
+template class std::function<void (udpsocket)>;
+#endif
+template class tests::event<udpsocket>;
