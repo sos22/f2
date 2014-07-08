@@ -9,6 +9,7 @@
 #include "test.H"
 #include "spark.H"
 #include "thread.H"
+#include "tmpheap.H"
 
 #include "list.tmpl"
 
@@ -16,12 +17,7 @@
 
 namespace fields {
 
-struct arena {
-    arena *next;
-    unsigned size;
-    unsigned used;
-    unsigned char content[];
-};
+tmpheap fieldsheap;
 
 static struct : public field {
     void fmt(fieldbuf &p) const { p.push(" "); }
@@ -36,42 +32,6 @@ static struct : public field {
 } _period;
 const field &period(_period);
 
-static __thread arena *arenas;
-static __thread fieldbuf *buffers;
-
-static class : threaddestructor {
-    void die() { flush(); }
-} _threadcleanup;
-
-static void *
-_alloc(size_t sz)
-{
-    /* Keep everything 16-byte aligned, for general sanity. */
-    sz = (sz + 15) & ~15ul;
-    if (!arenas || arenas->used + sz > arenas->size) {
-        size_t size;
-        for (size = 8192;
-             size - 32 - sizeof(arena) < sz;
-             size *= 4)
-            ;
-        arena *a = (arena *)malloc(size - 32);
-        a->next = arenas;
-        a->size = size - 32 - sizeof(*a);
-        a->used = 0;
-        memset(a->content, 'Z', a->size);
-        arenas = a;
-    }
-    void *res = &arenas->content[arenas->used];
-    arenas->used += sz;
-    return res;
-}
-
-template <typename t> static t *
-alloc()
-{
-    return (t *)_alloc(sizeof(t));
-}
-
 template <typename t> static t
 min(t a, t b)
 {
@@ -82,26 +42,13 @@ min(t a, t b)
 }
 
 fieldbuf::fieldbuf()
-    : owner(tid::me()), next(buffers), head(NULL), tail(NULL)
+    : head(NULL), tail(NULL)
 {
-    buffers = this;
-}
-
-fieldbuf::~fieldbuf()
-{
-    assert(owner == tid::me());
-    auto pprev(&buffers);
-    while (*pprev != this) {
-        assert(*pprev);
-        pprev = &(*pprev)->next;
-    }
-    *pprev = this->next;
 }
 
 void
 fieldbuf::reset()
 {
-    assert(owner == tid::me());
     assert(!!head == !!tail);
     head = NULL;
     tail = NULL;
@@ -110,13 +57,12 @@ fieldbuf::reset()
 void
 fieldbuf::push(const char *what)
 {
-    assert(owner == tid::me());
     size_t sz(strlen(what) + 1);
     unsigned cursor(0);
     while (cursor != sz) {
         assert(cursor < sz);
         if (!tail || tail->used == sizeof(tail->content)) {
-            auto f(alloc<fragment>());
+            auto f(new fragment());
             f->next = NULL;
             f->used = 0;
             if (tail)
@@ -151,7 +97,7 @@ fieldbuf::c_str(maybe<unsigned> limit)
         sz += cursor->used;
     if (limit.isjust() && sz > limit.just())
         sz = limit.just();
-    char *res((char *)_alloc(sz + 1));
+    char *res((char *)fieldsheap._alloc(sz + 1));
     size_t used(0);
     for (auto cursor(head); cursor && used < sz; cursor = cursor->next) {
         unsigned to_copy(min<size_t>(cursor->used, sz - used));
@@ -165,12 +111,6 @@ fieldbuf::c_str(maybe<unsigned> limit)
 
 field::field()
 {}
-
-void *
-field::operator new(size_t sz)
-{
-    return _alloc(sz);
-}
 
 struct concfield : public field {
     const field &a;
@@ -312,7 +252,7 @@ padcenter(const field &base, unsigned minsize,
 struct strfield : public field {
     char *const content;
     strfield(const char *_content)
-        : content((char *)_alloc(strlen(_content) + 1))
+        : content((char *)fieldsheap._alloc(strlen(_content) + 1))
         { strcpy(content, _content); }
     static const field &n(const char *content)
         { return *new strfield(content); }
@@ -522,20 +462,6 @@ print(const field &f)
     printf("%s", buf.c_str());
 }
 
-void flush()
-{
-    while (arenas) {
-        auto n(arenas->next);
-        free(arenas);
-        arenas = n;
-    }
-    for (auto n(buffers); n; n = n->next) {
-        assert(n->owner == tid::me());
-        n->reset();
-        n->push("<flushed>");
-    }
-}
-
 template const field &mk(const maybe<int> &);
 template const field &mk(const maybe<unsigned int> &);
 template const field &mk(const maybe<const char *> &);
@@ -550,16 +476,13 @@ tests::fields()
         [] () {
             fieldbuf buf;
             mk("Hello world").fmt(buf);
-            assert(!strcmp(buf.c_str(), "Hello world"));
-            flush();
-            assert(!strcmp(buf.c_str(), "<flushed>")); });
+            assert(!strcmp(buf.c_str(), "Hello world"));});
 
     testcaseV("fields", "trunc",
         [] () {
             fieldbuf buf;
             trunc(mk("Hello world"), 3).fmt(buf);
-            assert(!strcmp(buf.c_str(), "Hel"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "Hel")); });
 
     testcaseV("fields", "padleft",
              [] () {
@@ -571,119 +494,100 @@ tests::fields()
              [] () {
                  fieldbuf buf;
                  padright(trunc(mk("Hello world"), 3), 5).fmt(buf);
-                 assert(!strcmp(buf.c_str(), "Hel  "));
-                 flush(); });
+                 assert(!strcmp(buf.c_str(), "Hel  ")); });
 
     testcaseV("fields", "padcenter",
              [] () {
                  fieldbuf buf;
                  padcenter(trunc(mk("Hello world"), 3), 5).fmt(buf);
-                 assert(!strcmp(buf.c_str(), " Hel "));
-                 flush(); });
+                 assert(!strcmp(buf.c_str(), " Hel ")); });
 
     testcaseV("fields", "arrowpad1", [] () {
             fieldbuf buf;
             padcenter(trunc(mk("Hello world"), 3), 10, mk("-->"), mk("<--"))
                 .fmt(buf);
-            assert(!strcmp(buf.c_str(), "-->Hel<--<"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "-->Hel<--<"));  });
 
     testcaseV("fields", "arrowpad2", [] () {
             fieldbuf buf;
             padcenter(trunc(mk("Hello world"), 3), 11, mk("-->"), mk("<--"))
                 .fmt(buf);
-            assert(!strcmp(buf.c_str(), ">-->Hel<--<"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), ">-->Hel<--<"));  });
 
     testcaseV("fields", "strconcat", [] () {
             fieldbuf buf;
             (mk("hello") + space + mk("world")).fmt(buf);
-            assert(!strcmp(buf.c_str(), "hello world"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "hello world"));  });
 
     testcaseV("fields", "integers", [] () {
             fieldbuf buf;
             mk(5).fmt(buf);
-            assert(!strcmp(buf.c_str(), "5"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "5"));  });
 
     testcaseV("fields", "negint", [] () {
             fieldbuf buf;
             mk(-5).fmt(buf);
-            assert(!strcmp(buf.c_str(), "-5"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "-5"));  });
 
     testcaseV("fields", "negbinint", [] () {
             fieldbuf buf;
             mk(-5).base(2).fmt(buf);
-            assert(!strcmp(buf.c_str(), "-101{2}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "-101{2}"));  });
 
     testcaseV("fields", "negtrinint", [] () {
             fieldbuf buf;
             mk(-5).base(3).fmt(buf);
-            assert(!strcmp(buf.c_str(), "-12{3}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "-12{3}"));  });
 
     testcaseV("fields", "trinint", [] () {
             fieldbuf buf;
             mk(5).base(3).fmt(buf);
-            assert(!strcmp(buf.c_str(), "12{3}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "12{3}"));  });
 
     testcaseV("fields", "hexint", [] () {
             fieldbuf buf;
             mk(10).base(16).fmt(buf);
-            assert(!strcmp(buf.c_str(), "a{16}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "a{16}"));  });
 
     testcaseV("fields", "HEXint", [] () {
             fieldbuf buf;
             mk(10).base(16).uppercase().fmt(buf);
-            assert(!strcmp(buf.c_str(), "A{16}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "A{16}"));  });
 
     testcaseV("fields", "thousandsep", [] () {
             fieldbuf buf;
             mk(1000).fmt(buf);
-            assert(!strcmp(buf.c_str(), "1,000"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "1,000"));  });
 
     testcaseV("fields", "thousandsep2", [] () {
             fieldbuf buf;
             mk(1234567).fmt(buf);
-            assert(!strcmp(buf.c_str(), "1,234,567"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "1,234,567"));  });
 
     testcaseV("fields", "binthousandsep", [] () {
             fieldbuf buf;
             mk(72).base(2).fmt(buf);
-            assert(!strcmp(buf.c_str(), "1,001,000{2}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "1,001,000{2}"));  });
 
     testcaseV("fields", "hexthousandsep", [] () {
             fieldbuf buf;
             mk(0x123456).base(16).fmt(buf);
-            assert(!strcmp(buf.c_str(), "123,456{16}"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "123,456{16}"));  });
 
     testcaseV("fields", "nosep", [] () {
             fieldbuf buf;
             mk(123456).nosep().fmt(buf);
-            assert(!strcmp(buf.c_str(), "123456"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "123456"));  });
 
     testcaseV("fields", "complexsep", [] () {
             fieldbuf buf;
             mk(123456).sep(fields::mk("ABC"), 1).fmt(buf);
-            assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));
-            flush(); });
+            assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));  });
 
     testcaseV("fields", "period", [] () {
             fieldbuf buf;
             period.fmt(buf);
-            assert(!strcmp(buf.c_str(), "."));
-            flush();});
+            assert(!strcmp(buf.c_str(), ".")); });
 
     testcaseV("fields", "threads", [] () {
             fieldbuf buf1;
@@ -695,7 +599,9 @@ tests::fields()
                     fieldbuf buf2;
                     mk("goodbye").fmt(buf2);
                     assert(!strcmp(buf2.c_str(), "goodbye"));
-                    flush();
+                    fieldsheap.flush();
+                    fieldbuf buf3;
+                    mk("doomed").fmt(buf3);
                     return true; });
             w.get();
             assert(!strcmp(buf1.c_str(), "Hello")); });
@@ -831,3 +737,4 @@ template const field &mk(const orerror<int> &);
 template const field &mk(const list<int> &);
 }
 template class list<int>;
+template class allocintmpheap<fields::fieldsheap>;

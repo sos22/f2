@@ -39,6 +39,7 @@ function bits() {
     _ timedelta
     _ timestamp
     _ thread
+    _ tmpheap
     _ udpsocket
     _ util
     _ waitbox
@@ -54,6 +55,6 @@ ar lib.a $(bits .o)
 
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
-testmodule fields fields.C fieldfinal.H
+testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule pubsub pubsub.C
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl

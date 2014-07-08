@@ -7,14 +7,15 @@
 
 #include "maybe.H"
 #include "tid.H"
+#include "tmpheap.H"
 
 namespace fields {
 
+extern tmpheap fieldsheap;
+
 class fieldbuf {
     friend void flush();
-    tid owner;
-    fieldbuf *next;
-    struct fragment {
+    struct fragment : allocintmpheap<fieldsheap> {
         struct fragment *next;
         unsigned short used;
         char content[4086];
@@ -23,18 +24,16 @@ class fieldbuf {
     fragment *tail;
 public:
     fieldbuf();
-    ~fieldbuf();
     void reset();
     char *c_str(maybe<unsigned> limit = Nothing);
     void push(const char *);
 };
 
-class field {
+class field : protected allocintmpheap<fieldsheap> {
     field(const field &) = delete;
     void operator=(const field &) = delete;
 protected:
     field();
-    static void *operator new(size_t sz);
 public:
     virtual void fmt(fieldbuf &) const = 0;
 };
@@ -106,7 +105,6 @@ public:
 };
 const timefield &mk(const struct timeval &);
 
-void flush();
 void print(const field &f);
 
 template <typename t> const field &mk(const ::maybe<t> &m);

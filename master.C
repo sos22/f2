@@ -50,6 +50,5 @@ main()
     c.success()->destroy(clientio::CLIENTIO);
     deinitlogging();
     deinitpubsub(clientio::CLIENTIO);
-    fields::flush();
     r.finish();
 }
