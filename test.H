@@ -35,10 +35,6 @@ public: mutex_t mux;
 public: list<void *> listeners;
 public: void trigger(t);
 };
-template <> class event<void> : public event<void *> {
-    friend class voideventwaiter;
-public: void trigger() { event<void *>::trigger(NULL); }
-};
 template <typename t> class eventwaiter {
 private: event<t> &evt;
 public:  std::function<void (t)> action;
@@ -54,10 +50,11 @@ public: eventwaiter(event<void> &, std::function<void ()>);
 template <typename t> class event {
 public: void trigger(t) {};
 };
-class voidevent {
-public: void trigger();
-};
 #endif
+template <> class event<void> : public event<void *> {
+    friend class voideventwaiter;
+public: void trigger() { event<void *>::trigger(NULL); }
+};
 
 /* Different test cases need different arguments, and for some reason
    overloading doesn't work properly with lambdas, so have a bunch of

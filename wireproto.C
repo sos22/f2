@@ -637,12 +637,16 @@ tests::wireproto() {
     using namespace wireproto;
     msgtag t(99);
     testcaseV("wireproto", "empty", [t] () {
+            msgtag t2(100);
             ::buffer buf;
             {   auto r(tx_message(t).serialise(buf));
                 assert(r == Nothing); }
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
-                assert(rxm.success().tag() == t); }
+                assert(rxm.success().tag() == t);
+                assert(!(rxm.success().tag() != t));
+                assert(!(rxm.success().tag() == t2));
+                assert(!(rxm.success().tag() == t2)); }
             assert(buf.empty()); });
 
     testcaseV("wireproto", "missing", [t] () {

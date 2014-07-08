@@ -39,9 +39,6 @@ tests::eventwaiter<void>::eventwaiter(
     std::function<void ()> _action)
     : eventwaiter<void *>(_evt,
                           [_action] (void *) { _action(); }) {}
-#else
-void
-tests::voidevent::trigger() {}
 #endif
 
 struct test {

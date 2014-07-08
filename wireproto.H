@@ -88,7 +88,7 @@ namespace wireproto {
             return val == o.val;
         }
         bool operator!=(const msgtag &o) const {
-            return val != o.val;
+            return !(*this == o);
         }
         WIREPROTO_TYPE(msgtag);
     };
