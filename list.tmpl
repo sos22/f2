@@ -9,11 +9,12 @@ template <typename t> struct list<t>::member {
     t value;
     member(const member &) = delete;
     void operator=(const member &) = delete;
-    member(member *_next, member *_prev, const t &v)
+    member(member *_next, member *_prev, bool, const t &v)
         : next(_next), prev(_prev), value(v)
         {}
-    member(member *_next, member *_prev)
-        : next(_next), prev(_prev), value()
+    template <typename ... args>
+    member(member *_next, member *_prev, int, args...params)
+        : next(_next), prev(_prev), value(params...)
         {}
 };
 
@@ -86,7 +87,7 @@ list<t>::peekhead() const {
 template <typename t> void
 list<t>::pushhead(const t &what)
 {
-    auto m(new member(head, NULL, what));
+    auto m(new member(head, NULL, true, what));
     if (head) {
         assert(tail);
         head->prev = m;
@@ -100,7 +101,7 @@ list<t>::pushhead(const t &what)
 template <typename t> void
 list<t>::pushtail(const t &what)
 {
-    auto m(new member(NULL, tail, what));
+    auto m(new member(NULL, tail, false, what));
     if (tail) {
         assert(head);
         tail->next = m;
@@ -111,10 +112,10 @@ list<t>::pushtail(const t &what)
     tail = m;
 }
 
-template <typename t> t &
-list<t>::append()
+template <typename t> template <typename ... args> t &
+list<t>:: append(args ... params)
 {
-    auto m(new member(NULL, tail));
+    auto m(new member(NULL, tail, 73, params...));
     if (tail) {
         assert(head);
         tail->next = m;
@@ -126,10 +127,10 @@ list<t>::append()
     return m->value;
 }
 
-template <typename t> t &
-list<t>::prepend()
+template <typename t> template <typename ... args> t &
+list<t>::prepend(args ... params)
 {
-    auto m(new member(head, NULL));
+    auto m(new member(head, NULL, 73, params...));
     if (head) {
         assert(tail);
         head->prev = m;

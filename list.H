@@ -73,10 +73,10 @@ public:
     /* Non-copying interface, suitable for more complicated types. */
     /* Allocate a new item, using the default constructor, place it at
        the end of the list, and return a reference to it. */
-    t &append();
+    template <typename... args> t &append(args...);
     /* Allocate a new item, using the default constructor, place it at
        the start of the list, and return a reference to it. */
-    t &prepend();
+    template <typename... args> t &prepend(args...);
 
     /* Check that the list looks vaguely reasonable */
     void sanitycheck() const;
