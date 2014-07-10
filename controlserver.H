@@ -12,24 +12,44 @@ class controlconn;
 class controlserver;
 
 class statusinterface {
-public: virtual void getstatus(
-    wireproto::tx_message *msg,
-    mutex_t::token /* status lock */) const = 0;
+    friend class controlconn;
+    /* The active list contains interfaces which we're about collect
+     * status for. */
+private: struct list {
+    list *next;
+    list *prev;
+    list()
+        : next(NULL),
+          prev(NULL) {}
 };
+private: list active;
+private: bool started; /* True if we're started() and not stopped() */
+private: bool running; /* True if the interface is currently being invoked */
+private: publisher idle; /* signalled whenever running goes true->false */
+private: controlserver *const owner;
 
-class statusregistration {
-    friend class controlserver;
-private: statusinterface *what;
-private: controlserver *owner;
-private: statusregistration(
-    statusinterface *,
-    controlserver *);
-public:  void unregister();
+    /* Construct a new status interface and register it with the
+       control server.  The interface is initially stopped and will
+       not start accepting requests until ::start() is called. */
+protected: statusinterface(controlserver *);
+    /* Start accepting new requests on this interface.  Once this is
+       called, new requests can come in to ::getstatus() at any time
+       until ::stop() is called. */
+public:    void start();
+    /* Add status parameters to a TX message. */
+public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
+    /* Stop calling ::getstatus() on this interface, waiting for any
+       extant invocations to finish before returning.  The interface
+       will remain stopped until start() is called. */
+public:    void stop();
+    /* Destruct the interface.  The interface must be stopped before
+     * this is called. */
+public:    virtual ~statusinterface();
 };
 
 class controlserver : public rpcserver<controlconn> {
     friend class controlconn;
-    friend class statusregistration;
+    friend class statusinterface;
 private: list<statusinterface *> statusifaces;
 private: mutex_t statuslock;
 private: waitbox<shutdowncode> &shutdown;
@@ -41,8 +61,6 @@ private: controlserver(waitbox<shutdowncode> &_shutdown);
 public:  static orerror<controlserver *> build(const peername &listenon,
                                                waitbox<shutdowncode> &s);
 private: orerror<controlconn *> accept(socket_t);
-    /* Register a new status interface with the control server */
-public:  statusregistration registeriface(statusinterface &);
 };
 
 #endif /* !CONTROLSERVER_H__ */

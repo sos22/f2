@@ -72,8 +72,7 @@ coordinatorconn::endconn(clientio) {
     owner->mux.unlock(&token); }
 
 void
-coordinator::statusinterface::getstatus(
-    wireproto::tx_message *msg, mutex_t::token) const {
+coordinator::statusinterface::getstatus(wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::coordinator, owner->status()); }
 
 coordinator::status_t
@@ -93,8 +92,7 @@ coordinator::coordinator(
     controlserver *cs)
     : ms(_ms),
       rs(_rs),
-      statusiface(this),
-      controlregistration(cs->registeriface(statusiface)) {}
+      statusiface(this, cs) { }
 
 orerror<coordinatorconn *>
 coordinator::accept(socket_t s) {
@@ -108,7 +106,7 @@ coordinator::accept(socket_t s) {
 
 void
 coordinator::destroy(clientio io) {
-    controlregistration.unregister();
+    statusiface.stop();
     rpcserver::destroy(io); }
 
 orerror<coordinator *>
@@ -122,6 +120,7 @@ coordinator::build(
     if (r.isjust()) {
         delete res;
         return r.just(); }
+    res->statusiface.start();
     return res; }
 
 void

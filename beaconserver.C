@@ -68,17 +68,16 @@ beaconserver::build(const beaconserverconfig &config,
     auto res = new beaconserver(config, cs);
     auto r(res->listen(config.port_));
     if (r.isjust()) {
-        res->statusregistration_.unregister();
         delete res;
         return r.just();
     }
+    res->statusiface_.start();
     return res;
 }
 
 beaconserver::beaconserver(const beaconserverconfig &config,
                            controlserver *cs)
-    : statusiface_(this),
-      statusregistration_(cs->registeriface(statusiface_)),
+    : statusiface_(this, cs),
       secret(config.rs_),
       mastername(config.coordinator_),
       mastersecret_(config.ms_),
@@ -92,16 +91,18 @@ beaconserver::beaconserver(const beaconserverconfig &config,
 {
 }
 
-beaconserver::statusiface::statusiface(beaconserver *server)
-    : owner(server) {}
+beaconserver::statusiface::statusiface(beaconserver *server,
+                                       controlserver *cs)
+    : ::statusinterface(cs),
+      owner(server) {}
 
 beaconserver::status_t
 beaconserver::status() const {
     return status_t(secret, limiter.status(), errors, rx); }
 
 void
-beaconserver::statusiface::getstatus(wireproto::tx_message *msg,
-                                     mutex_t::token) const {
+beaconserver::statusiface::getstatus(
+    wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
 maybe<error>
@@ -244,7 +245,7 @@ void
 beaconserver::destroy(clientio io)
 {
     assert(listenthread);
-    statusregistration_.unregister();
+    statusiface_.stop();
     shutdown.set(true);
     listenthread->join(io);
     listenthread = NULL;

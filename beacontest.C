@@ -365,11 +365,7 @@ tests::beacon() {
                                  cs));
             while (cntr < 5) sub.wait();
             wireproto::tx_message txm(wireproto::msgtag(5));
-            /* Don't care about sync here, so just fake up a lock token. */
-            mutex_t lock;
-            auto token(lock.lock());
-            lock.unlock(&token);
-            server->statusiface_.getstatus(&txm, token);
+            server->statusiface_.getstatus(&txm);
             server->destroy(clientio::CLIENTIO); });
 #endif /* TESTING */
 

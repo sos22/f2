@@ -76,8 +76,8 @@ class beaconserver {
 
     class statusiface : public statusinterface {
     private: beaconserver *owner;
-    public:  statusiface(beaconserver *_owner);
-    public:  void getstatus(wireproto::tx_message *, mutex_t::token) const;
+    public:  statusiface(beaconserver *_owner, controlserver *cs);
+    public:  void getstatus(wireproto::tx_message *) const;
     };
 
     class listenthreadclass : public threadfn {
@@ -91,7 +91,6 @@ class beaconserver {
     };
 
 public:  statusiface statusiface_;
-private: statusregistration statusregistration_;
     registrationsecret secret;
     peername mastername;
     mastersecret mastersecret_;

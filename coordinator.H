@@ -39,12 +39,13 @@ private: registrationsecret rs;
 private: class statusinterface : public ::statusinterface {
     private: coordinator *const owner;
     public:  statusinterface(
-        coordinator *_owner)
-        : owner(_owner) {}
-    private: void getstatus(wireproto::tx_message *, mutex_t::token) const;
+        coordinator *_owner,
+        controlserver *cs)
+        : ::statusinterface(cs),
+          owner(_owner) {}
+    private: void getstatus(wireproto::tx_message *) const;
     };
 private: statusinterface statusiface;
-private: statusregistration controlregistration;
 
 private: mutable mutex_t mux;
 private: list<coordinatorconn *> connections;
