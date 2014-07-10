@@ -17,9 +17,10 @@ class frequency {
     friend timedelta operator/(double, frequency);
     friend const fields::field &fields::mk(const frequency &);
     double hz_;
-    frequency(double);
+    explicit frequency(double);
+    double unwrap() const { return hz_; }
 public:
-    WIREPROTO_TYPE(frequency);
+    WIREPROTO_WRAPPER_TYPE(frequency, double);
 
     static frequency hz(double);
     frequency(const quickcheck &);

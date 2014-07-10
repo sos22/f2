@@ -476,12 +476,6 @@ deserialise(bufslice &slice) {
     if (slice.sz != 8) return Nothing;
     else return *(double *)slice.content; }
 
-template <> maybe<msgtag>
-deserialise(bufslice &slice) {
-    auto r(deserialise<uint16_t>(slice));
-    if (!r) return Nothing;
-    else return msgtag(r.just()); }
-
 template maybe<const char *> rx_message::getparam(parameter<const char *>)const;
 template maybe<unsigned short> rx_message::getparam(
     parameter<unsigned short>) const;
@@ -558,11 +552,7 @@ template maybe<error> rx_message::fetch(
     parameter<list<msgtag> >, list<msgtag>&) const;
 template maybe<error> rx_message::fetch<int>(
     parameter<list<int> >, list<int>&) const;
-template <> maybe<rx_message::status_t> deserialise(
-    wireproto::bufslice &slice) {
-    auto r(deserialise<msgtag>(slice));
-    if (!r) return Nothing;
-    else return rx_message::status_t(r.just()); } }
+}
 
 wireproto_simple_wrapper_type(wireproto::sequencer::status_t, uint16_t, nextseq)
 wireproto_simple_wrapper_type(wireproto::msgtag, uint16_t, val)

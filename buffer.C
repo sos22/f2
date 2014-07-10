@@ -27,14 +27,8 @@ buffer::status_t::addparam(
         .addparam(proto::bufferstatus::prod, prod)
         .addparam(proto::bufferstatus::cons, cons)); }
 maybe<buffer::status_t>
-buffer::status_t::getparam(
-    wireproto::parameter<buffer::status_t> tmpl,
-    const wireproto::rx_message &msg) {
-    auto packed(msg.getparam(
-                    wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
-    auto &p(packed.just());
-#define doparam(name) auto name(p.getparam(proto::bufferstatus::name))
+buffer::status_t::fromcompound(const wireproto::rx_message &msg) {
+#define doparam(name) auto name(msg.getparam(proto::bufferstatus::name))
     doparam(prod);
     doparam(cons);
 #undef doparam

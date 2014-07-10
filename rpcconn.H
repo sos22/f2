@@ -39,7 +39,6 @@ public: rpcconnstatus(const buffer::status_t &_outgoing,
       lastcontact(_lastcontact) {}
 public: ~rpcconnstatus() { pendingrx.flush(); }
 WIREPROTO_TYPE(rpcconnstatus);
-public: static maybe<rpcconnstatus> fromcompound(const wireproto::rx_message &);
 };
 namespace fields {
 const field &mk(const rpcconnstatus &);

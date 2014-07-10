@@ -84,7 +84,7 @@ mk(const wireproto::parameter<t> &param)
 
 }
 
-#define wireproto_wrapper_type(wrapper_type)                            \
+#define __wireproto_wrapper_type(wrapper_type)                          \
     namespace wireproto {                                               \
         template <> tx_message &tx_message::addparam(                   \
             parameter<wrapper_type> tmpl,                               \
@@ -93,11 +93,6 @@ mk(const wireproto::parameter<t> &param)
             val.addparam(tmpl, *this);                                  \
             return *this;                                               \
         }                                                               \
-        template <> maybe<wrapper_type>                                 \
-        rx_message::getparam<wrapper_type>(parameter<wrapper_type> p) const \
-        {                                                               \
-            return wrapper_type::getparam(p, *this);                    \
-        }                                                               \
     }                                                                   \
     namespace fields {                                                  \
         template const field &mk(                                       \
@@ -105,24 +100,39 @@ mk(const wireproto::parameter<t> &param)
         template const field &mk(                                       \
             const maybe<wrapper_type> &);                               \
     }
-
+#define wireproto_wrapper_type(wrapper_type)                            \
+    __wireproto_wrapper_type(wrapper_type)                              \
+    namespace wireproto {                                               \
+        template <> maybe<wrapper_type>                                 \
+        rx_message::getparam<wrapper_type>(parameter<wrapper_type> p) const \
+        {                                                               \
+            auto m(getparam(parameter<rx_message>(p)));                  \
+            if (m == Nothing) return Nothing;                           \
+            else return wrapper_type::fromcompound(m.just());           \
+        }                                                               \
+        template <> maybe<wrapper_type> deserialise(                    \
+            wireproto::bufslice &slice) {                               \
+            auto m(deserialise<rx_message>(slice));                     \
+            if (!m) return Nothing;                                     \
+            else return wrapper_type::fromcompound(m.just()); }         \
+    }
 
 #define wireproto_simple_wrapper_type(wrapper_type, wrapped_type, field) \
-    wireproto_wrapper_type(wrapper_type)                                \
-    void                                                                \
-    wrapper_type::addparam(wireproto::parameter<wrapper_type> tmpl,     \
-                           wireproto::tx_message &msg) const            \
-    {                                                                   \
-        msg.addparam(wireproto::parameter<wrapped_type>(tmpl), field);  \
-    }                                                                   \
-                                                                        \
-    maybe<wrapper_type>                                                 \
-    wrapper_type::getparam(wireproto::parameter<wrapper_type> p,        \
-                           const wireproto::rx_message &msg)            \
-    {                                                                   \
-        auto r(msg.getparam(wireproto::parameter<wrapped_type>(p)));    \
+    namespace wireproto {                                               \
+    template <> maybe<wrapper_type>                                     \
+    rx_message::getparam(parameter<wrapper_type> p) const {             \
+        auto m(getparam(parameter<wrapped_type>(p)));                   \
+        if (m == Nothing) return Nothing;                               \
+        else return wrapper_type(m.just()); }                           \
+    template <> tx_message &                                            \
+    tx_message::addparam(parameter<wrapper_type> p,                     \
+                         const wrapper_type &val) {                     \
+        return addparam(parameter<wrapped_type>(p),                     \
+                        val.unwrap()); }                                \
+    template <> maybe<wrapper_type>                                     \
+    deserialise(bufslice &slice) {                                      \
+        auto r(deserialise<wrapped_type>(slice));                       \
         if (r == Nothing) return Nothing;                               \
-        else return wrapper_type(r.just());                             \
-    }
+        else return wrapper_type::__fromwrapped__(r.just()); } }
 
 #endif /* !WIREPROTO_H__ */

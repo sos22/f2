@@ -129,13 +129,9 @@ peername::addparam(wireproto::parameter<peername> tmpl,
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl), tx);
 }
 maybe<peername>
-peername::getparam(wireproto::parameter<peername> tmpl,
-                   const wireproto::rx_message &msg)
+peername::fromcompound(const wireproto::rx_message &msg)
 {
-    auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
-    auto local(packed.just().getparam(proto::peername::local));
+    auto local(msg.getparam(proto::peername::local));
     if (local.isjust()) {
         struct sockaddr_un un;
         memset(&un, 0, sizeof(un));
@@ -144,9 +140,9 @@ peername::getparam(wireproto::parameter<peername> tmpl,
         strcpy(un.sun_path, local.just());
         return peername((struct sockaddr *)&un, sizeof(un));
     }
-    auto port(packed.just().getparam(proto::peername::port));
+    auto port(msg.getparam(proto::peername::port));
     if (port == Nothing) return Nothing;
-    auto ipv4(packed.just().getparam(proto::peername::ipv4));
+    auto ipv4(msg.getparam(proto::peername::ipv4));
     if (ipv4.isjust()) {
         struct sockaddr_in in;
         memset(&in, 0, sizeof(in));
@@ -155,8 +151,8 @@ peername::getparam(wireproto::parameter<peername> tmpl,
         *(uint32_t *)&in.sin_addr = ipv4.just();
         return peername((struct sockaddr *)&in, sizeof(in));
     }
-    auto ipv6a(packed.just().getparam(proto::peername::ipv6a));
-    auto ipv6b(packed.just().getparam(proto::peername::ipv6b));
+    auto ipv6a(msg.getparam(proto::peername::ipv6a));
+    auto ipv6b(msg.getparam(proto::peername::ipv6b));
     if (!ipv6a || !ipv6b)
         return Nothing;
     struct sockaddr_in6 in6;

@@ -68,10 +68,11 @@ class memlog_idx {
     friend class memlog_sink;
     friend const fields::field &fields::mk(const memlog_idx &);
     unsigned long val;
-    memlog_idx(unsigned long);
+    explicit memlog_idx(unsigned long);
     memlog_idx operator++(int);
+    unsigned long unwrap() const { return val; }
 public:
-    WIREPROTO_TYPE(memlog_idx);
+    WIREPROTO_WRAPPER_TYPE(memlog_idx, unsigned long);
 
     static const memlog_idx min;
     static const memlog_idx max;
@@ -86,7 +87,6 @@ class memlog_entry {
     void operator=(const memlog_entry &) = delete;
 public:
     WIREPROTO_TYPE(memlog_entry);
-    static maybe<memlog_entry> from_compound(const wireproto::rx_message &);
 
     memlog_idx const idx;
     char *const msg;

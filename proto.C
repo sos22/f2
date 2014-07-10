@@ -27,11 +27,6 @@ namespace wireproto {
     template maybe<error> rx_message::fetch(
         parameter<list<memlog_entry> >,
         list<memlog_entry> &) const;
-    template <> maybe<memlog_entry> deserialise(
-        wireproto::bufslice &slice) {
-        auto m(deserialise<rx_message>(slice));
-        if (!m) return Nothing;
-        else return memlog_entry::from_compound(m.just()); }
 };
 void
 memlog_entry::addparam(wireproto::parameter<memlog_entry> tmpl,
@@ -44,7 +39,7 @@ memlog_entry::addparam(wireproto::parameter<memlog_entry> tmpl,
                     addparam(proto::memlog_entry::idx, idx));
 }
 maybe<memlog_entry>
-memlog_entry::from_compound(const wireproto::rx_message &p)
+memlog_entry::fromcompound(const wireproto::rx_message &p)
 {
     auto msg_(p.getparam(proto::memlog_entry::msg));
     auto idx(p.getparam(proto::memlog_entry::idx));
@@ -52,13 +47,6 @@ memlog_entry::from_compound(const wireproto::rx_message &p)
         return Nothing;
     return memlog_entry(idx.just(), msg_.just());
 }
-maybe<memlog_entry>
-memlog_entry::getparam(wireproto::parameter<memlog_entry> tmpl,
-                       const wireproto::rx_message &msg) {
-    auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (packed == Nothing) return Nothing;
-    else return memlog_entry::from_compound(packed.just()); }
 
 wireproto_wrapper_type(ratelimiter_status)
 void
@@ -76,19 +64,13 @@ ratelimiter_status::addparam(wireproto::parameter<ratelimiter_status> tmpl,
                               dropped));
 }
 maybe<ratelimiter_status>
-ratelimiter_status::getparam(wireproto::parameter<ratelimiter_status> tmpl,
-                             const wireproto::rx_message &msg)
+ratelimiter_status::fromcompound(const wireproto::rx_message &msg)
 {
-    auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
-    auto max_rate(packed.just().getparam(proto::ratelimiter_status::max_rate));
-    auto bucket_size(
-        packed.just().getparam(proto::ratelimiter_status::bucket_size));
+    auto max_rate(msg.getparam(proto::ratelimiter_status::max_rate));
+    auto bucket_size(msg.getparam(proto::ratelimiter_status::bucket_size));
     auto bucket_content(
-        packed.just().getparam(proto::ratelimiter_status::bucket_content));
-    auto dropped(
-        packed.just().getparam(proto::ratelimiter_status::dropped));
+        msg.getparam(proto::ratelimiter_status::bucket_content));
+    auto dropped(msg.getparam(proto::ratelimiter_status::dropped));
     if (!max_rate || !bucket_size || !bucket_content || !dropped)
         return Nothing;
     return ratelimiter_status(max_rate.just(),
@@ -111,6 +93,17 @@ tx_message::addparam(
 template <> maybe<timeval>
 rx_message::getparam(parameter<timeval> tmpl) const {
     auto packed(getparam(parameter<rx_message>(tmpl)));
+    if (!packed) return Nothing;
+    auto tv_sec(packed.just().getparam(proto::timeval::tv_sec));
+    auto tv_usec(packed.just().getparam(proto::timeval::tv_usec));
+    if (!tv_sec || !tv_usec) return Nothing;
+    timeval res;
+    res.tv_sec = tv_sec.just();
+    res.tv_usec = tv_usec.just();
+    return res; }
+template <> maybe<timeval>
+deserialise(bufslice &slice) {
+    auto packed(deserialise<rx_message>(slice));
     if (!packed) return Nothing;
     auto tv_sec(packed.just().getparam(proto::timeval::tv_sec));
     auto tv_usec(packed.just().getparam(proto::timeval::tv_usec));

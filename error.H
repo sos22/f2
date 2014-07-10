@@ -22,7 +22,13 @@ class error {
     explicit error(int _e)
         : e(_e)
         {}
+    int unwrap() const { return e; }
 public:
+    /* Can't use WIREPROTO_WRAPPER_TYPE for header ordering rules, so
+     * expand it manually. */
+    friend class wireproto::rx_message;
+    friend class wireproto::tx_message;
+    static error __fromwrapped__(int e) { return error(e); }
     void addparam(wireproto::parameter<error>, wireproto::tx_message &) const;
     static maybe<error> getparam(wireproto::parameter<error>,
                                  const wireproto::rx_message &);

@@ -168,15 +168,9 @@ fd_t::status_t::addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
         p); }
 maybe<fd_t::status_t>
-fd_t::status_t::getparam(
-    wireproto::parameter<fd_t::status_t> tmpl,
-    const wireproto::rx_message &rxm) {
-    auto packed(rxm.getparam(
-                    wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
-    auto &p(packed.just());
+fd_t::status_t::fromcompound(const wireproto::rx_message &rxm) {
 #define doparam(name)                                   \
-    auto name(p.getparam(proto::fd_tstatus::name));
+    auto name(rxm.getparam(proto::fd_tstatus::name));
     doparam(fd);
     fd_tstatus_params(doparam);
 #undef doparam

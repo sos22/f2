@@ -15,8 +15,9 @@ class registrationsecret {
     friend const fields::field &fields::mk(const registrationsecret &);
     char *secret;
     explicit registrationsecret(const char *_secret);
+    const char *unwrap() const { return secret; }
 public:
-    WIREPROTO_TYPE(registrationsecret);
+    WIREPROTO_WRAPPER_TYPE(registrationsecret, const char *);
 
     registrationsecret(const registrationsecret &);
     ~registrationsecret();

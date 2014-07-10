@@ -12,12 +12,6 @@
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(rpcconn::status_t)
-namespace wireproto {
-template <> maybe<rpcconn::status_t> deserialise(
-    wireproto::bufslice &slice) {
-    auto m(deserialise<rx_message>(slice));
-    if (!m) return Nothing;
-    else return rpcconn::status_t::fromcompound(m.just()); } }
 void
 rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
                             wireproto::tx_message &txm) const {
@@ -30,13 +24,6 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
                  .addparam(proto::rpcconnstatus::peername, peername_)
                  .addparam(proto::rpcconnstatus::lastcontact,
                            lastcontact.as_timeval())); }
-maybe<rpcconn::status_t>
-rpcconn::status_t::getparam(wireproto::parameter<rpcconn::status_t> tmpl,
-                            wireproto::rx_message const &msg) {
-    auto packed(msg.getparam(
-                    wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
-    return rpcconn::status_t::fromcompound(packed.just()); }
 maybe<rpcconn::status_t>
 rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
 #define doparam(name)                                   \

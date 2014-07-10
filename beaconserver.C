@@ -34,14 +34,9 @@ beaconserver::status_t::addparam(
                     .addparam(proto::beaconstatus::errors, errors)
                     .addparam(proto::beaconstatus::rx, rx)); }
 maybe<beaconserver::status_t>
-beaconserver::status_t::getparam(
-    wireproto::parameter<beaconserver::status_t> tmpl,
-    const wireproto::rx_message &msg) {
-    auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
+beaconserver::status_t::fromcompound(const wireproto::rx_message &msg) {
 #define doparam(name)                                           \
-    auto name(packed.just().getparam(proto::beaconstatus::name)); \
+    auto name(msg.getparam(proto::beaconstatus::name));         \
     if (!name) return Nothing;
     doparam(secret);
     doparam(limiter);

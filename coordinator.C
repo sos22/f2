@@ -9,6 +9,8 @@
 #include "rpcserver.tmpl"
 #include "wireproto.tmpl"
 
+#include "fieldfinal.H"
+
 wireproto_wrapper_type(coordinatorstatus);
 
 class coordinatorconn : public rpcconn {
@@ -131,14 +133,9 @@ coordinator::status_t::addparam(
                     wireproto::tx_compoundparameter()
                     .addparam(proto::coordinatorstatus::conns, conns)); }
 maybe<coordinator::status_t>
-coordinator::status_t::getparam(
-    wireproto::parameter<coordinator::status_t> tmpl,
-    const wireproto::rx_message &msg) {
-    auto packed(msg.getparam(
-               wireproto::parameter<wireproto::rx_message>(tmpl)));
-    if (!packed) return Nothing;
+coordinator::status_t::fromcompound(const wireproto::rx_message &msg) {
     list<rpcconn::status_t> conns;
-    auto r(packed.just().fetch(proto::coordinatorstatus::conns, conns));
+    auto r(msg.fetch(proto::coordinatorstatus::conns, conns));
     if (r.isjust()) return Nothing;
     coordinator::status_t res(conns);
     conns.flush();
@@ -157,3 +154,7 @@ template class list<rpcserver<coordinatorconn>::connsub*>;
 template orerror<coordinatorconn*> rpcconn::
     fromsocket<coordinatorconn>(socket_t);
 template class rpcserver<coordinatorconn>;
+
+template fields::field const& fields::mk<digest>(maybe<digest> const&);
+template fields::field const& fields::mk<masternonce>(
+    maybe<masternonce> const&);
