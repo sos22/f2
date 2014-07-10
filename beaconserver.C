@@ -249,8 +249,3 @@ beaconserver::destroy(clientio io)
 }
 
 class tests::event<udpsocket> tests::beaconserverreceive;
-#if TESTING
-template class tests::eventwaiter<udpsocket>;
-template class std::function<void (udpsocket)>;
-#endif
-template class tests::event<udpsocket>;

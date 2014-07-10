@@ -18,9 +18,3 @@ storageslave::build(clientio io,
         sock.success().close();
         return sr.failure(); }
     return sr.success(); }
-
-template orerror<storageslave*> rpcconn::connect<storageslave>(
-    clientio, peername const&);
-template orerror<storageslave*> rpcconn::connectmaster<storageslave>(
-    clientio, beaconresult const&);
-template orerror<storageslave*> rpcconn::fromsocket<storageslave>(socket_t);

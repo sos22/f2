@@ -18,7 +18,6 @@ function bits() {
     _ fd
     _ fields
     _ frequency
-    _ list
     _ listenfd
     _ logging
     _ mastersecret

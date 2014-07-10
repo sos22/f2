@@ -191,7 +191,3 @@ fields::mk(const fd_t::status_t &o) {
         fd_tstatus_params(doparam)
 #undef doparam
         ">"; }
-
-namespace fields {
-template const field &mk(const maybe<timeval> &);
-}

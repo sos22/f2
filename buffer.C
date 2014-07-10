@@ -14,8 +14,6 @@
 #include "spark.tmpl"
 #include "wireproto.tmpl"
 
-template class list<buffer::subbuf>;
-
 wireproto_wrapper_type(buffer::status_t)
 void
 buffer::status_t::addparam(
@@ -648,6 +646,3 @@ tests::buffer(void)
             assert(t.just() == error::from_errno(EBADF));
             assert(buf.empty()); });
 }
-
-template class spark<bool>;
-template class std::function<bool ()>;

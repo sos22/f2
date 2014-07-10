@@ -375,5 +375,3 @@ tests::beacon() {
             fields::print(
                 fields::mk(beaconserver::status_t(quickcheck()))+"\n"); });
 }
-
-template void wireproto::roundtrip<beaconstatus>(unsigned int);

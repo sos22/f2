@@ -148,13 +148,3 @@ fields::mk(const coordinator::status_t &o) {
         if (!first) res = &(*res + ",");
         res = &(*res + mk(*it)); }
     return *res + "}>"; }
-
-template class list<coordinatorconn *>;
-template class list<rpcserver<coordinatorconn>::connsub*>;
-template orerror<coordinatorconn*> rpcconn::
-    fromsocket<coordinatorconn>(socket_t);
-template class rpcserver<coordinatorconn>;
-
-template fields::field const& fields::mk<digest>(maybe<digest> const&);
-template fields::field const& fields::mk<masternonce>(
-    maybe<masternonce> const&);

@@ -156,8 +156,3 @@ controlserver::build(const peername &p, waitbox<shutdowncode> &s)
     } else {
         delete r;
         return e.just(); } }
-
-template orerror<controlconn*> rpcconn::fromsocket<controlconn>(socket_t);
-template class list<rpcserver<controlconn>::connsub*>;
-template class list<statusinterface *>;
-template class rpcserver<controlconn>;

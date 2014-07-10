@@ -23,9 +23,6 @@
 #include "list.tmpl"
 #include "test.tmpl"
 
-template class list<memlog_entry>;
-template class list<log_sink *>;
-
 const loglevel
 loglevel::emergency(5);
 const loglevel
@@ -439,11 +436,4 @@ tests::logging() {
 
 namespace tests {
 event<loglevel> logmsg;
-#if TESTING
-template class eventwaiter<loglevel>;
-#endif
-template class event<loglevel>;
 }
-#if TESTING
-template class std::function<void (loglevel)>;
-#endif

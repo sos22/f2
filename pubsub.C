@@ -296,10 +296,6 @@ subscriber::~subscriber() {
         r->detach();
         r->sub = NULL; } }
 
-template class list<subscription *>;
-template class list<iosubscription *>;
-template class list<subscriptionbase *>;
-
 void
 initpubsub() {
     pollthread.start(); }
@@ -599,5 +595,3 @@ tests::pubsub() {
 }
 
 tests::event<void> tests::iosubdetachrace;
-
-template timeres<bool> timedelta::time<bool>(std::function<bool ()>);

@@ -268,7 +268,3 @@ peername::parse(const char *what) {
         return peername((const struct sockaddr *)&sin6, sizeof(sin6));
     } else {
         return error::noparse; } }
-
-namespace fields {
-template const field &mk<peername>(const orerror<peername> &);
-}

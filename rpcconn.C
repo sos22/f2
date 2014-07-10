@@ -398,28 +398,3 @@ rpcconn::status(maybe<mutex_t::token>) const {
 
 const messageresult
 messageresult::noreply;
-
-template class either<subscriptionbase*, wireproto::rx_message const*>;
-template bool list<rpcconnstatus>::empty() const;
-template list<rpcconnstatus>::list();
-template list<rpcconnstatus>::list(list<rpcconnstatus> const&);
-template void list<rpcconnstatus>::flush();
-template void list<rpcconnstatus>::pushtail(rpcconnstatus const&);
-template list<rpcconnstatus>::~list();
-template list<rpcconnstatus>::const_iter list<rpcconnstatus>::start() const;
-template list<rpcconnstatus>::const_iter::const_iter(
-    list<rpcconnstatus> const*, bool);
-template void list<rpcconnstatus>::const_iter::next();
-template bool list<rpcconnstatus>::const_iter::finished() const;
-template const rpcconnstatus &list<rpcconnstatus>::const_iter::
-    operator*() const;
-template list<rpcconnstatus>::iter list<rpcconnstatus>::start();
-template list<rpcconnstatus>::iter::iter(list<rpcconnstatus> *, bool);
-template void list<rpcconnstatus>::iter::remove();
-template bool list<rpcconnstatus>::iter::finished() const;
-template wireproto::tx_message& wireproto::tx_message::addparam<rpcconnstatus>(
-    wireproto::parameter<list<rpcconnstatus> >, list<rpcconnstatus> const&);
-template maybe<error> wireproto::rx_message::fetch<rpcconnstatus>(
-    wireproto::parameter<list<rpcconnstatus> >, list<rpcconnstatus>&) const;
-template orerror<rpcconn*> rpcconn::fromsocket<rpcconn>(socket_t);
-template orerror<rpcconn*> rpcconn::connect<rpcconn>(clientio, peername const&);

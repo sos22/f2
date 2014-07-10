@@ -119,15 +119,4 @@ beaconresult::beaconresult(const masternonce &_nonce,
 namespace tests {
 event< ::pair< ::fd_t, ::buffer *> > beaconclientreadytosend;
 event< ::pair< ::udpsocket, ::nonce> > beaconclientreceiving;
-#if TESTING
-template class eventwaiter<pair< ::fd_t, ::buffer*> >;
-template class eventwaiter<pair< ::udpsocket, ::nonce> >;
-#endif
-template class event<pair< ::fd_t, ::buffer*> >;
-template class event<pair< ::udpsocket, ::nonce> >;
 }
-#if TESTING
-template class std::function<void (pair<fd_t, buffer*>)>;
-template class std::function<void (pair<udpsocket, nonce>)>;
-#endif
-template pair<udpsocket, nonce> mkpair(udpsocket const&, nonce const&);

@@ -462,10 +462,6 @@ print(const field &f)
     printf("%s", buf.c_str());
 }
 
-template const field &mk(const maybe<int> &);
-template const field &mk(const maybe<unsigned int> &);
-template const field &mk(const maybe<const char *> &);
-
 }
 
 void
@@ -731,10 +727,3 @@ tests::fields()
     testcaseV("fields", "print", [] () {
             print(mk("hello\n")); });
 }
-
-namespace fields {
-template const field &mk(const orerror<int> &);
-template const field &mk(const list<int> &);
-}
-template class list<int>;
-template class allocintmpheap<fields::fieldsheap>;

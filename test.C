@@ -130,14 +130,3 @@ void runtest(const char *component, const char *t) {
             it2->doit(s); } } }
 
 } /* End namespace tests */
-
-template class list<tests::testcomponent>;
-template class list<tests::test>;
-template class std::function<void (controlserver*)>;
-template class std::function<void (tests::support&)>;
-template class std::function<void (void)>;
-template class std::function<void (void*)>;
-template class tests::event<void*>;
-#if TESTING
-template class tests::eventwaiter<void*>;
-#endif
