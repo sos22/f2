@@ -12,6 +12,6 @@
 *.log
 config
 master
-mastercli
+cli
 storage
 test

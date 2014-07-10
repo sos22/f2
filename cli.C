@@ -17,22 +17,26 @@
 #include "fieldfinal.H"
 
 int
-main(int argc, char *argv[])
+main(int argc, const char *const argv[])
 {
-    if (argc < 2)
-        errx(1, "need a mode argument");
-    initlogging("mastercli");
+    if (argc < 3)
+        errx(1, "need a socket to connect to and a mode argument");
+    const char *sock = argv[1];
+    const char *mode = argv[2];
+    const char *const *args = argv + 3;
+    int nrargs = argc - 3;
+    initlogging("cli");
     initpubsub();
     auto c(rpcconn::connect<rpcconn>(
-               clientio::CLIENTIO, peername::local("mastersock")));
+               clientio::CLIENTIO, peername::local(sock)));
     int r;
 
     if (c.isfailure())
         c.failure().fatal("connecting to master");
 
     r = 0;
-    if (!strcmp(argv[1], "PING")) {
-        if (argc != 2) errx(1, "PING mode takes no arguments");
+    if (!strcmp(mode, "PING")) {
+        if (nrargs != 0) errx(1, "PING mode takes no arguments");
         auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
             clientio::CLIENTIO,
@@ -40,7 +44,7 @@ main(int argc, char *argv[])
             addparam(proto::PING::req::msg, "Hello"));
         c.success()->putsequencenr(snr);
         if (m.issuccess()) {
-            fields::print("master ping sequence " +
+            fields::print("master sequence " +
                           fields::mk(m.success()->getparam(proto::PING::resp::cntr)) +
                           ", message " +
                           fields::mk(m.success()->getparam(proto::PING::resp::msg)) +
@@ -48,8 +52,8 @@ main(int argc, char *argv[])
             delete m.success();
         } else {
             m.failure().fatal("sending ping"); }
-    } else if (!strcmp(argv[1], "LOGS")) {
-        if (argc != 2) errx(1, "LOGS mode takes no arguments");
+    } else if (!strcmp(mode, "LOGS")) {
+        if (nrargs) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);
         unsigned nr = 200;
         while (1) {
@@ -82,9 +86,9 @@ main(int argc, char *argv[])
                 break; /* we're done */
             cursor = s.just();
         }
-    } else if (!strcmp(argv[1], "STATUS")) {
+    } else if (!strcmp(mode, "STATUS")) {
         using namespace proto::STATUS;
-        if (argc != 2) errx(1, "STATUS mode takes no arguments");
+        if (nrargs) errx(1, "STATUS mode takes no arguments");
         auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
             clientio::CLIENTIO,
@@ -98,13 +102,13 @@ main(int argc, char *argv[])
                               fields::mk(mm->getparam(resp::coordinator)) +
                           "\n");
             delete mm; }
-    } else if (!strcmp(argv[1], "QUIT")) {
-        if (argc != 4)
-            errx(1, "QUIT mode takes code and explanation arguments");
-        auto code(shutdowncode::parse(argv[2]));
+    } else if (!strcmp(mode, "QUIT")) {
+        if (nrargs != 2) {
+            errx(1, "QUIT mode takes code and explanation arguments"); }
+        auto code(shutdowncode::parse(args[0]));
         if (code.isfailure())
             code.failure().fatal(fields::mk("cannot parse shutdown code"));
-        const char *message = argv[3];
+        const char *message = args[1];
         auto rv(c.success()->send(
                     clientio::CLIENTIO,
                     wireproto::tx_message(proto::QUIT::tag)
@@ -114,7 +118,7 @@ main(int argc, char *argv[])
             rv.just().fatal(fields::mk("sending QUIT message"));
         c.success()->drain(clientio::CLIENTIO);
     } else {
-        printf("Unknown command %s.  Known: PING, LOGS\n", argv[1]);
+        printf("Unknown command %s.  Known: PING, LOGS\n", mode);
         r = 1;
     }
     c.success()->destroy(clientio::CLIENTIO);

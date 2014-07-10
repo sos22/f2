@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc cli.C
+ld cli cli.o lib.a
+
+target cli

@@ -1,8 +1,0 @@
-#! /bin/bash
-
-. shutil
-
-cc mastercli.C
-ld mastercli mastercli.o lib.a
-
-target mastercli
