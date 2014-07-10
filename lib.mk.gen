@@ -33,6 +33,7 @@ function bits() {
     _ rpcconn
     _ shutdown
     _ socket
+    _ storageslave
     _ tcpsocket
     _ test
     _ tid

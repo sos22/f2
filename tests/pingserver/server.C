@@ -68,23 +68,3 @@ main()
     deinitlogging();
     r.finish();
 }
-
-template orerror<pingableconn*> rpcconn::fromsocket<pingableconn>(socket_t);
-
-template class rpcserver<pingableconn>;
-
-template list<rpcserver<pingableconn>::connsub*>::list();
-template bool list<rpcserver<pingableconn>::connsub*>::empty() const;
-template list<rpcserver<pingableconn>::connsub*>::~list();
-template void list<rpcserver<pingableconn>::connsub*>::pushtail(
-    rpcserver<pingableconn>::connsub* const&);
-template list<rpcserver<pingableconn>::connsub*>::iter
-    list<rpcserver<pingableconn>::connsub*>::start();
-template list<rpcserver<pingableconn>::connsub*>::iter::iter(
-    list<rpcserver<pingableconn>::connsub*>*, bool);
-template rpcserver<pingableconn>::connsub* &
-    list<rpcserver<pingableconn>::connsub*>::iter::operator*();
-template bool list<rpcserver<pingableconn>::connsub*>::iter::finished() const;
-template void list<rpcserver<pingableconn>::connsub*>::iter::remove();
-template void list<rpcserver<pingableconn>::connsub*>::iter::next();
-template class either<subscriptionbase*, wireproto::rx_message const*>;

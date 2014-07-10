@@ -11,11 +11,11 @@
 #include "tcpsocket.H"
 #include "thread.H"
 
-template <typename conn_t> orerror<conn_t *>
-rpcconn::fromsocket(socket_t sock) {
+template <typename conn_t, typename... args> orerror<conn_t *>
+rpcconn::fromsocket(socket_t sock, args... parameters) {
     auto peer(sock.peer());
     if (peer.isfailure()) return peer.failure();
-    auto res(new conn_t(sock, peer.success()));
+    auto res(new conn_t(sock, peer.success(), parameters...));
     auto spawnres(thread::spawn(res, &res->thr,
                                 "IO:"+fields::mk(peer.success())));
     if (spawnres.isjust()) {
@@ -23,9 +23,11 @@ rpcconn::fromsocket(socket_t sock) {
         return spawnres.just(); }
     return res; }
 
-template <typename conn_t> orerror<conn_t *>
-rpcconn::connectmaster(clientio io, const beaconresult &br) {
-    auto res(connect<conn_t>(io, br.mastername));
+template <typename conn_t, typename... args> orerror<conn_t *>
+rpcconn::connectmaster(clientio io,
+                       const beaconresult &br,
+                       args ... parameters) {
+    auto res(connect<conn_t>(io, br.mastername, parameters...));
     if (res.isfailure()) return res.failure();
     /* XXX we can receive incoming messages here, even though the
        master's not authenticated to us yet.  There aren't any other
@@ -52,11 +54,11 @@ rpcconn::connectmaster(clientio io, const beaconresult &br) {
            "connected to master at " + fields::mk(br.mastername));
     return conn; }
 
-template <typename conn_t> orerror<conn_t *>
-rpcconn::connect(clientio io, const peername &p) {
+template <typename conn_t, typename ... args> orerror<conn_t *>
+rpcconn::connect(clientio io, const peername &p, args ... parameters) {
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
-    auto r(fromsocket<conn_t>(s.success()));
+    auto r(fromsocket<conn_t>(s.success(), parameters...));
     if (r.isfailure()) s.success().close();
     else r.success()->ready();
     return r; }

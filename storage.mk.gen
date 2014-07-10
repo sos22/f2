@@ -3,7 +3,6 @@
 . shutil
 
 cc storage.C
-cc storageslave.C
-ld storage storage.o storageslave.o lib.a
+ld storage storage.o lib.a
 
 target storage

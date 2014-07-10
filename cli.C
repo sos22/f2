@@ -12,7 +12,11 @@
 #include "registrationsecret.H"
 #include "rpcconn.H"
 #include "shutdown.H"
+#include "storageslave.H"
 #include "wireproto.H"
+
+#include "rpcconn.tmpl"
+#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
@@ -100,6 +104,8 @@ main(int argc, const char *const argv[])
             fields::print("beacon: " + fields::mk(mm->getparam(resp::beacon)) +
                           "\ncoordinator: " +
                               fields::mk(mm->getparam(resp::coordinator)) +
+                          "\nstorageslave: " +
+                              fields::mk(mm->getparam(resp::storageslave)) +
                           "\n");
             delete mm; }
     } else if (!strcmp(mode, "QUIT")) {

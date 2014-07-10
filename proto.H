@@ -17,6 +17,7 @@ class nonce;
 class peername;
 class rpcconnstatus;
 class shutdowncode;
+class storageslavestatus;
 struct timeval;
 class ratelimiter_status;
 class registrationsecret;
@@ -121,6 +122,7 @@ namespace proto {
         namespace resp {
             static const parameter< ::beaconstatus> beacon(450);
             static const parameter< ::coordinatorstatus> coordinator(451);
+            static const parameter< ::storageslavestatus> storageslave(452);
         };
     };
 

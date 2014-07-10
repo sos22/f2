@@ -114,21 +114,23 @@ protected: rpcconn(socket_t _sock, const peername &_peer);
      * beacon protocol.  Done as a template so that you can specify a
      * derived class with a more complete startconn(), message(), and
      * endconn() suite. */
-public: template<typename t> static orerror<t *> connectmaster(
+public: template<typename t, typename...args> static orerror<t *> connectmaster(
     clientio,
-    const beaconresult &);
+    const beaconresult &,
+    args...);
 
     /* Raw connect, without sending a HELLO. */
-public: template<typename t> static orerror<t *> connect(
+public: template<typename t, typename ... args> static orerror<t *> connect(
     clientio,
-    const peername &);
+    const peername &,
+    args...);
 
     /* Establish a connection around an existing socket, without
      * sending any messages.  The resulting connection starts in a
      * paused state, allowing you to do any necessary setup before you
      * start accepting incoming messages from the side. */
-public: template<typename t> static orerror<t *> fromsocket(
-    socket_t);
+public: template<typename t, typename... args> static orerror<t *> fromsocket(
+    socket_t, args...);
 
     /* Post-fromsocket() per-connection state is established.  Start
      * processing incoming messages. */
