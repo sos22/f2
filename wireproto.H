@@ -8,6 +8,7 @@
 #include "list.H"
 #include "maybe.H"
 #include "orerror.H"
+#include "quickcheck.H"
 
 class buffer;
 
@@ -65,11 +66,15 @@ namespace wireproto {
             return !!(val & 0x8000); }
     };
     class sequencerstatus {
-    public: uint16_t nextseq;
-    public: sequencerstatus(uint16_t _nextseq)
+    public:  uint16_t nextseq;
+    public:  sequencerstatus(uint16_t _nextseq)
         : nextseq(_nextseq) {}
+    public:  sequencerstatus(const quickcheck &q)
+        : nextseq(q) {}
         WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint16_t);
     private: uint16_t unwrap() const { return nextseq; }
+    public:  bool operator==(const sequencerstatus &o) const {
+        return nextseq == o.nextseq; }
     };
     class sequencer {
         uint16_t last;

@@ -8,6 +8,7 @@ class quickcheck {
      * for trying to pick ``interesting'' numbers a bit more often
      * that it should. */
 public: operator unsigned() const;
+public: operator unsigned short() const;
     /* Cauchy distributed with location 0 and scale 1 */
 public: operator double() const;
     /* Returns a string in the quickcheck heap using the 8 bit char

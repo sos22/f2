@@ -8,6 +8,7 @@
 #include "buffer.H"
 #include "error.H"
 #include "fields.H"
+#include "quickcheck.H"
 #include "test.H"
 
 #include "wireproto.tmpl"
@@ -995,4 +996,7 @@ tests::wireproto() {
                 it2.next(); }
             l.flush();
             l2.flush(); });
+
+    testcaseV("wireproto", "sequencerstats", [] () {
+            roundtrip<sequencerstatus>(); });
 }
