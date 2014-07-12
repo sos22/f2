@@ -177,12 +177,6 @@ private: messageresult hellomessage(const wireproto::rx_message &);
     /* Bits to process incoming messages.  Servers should override
      * these methods; the default implementation doesn't do very
      * much. */
-    /* Notify derived class that we have a new connection.  This is
-     * called in the RX thread after the connection is accepted but
-     * before it accepts any incoming messages.  It can return an
-     * error to cause the connection to drop immediately (without
-     * calling endconn) , or Nothing to allow it to proceed. */
-private: virtual maybe<error> startconn(clientio) { return Nothing; }
     /* Process a message received from the other end of the
      * connection.  Should return either an error, to send an error
      * reply, or a response message, or the special value
