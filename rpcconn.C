@@ -108,9 +108,6 @@ void
 rpcconn::run(clientio io) {
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
-    {   subscription readysub(sub, ready_.pub);
-        while (!shutdown.ready() && !ready_.ready())
-            sub.wait(); }
     subscription grewsub(sub, outgoinggrew);
     iosubscription insub(io, sub, sock.poll(POLLIN));
     iosubscription outsub(io, sub, sock.poll(POLLOUT));
@@ -284,7 +281,6 @@ rpcconn::rpcconn(
     const peername &_peer)
     : thr(NULL),
       shutdown(),
-      ready_(),
       sock(_sock),
       txlock(),
       outgoing(),
@@ -299,10 +295,6 @@ rpcconn::rpcconn(
       lastcontact(timestamp::now()),
       peer_(_peer),
       auth(_auth) {}
-
-void
-rpcconn::ready() {
-    ready_.set(true); }
 
 messageresult
 rpcconn::message(const wireproto::rx_message &msg) {

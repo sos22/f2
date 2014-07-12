@@ -48,7 +48,6 @@ rpcserver::run(clientio io) {
                     "derived class rejected incoming connection");
                 newsock.success().close();
                 continue; }
-            conn.success()->ready();
             threads.pushtail(new _rpcserver::connsub(sub, conn.success()));
         } else {
             /* Must have been a connection sub. */

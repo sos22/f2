@@ -92,9 +92,6 @@ class rpcconn : threadfn {
     /* Each rpcconn has an associated thread which does IO for it. */
 private: thread *thr;
 private: waitbox<bool> shutdown; /* To shut down the thread */
-private: waitbox<bool> ready_; /* Set once the derived class's state
-                                  is set up and ready to process
-                                  messages. */
 private: void run(clientio);
 
     /* The raw socket.  Accessible only to the connection thread. */
@@ -156,9 +153,8 @@ public: template<typename t, typename ... args> static orerror<t *> connect(
     args...);
 
     /* Establish a connection around an existing socket, without
-     * sending any messages.  The resulting connection starts in a
-     * paused state, allowing you to do any necessary setup before you
-     * start accepting incoming messages from the side. */
+     * sending any messages.  The connection can start receiving
+     * messages as soon as its constructor returns. */
 public: template<typename t, typename... args> static orerror<t *> fromsocket(
     socket_t,
     const rpcconnauth &auth,
@@ -167,10 +163,6 @@ public: template<typename t, typename... args> static orerror<t *> fromsocket(
 protected: rpcconn(socket_t _sock,
                    const rpcconnauth &_auth,
                    const peername &_peer);
-
-    /* Post-fromsocket() per-connection state is established.  Start
-     * processing incoming messages. */
-public: void ready();
 
 private: messageresult hellomessage(const wireproto::rx_message &);
 

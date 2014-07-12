@@ -69,7 +69,6 @@ rpcconn::connect(clientio io, const peername &p, args ... parameters) {
                rpcconnauth::authenticated(),
                parameters...));
     if (r.isfailure()) s.success().close();
-    else r.success()->ready();
     return r; }
 
 #endif /* !RPCCONN_TMPL__ */
