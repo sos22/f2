@@ -13,14 +13,23 @@
 wireproto_wrapper_type(coordinatorstatus);
 
 class coordinatorconn : public rpcconn {
-public:  coordinator *owner;
+public:  coordinator *const owner;
 public:  coordinatorconn(socket_t &_socket,
                          const rpcconnauth &_auth,
-                         peername &_peer)
-    : rpcconn(_socket, _auth, _peer),
-      owner(NULL) {}
+                         peername &_peer,
+                         coordinator *_owner);
 private: void endconn(clientio);
 };
+
+coordinatorconn::coordinatorconn(socket_t &_socket,
+                                 const rpcconnauth &_auth,
+                                 peername &_peer,
+                                 coordinator *_owner)
+    : rpcconn(_socket, _auth, _peer),
+      owner(_owner) {
+    auto token(owner->mux.lock());
+    owner->connections.pushtail(this);
+    owner->mux.unlock(&token); }
 
 void
 coordinatorconn::endconn(clientio) {
@@ -59,15 +68,10 @@ coordinator::coordinator(
 
 orerror<rpcconn *>
 coordinator::accept(socket_t s) {
-    auto res(rpcconn::fromsocket<coordinatorconn>(
-                 s,
-                 rpcconnauth::needhello(ms, rs)));
-    if (res.issuccess()) {
-        res.success()->owner = this;
-        auto token(mux.lock());
-        connections.pushtail(res.success());
-        mux.unlock(&token); }
-    return res; }
+    return rpcconn::fromsocket<coordinatorconn>(
+        s,
+        rpcconnauth::needhello(ms, rs),
+        this); }
 
 void
 coordinator::destroy(clientio io) {
