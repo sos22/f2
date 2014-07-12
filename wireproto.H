@@ -40,8 +40,7 @@ template <typename t> const field &mk(const wireproto::parameter<t> &);
 #define WIREPROTO_WRAPPER_TYPE(wrapper, wrapped)                        \
     friend class wireproto::tx_message;                                 \
     friend class wireproto::rx_message;                                 \
-    static wrapper __fromwrapped__(wrapped t) {                         \
-        return wrapper(t); }                                            \
+    static wrapper __fromwrapped__(wrapped t);                          \
     WIREPROTO_TYPE(wrapper)
 
 namespace wireproto {
@@ -69,8 +68,7 @@ namespace wireproto {
     public:  uint16_t nextseq;
     public:  sequencerstatus(uint16_t _nextseq)
         : nextseq(_nextseq) {}
-    public:  sequencerstatus(const quickcheck &q)
-        : nextseq(q) {}
+    public:  sequencerstatus(const quickcheck &q);
         WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint16_t);
     private: uint16_t unwrap() const { return nextseq; }
     public:  bool operator==(const sequencerstatus &o) const {

@@ -20,6 +20,9 @@ namespace wireproto {
 
 template <> maybe<error> rx_message::getparam<error>(parameter<error> p) const;
 
+sequencerstatus::sequencerstatus(const quickcheck &q)
+    : nextseq(q) {}
+
 tx_message::tx_message(msgtag _t)
     : t(_t), params()
 {}

@@ -28,7 +28,7 @@ public:
      * expand it manually. */
     friend class wireproto::rx_message;
     friend class wireproto::tx_message;
-    static error __fromwrapped__(int e) { return error(e); }
+    static error __fromwrapped__(int e);
     void addparam(wireproto::parameter<error>, wireproto::tx_message &) const;
     static maybe<error> getparam(wireproto::parameter<error>,
                                  const wireproto::rx_message &);

@@ -133,6 +133,8 @@ mk(const wireproto::parameter<t> &param)
     deserialise(bufslice &slice) {                                      \
         auto r(deserialise<wrapped_type>(slice));                       \
         if (r == Nothing) return Nothing;                               \
-        else return wrapper_type::__fromwrapped__(r.just()); } }
+        else return wrapper_type::__fromwrapped__(r.just()); } }        \
+    wrapper_type wrapper_type::__fromwrapped__(wrapped_type t) {        \
+        return wrapper_type(t); }
 
 #endif /* !WIREPROTO_H__ */
