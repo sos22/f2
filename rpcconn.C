@@ -136,7 +136,15 @@ rpcconn::run(clientio io) {
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
                 if (msg.success().isreply()) {
-                    if (pingsequence.isjust() &&
+                    if (!receivedhello) {
+                        logmsg(loglevel::failure,
+                               "peer " + fields::mk(peer_) +
+                               "sent a reply to " +
+                               fields::mk(msg.success().tag()) +
+                               " sequence " +
+                               fields::mk(msg.success().sequence()) +
+                               " before it sent HELLO");
+                    } else if (pingsequence.isjust() &&
                         msg.success().sequence() ==
                             pingsequence.just().reply()) {
                         logmsg(loglevel::debug,
@@ -151,7 +159,16 @@ rpcconn::run(clientio io) {
                     continue;
                 }
 
-                auto res(message(msg.success()));
+                messageresult res(error::unrecognisedmessage);
+                if (receivedhello || msg.success().tag() == proto::HELLO::tag) {
+                    res = message(msg.success());
+                } else {
+                    logmsg(loglevel::failure,
+                           "received message tag " +
+                           fields::mk(msg.success().tag()) +
+                           " from " +
+                           fields::mk(peer_) +
+                           " without a HELLO"); }
                 if (!res.isreply() && !res.isfailure()) {
                     /* No response to this message */
                     continue; }
@@ -229,7 +246,8 @@ rpcconn::rpcconn(
       pendingrxextended(),
       contactlock(),
       lastcontact(timestamp::now()),
-      peer_(_peer) {}
+      peer_(_peer),
+      receivedhello(false) {}
 
 void
 rpcconn::ready() {

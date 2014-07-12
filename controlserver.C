@@ -143,7 +143,14 @@ controlserver::controlserver(waitbox<shutdowncode> &_shutdown)
 orerror<controlconn *>
 controlserver::accept(socket_t s) {
     auto r(rpcconn::fromsocket<controlconn>(s));
-    if (r.issuccess()) r.success()->owner = this;
+    if (r.issuccess()) {
+        /* We don't need a HELLO because we only listen on UNIX domain
+           sockets, which are implicitly authenticated by the socket
+           access flags. */
+        /* Set flag now, before rpcserver() calls conn::ready(), to
+           avoid silly startup races. */
+        r.success()->receivedhello = true;
+        r.success()->owner = this; }
     return r; }
 
 orerror<controlserver *>

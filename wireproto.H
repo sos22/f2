@@ -16,6 +16,7 @@ class msgtag;
 template <typename t> class parameter;
 class rx_message;
 class rx_messagestatus;
+class sequencenr;
 class sequencerstatus;
 };
 
@@ -24,6 +25,7 @@ class field;
 const field &mk(const wireproto::msgtag &);
 const field &mk(const wireproto::rx_message *);
 const field &mk(const wireproto::rx_messagestatus &);
+const field &mk(const wireproto::sequencenr &);
 const field &mk(const wireproto::sequencerstatus &);
 template <typename t> const field &mk(const ::maybe<t> &);
 template <typename t> const field &mk(const wireproto::parameter<t> &);
@@ -46,6 +48,7 @@ namespace wireproto {
 
     /* Must be POD or serialise/deserialise won't work. */
     struct sequencenr {
+        friend const fields::field &fields::mk(const wireproto::sequencenr &t);
     private:
         friend class sequencer;
         uint16_t val;

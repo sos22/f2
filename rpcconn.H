@@ -45,7 +45,7 @@ const field &mk(const rpcconnstatus &);
 }
 
 class messageresult {
-private: orerror<maybe<wireproto::tx_message *> > const content;
+private: orerror<maybe<wireproto::tx_message *> > content;
 private: messageresult() : content(Nothing) {}
 public:  messageresult(error e) : content(e) {}
 public:  messageresult(wireproto::tx_message *m)
@@ -102,6 +102,11 @@ private: mutex_t contactlock;
 private: timestamp lastcontact;
 
 private: const peername peer_;
+
+    /* True if either we've received a valid HELLO or if we don't need
+       one on this connection.  Only accessed by the connection
+       thread, so no synchronisation needed. */
+public:  bool receivedhello;
 
 private: rpcconn() = delete;
 private: rpcconn(const rpcconn &) = delete;

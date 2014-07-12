@@ -14,11 +14,9 @@
 wireproto_wrapper_type(coordinatorstatus);
 
 class coordinatorconn : public rpcconn {
-private: bool receivedhello;
 public:  coordinator *owner;
 public:  coordinatorconn(socket_t &_socket, peername &_peer)
     : rpcconn(_socket, _peer),
-      receivedhello(false),
       owner(NULL) {}
 public:  messageresult message(const wireproto::rx_message &);
 private: void endconn(clientio);

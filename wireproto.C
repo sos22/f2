@@ -487,6 +487,12 @@ fields::mk(const wireproto::msgtag &t)
 }
 
 const fields::field &
+fields::mk(const wireproto::sequencenr &t)
+{
+    return fields::mk(t.val).nosep();
+}
+
+const fields::field &
 fields::mk(const wireproto::rx_message *msg)
 {
     auto *prefix(&("<rx_message " + fields::mk(msg->tag())));

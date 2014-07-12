@@ -59,8 +59,12 @@ rpcconn::connect(clientio io, const peername &p, args ... parameters) {
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
     auto r(fromsocket<conn_t>(s.success(), parameters...));
-    if (r.isfailure()) s.success().close();
-    else r.success()->ready();
+    if (r.isfailure()) {
+        s.success().close();
+    } else {
+        /* Connections which we initiate don't need a HELLO. */
+        r.success()->receivedhello = true;
+        r.success()->ready(); }
     return r; }
 
 #endif /* !RPCCONN_TMPL__ */
