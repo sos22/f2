@@ -10,12 +10,13 @@
 
 class pingableconn : public rpcconn {
     friend class rpcconn;
-public:  waitbox<shutdowncode> *shutdown;
+public:  waitbox<shutdowncode> &shutdown;
 private: pingableconn(socket_t _sock,
                       const rpcconnauth &_auth,
-                      const peername &_peer)
+                      const peername &_peer,
+                      waitbox<shutdowncode> &_shutdown)
     : rpcconn(_sock, _auth, _peer),
-      shutdown(NULL) {}
+      shutdown(_shutdown) {}
 public:  messageresult message(const wireproto::rx_message &);
 public:  ~pingableconn() {}
 };
@@ -33,7 +34,7 @@ pingableconn::message(const wireproto::rx_message &msg) {
     if (msg.tag() == proto::QUIT::tag) {
         auto code(msg.getparam(proto::QUIT::req::reason));
         if (code == Nothing) return error::missingparameter;
-        shutdown->set(code.just());
+        shutdown.set(code.just());
         return messageresult::noreply;
     } else {
         return rpcconn::message(msg); } }
@@ -49,9 +50,10 @@ pingableserver::listen(const peername &p) {
 
 orerror<rpcconn *>
 pingableserver::accept(socket_t s) {
-    auto r(rpcconn::fromsocket<pingableconn>(s, rpcconnauth::authenticated()));
-    if (r.issuccess()) r.success()->shutdown = &shutdown;
-    return r; }
+    return rpcconn::fromsocket<pingableconn>(
+        s,
+        rpcconnauth::authenticated(),
+        shutdown); }
 
 int
 main()
