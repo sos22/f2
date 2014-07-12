@@ -30,7 +30,7 @@ namespace fields {
 const field &mk(const coordinatorstatus &);
 }
 
-class coordinator : public rpcserver<coordinatorconn> {
+class coordinator : public rpcserver {
     friend class coordinatorconn;
 private: mastersecret ms;
 private: registrationsecret rs;
@@ -58,7 +58,7 @@ public:  static orerror<coordinator *> build(
 private: coordinator(const mastersecret &,
                      const registrationsecret &,
                      controlserver *);
-private: orerror<coordinatorconn *> accept(socket_t);
+private: orerror<rpcconn *> accept(socket_t);
 public:  void destroy(clientio);
 public:  typedef coordinatorstatus status_t;
 public:  status_t status() const;

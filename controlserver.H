@@ -47,7 +47,7 @@ public:    void stop();
 public:    virtual ~statusinterface();
 };
 
-class controlserver : public rpcserver<controlconn> {
+class controlserver : public rpcserver {
     friend class controlconn;
     friend class statusinterface;
 private: list<statusinterface *> statusifaces;
@@ -60,7 +60,7 @@ private: controlserver(waitbox<shutdowncode> &_shutdown);
        call destroy(). */
 public:  static orerror<controlserver *> build(const peername &listenon,
                                                waitbox<shutdowncode> &s);
-private: orerror<controlconn *> accept(socket_t);
+private: orerror<rpcconn *> accept(socket_t);
 };
 
 #endif /* !CONTROLSERVER_H__ */

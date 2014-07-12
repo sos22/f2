@@ -7,7 +7,6 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "rpcconn.tmpl"
-#include "rpcserver.tmpl"
 
 class pingableconn : public rpcconn {
     friend class rpcconn;
@@ -21,11 +20,11 @@ public:  messageresult message(const wireproto::rx_message &);
 public:  ~pingableconn() {}
 };
 
-class pingableserver : public rpcserver<pingableconn> {
+class pingableserver : public rpcserver {
 public:  waitbox<shutdowncode> shutdown;
 public:  static orerror<pingableserver *> listen(
     const peername &p);
-private: orerror<pingableconn *> accept(socket_t sock);
+private: orerror<rpcconn *> accept(socket_t sock);
 private: ~pingableserver() {}
 };
 
@@ -42,13 +41,13 @@ pingableconn::message(const wireproto::rx_message &msg) {
 orerror<pingableserver *>
 pingableserver::listen(const peername &p) {
     auto res(new pingableserver());
-    auto rr(res->rpcserver<pingableconn>::listen(p));
+    auto rr(res->rpcserver::listen(p));
     if (rr.isjust()) {
         delete res;
         return rr.just(); }
     return res; }
 
-orerror<pingableconn *>
+orerror<rpcconn *>
 pingableserver::accept(socket_t s) {
     auto r(rpcconn::fromsocket<pingableconn>(s, rpcconnauth::authenticated()));
     if (r.issuccess()) r.success()->shutdown = &shutdown;

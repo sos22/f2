@@ -9,7 +9,6 @@
 
 #include "list.tmpl"
 #include "rpcconn.tmpl"
-#include "rpcserver.tmpl"
 
 /* Cast to 1 rather than NULL to avoid stupid compiler crap. */
 #define containerof(thing, type, field)                                 \
@@ -141,7 +140,7 @@ controlconn::message(const wireproto::rx_message &rxm) {
 controlserver::controlserver(waitbox<shutdowncode> &_shutdown)
     : shutdown(_shutdown) {}
 
-orerror<controlconn *>
+orerror<rpcconn *>
 controlserver::accept(socket_t s) {
     /* We don't need a HELLO because we only listen on UNIX domain
        sockets, which are implicitly authenticated by the socket

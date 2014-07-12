@@ -1,18 +1,25 @@
-#ifndef RPCSERVER_TMPL__
-#define RPCSERVER_TMPL__
-
 #include "rpcserver.H"
-#include "socket.H"
 
-template <typename conn_t>
-rpcserver<conn_t>::connsub::connsub(subscriber &_sub, conn_t *_conn)
+#include "fields.H"
+#include "rpcconn.H"
+
+#include "list.tmpl"
+
+namespace _rpcserver {
+class connsub : public subscription {
+    public: rpcconn *conn;
+    public: connsub(subscriber &_sub, rpcconn *_conn);
+};
+}
+
+_rpcserver::connsub::connsub(subscriber &_sub, rpcconn *_conn)
     : subscription(_sub, _conn->deathpublisher()),
       conn(_conn) {
     if (_conn->hasdied() != Nothing) set(); }
 
-template <typename conn_t> void
-rpcserver<conn_t>::run(clientio io) {
-    list<connsub *> threads;
+void
+rpcserver::run(clientio io) {
+    list<_rpcserver::connsub *> threads;
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
     iosubscription ios(io, sub, sock.poll());
@@ -42,10 +49,10 @@ rpcserver<conn_t>::run(clientio io) {
                 newsock.success().close();
                 continue; }
             conn.success()->ready();
-            threads.pushtail(new connsub(sub, conn.success()));
+            threads.pushtail(new _rpcserver::connsub(sub, conn.success()));
         } else {
             /* Must have been a connection sub. */
-            auto cs(static_cast<connsub *>(s));
+            auto cs(static_cast<_rpcserver::connsub *>(s));
             auto death(cs->conn->hasdied());
             if (!death) continue;
             /* Connection has died.  Finish tearing it down. */
@@ -56,18 +63,17 @@ rpcserver<conn_t>::run(clientio io) {
                     it.remove();
                     break; } }
             assert(found);
-            conn_t *conn = cs->conn;
+            rpcconn *conn = cs->conn;
             delete cs;
             conn->destroy(death.just()); } } }
 
-template <typename conn_t>
-rpcserver<conn_t>::rpcserver()
+rpcserver::rpcserver()
     : thr(NULL),
       shutdown(),
       sock() {}
 
-template <typename conn_t> maybe<error>
-rpcserver<conn_t>::listen(const peername &p) {
+maybe<error>
+rpcserver::listen(const peername &p) {
     auto s(socket_t::listen(p));
     if (s.isfailure()) return s.failure();
     sock = s.success();
@@ -77,8 +83,8 @@ rpcserver<conn_t>::listen(const peername &p) {
         return spawnres.just(); }
     return Nothing; }
 
-template <typename conn_t> void
-rpcserver<conn_t>::destroy(clientio io) {
+void
+rpcserver::destroy(clientio io) {
     assert(thr);
     shutdown.set(true);
     thr->join(io);
@@ -86,8 +92,5 @@ rpcserver<conn_t>::destroy(clientio io) {
     sock.close();
     delete this; }
 
-template <typename conn_t>
-rpcserver<conn_t>::~rpcserver() {
+rpcserver::~rpcserver() {
     assert(thr == NULL); }
-
-#endif /* !RPCSERVER_TMPL__ */

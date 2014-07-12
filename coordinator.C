@@ -6,7 +6,6 @@
 
 #include "list.tmpl"
 #include "rpcconn.tmpl"
-#include "rpcserver.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -58,7 +57,7 @@ coordinator::coordinator(
       rs(_rs),
       statusiface(this, cs) { }
 
-orerror<coordinatorconn *>
+orerror<rpcconn *>
 coordinator::accept(socket_t s) {
     auto res(rpcconn::fromsocket<coordinatorconn>(
                  s,

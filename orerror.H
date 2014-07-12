@@ -28,7 +28,6 @@ public:
     orerror(const error &_err)
         : errored(true), err(_err)
         {
-            err = _err;
         }
     void operator=(const orerror &o) {
         if (isfailure()) {
@@ -69,6 +68,13 @@ public:
     bool isfailure() const {
         return errored;
     }
+
+    template <typename o> orerror(const orerror<o> &other)
+        : errored(other.isfailure()) {
+        if (errored) {
+            new (&err) error(other.failure());
+        } else {
+            new (buf) t(other.success()); } }
 };
 
 #endif /* !ORERROR_H__ */

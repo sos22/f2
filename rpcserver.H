@@ -10,14 +10,9 @@
 #include "waitbox.H"
 
 template <typename> class orerror;
+class rpcconn;
 
-template <typename conn_t>
 class rpcserver : threadfn {
-private:   class connsub : public subscription {
-    public: conn_t *conn;
-    public: connsub(subscriber &_sub, conn_t *_conn);
-};
-
     /* Each rpcserver has a dedicated thread which listens for
        incoming connections, spawns new connection threads, and teards
        down connection threads when they die. */
@@ -40,14 +35,14 @@ protected: rpcserver();
 protected: maybe<error> listen(const peername &);
 
     /* We just accepted a new client and have a socket_t for them.
-     * Turn that into a full conn_t.  This runs in the main server
+     * Turn that into a full rpcconn.  This runs in the main server
      * thread, so should not do anything which involves waiting for
      * the peer to do something.  The server implementation will call
      * ready() on the returned connection as soon as accept() finishes
      * (assuming that accept() succeeds) and the connection will then
      * start receiving incoming messages through the
      * rpcconn::message() interface. */
-private:   virtual orerror<conn_t *> accept(socket_t) = 0;
+private:   virtual orerror<rpcconn *> accept(socket_t) = 0;
 
     /* Get a peername on with which other hosts can connect to this
      * server.  This will be either the name passed in to listen, if
