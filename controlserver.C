@@ -61,15 +61,18 @@ statusinterface::stop() {
     assert(!!active.next == !!active.prev);
     if (active.next) {
         active.next->prev = active.prev;
-        active.prev->next = active.next; }
-    owner->statuslock.unlock(&token);
-    if (loadacquire(running)) {
+        active.prev->next = active.next;
+        active.next = NULL;
+        active.prev = NULL; }
+    /* Wait for running to go clear. */
+    if (running) {
         subscriber sub;
         subscription ss(sub, idle);
-        while (loadacquire(running)) sub.wait(); }
-    /* Running is false, so the callback is no longer running, and the
-       interface is no longer in the registered or active lists, so
-       we're done. */}
+        while (running) {
+            owner->statuslock.unlock(&token);
+            sub.wait();
+            token = owner->statuslock.lock(); } }
+    owner->statuslock.unlock(&token); }
 
 statusinterface::~statusinterface() {
     assert(!started);
@@ -129,8 +132,10 @@ controlconn::message(const wireproto::rx_message &rxm) {
             iface->running = true;
             owner->statuslock.unlock(&token);
             iface->getstatus(res);
-            storerelease(&iface->running, false);
-            iface->idle.publish(); }
+            token = owner->statuslock.lock();
+            iface->running = false;
+            iface->idle.publish();
+            owner->statuslock.unlock(&token); }
         assert(ll.prev == &ll);
         return res;
     } else if (rxm.tag() == proto::GETLOGS::tag) {
