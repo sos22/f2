@@ -1,6 +1,7 @@
 #ifndef CONTROLSERVER_H__
 #define CONTROLSERVER_H__
 
+#include "rpcconn.H"
 #include "rpcserver.H"
 
 template <typename> class orerror;
@@ -47,6 +48,16 @@ public:    void stop();
 public:    virtual ~statusinterface();
 };
 
+class controlconn : public rpcconn {
+private: controlserver *const owner;
+public:  controlconn(socket_t _sock,
+                     const rpcconnauth &_auth,
+                     const peername &_peer,
+                     controlserver *_owner);
+public:  virtual messageresult message(const wireproto::rx_message &);
+public:  virtual ~controlconn() {}
+};
+
 class controlserver : public rpcserver {
     friend class controlconn;
     friend class statusinterface;
@@ -60,7 +71,7 @@ private: controlserver(waitbox<shutdowncode> &_shutdown);
        call destroy(). */
 public:  static orerror<controlserver *> build(const peername &listenon,
                                                waitbox<shutdowncode> &s);
-private: orerror<rpcconn *> accept(socket_t);
+private: virtual orerror<rpcconn *> accept(socket_t);
 };
 
 #endif /* !CONTROLSERVER_H__ */

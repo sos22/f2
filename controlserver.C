@@ -18,18 +18,6 @@
         __res;                                                          \
     })
 
-class controlconn : public rpcconn {
-public: controlserver *const owner;
-public: controlconn(socket_t _sock,
-                    const rpcconnauth &_auth,
-                    const peername &_peer,
-                    controlserver *_owner)
-    : rpcconn(_sock, _auth, _peer),
-      owner(_owner) {}
-public: messageresult message(const wireproto::rx_message &);
-public: ~controlconn() {}
-};
-
 statusinterface::statusinterface(controlserver *cs)
     : active(),
       started(false),
@@ -79,6 +67,13 @@ statusinterface::~statusinterface() {
     assert(!running);
     assert(!active.next);
     assert(!active.prev); }
+
+controlconn::controlconn(socket_t _sock,
+                         const rpcconnauth &_auth,
+                         const peername &_peer,
+                         controlserver *_owner)
+    : rpcconn(_sock, _auth, _peer),
+      owner(_owner) {}
 
 messageresult
 controlconn::message(const wireproto::rx_message &rxm) {
