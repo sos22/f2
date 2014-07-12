@@ -36,9 +36,10 @@ private: class statusiface : public statusinterface {
     };
 private: statusiface status_;
 private: storageslave(socket_t &_socket,
+                      const rpcconnauth &_auth,
                       const peername &_peer,
                       controlserver *cs)
-    : rpcconn(_socket, _peer),
+    : rpcconn(_socket, _auth, _peer),
       status_(this, cs) {}
 public:  static orerror<storageslave *> build(
     clientio io,

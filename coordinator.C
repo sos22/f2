@@ -15,49 +15,13 @@ wireproto_wrapper_type(coordinatorstatus);
 
 class coordinatorconn : public rpcconn {
 public:  coordinator *owner;
-public:  coordinatorconn(socket_t &_socket, peername &_peer)
-    : rpcconn(_socket, _peer),
+public:  coordinatorconn(socket_t &_socket,
+                         const rpcconnauth &_auth,
+                         peername &_peer)
+    : rpcconn(_socket, _auth, _peer),
       owner(NULL) {}
-public:  messageresult message(const wireproto::rx_message &);
 private: void endconn(clientio);
 };
-
-messageresult
-coordinatorconn::message(const wireproto::rx_message &rxm) {
-    if (!receivedhello) {
-        if (rxm.tag() != proto::HELLO::tag) return error::unrecognisedmessage;
-        auto version(rxm.getparam(proto::HELLO::req::version));
-        auto nonce(rxm.getparam(proto::HELLO::req::nonce));
-        auto slavename(rxm.getparam(proto::HELLO::req::slavename));
-        auto digest(rxm.getparam(proto::HELLO::req::digest));
-        if (!version || !nonce || !slavename || !digest) {
-            return error::missingparameter; }
-        logmsg(loglevel::verbose,
-               "HELLO version " + fields::mk(version) +
-               "nonce " + fields::mk(nonce) +
-               "slavename " + fields::mk(slavename) +
-               "digest " + fields::mk(digest));
-        if (version.just() != 1) return error::badversion;
-        if (!owner->ms.noncevalid(nonce.just(), slavename.just())) {
-            logmsg(loglevel::notice,
-                   "HELLO with invalid nonce from " + fields::mk(peer()));
-            return error::authenticationfailed; }
-        if (!slavename.just().samehost(peer())) {
-            logmsg(loglevel::notice,
-                   "HELLO with bad host (" + fields::mk(slavename.just()) +
-                   ", expected host " + fields::mk(peer()) +")");
-            return error::authenticationfailed; }
-        if (digest.just() != ::digest("B" +
-                                      fields::mk(nonce.just()) +
-                                      fields::mk(owner->rs))) {
-            logmsg(loglevel::notice,
-                   "HELLO with invalid digest from " + fields::mk(peer()));
-            return error::authenticationfailed; }
-        logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer()));
-        receivedhello = true;
-        return new wireproto::resp_message(rxm); }
-
-    return rpcconn::message(rxm); }
 
 void
 coordinatorconn::endconn(clientio) {
@@ -96,7 +60,9 @@ coordinator::coordinator(
 
 orerror<coordinatorconn *>
 coordinator::accept(socket_t s) {
-    auto res(rpcconn::fromsocket<coordinatorconn>(s));
+    auto res(rpcconn::fromsocket<coordinatorconn>(
+                 s,
+                 rpcconnauth::needhello(ms, rs)));
     if (res.issuccess()) {
         res.success()->owner = this;
         auto token(mux.lock());

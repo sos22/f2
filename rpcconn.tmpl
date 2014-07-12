@@ -12,10 +12,15 @@
 #include "thread.H"
 
 template <typename conn_t, typename... args> orerror<conn_t *>
-rpcconn::fromsocket(socket_t sock, args... parameters) {
+rpcconn::fromsocket(socket_t sock,
+                    const rpcconnauth &auth,
+                    args... parameters) {
     auto peer(sock.peer());
     if (peer.isfailure()) return peer.failure();
-    auto res(new conn_t(sock, peer.success(), parameters...));
+    auto res(new conn_t(sock,
+                        auth,
+                        peer.success(),
+                        parameters...));
     auto spawnres(thread::spawn(res, &res->thr,
                                 "IO:"+fields::mk(peer.success())));
     if (spawnres.isjust()) {
@@ -58,13 +63,13 @@ template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connect(clientio io, const peername &p, args ... parameters) {
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
-    auto r(fromsocket<conn_t>(s.success(), parameters...));
-    if (r.isfailure()) {
-        s.success().close();
-    } else {
-        /* Connections which we initiate don't need a HELLO. */
-        r.success()->receivedhello = true;
-        r.success()->ready(); }
+    auto r(fromsocket<conn_t>(
+               s.success(),
+               /* Connections which we initiate don't need a HELLO. */
+               rpcconnauth::authenticated(),
+               parameters...));
+    if (r.isfailure()) s.success().close();
+    else r.success()->ready();
     return r; }
 
 #endif /* !RPCCONN_TMPL__ */

@@ -22,8 +22,9 @@
 class controlconn : public rpcconn {
 public: controlserver *owner;
 public: controlconn(socket_t _sock,
+                    const rpcconnauth &_auth,
                     const peername &_peer)
-    : rpcconn(_sock, _peer),
+    : rpcconn(_sock, _auth, _peer),
       owner(NULL) {}
 public: messageresult message(const wireproto::rx_message &);
 public: ~controlconn() {}
@@ -142,15 +143,13 @@ controlserver::controlserver(waitbox<shutdowncode> &_shutdown)
 
 orerror<controlconn *>
 controlserver::accept(socket_t s) {
-    auto r(rpcconn::fromsocket<controlconn>(s));
-    if (r.issuccess()) {
-        /* We don't need a HELLO because we only listen on UNIX domain
-           sockets, which are implicitly authenticated by the socket
-           access flags. */
-        /* Set flag now, before rpcserver() calls conn::ready(), to
-           avoid silly startup races. */
-        r.success()->receivedhello = true;
-        r.success()->owner = this; }
+    /* We don't need a HELLO because we only listen on UNIX domain
+       sockets, which are implicitly authenticated by the socket
+       access flags. */
+    auto r(rpcconn::fromsocket<controlconn>(
+               s,
+               rpcconnauth::authenticated()));
+    if (r.issuccess()) r.success()->owner = this;
     return r; }
 
 orerror<controlserver *>

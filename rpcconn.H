@@ -4,10 +4,12 @@
 #include "buffer.H"
 #include "either.H"
 #include "list.H"
+#include "mastersecret.H"
 #include "orerror.H"
 #include "peername.H"
 #include "pubsub.H"
 #include "mutex.H"
+#include "registrationsecret.H"
 #include "socket.H"
 #include "thread.H"
 #include "waitbox.H"
@@ -16,7 +18,33 @@
 class beaconresult;
 class clientio;
 
-class rpcconnstatus;
+class rpcconnauth {
+public:  class hello_ {
+    friend class rpcconnauth;
+    private: hello_(
+        const mastersecret &_ms,
+        const registrationsecret &_rs)
+        : ms(_ms),
+          rs(_rs) {}
+    public:  mastersecret ms;
+    public:  registrationsecret rs;
+    };
+private: maybe<maybe<hello_> > content;
+public:  rpcconnauth()
+    : content(Nothing) {}
+public:  static rpcconnauth needhello(
+    const mastersecret &ms,
+    const registrationsecret &rs) { return rpcconnauth(ms, rs); }
+private: rpcconnauth(
+    const mastersecret &ms,
+    const registrationsecret &rs)
+        : content(maybe<hello_>(hello_(ms, rs))) {}
+public:  static rpcconnauth authenticated() { return rpcconnauth(true); }
+private: explicit rpcconnauth(bool)
+    : content(maybe<hello_>(Nothing)) {}
+public:  bool needhello() const { return content.just().isjust(); }
+public:  const hello_ &hello() const { return content.just().just(); }
+};
 
 class rpcconnstatus {
 public: buffer::status_t outgoing;
@@ -103,16 +131,13 @@ private: timestamp lastcontact;
 
 private: const peername peer_;
 
-    /* True if either we've received a valid HELLO or if we don't need
-       one on this connection.  Only accessed by the connection
-       thread, so no synchronisation needed. */
-public:  bool receivedhello;
+    /* Authentication state.  Only accessed from the connection
+     * thread. */
+private: rpcconnauth auth;
 
 private: rpcconn() = delete;
 private: rpcconn(const rpcconn &) = delete;
 private: void operator=(const rpcconn &) = delete;
-
-protected: rpcconn(socket_t _sock, const peername &_peer);
 
     /* Establising a connection. */
     /* Connect to a remote master server, using the results of the
@@ -135,11 +160,19 @@ public: template<typename t, typename ... args> static orerror<t *> connect(
      * paused state, allowing you to do any necessary setup before you
      * start accepting incoming messages from the side. */
 public: template<typename t, typename... args> static orerror<t *> fromsocket(
-    socket_t, args...);
+    socket_t,
+    const rpcconnauth &auth,
+    args...);
+
+protected: rpcconn(socket_t _sock,
+                   const rpcconnauth &_auth,
+                   const peername &_peer);
 
     /* Post-fromsocket() per-connection state is established.  Start
      * processing incoming messages. */
 public: void ready();
+
+private: messageresult hellomessage(const wireproto::rx_message &);
 
     /* Bits to process incoming messages.  Servers should override
      * these methods; the default implementation doesn't do very

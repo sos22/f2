@@ -63,6 +63,47 @@ fields::mk(const rpcconn::status_t &o) {
         acc = &(*acc + mk(*it)); }
     return *acc + "}>"; }
 
+messageresult
+rpcconn::hellomessage(const wireproto::rx_message &rxm) {
+    if (rxm.tag() != proto::HELLO::tag) {
+        logmsg(loglevel::failure,
+               "received message tag " +
+               fields::mk(rxm.tag()) +
+               " from " +
+               fields::mk(peer()) +
+               " without a HELLO");
+        return error::unrecognisedmessage; }
+    auto version(rxm.getparam(proto::HELLO::req::version));
+    auto nonce(rxm.getparam(proto::HELLO::req::nonce));
+    auto slavename(rxm.getparam(proto::HELLO::req::slavename));
+    auto digest(rxm.getparam(proto::HELLO::req::digest));
+    if (!version || !nonce || !slavename || !digest) {
+        return error::missingparameter; }
+    logmsg(loglevel::verbose,
+           "HELLO version " + fields::mk(version) +
+           "nonce " + fields::mk(nonce) +
+           "slavename " + fields::mk(slavename) +
+           "digest " + fields::mk(digest));
+    if (version.just() != 1) return error::badversion;
+    if (!auth.hello().ms.noncevalid(nonce.just(), slavename.just())) {
+        logmsg(loglevel::notice,
+               "HELLO with invalid nonce from " + fields::mk(peer()));
+        return error::authenticationfailed; }
+    if (!slavename.just().samehost(peer())) {
+        logmsg(loglevel::notice,
+               "HELLO with bad host (" + fields::mk(slavename.just()) +
+               ", expected host " + fields::mk(peer()) +")");
+        return error::authenticationfailed; }
+    if (digest.just() != ::digest("B" +
+                                  fields::mk(nonce.just()) +
+                                  fields::mk(auth.hello().rs))) {
+        logmsg(loglevel::notice,
+               "HELLO with invalid digest from " + fields::mk(peer()));
+        return error::authenticationfailed; }
+    logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer()));
+    auth = rpcconnauth::authenticated();
+    return new wireproto::resp_message(rxm); }
+
 void
 rpcconn::run(clientio io) {
     subscriber sub;
@@ -98,10 +139,10 @@ rpcconn::run(clientio io) {
                 goto done;
             } else {
                 /* Time to send a ping. */
-                /* XXX this can take us over the outbuffer limit.
-                   That's fine: it's pretty arbitrary what the actual
-                   number is, and it's only ever over by a small,
-                   fixed amount. */
+                /* This can take us over the outbuffer limit.  That's
+                   fine: it's pretty arbitrary what the actual number
+                   is, and we're only ever over by a small, fixed
+                   amount. */
                 pingsequence = allocsequencenr();
                 pingtime = timestamp::now() + timedelta::seconds(60);
                 auto token(txlock.lock());
@@ -136,7 +177,7 @@ rpcconn::run(clientio io) {
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
                 if (msg.success().isreply()) {
-                    if (!receivedhello) {
+                    if (auth.needhello()) {
                         logmsg(loglevel::failure,
                                "peer " + fields::mk(peer_) +
                                "sent a reply to " +
@@ -159,16 +200,10 @@ rpcconn::run(clientio io) {
                     continue;
                 }
 
-                messageresult res(error::unrecognisedmessage);
-                if (receivedhello || msg.success().tag() == proto::HELLO::tag) {
-                    res = message(msg.success());
-                } else {
-                    logmsg(loglevel::failure,
-                           "received message tag " +
-                           fields::mk(msg.success().tag()) +
-                           " from " +
-                           fields::mk(peer_) +
-                           " without a HELLO"); }
+                auto res(
+                    auth.needhello()
+                    ? hellomessage(msg.success())
+                    : message(msg.success()));
                 if (!res.isreply() && !res.isfailure()) {
                     /* No response to this message */
                     continue; }
@@ -230,6 +265,7 @@ rpcconn::run(clientio io) {
 
 rpcconn::rpcconn(
     socket_t _sock,
+    const rpcconnauth &_auth,
     const peername &_peer)
     : thr(NULL),
       shutdown(),
@@ -247,7 +283,7 @@ rpcconn::rpcconn(
       contactlock(),
       lastcontact(timestamp::now()),
       peer_(_peer),
-      receivedhello(false) {}
+      auth(_auth) {}
 
 void
 rpcconn::ready() {

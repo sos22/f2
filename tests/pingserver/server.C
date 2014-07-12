@@ -13,8 +13,9 @@ class pingableconn : public rpcconn {
     friend class rpcconn;
 public:  waitbox<shutdowncode> *shutdown;
 private: pingableconn(socket_t _sock,
+                      const rpcconnauth &_auth,
                       const peername &_peer)
-    : rpcconn(_sock, _peer),
+    : rpcconn(_sock, _auth, _peer),
       shutdown(NULL) {}
 public:  messageresult message(const wireproto::rx_message &);
 public:  ~pingableconn() {}
@@ -49,7 +50,7 @@ pingableserver::listen(const peername &p) {
 
 orerror<pingableconn *>
 pingableserver::accept(socket_t s) {
-    auto r(rpcconn::fromsocket<pingableconn>(s));
+    auto r(rpcconn::fromsocket<pingableconn>(s, rpcconnauth::authenticated()));
     if (r.issuccess()) r.success()->shutdown = &shutdown;
     return r; }
 
