@@ -495,7 +495,8 @@ fields::mk(const wireproto::sequencenr &t)
 const fields::field &
 fields::mk(const wireproto::rx_message *msg)
 {
-    auto *prefix(&("<rx_message " + fields::mk(msg->tag())));
+    auto *prefix(&("<rx_message " + fields::mk(msg->tag()) +
+                   ":" + fields::mk(msg->sequence())));
     for (unsigned x = 0;
          x < msg->msg->nrparams;
          x++) {
@@ -901,7 +902,7 @@ tests::wireproto() {
             auto rxm(rx_message::fetch(buf));
             fields::fieldbuf fb;
             fields::mk(&rxm.success()).fmt(fb);
-            assert(!strcmp(fb.c_str(), "<rx_message 99 1/16 73/20>")); });
+            assert(!strcmp(fb.c_str(), "<rx_message 99:0 1/16 73/20>")); });
 
     testcaseV("wireproto", "rxfield2", [t] () {
             rx_message::status_t stat;
@@ -915,7 +916,7 @@ tests::wireproto() {
             fields::fieldbuf fb;
             fields::mk(&rxm.success()).fmt(fb);
             assert(!strcmp(fb.c_str(),
-                           "<rx_message 99 1/124 2/125 3/126 4/127 5/128 "
+                           "<rx_message 99:0 1/124 2/125 3/126 4/127 5/128 "
                            "6/129 7/130 8/131 9/132 10/133 11/134 12/135 "
                            "13/136 14/137 15/138 ...14 more...>")); });
 
