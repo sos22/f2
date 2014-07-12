@@ -185,14 +185,29 @@ rpcconn::run(clientio io) {
                                " sequence " +
                                fields::mk(msg.success().sequence()) +
                                " before it sent HELLO");
-                    } else if (pingsequence.isjust() &&
-                        msg.success().sequence() ==
-                            pingsequence.just().reply()) {
-                        logmsg(loglevel::debug,
-                               "ping response from " + fields::mk(peer_));
-                        pingsequence = Nothing;
-                        pingtime = timestamp::now() + timedelta::seconds(1);
+                    } else if (msg.success().tag() == proto::PING::tag) {
+                        if (pingsequence.isjust() &&
+                            msg.success().sequence() ==
+                                pingsequence.just().reply()) {
+                            logmsg(loglevel::debug,
+                                   "ping response from " + fields::mk(peer_));
+                            pingsequence = Nothing;
+                            pingtime = timestamp::now() + timedelta::seconds(1);
+                        } else {
+                            /* This can sometimes happen if we happen
+                               to get a non-ping message after sending
+                               a ping and before getting the ping
+                               response, because any incoming message
+                               resets the ping state machine.  Just
+                               drop the message. */
+                            logmsg(loglevel::debug,
+                                   "unexpected ping reply " +
+                                   fields::mk(msg.success().status()) +
+                                   " from " + fields::mk(peer_)); }
                     } else {
+                        /* XXX This will leak, with no visible
+                         * warning, if we receive a reply we weren't
+                         * expecting. */
                         auto token(rxlock.lock());
                         pendingrx.pushtail(msg.success().steal());
                         pendingrxextended.publish();
@@ -423,7 +438,8 @@ rpcconn::drain(clientio) {
     txlock.unlock(&token); }
 
 void
-rpcconn::destroy(clientio) {
+rpcconn::destroy(clientio io) {
+    drain(io);
     teardown();
     maybe<deathtoken> dt(Nothing);
     {   subscriber sub;

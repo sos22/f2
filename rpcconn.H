@@ -303,10 +303,14 @@ protected: virtual ~rpcconn();
     /* Wait for the outgoing queue to drain.  There's no guarantee
      * that the other side has received the data, just that it won't
      * be discarded by destroy(). */
+    /* Note that this waits for the queue to become empty, *not* for
+     * already-queued messages to be sent.  That means that it's only
+     * guaranteed to finish if there's nobody adding more stuff to the
+     * queue. */
 public:    void drain(clientio);
 
-    /* Convenience function which runs the entire shutdown
-     * protocol. */
+    /* Convenience function which runs the entire shutdown protocol:
+     * drain(), teardown(), wait for a hasdied(), destroy(). */
 public:    void destroy(clientio);
 
     /* Status interface */
