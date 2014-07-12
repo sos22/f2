@@ -76,6 +76,10 @@ namespace proto {
         static const parameter<class ::peername> peername(5);
         static const parameter<struct ::timeval> lastcontact(6);
     };
+    namespace storageslavestatus {
+        static const parameter<class ::rpcconnstatus> masterconn(1);
+        static const parameter<list< ::rpcconnstatus> > clientconns(2);
+    };
     namespace timeval {
         static const parameter<long> tv_sec(1);
         static const parameter<long> tv_usec(1);

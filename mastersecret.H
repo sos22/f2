@@ -35,6 +35,8 @@ class mastersecret {
 public:
     explicit mastersecret(const mastersecret &);
     void operator=(const mastersecret &);
+    /* XXX there's no reason to do it this way; we'd be better off
+       generating master secrets at random at startup time. */
     explicit mastersecret(const char *);
     masternonce nonce(const peername &slavename);
     bool noncevalid(const masternonce &nonce,

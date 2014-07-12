@@ -8,15 +8,16 @@ class clientio;
 class controlserver;
 template <typename> class orerror;
 class registrationsecret;
+class storageslave;
 
 class storageslavestatus {
-    /* For now, the only status exposed by the storage slave is for
-       its connection to the master. */
-private: rpcconn::status_t unwrap() const { return conn; }
-public:  rpcconn::status_t conn;
-public:  storageslavestatus(const rpcconn::status_t &_conn)
-    : conn(_conn) {}
-WIREPROTO_WRAPPER_TYPE(storageslavestatus, rpcconn::status_t);
+public:  rpcconn::status_t masterconn;
+public:  list<rpcconn::status_t> clientconns;
+public:  storageslavestatus(const rpcconn::status_t &_masterconn,
+                            const list<rpcconn::status_t> &_clientconns)
+    : masterconn(_masterconn),
+      clientconns(_clientconns) {}
+WIREPROTO_TYPE(storageslavestatus);
 };
 
 namespace fields {
@@ -24,8 +25,10 @@ class field;
 const field &mk(const storageslavestatus &);
 }
 
-class storageslave : public rpcconn {
-    friend class rpcconn;
+class storageslaveconn;
+
+class storageslave : rpcserver {
+    friend class storageslaveconn;
 private: class statusiface : public statusinterface {
     private: storageslave *const owner;
     public:  statusiface(storageslave *_owner,
@@ -35,17 +38,21 @@ private: class statusiface : public statusinterface {
     private: void getstatus(wireproto::tx_message *msg) const;
     };
 private: statusiface status_;
-private: storageslave(socket_t &_socket,
-                      const rpcconnauth &_auth,
-                      const peername &_peer,
-                      controlserver *cs)
-    : rpcconn(_socket, _auth, _peer),
-      status_(this, cs) {}
+private: registrationsecret const rs;
+private: mastersecret const ms;
+private: storageslaveconn *masterconn;
+private: list<storageslaveconn *> clients;
+    /* mutable because we acquire it from the const status() method. */
+private: mutable mutex_t mux;
 public:  static orerror<storageslave *> build(
     clientio io,
     const registrationsecret &rs,
     controlserver *);
+private: storageslave(const registrationsecret &_rs,
+                      controlserver *cs);
+private: orerror<rpcconn *> accept(socket_t);
 public:  void destroy(clientio);
+private: ~storageslave();
 
 public:  typedef storageslavestatus status_t;
 public:  status_t status() const;
