@@ -29,21 +29,19 @@ public:  class hello_ {
     public:  mastersecret ms;
     public:  registrationsecret rs;
     };
-private: maybe<maybe<hello_> > content;
-public:  rpcconnauth()
-    : content(Nothing) {}
+private: maybe<hello_> content;
 public:  static rpcconnauth needhello(
     const mastersecret &ms,
     const registrationsecret &rs) { return rpcconnauth(ms, rs); }
 private: rpcconnauth(
     const mastersecret &ms,
     const registrationsecret &rs)
-        : content(maybe<hello_>(hello_(ms, rs))) {}
-public:  static rpcconnauth authenticated() { return rpcconnauth(true); }
-private: explicit rpcconnauth(bool)
-    : content(maybe<hello_>(Nothing)) {}
-public:  bool needhello() const { return content.just().isjust(); }
-public:  const hello_ &hello() const { return content.just().just(); }
+        : content(hello_(ms, rs)) {}
+public:  static rpcconnauth authenticated() { return rpcconnauth(); }
+private: explicit rpcconnauth()
+    : content(Nothing) {}
+public:  bool needhello() const { return content.isjust(); }
+public:  const hello_ &hello() const { return content.just(); }
 };
 
 class rpcconnstatus {
