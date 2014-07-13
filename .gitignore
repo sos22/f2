@@ -10,8 +10,9 @@
 *-t
 *-c
 *.log
+cli
 config
 master
-cli
 storage
+storageclient
 test

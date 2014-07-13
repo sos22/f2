@@ -32,7 +32,10 @@ main(int argc, const char *const argv[])
     initlogging("cli");
     initpubsub();
     auto c(rpcconn::connect<rpcconn>(
-               clientio::CLIENTIO, peername::local(sock)));
+               clientio::CLIENTIO,
+               /* Unix domain connections need no authentication */
+               rpcconnauth::mkdone(),
+               peername::local(sock)));
     int r;
 
     if (c.isfailure())

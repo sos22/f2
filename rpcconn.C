@@ -9,6 +9,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "rpcconn.tmpl"
+#include "waitbox.tmpl"
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(rpcconn::status_t)
@@ -95,6 +96,21 @@ rpcconnauth::mksendhelloslavea(
 rpcconnauth::sendhelloslavea::sendhelloslavea(
     const registrationsecret &_rs)
     : rs(_rs) {}
+
+rpcconnauth
+rpcconnauth::mkwaithelloslavea(
+    const registrationsecret &rs,
+    waitbox<maybe<error> > *wb) {
+    rpcconnauth r;
+    r.state = s_waithelloslavea;
+    new (r.buf) waithelloslavea(rs, wb);
+    return r; }
+
+rpcconnauth::waithelloslavea::waithelloslavea(
+    const registrationsecret &_rs,
+    waitbox<maybe<error> > *_wb)
+    : rs(_rs),
+      wb(_wb) {}
 
 rpcconnauth::waithelloslaveb::waithelloslaveb(
     const registrationsecret &_rs,
@@ -212,6 +228,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         abort();
     case s_waithelloslavea: {
         auto s = (waithelloslavea *)buf;
+        auto wb(s->wb);
         if (rxm.tag() != proto::HELLOSLAVE::A::tag) {
             logmsg(loglevel::failure,
                    "received message " +
@@ -219,15 +236,18 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    " from " +
                    fields::mk(peer) +
                    "; expected HELLOSLAVE::A");
+            wb->set(error::unrecognisedmessage);
             return messageresult(error::unrecognisedmessage); }
+        logmsg(loglevel::info, fields::mk("got a HELLOSLAVE A"));
         auto nonce(rxm.getparam(proto::HELLOSLAVE::A::nonce));
-        if (!nonce) return messageresult(error::missingparameter);
+        if (!nonce) {
+            wb->set(error::missingparameter);
+            return messageresult(error::missingparameter); }
         auto txm(new wireproto::tx_message(proto::HELLOSLAVE::B::tag));
         txm->addparam(proto::HELLOSLAVE::B::digest,
                       ::digest("C" +
                                fields::mk(s->rs) +
                                fields::mk(nonce.just())));
-        auto wb(s->wb);
         state = s_waithelloslavec;
         s->~waithelloslavea();
         new (buf) waithelloslavec(wb);
@@ -242,6 +262,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    fields::mk(peer) +
                    "; expected HELLOSLAVE::B");
             return messageresult(error::unrecognisedmessage); }
+        logmsg(loglevel::info, fields::mk("got a HELLOSLAVE B"));
         auto digest(rxm.getparam(proto::HELLOSLAVE::B::digest));
         if (!digest) return messageresult(error::missingparameter);
         if (digest.just() != ::digest("C" +
@@ -253,18 +274,24 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             return messageresult(error::authenticationfailed); }
         state = s_done;
         s->~waithelloslaveb();
-        return messageresult::noreply; }
+        return messageresult(
+            new wireproto::tx_message(proto::HELLOSLAVE::C::tag)); }
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
-        if (rxm.tag() != proto::HELLOSLAVE::B::tag) {
+        auto wb(s->wb);
+        if (rxm.tag() == proto::PING::tag) {
+            return messageresult::noreply; }
+        if (rxm.tag() != proto::HELLOSLAVE::C::tag) {
             logmsg(loglevel::failure,
                    "received message " +
                    fields::mk(&rxm) +
                    " from " +
                    fields::mk(peer) +
                    "; expected HELLOSLAVE::C");
+            wb->set(error::unrecognisedmessage);
             return messageresult(error::unrecognisedmessage); }
-        s->wb->set(true);
+        logmsg(loglevel::info, fields::mk("got a HELLOSLAVE C"));
+        wb->set(rxm.getparam(wireproto::err_parameter));
         s->~waithelloslavec();
         state = s_done;
         return messageresult::noreply; } }

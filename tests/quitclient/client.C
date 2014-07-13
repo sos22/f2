@@ -16,7 +16,10 @@ main(int argc, char *argv[]) {
     auto peer(peername::parse(argv[1]));
     if (peer.isfailure()) {
         peer.failure().fatal("parsing " + fields::mk(argv[1])); }
-    auto conn(rpcconn::connect<rpcconn>(clientio::CLIENTIO, peer.success()));
+    auto conn(rpcconn::connect<rpcconn>(
+                  clientio::CLIENTIO,
+                  rpcconnauth::mkdone(),
+                  peer.success()));
     if (conn.isfailure()) {
         conn.failure().fatal("connecting to " + fields::mk(peer.success())); }
     auto cr(conn.success()->send(

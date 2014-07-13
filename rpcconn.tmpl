@@ -11,6 +11,8 @@
 #include "tcpsocket.H"
 #include "thread.H"
 
+#include "waitbox.tmpl"
+
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::fromsocket(socket_t sock,
                     const rpcconnauth &auth,
@@ -32,12 +34,15 @@ template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,
                        const beaconresult &br,
                        args ... parameters) {
-    auto res(connect<conn_t>(io, br.mastername, parameters...));
+    /* No need to authenticate: we assume that the caller has already
+       done enough to check that the peername is correct (that is the
+       point of beacon protocol, after all) and the crypto isn't
+       strong enough to do more than that anyway. */
+    auto res(connect<conn_t>(io,
+                             rpcconnauth::mkdone(),
+                             br.mastername,
+                             parameters...));
     if (res.isfailure()) return res.failure();
-    /* XXX we can receive incoming messages here, even though the
-       master's not authenticated to us yet.  There aren't any other
-       than ping at the moment, so that's not so bad, but it'll need
-       fixing soon-ish. */
     auto conn(res.success());
     auto snr(conn->allocsequencenr());
     auto hellores(conn->call(
@@ -60,13 +65,32 @@ rpcconn::connectmaster(clientio io,
     return conn; }
 
 template <typename conn_t, typename ... args> orerror<conn_t *>
-rpcconn::connect(clientio io, const peername &p, args ... parameters) {
+rpcconn::connectslave(clientio io,
+                      const peername &peer,
+                      const registrationsecret &rs,
+                      args ... parameters) {
+    waitbox<maybe<error> > wb;
+    auto res(connect<conn_t>(io,
+                             rpcconnauth::mkwaithelloslavea(rs, &wb),
+                             peer,
+                             parameters...));
+    if (res.isfailure()) return res.failure();
+    auto r(wb.get());
+    if (r.isjust()) {
+        res.success()->destroy(io);
+        return r.just(); }
+    return res.success(); }
+
+template <typename conn_t, typename ... args> orerror<conn_t *>
+rpcconn::connect(clientio io,
+                 const rpcconnauth &auth,
+                 const peername &p,
+                 args ... parameters) {
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
     auto r(fromsocket<conn_t>(
                s.success(),
-               /* Connections which we initiate don't need a HELLO. */
-               rpcconnauth::mkdone(),
+               auth,
                parameters...));
     if (r.isfailure()) s.success().close();
     return r; }

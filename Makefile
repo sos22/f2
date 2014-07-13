@@ -2,10 +2,11 @@ all: realall
 
 .SUFFIXES:
 
+include cli.mk
 include lib.mk
 include master.mk
 include storage.mk
-include cli.mk
+include storageclient.mk
 include test.mk
 include tests.mk
 

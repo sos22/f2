@@ -69,7 +69,7 @@ public:  static rpcconnauth mksendhelloslavea(
     const registrationsecret &rs);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
-    waitbox<bool> *);
+    waitbox<maybe<error> > *);
 
 public:  ~rpcconnauth();
 private: rpcconnauth(const rpcconnauth &o);
@@ -98,7 +98,9 @@ private: struct sendhelloslavea {
     };
 private: struct waithelloslavea {
     registrationsecret rs;
-    waitbox<bool> *wb;
+    waitbox<maybe<error> > *wb;
+    waithelloslavea(const registrationsecret &_rs,
+                    waitbox<maybe<error> > *_wb);
     };
 private: struct waithelloslaveb {
     registrationsecret rs;
@@ -106,8 +108,8 @@ private: struct waithelloslaveb {
     waithelloslaveb(const registrationsecret &_rs, const nonce &_n);
     };
 private: struct waithelloslavec {
-    waitbox<bool> *wb;
-    waithelloslavec(waitbox<bool> *_wb)
+    waitbox<maybe<error> > *wb;
+    waithelloslavec(waitbox<maybe<error> > *_wb)
         : wb(_wb) {}
     };
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -218,9 +220,18 @@ public: template<typename t, typename...args> static orerror<t *> connectmaster(
     const beaconresult &,
     args...);
 
+    /* Connect to a remote slave server, using a given registration
+     * secret. */
+public: template<typename t, typename...args> static orerror<t *> connectslave(
+    clientio,
+    const peername &,
+    const registrationsecret &,
+    args...);
+
     /* Raw connect, without sending a HELLO. */
 public: template<typename t, typename ... args> static orerror<t *> connect(
     clientio,
+    const rpcconnauth &,
     const peername &,
     args...);
 
@@ -378,7 +389,7 @@ protected: virtual ~rpcconn();
 public:    void drain(clientio);
 
     /* Convenience function which runs the entire shutdown protocol:
-     * drain(), teardown(), wait for a hasdied(), destroy(). */
+     * drain(), teardown(), wait for hasdied(), destroy(). */
 public:    void destroy(clientio);
 
     /* Status interface */
