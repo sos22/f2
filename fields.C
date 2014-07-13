@@ -332,6 +332,8 @@ mk(long x)
 const intfield &
 intfield::base(int b) const
 {
+    assert(b >= 2);
+    assert(b <= 36);
     return n(val_, b, sep_, sepwidth_, uppercase_, alwayssign_);
 }
 const intfield &

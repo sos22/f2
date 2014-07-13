@@ -4,6 +4,7 @@
 #include "buffer.H"
 #include "fields.H"
 #include "logging.H"
+#include "parsers.H"
 #include "pubsub.H"
 #include "test.H"
 
@@ -14,6 +15,7 @@ main(int argc, char *argv[])
     tests::buffer();
     tests::fields();
     tests::logging();
+    tests::parsers();
     tests::pubsub();
     tests::wireproto();
 

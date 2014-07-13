@@ -19,8 +19,9 @@ public:  const a &first() const { return fst; }
 public:  b &second() { return snd; }
 public:  const b &second() const { return snd; }
 public:  operator a&() { return first(); }
-public:  operator const a&() const { return first(); }
-public:  operator const b&() const { return second(); }
+    /* Annoyingly, we can't do the symmetrical operator b& alias for
+       second, because that's an ambiguous overload when a and b
+       happen to be the same types. */
 };
 
 template <typename a, typename b> pair<a,b>

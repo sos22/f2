@@ -24,6 +24,7 @@ function bits() {
     _ mutex
     _ nonce
     _ obj
+    _ parsers
     _ peername
     _ proto
     _ pubsub
@@ -58,5 +59,6 @@ ar lib.a $(bits .o)
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
+testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule pubsub pubsub.C
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
