@@ -249,17 +249,53 @@ padcenter(const field &base, unsigned minsize,
                        &padleft, &padright);
 }
 
-struct strfield : public field {
-    char *const content;
-    strfield(const char *_content)
-        : content((char *)fieldsheap._alloc(strlen(_content) + 1))
-        { strcpy(content, _content); }
-    static const field &n(const char *content)
-        { return *new strfield(content); }
-    void fmt(fieldbuf &o) const
-        { o.push(content); }
-};
-const field &
+strfield::strfield(const char *what, bool _escape)
+    : content((char *)fieldsheap._alloc(strlen(what) + 1)),
+      escape_(_escape) {
+    strcpy(content, what); }
+const strfield &
+strfield::n(const char *what) {
+    return *new strfield(what, false); }
+const strfield &
+strfield::escape() const {
+    return *new strfield(content, true); }
+void
+strfield::fmt(fieldbuf &buf) const {
+    if (!escape_) {
+        buf.push(content);
+        return; }
+    bool specials = false;
+    int i;
+    for (i = 0; !specials && content[i]; i++)
+        specials |= !isalnum(content[i]) &&
+            (content[i] != ':') &&
+            (content[i] != '_') &&
+            (content[i] != '-');
+    specials |= i == 0;
+    if (!specials) {
+        buf.push(content);
+        return; }
+    /* XXX not what you'd call efficient.  Hopefully won't matter;
+       this shouldn't be used on any hot paths, anyway. */
+    buf.push("\"");
+    for (i = 0; content[i]; i++) {
+        if (content[i] == '\"') {
+            buf.push("\\\"");
+        } else if (content[i] == '\\') {
+            buf.push("\\\\");
+        } else if (!isprint(content[i])) {
+            buf.push("\\x");
+            char b[3];
+            sprintf(b, "%02x", (unsigned char)content[i]);
+            buf.push(b);
+        } else {
+            char b[2];
+            b[0] = content[i];
+            b[1] = 0;
+            buf.push(b); } }
+    buf.push("\""); }
+
+const strfield &
 mk(const char *what)
 {
     return strfield::n(what);
@@ -720,6 +756,44 @@ tests::fields()
             mk(l).fmt(buf);
             assert(!strcmp(buf.c_str(), "{1 12}"));
             l.flush(); });
+
+    testcaseV("fields", "escape", [] () {
+            fieldbuf buf;
+            mk("foo").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "foo"));
+            buf.reset();
+
+            mk("foo bar").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"foo bar\""));
+            buf.reset();
+
+            mk("\"foo bar\"").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"\\\"foo bar\\\"\""));
+            buf.reset();
+
+            mk("foo\"bar").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"foo\\\"bar\""));
+            buf.reset();
+
+            mk("foo+bar").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"foo+bar\""));
+            buf.reset();
+
+            mk("").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"\""));
+            buf.reset();
+
+            mk("\\").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"\\\\\""));
+            buf.reset();
+
+            mk("\t").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"\\x09\""));
+            buf.reset();
+
+            mk("ZZZ\xffXXX").escape().fmt(buf);
+            assert(!strcmp(buf.c_str(), "\"ZZZ\\xffXXX\""));
+            buf.reset(); });
 
     /* Not really a useful test case, but it makes the coverage 100%,
      * and the print() function's simple enough that just confirming

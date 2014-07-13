@@ -9,7 +9,8 @@
 
 namespace fields {
 class field;
-const field &mk(const char *);
+class strfield;
+const strfield &mk(const char *);
 template <typename t> const field &
 mk(const maybe<t> &m)
 {

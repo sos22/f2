@@ -57,7 +57,15 @@ const field &padcenter(const field &,
                        const field &padleft = space,
                        const field &padright = space);
 
-const field &mk(const char *);
+class strfield : public field {
+private: char *const content;
+private: bool const escape_;
+private: strfield(const char *, bool);
+public:  static const strfield &n(const char *);
+public:  const strfield &escape() const;
+public:  void fmt(fieldbuf &) const;
+};
+const strfield &mk(const char *);
 const field &operator+(const char *, const field &);
 const field &operator+(const field &, const char *);
 
