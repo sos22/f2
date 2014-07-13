@@ -66,7 +66,7 @@ rpcconn::connect(clientio io, const peername &p, args ... parameters) {
     auto r(fromsocket<conn_t>(
                s.success(),
                /* Connections which we initiate don't need a HELLO. */
-               rpcconnauth::authenticated(),
+               rpcconnauth::mkdone(),
                parameters...));
     if (r.isfailure()) s.success().close();
     return r; }

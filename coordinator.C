@@ -70,7 +70,7 @@ orerror<rpcconn *>
 coordinator::accept(socket_t s) {
     return rpcconn::fromsocket<coordinatorconn>(
         s,
-        rpcconnauth::needhello(ms, rs),
+        rpcconnauth::mkwaithello(ms, rs),
         this); }
 
 void

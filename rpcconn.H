@@ -5,6 +5,7 @@
 #include "either.H"
 #include "list.H"
 #include "mastersecret.H"
+#include "nonce.H"
 #include "orerror.H"
 #include "peername.H"
 #include "pubsub.H"
@@ -12,36 +13,109 @@
 #include "registrationsecret.H"
 #include "socket.H"
 #include "thread.H"
+#include "util.H"
 #include "waitbox.H"
 #include "wireproto.H"
 
 class beaconresult;
 class clientio;
+class messageresult;
 
 class rpcconnauth {
-public:  class hello_ {
-    friend class rpcconnauth;
-    private: hello_(
-        const mastersecret &_ms,
-        const registrationsecret &_rs)
-        : ms(_ms),
-          rs(_rs) {}
-    public:  mastersecret ms;
-    public:  registrationsecret rs;
+    friend class rpcconn;
+
+    /* Authentication state of an RPC connection.  Options:
+     *
+     * done -- auth protocol finished.  No further state.
+     * waithello -- waiting for the other side to send HELLO.  State
+     *              is mastersecret and registrationsecret which will
+     *              be used to check the HELLO when it arrives.
+     * sendhelloslavea -- send a HELLOSLAVE::A as soon as possible.
+     *                    State is a registration secret.
+     * waithelloslavea -- waiting for a HELLOSLAVE::A message.  State
+     *                    is a registration secret and a waitbox to populate
+     *                    once it arrives.
+     * waithelloslaveb -- waiting for a HELLOSLAVE::B message.  State
+     *                    is a registration secret and a nonce.
+     * waithelloslavec -- waiting for a HELLOSLAVE::C message.  State is a
+     *                    waitbox to populate when it arrives.
+     *
+     * Transitions:
+     *
+     * waithello -> done                  When a valid HELLO arrives.
+     * sendhelloslavea -> waithelloslaveb When we send the HELLOSLAVE::A
+     * waithelloslaveb -> done            When we send a HELLOSLAVE::C
+     * waithelloslavea -> waithelloslavec When we send the HELLOSLAVE::B
+     * waithelloslavec -> done            When we receive a HELLOSLAVE::C
+     *
+     * We can start in done, waithello, sendhelloslavea, or
+     * waithelloslavea.
+     */
+private: enum states {
+        s_done,
+        s_waithello,
+        s_sendhelloslavea,
+        s_waithelloslavea,
+        s_waithelloslaveb,
+        s_waithelloslavec,
     };
-private: maybe<hello_> content;
-public:  static rpcconnauth needhello(
+private: enum states state;
+
+public:  static rpcconnauth mkdone();
+public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
-    const registrationsecret &rs) { return rpcconnauth(ms, rs); }
-private: rpcconnauth(
-    const mastersecret &ms,
-    const registrationsecret &rs)
-        : content(hello_(ms, rs)) {}
-public:  static rpcconnauth authenticated() { return rpcconnauth(); }
-private: explicit rpcconnauth()
-    : content(Nothing) {}
-public:  bool needhello() const { return content.isjust(); }
-public:  const hello_ &hello() const { return content.just(); }
+    const registrationsecret &rs);
+public:  static rpcconnauth mksendhelloslavea(
+    const registrationsecret &rs);
+public:  static rpcconnauth mkwaithelloslavea(
+    const registrationsecret &rs,
+    waitbox<bool> *);
+
+public:  ~rpcconnauth();
+private: rpcconnauth(const rpcconnauth &o);
+private: void operator=(const rpcconnauth &o) = delete;
+private: rpcconnauth();
+
+    /* Interface to rpcconn.  Returning Nothing indicates that the
+     * message should go to normal processing.  Returning an error
+     * (any error) indicates that the connection should be torn
+     * down. */
+private: maybe<messageresult> message(
+    const wireproto::rx_message &rxm,
+    const peername &peer);
+    /* Send any initial message needed to get the machine going. */
+private: void start(buffer &outbuffer);
+
+    /* Per-state state */
+private: struct waithello {
+    mastersecret ms;
+    registrationsecret rs;
+    waithello(const mastersecret &_ms, const registrationsecret &_rs);
+    };
+private: struct sendhelloslavea {
+    registrationsecret rs;
+    sendhelloslavea(const registrationsecret &_rs);
+    };
+private: struct waithelloslavea {
+    registrationsecret rs;
+    waitbox<bool> *wb;
+    };
+private: struct waithelloslaveb {
+    registrationsecret rs;
+    nonce n;
+    waithelloslaveb(const registrationsecret &_rs, const nonce &_n);
+    };
+private: struct waithelloslavec {
+    waitbox<bool> *wb;
+    waithelloslavec(waitbox<bool> *_wb)
+        : wb(_wb) {}
+    };
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+private: unsigned char buf[
+    MAX(MAX(sizeof(waithello), sizeof(sendhelloslavea)),
+        MAX(sizeof(waithelloslavea),
+            MAX(sizeof(waithelloslaveb), sizeof(waithelloslavec))))];
+#undef MAX
 };
 
 class rpcconnstatus {
@@ -178,6 +252,10 @@ protected: virtual messageresult message(const wireproto::rx_message &);
      * depending on the reason for the shutdown, that might just give
      * back an error. */
 private: virtual void endconn(clientio) {}
+
+    /* Queue the reply to a message, waiting for outbuf space if
+     * necessary. */
+private: bool queuereply(clientio, wireproto::tx_message &msg);
 
     /* Allocate a sequence number suitable for constructing a new
      * req_message */

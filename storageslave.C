@@ -73,7 +73,6 @@ storageslave::storageslave(const registrationsecret &_rs,
                            controlserver *cs)
     : status_(this, cs),
       rs(_rs),
-      ms(mastersecret("XXX make a proper master secret XXX")),
       masterconn(NULL),
       clients(),
       mux() {}
@@ -82,7 +81,7 @@ orerror<rpcconn *>
 storageslave::accept(socket_t s) {
     return rpcconn::fromsocket<storageslaveconn>(
         s,
-        rpcconnauth::needhello(ms, rs),
+        rpcconnauth::mksendhelloslavea(rs),
         this); }
 
 void

@@ -155,6 +155,32 @@ namespace proto {
             static const parameter<class digest> digest(803);
         }
     }
+
+    namespace HELLOSLAVE {
+        /* Slave hello protocol, used when connecting directly to a
+         * slave.  It's assumed that whoever's doing the connecting
+         * has already checked that they're connecting to the right
+         * place; the aim is to allow the connectee to authenticate
+         * the connector.  When someone connects to a slave, they
+         * immediately send a fresh nonce (message A).  The connector
+         * then replies with message B containing a digest of the
+         * nonce plus the registration secret plus the fixed string
+         * 'C'. The connectee then either drops the connection or
+         * responds with message C. */
+        namespace A {
+            static const msgtag tag(9);
+            static const parameter<nonce> nonce(900);
+        }
+        namespace B {
+            static const msgtag tag(10);
+            /* Digest of 'C'+nonce+registration secret */
+            static const parameter<class digest> digest(950);
+        }
+        namespace C {
+            static const msgtag tag(11);
+            /* No parameters */
+        }
+    }
 }
 
 #endif /* !PROTO_H__ */

@@ -148,7 +148,7 @@ controlserver::accept(socket_t s) {
         /* We don't need a HELLO because we only listen on UNIX domain
            sockets, which are implicitly authenticated by the socket
            access flags. */
-        rpcconnauth::authenticated(),
+        rpcconnauth::mkdone(),
         this); }
 
 orerror<controlserver *>

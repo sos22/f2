@@ -39,7 +39,6 @@ private: class statusiface : public statusinterface {
     };
 private: statusiface status_;
 private: registrationsecret const rs;
-private: mastersecret const ms;
 private: storageslaveconn *masterconn;
 private: list<storageslaveconn *> clients;
     /* mutable because we acquire it from the const status() method. */

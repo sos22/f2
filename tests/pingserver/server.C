@@ -52,7 +52,7 @@ orerror<rpcconn *>
 pingableserver::accept(socket_t s) {
     return rpcconn::fromsocket<pingableconn>(
         s,
-        rpcconnauth::authenticated(),
+        rpcconnauth::mkdone(),
         shutdown); }
 
 int

@@ -159,8 +159,8 @@ namespace wireproto {
         virtual maybe<error> serialise(buffer &buf) const;
     protected:
         maybe<error> serialise(buffer &buf, sequencenr snr) const;
+    public: size_t serialised_size() const;
     private:
-        size_t serialised_size() const;
         tx_message *clone() const;
         struct pinstance {
             uint16_t id;

@@ -63,46 +63,244 @@ fields::mk(const rpcconn::status_t &o) {
         acc = &(*acc + mk(*it)); }
     return *acc + "}>"; }
 
-messageresult
-rpcconn::hellomessage(const wireproto::rx_message &rxm) {
-    if (rxm.tag() != proto::HELLO::tag) {
-        logmsg(loglevel::failure,
-               "received message tag " +
-               fields::mk(rxm.tag()) +
-               " from " +
-               fields::mk(peer()) +
-               " without a HELLO");
-        return error::unrecognisedmessage; }
-    auto version(rxm.getparam(proto::HELLO::req::version));
-    auto nonce(rxm.getparam(proto::HELLO::req::nonce));
-    auto slavename(rxm.getparam(proto::HELLO::req::slavename));
-    auto digest(rxm.getparam(proto::HELLO::req::digest));
-    if (!version || !nonce || !slavename || !digest) {
-        return error::missingparameter; }
-    logmsg(loglevel::verbose,
-           "HELLO version " + fields::mk(version) +
-           "nonce " + fields::mk(nonce) +
-           "slavename " + fields::mk(slavename) +
-           "digest " + fields::mk(digest));
-    if (version.just() != 1) return error::badversion;
-    if (!auth.hello().ms.noncevalid(nonce.just(), slavename.just())) {
-        logmsg(loglevel::notice,
-               "HELLO with invalid nonce from " + fields::mk(peer()));
-        return error::authenticationfailed; }
-    if (!slavename.just().samehost(peer())) {
-        logmsg(loglevel::notice,
-               "HELLO with bad host (" + fields::mk(slavename.just()) +
-               ", expected host " + fields::mk(peer()) +")");
-        return error::authenticationfailed; }
-    if (digest.just() != ::digest("B" +
-                                  fields::mk(nonce.just()) +
-                                  fields::mk(auth.hello().rs))) {
-        logmsg(loglevel::notice,
-               "HELLO with invalid digest from " + fields::mk(peer()));
-        return error::authenticationfailed; }
-    logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer()));
-    auth = rpcconnauth::authenticated();
-    return new wireproto::resp_message(rxm); }
+rpcconnauth
+rpcconnauth::mkdone() {
+    rpcconnauth r;
+    r.state = s_done;
+    return r; }
+
+rpcconnauth
+rpcconnauth::mkwaithello(
+    const mastersecret &ms,
+    const registrationsecret &rs) {
+    rpcconnauth r;
+    r.state = s_waithello;
+    new (r.buf) waithello(ms, rs);
+    return r; }
+
+rpcconnauth::waithello::waithello(
+    const mastersecret &_ms,
+    const registrationsecret &_rs)
+    : ms(_ms),
+      rs(_rs) {}
+
+rpcconnauth
+rpcconnauth::mksendhelloslavea(
+    const registrationsecret &rs) {
+    rpcconnauth r;
+    r.state = s_sendhelloslavea;
+    new (r.buf) sendhelloslavea(rs);
+    return r; }
+
+rpcconnauth::sendhelloslavea::sendhelloslavea(
+    const registrationsecret &_rs)
+    : rs(_rs) {}
+
+rpcconnauth::waithelloslaveb::waithelloslaveb(
+    const registrationsecret &_rs,
+    const nonce &_n)
+    : rs(_rs),
+      n(_n) {}
+
+rpcconnauth::rpcconnauth(const rpcconnauth &o)
+    : state(o.state) {
+    switch (state) {
+    case s_done:
+        return;
+    case s_waithello:
+        new (buf) waithello(*(waithello *)o.buf);
+        return;
+    case s_sendhelloslavea:
+        new (buf) sendhelloslavea(*(sendhelloslavea *)o.buf);
+        return;
+    case s_waithelloslavea:
+        new (buf) waithelloslavea(*(waithelloslavea *)o.buf);
+        return;
+    case s_waithelloslaveb:
+        new (buf) waithelloslaveb(*(waithelloslaveb *)o.buf);
+        return;
+    case s_waithelloslavec:
+        new (buf) waithelloslavec(*(waithelloslavec *)o.buf);
+        return; }
+    if (!COVERAGE) abort(); }
+
+rpcconnauth::~rpcconnauth() {
+    switch (state) {
+    case s_done:
+        return;
+    case s_waithello:
+        ((waithello *)buf)->~waithello();
+        return;
+    case s_sendhelloslavea:
+        ((sendhelloslavea *)buf)->~sendhelloslavea();
+        return;
+    case s_waithelloslavea:
+        ((waithelloslavea *)buf)->~waithelloslavea();
+        return;
+    case s_waithelloslaveb:
+        ((waithelloslaveb *)buf)->~waithelloslaveb();
+        return;
+    case s_waithelloslavec:
+        ((waithelloslavec *)buf)->~waithelloslavec();
+        return; }
+    if (!COVERAGE) abort(); }
+
+rpcconnauth::rpcconnauth()
+    : state((enum states)-1) {}
+
+void
+rpcconnauth::start(buffer &b) {
+    if (state != s_sendhelloslavea) return;
+    auto n(nonce::mk());
+    wireproto::tx_message(proto::HELLOSLAVE::A::tag)
+        .addparam(proto::HELLOSLAVE::A::nonce, n)
+        .serialise(b);
+    auto rs( ((sendhelloslavea *)buf)->rs );
+    ((sendhelloslavea *)buf)->~sendhelloslavea();
+    new (buf) waithelloslaveb(rs, n);
+    state = s_waithelloslaveb; }
+
+maybe<messageresult>
+rpcconnauth::message(const wireproto::rx_message &rxm,
+                     const peername &peer) {
+    switch (state) {
+    case s_done: return Nothing;
+    case s_waithello: {
+        waithello *s = (waithello *)buf;
+        if (rxm.tag() != proto::HELLO::tag) {
+            logmsg(loglevel::failure,
+                   "received message tag " +
+                   fields::mk(rxm.tag()) +
+                   " from " +
+                   fields::mk(peer) +
+                   " without a HELLO");
+            return messageresult(error::unrecognisedmessage); }
+        auto version(rxm.getparam(proto::HELLO::req::version));
+        auto nonce(rxm.getparam(proto::HELLO::req::nonce));
+        auto slavename(rxm.getparam(proto::HELLO::req::slavename));
+        auto digest(rxm.getparam(proto::HELLO::req::digest));
+        if (!version || !nonce || !slavename || !digest) {
+            return messageresult(error::missingparameter); }
+        logmsg(loglevel::verbose,
+               "HELLO version " + fields::mk(version) +
+               "nonce " + fields::mk(nonce) +
+               "slavename " + fields::mk(slavename) +
+               "digest " + fields::mk(digest));
+        if (version.just() != 1) return messageresult(error::badversion);
+        if (!s->ms.noncevalid(nonce.just(), slavename.just())) {
+            logmsg(loglevel::notice,
+                   "HELLO with invalid nonce from " + fields::mk(peer));
+            return messageresult(error::authenticationfailed); }
+        if (!slavename.just().samehost(peer)) {
+            logmsg(loglevel::notice,
+                   "HELLO with bad host (" + fields::mk(slavename.just()) +
+                   ", expected host " + fields::mk(peer) +")");
+            return messageresult(error::authenticationfailed); }
+        if (digest.just() != ::digest("B" +
+                                      fields::mk(nonce.just()) +
+                                      fields::mk(s->rs))) {
+            logmsg(loglevel::notice,
+                   "HELLO with invalid digest from " + fields::mk(peer));
+            return messageresult(error::authenticationfailed); }
+        logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
+        s->~waithello();
+        state = s_done;
+        return messageresult(new wireproto::resp_message(rxm)); }
+    case s_sendhelloslavea:
+        /* Shouldn't get here; should have sent the HELLOSLAVE::A
+           before checking for messages from the other side. */
+        abort();
+    case s_waithelloslavea: {
+        auto s = (waithelloslavea *)buf;
+        if (rxm.tag() != proto::HELLOSLAVE::A::tag) {
+            logmsg(loglevel::failure,
+                   "received message " +
+                   fields::mk(&rxm) +
+                   " from " +
+                   fields::mk(peer) +
+                   "; expected HELLOSLAVE::A");
+            return messageresult(error::unrecognisedmessage); }
+        auto nonce(rxm.getparam(proto::HELLOSLAVE::A::nonce));
+        if (!nonce) return messageresult(error::missingparameter);
+        auto txm(new wireproto::tx_message(proto::HELLOSLAVE::B::tag));
+        txm->addparam(proto::HELLOSLAVE::B::digest,
+                      ::digest("C" +
+                               fields::mk(s->rs) +
+                               fields::mk(nonce.just())));
+        auto wb(s->wb);
+        state = s_waithelloslavec;
+        s->~waithelloslavea();
+        new (buf) waithelloslavec(wb);
+        return messageresult(txm); }
+    case s_waithelloslaveb: {
+        auto s = (waithelloslaveb *)buf;
+        if (rxm.tag() != proto::HELLOSLAVE::B::tag) {
+            logmsg(loglevel::failure,
+                   "received message " +
+                   fields::mk(&rxm) +
+                   " from " +
+                   fields::mk(peer) +
+                   "; expected HELLOSLAVE::B");
+            return messageresult(error::unrecognisedmessage); }
+        auto digest(rxm.getparam(proto::HELLOSLAVE::B::digest));
+        if (!digest) return messageresult(error::missingparameter);
+        if (digest.just() != ::digest("C" +
+                                      fields::mk(s->rs) +
+                                      fields::mk(s->n))) {
+            logmsg(loglevel::notice,
+                   "HELLOSLAVE::B with invalid digest from " +
+                   fields::mk(peer));
+            return messageresult(error::authenticationfailed); }
+        state = s_done;
+        s->~waithelloslaveb();
+        return messageresult::noreply; }
+    case s_waithelloslavec: {
+        auto s = (waithelloslavec *)buf;
+        if (rxm.tag() != proto::HELLOSLAVE::B::tag) {
+            logmsg(loglevel::failure,
+                   "received message " +
+                   fields::mk(&rxm) +
+                   " from " +
+                   fields::mk(peer) +
+                   "; expected HELLOSLAVE::C");
+            return messageresult(error::unrecognisedmessage); }
+        s->wb->set(true);
+        s->~waithelloslavec();
+        state = s_done;
+        return messageresult::noreply; } }
+    if (!COVERAGE) abort();
+    return Nothing; }
+
+bool
+rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
+    /* Sending a response has to wait for buffer space, blocking RX
+       while it's doing so, because otherwise we don't get the right
+       backpressure.  We don't want to block other TX, though, to
+       avoid silly deadlocks. */
+    size_t msgsz(msg.serialised_size());
+    assert(msgsz <= MAX_OUTGOING_BYTES);
+    auto txtoken(txlock.lock());
+    if (outgoing.avail() + msgsz > MAX_OUTGOING_BYTES) {
+        subscriber reducedsub;
+        subscription soss(reducedsub, shutdown.pub);
+        while (!shutdown.ready() &&
+               outgoing.avail() + msgsz > MAX_OUTGOING_BYTES) {
+            auto txres(outgoing.send(io, sock, reducedsub));
+            outgoingshrunk.publish();
+            if (shutdown.ready()) break;
+            txlock.unlock(&txtoken);
+            if (txres.isfailure()) {
+                txres.failure().warn(
+                    "clearing space for a reply to " + fields::mk(peer_));
+                return true; }
+            reducedsub.wait();
+            txtoken = txlock.lock(); } }
+    if (shutdown.ready()) {
+        txlock.unlock(&txtoken);
+        return true; }
+    msg.serialise(outgoing);
+    txlock.unlock(&txtoken);
+    return false; }
 
 void
 rpcconn::run(clientio io) {
@@ -120,6 +318,8 @@ rpcconn::run(clientio io) {
     /* Either the time to send the next ping, if pingsequence == Nothing, or
        the deadline for receiving it, otherwise. */
     timestamp pingtime(timestamp::now() + timedelta::seconds(1));
+
+    auth.start(outgoing);
 
     outarmed = true;
     subscriptionbase *ss;
@@ -173,16 +373,22 @@ rpcconn::run(clientio io) {
                         msg.failure().warn(
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
+                auto authres(auth.message(msg.success(), peer_));
+                if (authres != Nothing) {
+                    if (authres.just().isfailure()) {
+                        /* Authentication protocol rejected the
+                         * connection.  Tear it down. */
+                        goto done; }
+                    if (authres.just().isreply()) {
+                        bool out = queuereply(io, *authres.just().reply());
+                        delete authres.just().reply();
+                        if (out) goto done;
+                        if (!outarmed) {
+                            outsub.rearm();
+                            outarmed = true; } }
+                    continue; }
                 if (msg.success().isreply()) {
-                    if (auth.needhello()) {
-                        logmsg(loglevel::failure,
-                               "peer " + fields::mk(peer_) +
-                               "sent a reply to " +
-                               fields::mk(msg.success().tag()) +
-                               " sequence " +
-                               fields::mk(msg.success().sequence()) +
-                               " before it sent HELLO");
-                    } else if (msg.success().tag() == proto::PING::tag) {
+                    if (msg.success().tag() == proto::PING::tag) {
                         if (pingsequence.isjust() &&
                             msg.success().sequence() ==
                                 pingsequence.just().reply()) {
@@ -212,45 +418,22 @@ rpcconn::run(clientio io) {
                     continue;
                 }
 
-                auto res(
-                    auth.needhello()
-                    ? hellomessage(msg.success())
-                    : message(msg.success()));
+                auto res(message(msg.success()));
                 if (!res.isreply() && !res.isfailure()) {
                     /* No response to this message */
                     continue; }
 
-                /* Sending a response has to wait for buffer space,
-                   blocking RX while it's doing so, because otherwise
-                   we don't get the right backpressure.  We don't want
-                   to block other TX, though, to avoid silly
-                   deadlocks. */
-                auto txtoken(txlock.lock());
-                subscriber shutdownonlysub;
-                subscription soss(shutdownonlysub, shutdown.pub);
-                while (!shutdown.ready() &&
-                       outgoing.avail() >= MAX_OUTGOING_BYTES) {
-                    auto txres(outgoing.send(io, sock, sub));
-                    outgoingshrunk.publish();
-                    txlock.unlock(&txtoken);
-                    if (txres.isfailure()) {
-                        txres.failure().warn(
-                            "clearing space for a reply to " +
-                            fields::mk(peer_));
-                        if (res.isreply()) delete res.reply();
-                        return; }
-                    txtoken = txlock.lock(); }
-                if (res.isfailure()) {
-                    wireproto::err_resp_message(
-                        msg.success(), res.failure())
-                        .serialise(outgoing);
-                } else if (res.isreply()) {
-                    res.reply()->serialise(outgoing);
-                    delete res.reply(); }
+                bool out;
+                if (res.isreply()) {
+                    out = queuereply(io, *res.reply());
+                    delete res.reply();
+                } else {
+                    wireproto::err_resp_message m(msg.success(), res.failure());
+                    out = queuereply(io, m); }
+                if (out) goto done;
                 if (!outarmed) {
                     outsub.rearm();
-                    outarmed = true; }
-                txlock.unlock(&txtoken); }
+                    outarmed = true; } }
         } else {
             assert(ss == &outsub);
             outarmed = false;
