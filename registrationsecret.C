@@ -2,9 +2,15 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <functional>
 
+#include "pair.H"
 #include "fields.H"
+#include "parsers.H"
 #include "quickcheck.H"
+#include "tmpheap.H"
+
+#include "parsers.tmpl"
 
 /* Limit length to avoid problems with wire protocol message size
  * limits. */
@@ -47,5 +53,12 @@ registrationsecret::mk(const char *what)
 const fields::field &
 fields::mk(const registrationsecret &rs)
 {
-    return "<registrationsecret:" + fields::mk(rs.secret) + ">";
+    return "<registrationsecret:" + fields::mk(rs.secret).escape() + ">";
 }
+
+orerror<registrationsecret>
+registrationsecret::parse(const char *what) {
+    return ("<registrationsecret:" + strparser + ">")
+        .map<registrationsecret>(
+            [] (const char *x) { return registrationsecret(x); })
+        .match(what); }

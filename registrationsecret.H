@@ -26,6 +26,7 @@ public:
     void operator=(const registrationsecret &);
     bool operator==(const registrationsecret &) const;
     static maybe<registrationsecret> mk(const char *what);
+    static orerror<registrationsecret> parse(const char *);
 };
 
 #endif /* !REGISTRATIONSECRET_H__ */
