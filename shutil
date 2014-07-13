@@ -48,13 +48,13 @@ function cc() {
 	    cat <<EOF
 include $dep
 $obj: $src config
-	ccache g++ -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
+	ccache g++ -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
 ${obj/.o/-t.o}: $src config
 	ccache g++ -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
 	ccache g++ -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
 $dep: $src config
-	g++ ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o}" -MF ${dep}.tmp $src \$< && mv ${dep}.tmp ${dep}
+	g++ ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp $src \$< && mv ${dep}.tmp ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
