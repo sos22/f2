@@ -7,5 +7,6 @@ CXXFLAGS="${CXXFLAGS}"
 CXXFLAGS+=" \${CPPFLAGS}"
 CXXFLAGS+=" -O -g -fno-operator-names -fno-exceptions"
 CXXFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
+CXXFLAGS+=" -Winit-self -Wswitch-enum"
 EOF
 
