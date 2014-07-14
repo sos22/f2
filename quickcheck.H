@@ -7,6 +7,7 @@ class quickcheck {
     /* Uniform random over entire range of unsigned numbers, except
      * for trying to pick ``interesting'' numbers a bit more often
      * that it should. */
+public: operator unsigned long() const;
 public: operator unsigned() const;
 public: operator unsigned short() const;
     /* Cauchy distributed with location 0 and scale 1 */

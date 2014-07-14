@@ -51,8 +51,8 @@ namespace wireproto {
         friend const fields::field &fields::mk(const wireproto::sequencenr &t);
     private:
         friend class sequencer;
-        uint16_t val;
-        explicit sequencenr(uint16_t _val)
+        uint64_t val;
+        explicit sequencenr(uint64_t _val)
             : val(_val)
             {}
     public:
@@ -60,30 +60,27 @@ namespace wireproto {
         bool operator ==(const sequencenr &o) const
             { return val == o.val; }
         sequencenr reply() const
-            { return sequencenr(val | 0x8000); }
+            { return sequencenr(val | (1ul << 63)); }
         bool isreply() const {
-            return !!(val & 0x8000); }
+            return !!(val & (1ul << 63)); }
     };
     class sequencerstatus {
-    public:  uint16_t nextseq;
-    public:  sequencerstatus(uint16_t _nextseq)
+    public:  uint64_t nextseq;
+    public:  sequencerstatus(uint64_t _nextseq)
         : nextseq(_nextseq) {}
     public:  sequencerstatus(const quickcheck &q);
-        WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint16_t);
-    private: uint16_t unwrap() const { return nextseq; }
+        WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint64_t);
+    private: uint64_t unwrap() const { return nextseq; }
     public:  bool operator==(const sequencerstatus &o) const {
         return nextseq == o.nextseq; }
     };
     class sequencer {
-        uint16_t last;
+        uint64_t last;
     public:
         sequencer() : last(0) {}
         sequencenr get() {
-            /* XXX overflow */
             last++;
             return sequencenr(last);
-        }
-        void put(sequencenr) {
         }
     public: typedef sequencerstatus status_t;
     public: status_t status() const { return status_t(last+1); }
@@ -131,15 +128,22 @@ namespace wireproto {
     public: index(uint16_t _id, uint16_t _offset)
         : id(_id), offset(_offset) {}
     };
+    /* Arbitrary limit on size of individual messages, just to avoid
+       stupid overflow bugs and DoS attacks. */
+    static const unsigned MAXMSGSIZE = 10000000;
+    /* Similar limit on number of parameters per message. */
+    static const unsigned MAXMSGPARAMS = 1000;
     struct wireheader {
-    public: uint16_t sz; /* bytes */
-    public: sequencenr seq;
-    public: uint16_t nrparams;
+    public: uint32_t sz; /* bytes, limited to MAXMSGSIZE */
+    public: uint16_t nrparams; /* count, limited to MAXMSGPARAMS */
     public: msgtag tag;
+    public: sequencenr seq;
     public: index idx[];
-    public: wireheader(uint16_t _sz, sequencenr _seq,
-                       uint16_t _nrparams, msgtag _tag)
-        : sz(_sz), seq(_seq), nrparams(_nrparams), tag(_tag) {}
+    public: wireheader(uint64_t _sz,
+                       uint16_t _nrparams,
+                       msgtag _tag,
+                       sequencenr _seq)
+        : sz(_sz), nrparams(_nrparams), tag(_tag), seq(_seq) {}
     };
     class rx_message;
     class tx_compoundparameter;
@@ -156,9 +160,9 @@ namespace wireproto {
                                                    const list<t> &);
         tx_message &addparam(parameter<const char *>, const char *);
         virtual ~tx_message();
-        virtual maybe<error> serialise(buffer &buf) const;
+        virtual void serialise(buffer &buf) const;
     protected:
-        maybe<error> serialise(buffer &buf, sequencenr snr) const;
+        void serialise(buffer &buf, sequencenr snr) const;
     public: size_t serialised_size() const;
     private:
         tx_message *clone() const;
@@ -179,7 +183,7 @@ namespace wireproto {
                        external so as to catch mistakes where we use
                        the wrong one. */
                     void *content; /* malloc()ed owned pointer */
-                    unsigned short sz;
+                    unsigned sz;
                 } external;
                 tx_compoundparameter *compound;
             };
@@ -196,7 +200,7 @@ namespace wireproto {
     public:
         const sequencenr sequence;
         req_message(msgtag, sequencenr snr);
-        maybe<error> serialise(buffer &buf) const;
+        void serialise(buffer &buf) const;
         template <typename t> req_message &addparam(parameter<t> p, t v)
             { tx_message::addparam(p,v); return *this; }
     };
@@ -204,16 +208,13 @@ namespace wireproto {
     public:
         const sequencenr sequence;
         resp_message(const rx_message &r);
-        maybe<error> serialise(buffer &buf) const;
+        void serialise(buffer &buf) const;
     };
     class err_resp_message : public tx_message {
     public:
         const sequencenr sequence;
         err_resp_message(const rx_message &r, const error &e);
-        /* This automatically logs a message when it fails.  Most
-           callers will ignore the return value; it's only there to
-           make the virtual overloading work. */
-        maybe<error> serialise(buffer &buf) const;
+        void serialise(buffer &buf) const;
     };
     class rx_messagestatus {
     public: msgtag t;

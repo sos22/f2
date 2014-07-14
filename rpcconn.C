@@ -521,12 +521,6 @@ rpcconn::allocsequencenr() {
     sequencelock.unlock(&token);
     return res; }
 
-void
-rpcconn::putsequencenr(wireproto::sequencenr snr) {
-    auto token(sequencelock.lock());
-    sequencer.put(snr);
-    sequencelock.unlock(&token); }
-
 peername
 rpcconn::peer() const {
     return peer_; }
@@ -546,11 +540,10 @@ rpcconn::send(
             if (res == NULL) return error::timeout;
             if (res != &moretx) return res;
             txtoken = txlock.lock(); } }
-    auto res(msg.serialise(outgoing));
+    msg.serialise(outgoing);
     outgoinggrew.publish();
     txlock.unlock(&txtoken);
-    if (res.isjust()) return res.just();
-    else return sendres(); }
+    return sendres(); }
 
 maybe<error>
 rpcconn::send(

@@ -32,13 +32,10 @@ beaconclient(const beaconclientconfig &config)
         counter++;
         logmsg(loglevel::info, fields::mk("send a HAIL"));
         buffer outbuf;
-        {   auto serialiseres(wireproto::tx_message(proto::HAIL::tag)
-                              .addparam(proto::HAIL::req::version, 1u)
-                              .addparam(proto::HAIL::req::nonce, n)
-                              .serialise(outbuf));
-            if (!COVERAGE && serialiseres.isjust()) {
-                sock.close();
-                return serialiseres.just(); } }
+        wireproto::tx_message(proto::HAIL::tag)
+            .addparam(proto::HAIL::req::version, 1u)
+            .addparam(proto::HAIL::req::nonce, n)
+            .serialise(outbuf);
         tests::beaconclientreadytosend.trigger(
             pair<fd_t, buffer *>(sock.asfd(), &outbuf));
         {   auto sendres(sock.send(

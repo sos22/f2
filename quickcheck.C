@@ -7,7 +7,7 @@
 
 static tmpheap quickcheckheap;
 
-quickcheck::operator unsigned() const {
+quickcheck::operator unsigned long() const {
     unsigned r = random();
     if (r % 8 == 0) {
         /* Pick an interesting number. */
@@ -24,16 +24,21 @@ quickcheck::operator unsigned() const {
         case 8: return 100;
         case 9: return -10;
         case 10: return -100;
-        case 11: return 256;
-        case 12: return 65536;
+        case 11: return (1ul << (random() % 64));
+        case 12: return (1ul << (random() % 64)) - 64 + (random() % 64);
         default: abort(); }
     } else {
         r /= 8;
-        r ^= random() * 8;
+        r ^= random() * (1ul << 16);
+        r ^= random() * (1ul << 32);
+        r ^= random() * (1ul << 48);
         return r; } }
 
+quickcheck::operator unsigned() const {
+    return (unsigned)(unsigned long)*this; }
+
 quickcheck::operator unsigned short() const {
-    return (unsigned short)(unsigned)*this; }
+    return (unsigned short)(unsigned long)*this; }
 
 quickcheck::operator double() const {
     /* Standard Cauchy distribution, because why not? */

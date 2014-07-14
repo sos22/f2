@@ -44,12 +44,11 @@ main(int argc, const char *const argv[])
     r = 0;
     if (!strcmp(mode, "PING")) {
         if (nrargs != 0) errx(1, "PING mode takes no arguments");
-        auto snr(c.success()->allocsequencenr());
         auto m = c.success()->call(
             clientio::CLIENTIO,
-            wireproto::req_message(proto::PING::tag, snr).
+            wireproto::req_message(proto::PING::tag,
+                                   c.success()->allocsequencenr()).
             addparam(proto::PING::req::msg, "Hello"));
-        c.success()->putsequencenr(snr);
         if (m.issuccess()) {
             fields::print("master sequence " +
                           fields::mk(m.success()->getparam(proto::PING::resp::cntr)) +
@@ -64,13 +63,12 @@ main(int argc, const char *const argv[])
         memlog_idx cursor(memlog_idx::min);
         unsigned nr = 200;
         while (1) {
-            auto snr(c.success()->allocsequencenr());
             auto m = c.success()->call(
                 clientio::CLIENTIO,
-                wireproto::req_message(proto::GETLOGS::tag, snr)
+                wireproto::req_message(proto::GETLOGS::tag,
+                                       c.success()->allocsequencenr())
                 .addparam(proto::GETLOGS::req::startidx, cursor)
                 .addparam(proto::GETLOGS::req::nr, nr));
-            c.success()->putsequencenr(snr);
             if (m.isfailure()) {
                 if (m.failure() == error::overflowed) {
                     if (nr == 1) {

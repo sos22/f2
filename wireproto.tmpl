@@ -65,10 +65,9 @@ roundtrip(unsigned nr = 1000) {
         ::quickcheck q;
         type thing(q);
         ::buffer buf;
-        auto qq(tx_message(msgtag(1))
-                .addparam(param, thing)
-                .serialise(buf));
-        assert(qq == Nothing);
+        tx_message(msgtag(1))
+            .addparam(param, thing)
+            .serialise(buf);
         auto r(rx_message::fetch(buf));
         auto rr(r.success().getparam(param));
         assert(rr.just() == thing); } }

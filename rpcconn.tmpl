@@ -44,10 +44,10 @@ rpcconn::connectmaster(clientio io,
                              parameters...));
     if (res.isfailure()) return res.failure();
     auto conn(res.success());
-    auto snr(conn->allocsequencenr());
     auto hellores(conn->call(
                       io,
-                      wireproto::req_message(proto::HELLO::tag, snr)
+                      wireproto::req_message(proto::HELLO::tag,
+                                             conn->allocsequencenr())
                       .addparam(proto::HELLO::req::version, 1u)
                       .addparam(proto::HELLO::req::nonce, br.nonce)
                       .addparam(proto::HELLO::req::slavename,
@@ -56,7 +56,6 @@ rpcconn::connectmaster(clientio io,
                                 digest("B" +
                                        fields::mk(br.nonce) +
                                        fields::mk(br.secret)))));
-    conn->putsequencenr(snr);
     if (hellores.isfailure()) {
         conn->destroy(io);
         return hellores.failure(); }

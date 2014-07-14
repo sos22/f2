@@ -272,10 +272,6 @@ private: bool queuereply(clientio, wireproto::tx_message &msg);
      * req_message */
 public: wireproto::sequencenr allocsequencenr();
 
-    /* Release a sequence number previously returned by
-     * ::allocsequencenr() */
-public: void putsequencenr(wireproto::sequencenr);
-
     /* Get a peername for the thing on the other end of the
      * connection. */
 public: peername peer() const;

@@ -21,11 +21,10 @@ main(int argc, char *argv[]) {
                   peer.success()));
     if (conn.isfailure()) {
         conn.failure().fatal("connecting to " + fields::mk(peer.success())); }
-    auto snr(conn.success()->allocsequencenr());
     auto cr(conn.success()->call(
                 clientio::CLIENTIO,
-                wireproto::req_message(proto::PING::tag, snr)));
-    conn.success()->putsequencenr(snr);
+                wireproto::req_message(proto::PING::tag,
+                                       conn.success()->allocsequencenr())));
     if (cr.isfailure()) {
         cr.failure().fatal("sending PING"); }
     fields::print(

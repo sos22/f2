@@ -198,8 +198,7 @@ beaconserver::listenthreadclass::run(clientio io)
         }
 
         buffer outbuffer;
-        auto serialiseres(
-            wireproto::tx_message(proto::HAIL::tag)
+        wireproto::tx_message(proto::HAIL::tag)
             .addparam(proto::HAIL::resp::version, 1u)
             .addparam(proto::HAIL::resp::mastername, owner->mastername)
             .addparam(proto::HAIL::resp::slavename, rr.success())
@@ -211,16 +210,7 @@ beaconserver::listenthreadclass::run(clientio io)
                              fields::mk(owner->mastername) +
                              fields::mk(reqnonce.just()) +
                              fields::mk(owner->secret)))
-            .serialise(outbuffer));
-        if (!COVERAGE && serialiseres.isjust()) {
-            logmsg(loglevel::failure,
-                   "error " + fields::mk(serialiseres.just()) +
-                   "serialising response to slave " +
-                       fields::mk(rr.success()) +
-                   " HAIL");
-            owner->errors++;
-            continue;
-        }
+            .serialise(outbuffer);
         auto sendres(owner->listenfd.send(outbuffer, rr.success()));
         if (!COVERAGE && sendres.isjust()) {
             logmsg(loglevel::failure,
