@@ -260,7 +260,7 @@ tests::beacon() {
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .port(peername::port(random()%32768 + 32768))
                        .retrylimit(3)
-                       .retryinterval(timedelta::milliseconds(10))));
+                       .retryinterval(timedelta::milliseconds(200))));
             assert(r.issuccess());
             assert(iter == 3);
             assert(r.success().nonce == mnonce);
