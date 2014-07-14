@@ -46,7 +46,7 @@ function cc() {
 	    local obj=${src%.C}.o
 	    local dep=${src%.C}.d
 	    cat <<EOF
-include $dep
+-include $dep
 $obj: $src config
 	ccache g++ -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
 ${obj/.o/-t.o}: $src config
