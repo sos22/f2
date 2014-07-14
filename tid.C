@@ -12,7 +12,9 @@ tid::tid(unsigned _val)
 tid
 tid::me()
 {
-    return tid(syscall(SYS_gettid));
+    auto v(syscall(SYS_gettid));
+    assert(v == (unsigned)v);
+    return tid((unsigned)v);
 }
 
 bool

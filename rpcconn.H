@@ -26,6 +26,7 @@ class rpcconnauth {
 
     /* Authentication state of an RPC connection.  Options:
      *
+     * preinit -- haven't initialised rpcconnauth yet.  No state.
      * done -- auth protocol finished.  No further state.
      * waithello -- waiting for the other side to send HELLO.  State
      *              is mastersecret and registrationsecret which will
@@ -52,6 +53,7 @@ class rpcconnauth {
      * waithelloslavea.
      */
 private: enum states {
+        s_preinit,
         s_done,
         s_waithello,
         s_sendhelloslavea,

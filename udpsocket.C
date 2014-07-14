@@ -89,7 +89,8 @@ udpsocket::receive(buffer &buf, maybe<timestamp> deadline) const {
                 (deadline.just() - timestamp::now()).as_milliseconds());
             if (remaining < 0)
                 return error::timeout;
-            auto r(::poll(&pfd, 1, remaining));
+            assert(remaining == (int)remaining);
+            auto r(::poll(&pfd, 1, (int)remaining));
             if (r < 0) return error::from_errno();
             if (r == 1) break;
             assert(r == 0);

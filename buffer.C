@@ -47,7 +47,8 @@ buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
         ;
     res = (subbuf *)malloc(newsz);
     new (res) subbuf();
-    res->sz = newsz - sizeof(*res);
+    res->sz = (unsigned)(newsz - sizeof(*res));
+    assert(res->sz == newsz - sizeof(*res));
     if (middle)
         res->prod = (res->sz + sz) / 2;
     else
@@ -384,7 +385,7 @@ tests::buffer(void)
                         t.detail(" queue %zd", sz);
                         content = (char *)realloc(content, size + sz);
                         for (unsigned k = 0; k < sz; k++)
-                            content[k + size] = cntr++;
+                            content[k + size] = (unsigned char)cntr++;
                         b->queue(content + size, sz);
                         size += sz;
                         prod += sz;
@@ -413,7 +414,7 @@ tests::buffer(void)
                         content = (char *)realloc(content, size + sz);
                         memmove(content + sz, content, size);
                         for (unsigned k = 0; k < sz; k++)
-                            content[k] = cntr++;
+                            content[k] = (unsigned char)cntr++;
                         b->pushback(content, sz);
                         cons -= sz;
                         size += sz;

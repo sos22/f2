@@ -22,7 +22,7 @@ peername::peername(const peername &o)
     memcpy(sockaddr_, o.sockaddr_, o.sockaddrsize_);
 }
 
-peername::peername(const struct sockaddr *s, size_t size)
+peername::peername(const struct sockaddr *s, unsigned size)
     : sockaddr_(malloc(size + 1)),
       sockaddrsize_(size)
 {
@@ -220,7 +220,7 @@ const struct sockaddr *
 peername::sockaddr() const {
     return (const struct sockaddr *)sockaddr_; }
 
-size_t
+unsigned
 peername::sockaddrsize() const {
     return sockaddrsize_; }
 

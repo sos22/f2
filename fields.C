@@ -10,6 +10,7 @@
 #include "spark.H"
 #include "thread.H"
 #include "tmpheap.H"
+#include "util.H"
 
 #include "list.tmpl"
 
@@ -31,15 +32,6 @@ static struct : public field {
     void fmt(fieldbuf &p) const { p.push("."); }
 } _period;
 const field &period(_period);
-
-template <typename t> static t
-min(t a, t b)
-{
-    if (a < b)
-        return a;
-    else
-        return b;
-}
 
 fieldbuf::fieldbuf()
     : head(NULL), tail(NULL)
@@ -71,11 +63,14 @@ fieldbuf::push(const char *what)
                 head = f;
             tail = f;
         }
-        unsigned to_copy(min(sz - cursor, sizeof(tail->content) - tail->used));
+        unsigned short to_copy(
+            (unsigned short)min(sz - cursor,
+                                sizeof(tail->content) - tail->used,
+                                0xffffu));
         memcpy(tail->content + tail->used,
                what + cursor,
                to_copy);
-        tail->used += to_copy;
+        tail->used = (unsigned short)(tail->used + to_copy);
         cursor += to_copy;
     }
     assert(tail->used > 0);
@@ -100,7 +95,10 @@ fieldbuf::c_str(maybe<unsigned> limit)
     char *res((char *)fieldsheap._alloc(sz + 1));
     size_t used(0);
     for (auto cursor(head); cursor && used < sz; cursor = cursor->next) {
-        unsigned to_copy(min<size_t>(cursor->used, sz - used));
+        auto to_copy((unsigned)min(
+                         (size_t)cursor->used,
+                         sz - used,
+                         0xffffffff));
         memcpy(res + used, cursor->content, to_copy);
         used += to_copy;
     }
@@ -188,13 +186,13 @@ struct padfield : public field {
             out.push(basestr);
             return;
         }
-        unsigned pad_chars(minsize - baselen);
-        unsigned before_chars(
+        auto pad_chars(minsize - baselen);
+        auto before_chars(
             mode == pad_left ? pad_chars :
             mode == pad_right ? 0 :
             mode == pad_center ? pad_chars / 2 :
             ({abort(); 0;}));
-        unsigned emitted;
+        size_t emitted;
         if (before_chars) {
             assert(padleft);
             fieldbuf padfmt;
@@ -358,7 +356,7 @@ void
 intfield::fmt(fieldbuf &out) const
 {
     long r;
-    int nr_digits;
+    size_t nr_digits;
     r = val_;
     nr_digits = 0;
     if (r == 0) {
@@ -372,7 +370,7 @@ intfield::fmt(fieldbuf &out) const
     /* Thousands seperators */
     const char *sepstr = NULL;
     size_t seplen = 0;
-    if (sepwidth_ != 0 && nr_digits > (int)sepwidth_) {
+    if (sepwidth_ != 0 && nr_digits > sepwidth_) {
         fieldbuf buf;
         sep_.fmt(buf);
         sepstr = buf.c_str();
@@ -406,7 +404,7 @@ intfield::fmt(fieldbuf &out) const
         r = val_;
         unsigned cntr = 0;
         while (r) {
-            int idx = r % base_;
+            int idx = (int)(r % base_);
             if (idx < 0)
                 idx = -idx;
             buf[--nr_digits] =
@@ -477,13 +475,12 @@ timefield::fmt(fieldbuf &buf) const
         struct tm v_tm;
         gmtime_r(&v.tv_sec, &v_tm);
         char time[128];
-        int r;
-        r = strftime(time,
+        auto r = strftime(time,
                      sizeof(time),
                      "%F %T",
                      &v_tm);
         assert(r > 0);
-        assert(r < (int)sizeof(time));
+        assert(r < sizeof(time));
         buf.push(time);
     } else {
         mk(v.tv_sec).fmt(buf);

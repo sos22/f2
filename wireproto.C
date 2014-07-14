@@ -64,7 +64,7 @@ void
 tx_message::serialise(buffer &buffer, sequencenr snr) const
 {
     size_t sz = serialised_size();
-    uint16_t nrparams = params.length();
+    auto nrparams = params.length();
 
     /* Failure indicator, if present, must be only parameter. */
     for (auto it(params.start()); !it.finished(); it.next())
@@ -86,12 +86,13 @@ tx_message::serialise(buffer &buffer, sequencenr snr) const
                "sending large message size " + fields::mk(sz) +
                " tag " + fields::mk(t)); }
 
-    unsigned initavail(buffer.avail());
-    wireheader hdr(sz, nrparams, t, snr);
+    auto initavail(buffer.avail());
+    wireheader hdr((uint32_t)sz, (uint16_t)nrparams, t, snr);
     buffer.queue(&hdr, sizeof(hdr));
-    uint16_t consumed = sizeof(hdr) + sizeof(index) * nrparams;
+    auto consumed = sizeof(hdr) + sizeof(index) * nrparams;
     for (auto it(params.start()); !it.finished(); it.next()) {
-        index idx(it->id, consumed);
+        assert(consumed < 0x10000);
+        index idx(it->id, (uint16_t)consumed);
         buffer.queue(&idx, sizeof(idx));
         consumed += it->serialised_size();
     }
@@ -138,13 +139,14 @@ tx_message::addparam(uint16_t id, const void *content, size_t sz)
 {
     pinstance p;
     p.id = id;
+    assert(sz == (unsigned)sz);
     if (sz < sizeof(p.internal.content)) {
         p.flavour = pinstance::p_internal;
-        p.internal.sz = sz;
+        p.internal.sz = (uint8_t)sz;
         memcpy(p.internal.content, content, sz);
     } else {
         p.flavour = pinstance::p_external;
-        p.external.sz = sz;
+        p.external.sz = (unsigned)sz;
         p.external.content = malloc(sz);
         memcpy(p.external.content, content, sz);
     }
@@ -914,7 +916,7 @@ tests::wireproto() {
             rx_message::status_t stat;
             ::buffer buf;
             tx_message txm(t);
-            for (int i = 1; i < 30; i++) {
+            for (unsigned short i = 1; i < 30; i++) {
                 parameter<char> p(i);
                 txm.addparam(p, (char)i); }
             txm.serialise(buf);
@@ -1040,20 +1042,23 @@ tests::wireproto() {
 
     testcaseV("wireproto", "toomanyparams", [t] () {
             {   tx_message txm(t);
-                for (unsigned i = 0; i < MAXMSGPARAMS; i++) {
-                    txm.addparam(parameter<bool>(i+1), true); }
+                for (unsigned short i = 0; i < MAXMSGPARAMS; i++) {
+                    txm.addparam(parameter<bool>((unsigned short)(i+1)),
+                                 true); }
                 ::buffer b;
                 txm.serialise(b);
                 assert(!b.empty());
                 auto rxm(rx_message::fetch(b));
                 assert(rxm.issuccess());
-                for (unsigned i = 0 ; i < MAXMSGPARAMS; i++) {
+                for (unsigned short i = 0 ; i < MAXMSGPARAMS; i++) {
                     assert(
-                        rxm.success().getparam(parameter<bool>(i+1)).just() ==
+                        rxm.success().getparam(
+                            parameter<bool>((unsigned short)(i+1))).just() ==
                         true); } }
             {   tx_message txm(t);
-                for (unsigned i = 0; i < MAXMSGPARAMS + 1; i++) {
-                    txm.addparam(parameter<bool>(i+1), true); }
+                for (unsigned short i = 0; i < MAXMSGPARAMS + 1; i++) {
+                    txm.addparam(parameter<bool>(
+                                     (unsigned short)(i+1)), true); }
                 ::buffer b;
                 txm.serialise(b);
                 assert(b.empty()); } });

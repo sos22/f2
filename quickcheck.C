@@ -8,7 +8,7 @@
 static tmpheap quickcheckheap;
 
 quickcheck::operator unsigned long() const {
-    unsigned r = random();
+    unsigned long r = random();
     if (r % 8 == 0) {
         /* Pick an interesting number. */
         r /= 8;
@@ -45,15 +45,15 @@ quickcheck::operator double() const {
     return tan(M_PI * (drand48() - .5)); }
 
 quickcheck::operator const char *() const {
-    unsigned r = random();
+    unsigned long r = random();
     if (r % 4 == 0) return "";
     r /= 4;
-    int len;
+    long len;
     len = (1 << (r % 16)) + ((random() % 256) - 128);
     while (len <= 0) {
         r = random();
         len = (1 << (r % 16)) + (((r / 16) % 256) - 128); }
     unsigned char *buf = (unsigned char *)quickcheckheap._alloc(len);
-    for (int x = 0; x < len - 1; x++) buf[x] = (random() % 255) + 1;
+    for (int x = 0; x < len - 1; x++) buf[x] = (char)((random() % 255) + 1);
     buf[len] = '\0';
     return (const char *)buf; }

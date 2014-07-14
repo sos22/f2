@@ -26,7 +26,7 @@ frequency::operator==(const frequency &o) const {
 timedelta
 operator/(double val, frequency f)
 {
-    return timedelta(val / f.hz_ * 1e9);
+    return timedelta((long)(val / f.hz_ * 1e9 + .5));
 }
 
 const fields::field &

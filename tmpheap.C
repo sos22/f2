@@ -1,5 +1,6 @@
 #include "tmpheap.H"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,13 +38,15 @@ tmpheap::_alloc(size_t sz) {
             ;
         arena *a = (arena *)malloc(size - 32);
         a->next = arenas;
-        a->size = size - 32 - sizeof(*a);
+        a->size = (unsigned)(size - 32 - sizeof(*a));
+        assert(a->size == (unsigned)(size - 32 - sizeof(*a)));
         a->used = 0;
         memset(a->content, 'Z', a->size);
         pthread_setspecific(arenakey, a);
         arenas = a; }
     void *res = &arenas->content[arenas->used];
-    arenas->used += sz;
+    assert(arenas->used + sz == (unsigned)(arenas->used + sz));
+    arenas->used += (unsigned)sz;
     return res; }
 
 void

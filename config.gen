@@ -6,6 +6,6 @@ CPPFLAGS+="-I. -Wundef -std=gnu++0x"
 CXXFLAGS="${CXXFLAGS}"
 CXXFLAGS+=" \${CPPFLAGS}"
 CXXFLAGS+=" -O -g -fno-operator-names -fno-exceptions"
-CXXFLAGS+=" -Wmissing-declarations -Wshadow -Wall -Wextra -Werror"
+CXXFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
 EOF
 

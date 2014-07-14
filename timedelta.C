@@ -12,7 +12,7 @@ timedelta::operator+(timestamp ts)
 double
 timedelta::operator *(frequency f)
 {
-    return v * f.hz_ / 1e9;
+    return (double)v * f.hz_ / 1e9;
 }
 
 timedelta

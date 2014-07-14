@@ -50,7 +50,7 @@ public: orerror<result> parse(const char *) const;
 extern const strparser_ strparser;
 
 /* Parser for integers produced by fields::mk() */
-extern const parser<int> &intparser;
+extern const parser<long> &intparser;
 
 /* Dummy parser which always returns an error. */
 template <typename r>

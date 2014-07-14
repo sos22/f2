@@ -22,7 +22,7 @@ fd_t::close(void) const
 }
 
 struct pollfd
-fd_t::poll(int mode) const
+fd_t::poll(unsigned short mode) const
 {
     struct pollfd pfd;
     pfd.fd = fd;
@@ -45,7 +45,8 @@ fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
             auto remaining(
                 (deadline.just() - timestamp::now()).as_milliseconds());
             if (remaining < 0) return error::timeout;
-            int r = ::poll(&pfd, 1, remaining);
+            assert(remaining == (int)remaining);
+            int r = ::poll(&pfd, 1, (int)remaining);
             if (r < 0) return error::from_errno();
             if (r == 1) break;
             assert(r == 0); } }
@@ -68,7 +69,8 @@ fd_t::write(clientio,
             struct pollfd pfd = poll(POLLOUT);
             auto remaining(
                 (deadline.just() - timestamp::now()).as_milliseconds());
-            int r = ::poll(&pfd, 1, remaining);
+            assert(remaining == (int)remaining);
+            int r = ::poll(&pfd, 1, (int)remaining);
             if (r < 0) return error::from_errno();
             if (r == 1) break;
             assert(r == 0); } }

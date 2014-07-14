@@ -18,7 +18,7 @@ ratelimiter::refill(mutex_t::token tok) const
     tok.formux(mux);
     auto now(timestamp::now());
     double nr_tokens = (now - last_refill) * max_rate;
-    unsigned whole_tokens = nr_tokens;
+    unsigned whole_tokens = (unsigned)nr_tokens;
     if (whole_tokens + bucket_content > bucket_size) {
         bucket_content = bucket_size;
         last_refill = now;

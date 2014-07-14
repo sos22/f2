@@ -20,7 +20,7 @@
 void
 tests::beacon() {
     auto mastername(peername::local("testname"));
-    auto port(peername::port(random() % 32768 + 32768));
+    auto port(peername::port((unsigned short)(random() % 32768 + 32768)));
     auto mkbeacon([mastername, port] (
                       const mastersecret &ms,
                       const registrationsecret &rs,
@@ -143,7 +143,9 @@ tests::beacon() {
                             piperead = pipe.read; });
                     auto r(beaconclient(
                                beaconclientconfig(registrationsecret::mk("rs").just())
-                               .port(peername::port(random()%32768 + 32768))));
+                               .port(peername::port(
+                                         (unsigned short)
+                                         (random()%32768 + 32768)))));
                     assert(r.failure() == error::truncated);
                     assert(generatedlog);
                     piperead.close(); });
@@ -157,7 +159,8 @@ tests::beacon() {
                     args.first().asfd().close(); });
             auto r(beaconclient(
                        beaconclientconfig(registrationsecret::mk("rs").just())
-                       .port(peername::port(random()%32768 + 32768))));
+                       .port(peername::port(
+                                 (unsigned short)(random()%32768 + 32768)))));
             assert(r.failure() == error::from_errno(EBADF));});
 
     /* Send crap to a given UDP socket */
@@ -185,7 +188,8 @@ tests::beacon() {
                     spamfd(args.first()); });
             auto r(beaconclient(
                        beaconclientconfig(registrationsecret::mk("rs").just())
-                       .port(peername::port(random()%32768 + 32768))
+                       .port(peername::port(
+                                 (unsigned short)(random()%32768 + 32768)))
                        .retrylimit(1)
                        .retryinterval(timedelta::milliseconds(10))));
             assert(r.isfailure());
@@ -211,7 +215,8 @@ tests::beacon() {
                         wireproto::tx_message(proto::HAIL::tag)); });
             auto r(beaconclient(
                        beaconclientconfig(registrationsecret::mk("rs").just())
-                       .port(peername::port(random()%32768 + 32768))
+                       .port(peername::port(
+                                 (unsigned short)(random()%32768 + 32768)))
                        .retrylimit(1)
                        .retryinterval(timedelta::milliseconds(10))));
             assert(r.isfailure()); });
@@ -258,7 +263,8 @@ tests::beacon() {
                     iter++; });
             auto r(beaconclient(
                        beaconclientconfig(registrationsecret::mk("rs").just())
-                       .port(peername::port(random()%32768 + 32768))
+                       .port(peername::port(
+                                 (unsigned short)(random()%32768 + 32768)))
                        .retrylimit(3)
                        .retryinterval(timedelta::milliseconds(200))));
             assert(r.issuccess());

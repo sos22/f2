@@ -90,7 +90,7 @@ namespace wireproto {
         uint16_t val;
         uint16_t unwrap() const { return val; }
     public:
-        explicit msgtag(int _val)
+        explicit msgtag(uint16_t _val)
             : val(_val)
             {}
 
@@ -109,7 +109,7 @@ namespace wireproto {
         friend const fields::field &fields::mk<>(const parameter &);
         uint16_t id;
     public: typedef _instanceT instanceT;
-    public: explicit parameter(int _id)
+    public: explicit parameter(uint16_t _id)
             : id(_id) {}
 
         /* because I can't figure out how to make parameter<int> be a
@@ -139,7 +139,7 @@ namespace wireproto {
     public: msgtag tag;
     public: sequencenr seq;
     public: index idx[];
-    public: wireheader(uint64_t _sz,
+    public: wireheader(uint32_t _sz,
                        uint16_t _nrparams,
                        msgtag _tag,
                        sequencenr _seq)

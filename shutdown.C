@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "error.H"
 #include "fields.H"
 #include "util.H"
 
@@ -22,10 +23,9 @@ shutdowncode::parse(const char *what)
     if (!strcasecmp(what, "ok"))
         return shutdowncode(0);
     auto r(parselong(what));
-    if (r.isfailure())
-        return r.failure();
-    else
-        return shutdowncode(r.success());
+    if (r.isfailure()) return r.failure();
+    else if (r.success() < 0 || r.success() > 255) return error::noparse;
+    else return shutdowncode((int)r.success());
 }
 
 const fields::field &

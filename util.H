@@ -13,4 +13,13 @@ orerror<long> parselong(const char *);
 template <typename t> t loadacquire(const t &what);
 template <typename t> void storerelease(t *where, t what);
 
+template <typename t> t
+min(const t &a) {
+    return a; }
+template <typename t, typename ... args> t
+min(const t &a, args ... params) {
+    auto r(min(params...));
+    if (r < a) return r;
+    else return a; }
+
 #endif /* !UTIL_H__ */

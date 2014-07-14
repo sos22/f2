@@ -121,6 +121,8 @@ rpcconnauth::waithelloslaveb::waithelloslaveb(
 rpcconnauth::rpcconnauth(const rpcconnauth &o)
     : state(o.state) {
     switch (state) {
+    case s_preinit:
+        abort();
     case s_done:
         return;
     case s_waithello:
@@ -142,6 +144,8 @@ rpcconnauth::rpcconnauth(const rpcconnauth &o)
 
 rpcconnauth::~rpcconnauth() {
     switch (state) {
+    case s_preinit:
+        abort();
     case s_done:
         return;
     case s_waithello:
@@ -162,7 +166,7 @@ rpcconnauth::~rpcconnauth() {
     if (!COVERAGE) abort(); }
 
 rpcconnauth::rpcconnauth()
-    : state((enum states)-1) {}
+    : state(s_preinit) {}
 
 void
 rpcconnauth::start(buffer &b) {
@@ -180,6 +184,7 @@ maybe<messageresult>
 rpcconnauth::message(const wireproto::rx_message &rxm,
                      const peername &peer) {
     switch (state) {
+    case s_preinit: abort();
     case s_done: return Nothing;
     case s_waithello: {
         waithello *s = (waithello *)buf;

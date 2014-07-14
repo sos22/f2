@@ -9,14 +9,14 @@ struct sockaddr;
 
 class peername {
     void *sockaddr_;
-    size_t sockaddrsize_;
+    unsigned sockaddrsize_;
     peername() = delete;
 public:
     WIREPROTO_TYPE(peername);
     peername(const peername &);
     void operator=(const peername &);
     ~peername();
-    peername(const struct sockaddr *s, size_t s_size);
+    peername(const struct sockaddr *s, unsigned s_size);
     bool operator==(const peername &o) const;
 
     /* A representation of the port part of an address.  Only really
@@ -49,7 +49,7 @@ public:
     /* Get the sockaddr for this peer */
     const struct sockaddr *sockaddr() const;
     /* And the sockaddr size */
-    size_t sockaddrsize() const;
+    unsigned sockaddrsize() const;
 
     /* peernames are their own status representation */
 public: typedef peername status_t;

@@ -11,16 +11,16 @@
 
 #include "parsers.tmpl"
 
-class intparser_ : public parser<int> {
+class intparser_ : public parser<long> {
 public: orerror<result> parse(const char *) const;
 };
 
 tmpheap parserheap;
 const strparser_ strparser;
 static const intparser_ intparser_;
-const parser<int> &intparser(intparser_);
+const parser<long> &intparser(intparser_);
 
-orerror<parser<int>::result>
+orerror<parser<long>::result>
 intparser_::parse(const char *what) const {
     bool negative = false;
     if (what[0] == '-') {
@@ -129,7 +129,7 @@ strparser_::parse(const char *what) const {
                             else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
                             else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
                             else if (!COVERAGE) abort(); return -1; });
-                    res[i] = m(what[cursor+2]) * 16 + m(what[cursor+3]);
+                    res[i] = (char)(m(what[cursor+2]) * 16 + m(what[cursor+3]));
                     i++;
                     cursor += 4;
                 } else if (what[cursor+1] == '\"') {
