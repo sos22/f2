@@ -17,6 +17,7 @@ function bits() {
     _ error
     _ fd
     _ fields
+    _ filename
     _ frequency
     _ listenfd
     _ logging
@@ -37,6 +38,7 @@ function bits() {
     _ slavename
     _ socket
     _ storageslave
+    _ string
     _ tcpsocket
     _ test
     _ tid

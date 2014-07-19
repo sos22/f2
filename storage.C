@@ -4,6 +4,7 @@
 
 #include "controlserver.H"
 #include "fields.H"
+#include "filename.H"
 #include "logging.H"
 #include "parsers.H"
 #include "peername.H"
@@ -11,6 +12,7 @@
 #include "registrationsecret.H"
 #include "shutdown.H"
 #include "storageslave.H"
+#include "string.H"
 #include "waitbox.H"
 
 int
@@ -19,15 +21,12 @@ main(int argc, char *argv[])
     initlogging("storage");
     initpubsub();
 
-    if (argc != 2) errx(1, "need one argument, the slave name");
+    if (argc != 2) errx(1, "need one argument, the path to the storage area");
 
     logmsg(loglevel::notice, fields::mk("storage slave starting"));
 
     signal(SIGPIPE, SIG_IGN);
 
-    auto sln(parsers::slavename.match(argv[1]));
-    if (sln.isfailure()) {
-        sln.failure().fatal("parsing slave name " + fields::mk(argv[1])); }
     waitbox<shutdowncode> s;
     (void)unlink("storageslave");
     auto c(controlserver::build(
@@ -38,7 +37,7 @@ main(int argc, char *argv[])
     auto slave(storageslave::build(
                    clientio::CLIENTIO,
                    rs.just(),
-                   sln.success(),
+                   filename(string(argv[1])),
                    c.success()));
     if (slave.isfailure())
         slave.failure().fatal("build storage slave");

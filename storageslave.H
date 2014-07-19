@@ -6,6 +6,7 @@
 
 class clientio;
 class controlserver;
+class filename;
 template <typename> class orerror;
 class registrationsecret;
 class storageslave;
@@ -47,7 +48,7 @@ private: mutable mutex_t mux;
 public:  static orerror<storageslave *> build(
     clientio io,
     const registrationsecret &rs,
-    const slavename &,
+    const filename &,
     controlserver *);
 private: storageslave(const registrationsecret &_rs,
                       controlserver *cs);

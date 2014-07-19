@@ -7,7 +7,9 @@
 #include "pair.H"
 #include "tmpheap.H"
 
+class filename;
 template <typename> class orerror;
+class string;
 
 /* Class for things which can take strings and turn them into
  * rvals. */
@@ -28,7 +30,7 @@ public: template <typename o> const parser<o> &map(
     /* Convenience function which runs the parser and returns either
        the result, if it matched the entire string, or an error, if it
        didn't. */
-public: orerror<rval> match(const char *) const;
+public: orerror<rval> match(const string &) const;
 };
 
 /* Simpler type of parser which matches part of the string but doesn't
@@ -66,6 +68,13 @@ template <typename a, typename b> const parser<pair<a, b> > &operator+(
 
 namespace tests {
 void parsers(void);
+}
+
+namespace parsers {
+/* Convenience function which reads in a file, parses it, and returns
+   the result.  Only really makes sense for small files. */
+template <typename t> orerror<t> parsefile(const filename &,
+                                           const parser<t> &);
 }
 
 #endif /* !PARSERS_H__ */

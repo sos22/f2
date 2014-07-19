@@ -1,6 +1,7 @@
 #ifndef PARSERS_TMPL__
 #define PARSERS_TMPL__
 
+#include "filename.H"
 #include "parsers.H"
 
 template <typename rval>
@@ -8,8 +9,8 @@ parser<rval>::result::result(const rval &a, const char *b)
     : res(a), left(b) {}
 
 template <typename r> orerror<r>
-parser<r>::match(const char *what) const {
-    auto r1(parse(what));
+parser<r>::match(const string &what) const {
+    auto r1(parse(what.c_str()));
     if (r1.isfailure()) return r1.failure();
     else if (r1.success().left[0] != '\0') return error::noparse;
     else return r1.success().res; }
@@ -94,5 +95,11 @@ parser<oldtype>::map(
     std::function<newtype (const oldtype &)> const &mapper) const {
     return *new mapparser<newtype, oldtype>(*this, mapper);
     }
+
+template <typename t> orerror<t>
+parsers::parsefile(const filename &what, const parser<t> &p) {
+    orerror<string> content(what.readasstring());
+    if (content.isfailure()) return content.failure();
+    else return p.match(content.success()); }
 
 #endif /* !PARSERS_TMPL__ */

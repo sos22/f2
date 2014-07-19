@@ -69,6 +69,10 @@ public:
         return errored;
     }
 
+    const t &fatal(const fields::field &w) const {
+        if (isfailure()) failure().fatal(w);
+        else return success(); }
+
     template <typename o> orerror(const orerror<o> &other)
         : errored(other.isfailure()) {
         if (errored) {

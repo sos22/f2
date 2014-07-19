@@ -1,9 +1,12 @@
 #include "storageslave.H"
 
 #include "beaconclient.H"
+#include "filename.H"
+#include "parsers.H"
 #include "tcpsocket.H"
 
 #include "list.tmpl"
+#include "parsers.tmpl"
 #include "rpcconn.tmpl"
 #include "wireproto.tmpl"
 
@@ -46,8 +49,11 @@ storageslave::statusiface::getstatus(wireproto::tx_message *msg) const {
 orerror<storageslave *>
 storageslave::build(clientio io,
                     const registrationsecret &rs,
-                    const slavename &name,
+                    const filename &dir,
                     controlserver *cs) {
+    auto name(
+        parsers::parsefile(dir + "slavename", parsers::slavename)
+        .fatal("parsing slave name from " + fields::mk(dir)));
     auto br(beaconclient(rs));
     if (br.isfailure()) return br.failure();
     auto res(new storageslave(
