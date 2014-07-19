@@ -17,15 +17,15 @@ timedelta::operator *(frequency f)
 
 timedelta
 timedelta::seconds(long nr) {
-    return nr * 1000000000l; }
+    return timedelta(nr * 1000000000l); }
 
 timedelta
 timedelta::milliseconds(long nr) {
-    return nr * 1000000l; }
+    return timedelta(nr * 1000000l); }
 
 timedelta
 timedelta::microseconds(long nr) {
-    return nr * 1000l; }
+    return timedelta(nr * 1000l); }
 
 long
 timedelta::as_milliseconds() const {

@@ -12,7 +12,7 @@ class timedelta {
     friend class timestamp;
     friend timedelta operator/(double, frequency);
     long v;
-    timedelta(long _v) : v(_v) {}
+    explicit timedelta(long _v) : v(_v) {}
 public:
     static timedelta seconds(long nr) __attribute__((const));
     static timedelta milliseconds(long nr) __attribute__((const));
