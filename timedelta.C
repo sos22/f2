@@ -1,5 +1,6 @@
 #include "timedelta.H"
 
+#include "fields.H"
 #include "frequency.H"
 #include "timestamp.H"
 
@@ -34,3 +35,7 @@ timedelta::as_milliseconds() const {
 bool
 timedelta::operator <(const timedelta &d) const {
     return v < d.v; }
+
+const fields::field &
+fields::mk(const timedelta &td) {
+    return "<timedelta:" + fields::mk(td.v) + "ns>"; }

@@ -3,12 +3,19 @@
 
 #include <functional>
 
+class timedelta;
 class timestamp;
 class frequency;
 
 template <typename> struct timeres;
 
+namespace fields {
+class field;
+const field &mk(const timedelta &);
+}
+
 class timedelta {
+    friend const fields::field &fields::mk(const timedelta &);
     friend class timestamp;
     friend timedelta operator/(double, frequency);
     long v;
