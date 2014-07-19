@@ -11,11 +11,9 @@
 
 namespace fields {
 
-extern tmpheap fieldsheap;
-
 class fieldbuf {
     friend void flush();
-    struct fragment : allocintmpheap<fieldsheap> {
+    struct fragment : tmpheap::base {
         struct fragment *next;
         unsigned short used;
         char content[4086];
@@ -29,7 +27,7 @@ public:
     void push(const char *);
 };
 
-class field : protected allocintmpheap<fieldsheap> {
+class field : protected tmpheap::base {
     field(const field &) = delete;
     void operator=(const field &) = delete;
 protected:

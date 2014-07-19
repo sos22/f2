@@ -11,12 +11,17 @@
 
 #include "parsers.tmpl"
 
+class strparser_ : public parser<const char *> {
+public: orerror<result> parse(const char *) const;
+};
+
 class intparser_ : public parser<long> {
 public: orerror<result> parse(const char *) const;
 };
 
-tmpheap parserheap;
-const strparser_ strparser;
+static const strparser_ strparser_;
+const parser<const char *>&strparser(strparser_);
+
 static const intparser_ intparser_;
 const parser<long> &intparser(intparser_);
 
@@ -32,21 +37,21 @@ intparser_::parse(const char *what) const {
     int i;
     for (i = 0; isalnum(what[i]) || (what[i] == ',' && isalnum(what[i+1])); i++)
         ;
-    int base = 10;
+    int nbase = 10;
     int basechars = 0;
     if (what[i] == '{') {
         /* Explicit base marker.  Parse it up. */
-        base = 0;
+        nbase = 0;
         basechars = 2;
         i++;
         while (isdigit(what[i])) {
             /* Avoid overflow */
-            if (base > 100) return error::noparse;
-            base *= 10;
-            base += what[i] - '0';
+            if (nbase > 100) return error::noparse;
+            nbase *= 10;
+            nbase += what[i] - '0';
             basechars++;
             i++; }
-        if (base < 2 || base > 36 || what[i] != '}') return error::noparse; }
+        if (nbase < 2 || nbase > 36 || what[i] != '}') return error::noparse; }
     /* Now parse the number. */
     long acc = 0;
     i = 0;
@@ -60,13 +65,13 @@ intparser_::parse(const char *what) const {
         else if (what[i] >= 'a' && what[i] <= 'z') slot = what[i] - 'a' + 10;
         else if (what[i] >= 'A' && what[i] <= 'Z') slot = what[i] - 'A' + 10;
         else slot = -1;
-        if (slot == -1 || slot >= base) {
+        if (slot == -1 || slot >= nbase) {
             if (must) return error::noparse;
             if (basechars != 0 && what[i] != '{') return error::noparse;
             break; }
-        assert( (acc * base) / base == acc);
+        assert( (acc * nbase) / nbase == acc);
         assert(acc + slot >= acc);
-        acc = acc * base + slot;
+        acc = acc * nbase + slot;
         i++; }
     if (negative) acc = -acc;
     return result(acc, what + i + basechars); }
@@ -79,7 +84,7 @@ strmatcher::match(const char *buf) const {
 
 const strmatcher &
 strmatcher::operator +(const strmatcher &b) const {
-    char *s = (char *)parserheap._alloc(strlen(what) + strlen(b.what) + 1);
+    char *s = (char *)tmpheap::_alloc(strlen(what) + strlen(b.what) + 1);
     strcpy(s, what);
     strcat(s, b.what);
     return *new strmatcher(s); }
@@ -113,7 +118,7 @@ strparser_::parse(const char *what) const {
                 cursor++;
             } else {
                 return error::noparse; } }
-        char *res = (char *)parserheap._alloc(len + 1);
+        char *res = (char *)tmpheap::_alloc(len + 1);
         int i = 0;
         cursor = 1;
         while (1) {
@@ -155,7 +160,7 @@ strparser_::parse(const char *what) const {
              len++)
             ;
         if (len == 0) return error::noparse;
-        auto res((char *)parserheap._alloc(len + 1));
+        auto res((char *)tmpheap::_alloc(len + 1));
         memcpy(res, what, len);
         res[len] = 0;
         return result(res, what + len); } }

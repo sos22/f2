@@ -1,49 +1,53 @@
-/* Temporary heaps are used to allocate space for temporary objects.
- * Something allocated in a temporary heap will remain valid until the
- * thread which did the allocation calls the heap's flush method. */
-/* One major caveat: temporary heaps never run object destructors;
- * they just blindly reclaim the space.  Don't use them for things
- * with non-trivial destructors. */
+/* The temporary heap is used for allocating thread-private things
+   which don't need to live for very long.  Each thread effectively
+   maintains its own heap and can allocate freely from it.  Every so
+   often, the thread is supposed to call tmpheap::release(), at which
+   point everything it has allocated in its temp heap will be
+   released.  That's usually a bit easier to deal with than calling
+   free()/delete all over the place, and is also often faster.  The
+   major downside, apart from losing control over storage lifetime, is
+   that destructors never run, so you can't use this for anything with
+   a non-trivial destructor. */
 #ifndef TMPHEAP_H__
 #define TMPHEAP_H__
 
-#include "pthread.h"
+#include <stddef.h>
 
-class tmpheap {
-    /* This needs to be public so that __arena_destruct() can get at
-       it (can't use friend because __arena_destruct() is static). */
-public:  struct arena;
-private: pthread_key_t arenakey;
-public: tmpheap();
+namespace tmpheap {
 
-    /* Allocate @sz bytes in the heap and return a pointer.  The space
-     * is initially uninitialised.  The space will remain valid until
-     * this thread calls flush() or exits. */
-public: void *_alloc(size_t sz);
-    /* Allocate a size-@n array of instances of type in the heap. */
-public: template <typename t> t *alloc(unsigned n = 1) {
-    t *spc = (t *)_alloc(sizeof(t) * n);
-    for (unsigned x = 0; x < n; x++) new (&spc[x]) t();
-    return spc; }
-    /* Release all of the space allocated by _alloc() or alloc() in
-     * this thread since the last call to flush(). */
-public: void flush();
-    /* Tear down the tmpheap.  Space allocated by this thread will be
-     * automatically released; any space allocated by other threads
-     * and not yet released will be leaked.  Note that there is
-     * absolutely no automatic checking that this is done correctly;
-     * just be careful. */
-    /* statically-allocated tmpheaps always get this right, because
-     * they get destructed by the last surviving thread during process
-     * shutdown and so there are no other thread which might cause a
-     * leak. */
-public: ~tmpheap();
+/* Allocate some bytes.  The returned pointer remains valid until the
+ * allocating thread calls release() or exits. */
+void *_alloc(size_t sz);
+/* Allocate a particular type and run its constructor.  The destructor
+ * will never be run, so only use this for types where the destructor
+ * is trivial. */
+template <typename t, typename ... args> t *alloc(args...params) {
+    void *spc = _alloc(sizeof(t));
+    return new (spc) t(params...); }
+/* Release everything allocated by _alloc() or alloc() in the current
+ * thread.  Called automatically as part of thread tear-down. */
+void release();
+
+/* Convenience function: duplicate a string into the temporary
+ * heap. */
+char *strdup(const char *);
+/* Convenience function: duplicate a block of memory into the
+ * temporary heap. */
+void *memdup(const void *base, size_t sz);
+/* Convenience function: duplicate an object into the temporary heap,
+ * using its copy constructor.  Really just aliases for alloc(); use
+ * whichever makes most logical sense. */
+template <typename t> t *objdup(const t &&x) { return alloc(x); }
+template <typename t> t *objdup(const t &x) { return alloc(x); }
+
+/* Base class which, when inherited from, causes all allocations of a
+ * particular type to be places in the temporary heap.  Note that this
+ * only catches new-style allocation, not stack-style, and that there
+ * are no checks that it isn't used for a stack allocation. */
+class base {
+public:  void *operator new(size_t sz) { return _alloc(sz); }
 };
 
-/* A thing you can inherit from if you want all allocations of a
-   particular type to come from a particular tmpheap. */
-template <tmpheap &heap> class allocintmpheap {
-public:  void *operator new(size_t sz) { return heap._alloc(sz); }
-};
+}
 
 #endif /* !TMPHEAP_H__ */

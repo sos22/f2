@@ -9,12 +9,10 @@
 
 template <typename> class orerror;
 
-extern tmpheap parserheap;
-
 /* Class for things which can take strings and turn them into
  * rvals. */
 template <typename rval>
-class parser : public allocintmpheap<parserheap> {
+class parser : public tmpheap::base {
     /* Partial parse result: represents the value of the current
        parser and all of the bits it didn't parse. */
 public: class result {
@@ -35,18 +33,16 @@ public: orerror<rval> match(const char *) const;
 
 /* Simpler type of parser which matches part of the string but doesn't
  * return anything. */
-class strmatcher : public allocintmpheap<parserheap> {
+class strmatcher : public tmpheap::base {
 private: const char *what;
 public:  strmatcher(const char *_what) : what(_what) {}
 public:  orerror<const char *> match(const char *buf) const;
 public:  const strmatcher &operator+(const strmatcher &o) const;
 };
 
-/* Parser for the strings produced by fields::mk().escape() */
-class strparser_ : public parser<const char *> {
-public: orerror<result> parse(const char *) const;
-};
-extern const strparser_ strparser;
+/* Parser for the strings produced by fields::mk().escape().  Note
+ * that the returned strings are in the temporary heap. */
+extern const parser<const char *> &strparser;
 
 /* Parser for integers produced by fields::mk() */
 extern const parser<long> &intparser;

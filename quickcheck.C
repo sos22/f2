@@ -5,8 +5,6 @@
 
 #include "tmpheap.H"
 
-static tmpheap quickcheckheap;
-
 quickcheck::operator unsigned long() const {
     unsigned long r = random();
     if (r % 8 == 0) {
@@ -53,7 +51,7 @@ quickcheck::operator const char *() const {
     while (len <= 0) {
         r = random();
         len = (1 << (r % 16)) + (((r / 16) % 256) - 128); }
-    unsigned char *buf = (unsigned char *)quickcheckheap._alloc(len);
+    char *buf = (char *)tmpheap::_alloc(len);
     for (int x = 0; x < len - 1; x++) buf[x] = (char)((random() % 255) + 1);
     buf[len] = '\0';
     return (const char *)buf; }

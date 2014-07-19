@@ -18,8 +18,6 @@
 
 namespace fields {
 
-tmpheap fieldsheap;
-
 static struct : public field {
     void fmt(fieldbuf &p) const { p.push(" "); }
 } _space;
@@ -92,7 +90,7 @@ fieldbuf::c_str(maybe<unsigned> limit)
         sz += cursor->used;
     if (limit.isjust() && sz > limit.just())
         sz = limit.just();
-    char *res((char *)fieldsheap._alloc(sz + 1));
+    auto res((char *)tmpheap::_alloc(sz + 1));
     size_t used(0);
     for (auto cursor(head); cursor && used < sz; cursor = cursor->next) {
         auto to_copy((unsigned)min(
@@ -248,7 +246,7 @@ padcenter(const field &base, unsigned minsize,
 }
 
 strfield::strfield(const char *what, bool _escape)
-    : content((char *)fieldsheap._alloc(strlen(what) + 1)),
+    : content(tmpheap::strdup(what)),
       escape_(_escape) {
     strcpy(content, what); }
 const strfield &
@@ -630,7 +628,7 @@ tests::fields()
                     fieldbuf buf2;
                     mk("goodbye").fmt(buf2);
                     assert(!strcmp(buf2.c_str(), "goodbye"));
-                    fieldsheap.flush();
+                    tmpheap::release();
                     fieldbuf buf3;
                     mk("doomed").fmt(buf3);
                     return true; });
