@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "fields.H"
 #include "mutex.H"
 #include "timedelta.H"
 #include "util.H"
@@ -85,3 +86,17 @@ timestamp::sleep() const {
         ts.tv_sec = left / 1000000000;
         ts.tv_nsec = left % 1000000000;
         nanosleep(&ts, NULL); } }
+
+const fields::field &
+fields::mk(const timestamp &ts) {
+    static mutex_t basislock;
+    static timestamp basis(0);
+    static bool havebasis(false);
+    if (!loadacquire(havebasis)) {
+        auto token(basislock.lock());
+        if (!havebasis) {
+            basis = timestamp::now();
+            storerelease(&havebasis, true); }
+        basislock.unlock(&token); }
+    return "<timestamp:" + mk(ts.v - basis.v) + "ns>";
+}

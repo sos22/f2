@@ -3,9 +3,16 @@
 
 class timedelta;
 struct timespec;
+class timestamp;
 struct timeval;
 
+namespace fields {
+class field;
+const field &mk(const timestamp &);
+}
+
 class timestamp {
+    friend const fields::field &fields::mk(const timestamp &);
     unsigned long v; /* nanoseconds since epoch */
     timestamp(unsigned long _v) : v(_v) {}
 public:
