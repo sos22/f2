@@ -1,6 +1,12 @@
 #ifndef PARSERS_TMPL__
 #define PARSERS_TMPL__
 
+#include "parsers.H"
+
+template <typename rval>
+parser<rval>::result::result(const rval &a, const char *b)
+    : res(a), left(b) {}
+
 template <typename r> orerror<r>
 parser<r>::match(const char *what) const {
     auto r1(parse(what));

@@ -20,8 +20,7 @@ class parser : public allocintmpheap<parserheap> {
 public: class result {
     public: rval res;
     public: const char *left;
-    public: result(const rval &a, const char *b)
-        : res(a), left(b) {} };
+    public: result(const rval &a, const char *b); };
     /* Parse a string, returning either the result of the parse or an
      * error. */
 public: virtual orerror<result> parse(const char *) const = 0;
