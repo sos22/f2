@@ -13,6 +13,8 @@
 class buffer;
 
 namespace wireproto {
+class bufslice;
+template <typename typ> maybe<typ> deserialise(bufslice &slice);
 class msgtag;
 template <typename t> class parameter;
 class rx_message;
@@ -33,14 +35,15 @@ template <typename t> const field &mk(const wireproto::parameter<t> &);
 };
 
 #define WIREPROTO_TYPE(name)                                            \
-    void addparam(wireproto::parameter<name>,                           \
-                  wireproto::tx_message &) const;                       \
-    static maybe<name> fromcompound(const wireproto::rx_message &)
+    public: void addparam(wireproto::parameter<name>,                   \
+                          wireproto::tx_message &) const;               \
+    public: static maybe<name> fromcompound(const wireproto::rx_message &)
 
 #define WIREPROTO_WRAPPER_TYPE(wrapper, wrapped)                        \
     friend class wireproto::tx_message;                                 \
     friend class wireproto::rx_message;                                 \
-    static wrapper __fromwrapped__(wrapped t);                          \
+    public: static wrapper __fromwrapped__(wrapped t);                  \
+    private: wrapped unwrap() const;                                    \
     WIREPROTO_TYPE(wrapper)
 
 namespace wireproto {
@@ -65,12 +68,11 @@ namespace wireproto {
             return !!(val & (1ul << 63)); }
     };
     class sequencerstatus {
+        WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint64_t);
     public:  uint64_t nextseq;
     public:  sequencerstatus(uint64_t _nextseq)
         : nextseq(_nextseq) {}
     public:  sequencerstatus(const quickcheck &q);
-        WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint64_t);
-    private: uint64_t unwrap() const { return nextseq; }
     public:  bool operator==(const sequencerstatus &o) const {
         return nextseq == o.nextseq; }
     };
@@ -88,7 +90,7 @@ namespace wireproto {
     class msgtag {
         friend const class fields::field &fields::mk(const msgtag &);
         uint16_t val;
-        uint16_t unwrap() const { return val; }
+        WIREPROTO_WRAPPER_TYPE(msgtag, uint16_t);
     public:
         explicit msgtag(uint16_t _val)
             : val(_val)
@@ -100,7 +102,6 @@ namespace wireproto {
         bool operator!=(const msgtag &o) const {
             return !(*this == o);
         }
-        WIREPROTO_WRAPPER_TYPE(msgtag, uint16_t);
     };
     template <typename _instanceT>
     class parameter {
@@ -217,15 +218,14 @@ namespace wireproto {
         void serialise(buffer &buf) const;
     };
     class rx_messagestatus {
+        WIREPROTO_WRAPPER_TYPE(rx_messagestatus, msgtag);
     public: msgtag t;
     public: explicit rx_messagestatus(const msgtag &_t)
         : t(_t) {}
     public: rx_messagestatus()
         : t(0) {}
-        WIREPROTO_WRAPPER_TYPE(rx_messagestatus, msgtag);
     public: bool operator==(const rx_messagestatus &o) const {
         return o.t == t; }
-    private: msgtag unwrap() const { return t; }
     };
     class rx_message {
         friend const fields::field &fields::mk(const wireproto::rx_message *);

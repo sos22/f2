@@ -10,7 +10,7 @@ template <typename> class orerror;
 
 class beaconresult {
 public: masternonce const nonce;
-public: peername const slavename;
+public: peername const connectingname;
 public: peername const mastername;
 public: registrationsecret const secret;
 public: beaconresult(const masternonce &, const peername &, const peername &,

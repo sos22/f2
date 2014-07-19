@@ -17,11 +17,12 @@ class peername;
 class registrationsecret;
 
 class coordinatorconn;
+class coordinatorconnstatus;
 
 class coordinatorstatus {
-public: list<rpcconn::status_t> conns;
+public: list<coordinatorconnstatus> conns;
 public: coordinatorstatus(
-    const list<rpcconn::status_t> &_conns)
+    const list<coordinatorconnstatus> &_conns)
     : conns(_conns) {}
 public: ~coordinatorstatus() { conns.flush(); }
 WIREPROTO_TYPE(coordinatorstatus);

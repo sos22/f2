@@ -134,6 +134,8 @@ mk(const wireproto::parameter<t> &param)
         if (r == Nothing) return Nothing;                               \
         else return wrapper_type::__fromwrapped__(r.just()); } }        \
     wrapper_type wrapper_type::__fromwrapped__(wrapped_type t) {        \
-        return wrapper_type(t); }
+        return wrapper_type(t); }                                       \
+    wrapped_type wrapper_type::unwrap() const {                         \
+        return field; }
 
 #endif /* !WIREPROTO_H__ */

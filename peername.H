@@ -11,8 +11,8 @@ class peername {
     void *sockaddr_;
     unsigned sockaddrsize_;
     peername() = delete;
-public:
     WIREPROTO_TYPE(peername);
+public:
     peername(const peername &);
     void operator=(const peername &);
     ~peername();

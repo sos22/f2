@@ -12,6 +12,34 @@
 
 wireproto_wrapper_type(coordinatorstatus);
 
+class coordinatorconnstatus {
+    WIREPROTO_TYPE(coordinatorconnstatus);
+public:  rpcconn::status_t connstatus;
+public:  maybe<slavename> name;
+public:  coordinatorconnstatus(const rpcconn::status_t &b,
+                               const maybe<slavename> &s)
+    : connstatus(b),
+      name(s) {}
+};
+wireproto_wrapper_type(coordinatorconnstatus);
+void
+coordinatorconnstatus::addparam(
+    wireproto::parameter<coordinatorconnstatus> tmpl,
+    wireproto::tx_message &txm) const {
+    wireproto::tx_compoundparameter p;
+    p.addparam(proto::coordinatorconnstatus::conn, connstatus);
+    if (name.isjust()) {
+        p.addparam(proto::coordinatorconnstatus::slave, name.just()); }
+    txm.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                 p); }
+maybe<coordinatorconnstatus>
+coordinatorconnstatus::fromcompound(const wireproto::rx_message &rxm) {
+    auto c(rxm.getparam(proto::coordinatorconnstatus::conn));
+    if (!c) return Nothing;
+    return coordinatorconnstatus(
+        c.just(),
+        rxm.getparam(proto::coordinatorconnstatus::slave)); }
+
 class coordinatorconn : public rpcconn {
 public:  coordinator *const owner;
 public:  coordinatorconn(socket_t &_socket,
@@ -19,13 +47,17 @@ public:  coordinatorconn(socket_t &_socket,
                          peername &_peer,
                          coordinator *_owner);
 private: void endconn(clientio);
+
+public:  typedef coordinatorconnstatus status_t;
+public:  status_t status(maybe<mutex_t::token> tok /* coordinator lock */) {
+    return status_t( rpcconn::status(tok), slavename() ); }
 };
 
 coordinatorconn::coordinatorconn(socket_t &_socket,
-                                 const rpcconnauth &_auth,
+                                 const rpcconnauth &__auth,
                                  peername &_peer,
                                  coordinator *_owner)
-    : rpcconn(_socket, _auth, _peer),
+    : rpcconn(_socket, __auth, _peer),
       owner(_owner) {
     auto token(owner->mux.lock());
     owner->connections.pushtail(this);
@@ -49,7 +81,7 @@ coordinator::statusinterface::getstatus(wireproto::tx_message *msg) const {
 
 coordinator::status_t
 coordinator::status() const {
-    list<rpcconn::status_t> c;
+    list<coordinatorconnstatus> c;
     auto token(mux.lock());
     for (auto it(connections.start()); !it.finished(); it.next()) {
         c.pushtail((*it)->status(token)); }
@@ -92,6 +124,11 @@ coordinator::build(
     res->statusiface.start();
     return res; }
 
+const fields::field &
+fields::mk(const coordinatorconn::status_t &o) {
+    return "<coordinatorconn " + mk(o.connstatus) +
+        " name:" + mk(o.name) + ">"; }
+
 void
 coordinator::status_t::addparam(
     wireproto::parameter<coordinator::status_t> tmpl,
@@ -101,7 +138,7 @@ coordinator::status_t::addparam(
                     .addparam(proto::coordinatorstatus::conns, conns)); }
 maybe<coordinator::status_t>
 coordinator::status_t::fromcompound(const wireproto::rx_message &msg) {
-    list<rpcconn::status_t> conns;
+    list<coordinatorconn::status_t> conns;
     auto r(msg.fetch(proto::coordinatorstatus::conns, conns));
     if (r.isjust()) return Nothing;
     coordinator::status_t res(conns);

@@ -17,6 +17,7 @@ class nonce;
 class peername;
 class rpcconnstatus;
 class shutdowncode;
+class slavename;
 class storageslavestatus;
 struct timeval;
 class ratelimiter_status;
@@ -36,8 +37,12 @@ namespace proto {
         static const parameter<unsigned long> cons(2);
         static const parameter<unsigned int> nrfrags(3);
     };
+    namespace coordinatorconnstatus {
+        static const parameter< ::rpcconnstatus> conn(1);
+        static const parameter<slavename> slave(2);
+    };
     namespace coordinatorstatus {
-        static const parameter<list< ::rpcconnstatus> > conns(1);
+        static const parameter<list< ::coordinatorconnstatus> > conns(1);
     };
     namespace fd_tstatus {
         static const parameter<int> fd(1);
@@ -127,6 +132,7 @@ namespace proto {
             static const parameter< ::beaconstatus> beacon(450);
             static const parameter< ::coordinatorstatus> coordinator(451);
             static const parameter< ::storageslavestatus> storageslave(452);
+            static const parameter< ::slavename> myname(453);
         };
     };
 
@@ -151,8 +157,9 @@ namespace proto {
         namespace req {
             static const parameter<unsigned> version(800);
             static const parameter<class masternonce> nonce(801);
-            static const parameter<class peername> slavename(802);
+            static const parameter<class peername> peername(802);
             static const parameter<class digest> digest(803);
+            static const parameter<class slavename> slavename(804);
         }
     }
 
@@ -161,8 +168,8 @@ namespace proto {
          * slave.  It's assumed that whoever's doing the connecting
          * has already checked that they're connecting to the right
          * place; the aim is to allow the connectee to authenticate
-         * the connector.  When someone connects to a slave, they
-         * immediately send a fresh nonce (message A).  The connector
+         * the connector.  When someone connects to a slave, the slave
+         * immediately sends a fresh nonce (message A).  The connector
          * then replies with message B containing a digest of the
          * nonce plus the registration secret plus the fixed string
          * 'C'. The connectee then either drops the connection or

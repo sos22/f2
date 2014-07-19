@@ -11,6 +11,7 @@
 #include "pubsub.H"
 #include "mutex.H"
 #include "registrationsecret.H"
+#include "slavename.H"
 #include "socket.H"
 #include "thread.H"
 #include "util.H"
@@ -20,6 +21,7 @@
 class beaconresult;
 class clientio;
 class messageresult;
+class slavename;
 
 class rpcconnauth {
     friend class rpcconn;
@@ -63,6 +65,8 @@ private: enum states {
     };
 private: enum states state;
 
+public:  maybe<class slavename> slavename() const;
+
 public:  static rpcconnauth mkdone();
 public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
@@ -89,6 +93,10 @@ private: maybe<messageresult> message(
 private: void start(buffer &outbuffer);
 
     /* Per-state state */
+private: struct done {
+    maybe<class slavename> slave;
+    done(const maybe<class slavename> &_slave);
+    };
 private: struct waithello {
     mastersecret ms;
     registrationsecret rs;
@@ -117,7 +125,7 @@ private: struct waithelloslavec {
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 private: unsigned char buf[
     MAX(MAX(sizeof(waithello), sizeof(sendhelloslavea)),
-        MAX(sizeof(waithelloslavea),
+        MAX(MAX(sizeof(done), sizeof(waithelloslavea)),
             MAX(sizeof(waithelloslaveb), sizeof(waithelloslavec))))];
 #undef MAX
 };
@@ -204,9 +212,12 @@ private: timestamp lastcontact;
 
 private: const peername peer_;
 
-    /* Authentication state.  Only accessed from the connection
-     * thread. */
-private: rpcconnauth auth;
+    /* Authentication state.  Ordering: auth lock is below coordinator
+     * lock. */
+private: mutable mutex_t authlock;
+private: rpcconnauth _auth;
+private: rpcconnauth &auth(mutex_t::token) { return _auth; }
+private: const rpcconnauth &auth(mutex_t::token) const { return _auth; }
 
 private: rpcconn() = delete;
 private: rpcconn(const rpcconn &) = delete;
@@ -220,6 +231,7 @@ private: void operator=(const rpcconn &) = delete;
 public: template<typename t, typename...args> static orerror<t *> connectmaster(
     clientio,
     const beaconresult &,
+    const slavename &,
     args...);
 
     /* Connect to a remote slave server, using a given registration
@@ -277,6 +289,9 @@ public: wireproto::sequencenr allocsequencenr();
     /* Get a peername for the thing on the other end of the
      * connection. */
 public: peername peer() const;
+
+    /* Get slavename of the remote host, if we know it. */
+public: maybe<class slavename> slavename() const;
 
     /* Bits to send outgoing messages. */
     /* Queue a message to be sent.  This can block if the outgoing

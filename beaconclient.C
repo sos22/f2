@@ -107,10 +107,10 @@ beaconclient(const beaconclientconfig &config)
     return error::timeout; }
 
 beaconresult::beaconresult(const masternonce &_nonce,
-                           const peername &_slavename,
+                           const peername &_connectingname,
                            const peername &_mastername,
                            const registrationsecret &_secret)
-    : nonce(_nonce), slavename(_slavename),
+    : nonce(_nonce), connectingname(_connectingname),
       mastername(_mastername), secret(_secret) {}
 
 namespace tests {

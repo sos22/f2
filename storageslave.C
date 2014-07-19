@@ -21,10 +21,10 @@ private: void endconn(clientio);
 
 storageslaveconn::storageslaveconn(
     socket_t &_socket,
-    const rpcconnauth &_auth,
+    const rpcconnauth &__auth,
     const peername &_peer,
     storageslave *_owner)
-    : rpcconn(_socket, _auth, _peer),
+    : rpcconn(_socket, __auth, _peer),
       owner(_owner) {
     auto token(owner->mux.lock());
     owner->clients.pushtail(this);
@@ -46,6 +46,7 @@ storageslave::statusiface::getstatus(wireproto::tx_message *msg) const {
 orerror<storageslave *>
 storageslave::build(clientio io,
                     const registrationsecret &rs,
+                    const slavename &name,
                     controlserver *cs) {
     auto br(beaconclient(rs));
     if (br.isfailure()) return br.failure();
@@ -55,6 +56,7 @@ storageslave::build(clientio io,
     auto mc(rpcconn::connectmaster<storageslaveconn>(
                 io,
                 br.success(),
+                name,
                 res));
     if (mc.isfailure()) {
         delete res;
@@ -109,12 +111,12 @@ storageslave::status_t
 storageslave::status() const {
     assert(masterconn);
     auto token(mux.lock());
-    status_t res(
-        masterconn->status(token),
-        clients.map<rpcconn::status_t>(
-            [&token] (storageslaveconn *const &conn) {
-                return conn->status(token); }));
+    list<rpcconn::status_t> cl(clients.map<rpcconn::status_t>(
+                                   [&token] (storageslaveconn *const &conn) {
+                                       return conn->status(token); }));
+    status_t res(masterconn->status(token), cl);
     mux.unlock(&token);
+    cl.flush();
     return res; }
 
 void

@@ -22,7 +22,7 @@ class error {
     explicit error(int _e)
         : e(_e)
         {}
-    int unwrap() const { return e; }
+    int unwrap() const;
 public:
     /* Can't use WIREPROTO_WRAPPER_TYPE for header ordering rules, so
      * expand it manually. */

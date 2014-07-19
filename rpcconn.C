@@ -3,6 +3,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "proto.H"
+#include "slavename.H"
 #include "timedelta.H"
 #include "wireproto.H"
 
@@ -64,10 +65,16 @@ fields::mk(const rpcconn::status_t &o) {
         acc = &(*acc + mk(*it)); }
     return *acc + "}>"; }
 
+maybe<class slavename>
+rpcconnauth::slavename() const {
+    if (state == s_done) return ((done *)buf)->slave;
+    else return Nothing; }
+
 rpcconnauth
 rpcconnauth::mkdone() {
     rpcconnauth r;
     r.state = s_done;
+    new (r.buf) done(Nothing);
     return r; }
 
 rpcconnauth
@@ -124,6 +131,7 @@ rpcconnauth::rpcconnauth(const rpcconnauth &o)
     case s_preinit:
         abort();
     case s_done:
+        new (buf) done(*(done *)o.buf);
         return;
     case s_waithello:
         new (buf) waithello(*(waithello *)o.buf);
@@ -147,6 +155,7 @@ rpcconnauth::~rpcconnauth() {
     case s_preinit:
         abort();
     case s_done:
+        ((done *)buf)->~done();
         return;
     case s_waithello:
         ((waithello *)buf)->~waithello();
@@ -167,6 +176,9 @@ rpcconnauth::~rpcconnauth() {
 
 rpcconnauth::rpcconnauth()
     : state(s_preinit) {}
+
+rpcconnauth::done::done(const maybe<class slavename> &o)
+    : slave(o) {}
 
 void
 rpcconnauth::start(buffer &b) {
@@ -196,25 +208,26 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    fields::mk(peer) +
                    " without a HELLO");
             return messageresult(error::unrecognisedmessage); }
-        auto version(rxm.getparam(proto::HELLO::req::version));
-        auto nonce(rxm.getparam(proto::HELLO::req::nonce));
-        auto slavename(rxm.getparam(proto::HELLO::req::slavename));
         auto digest(rxm.getparam(proto::HELLO::req::digest));
-        if (!version || !nonce || !slavename || !digest) {
+        auto nonce(rxm.getparam(proto::HELLO::req::nonce));
+        auto peername(rxm.getparam(proto::HELLO::req::peername));
+        auto _slavename(rxm.getparam(proto::HELLO::req::slavename));
+        auto version(rxm.getparam(proto::HELLO::req::version));
+        if (!digest || !nonce || !peername || !_slavename || !version) {
             return messageresult(error::missingparameter); }
         logmsg(loglevel::verbose,
                "HELLO version " + fields::mk(version) +
                "nonce " + fields::mk(nonce) +
-               "slavename " + fields::mk(slavename) +
+               "peername " + fields::mk(peername) +
                "digest " + fields::mk(digest));
         if (version.just() != 1) return messageresult(error::badversion);
-        if (!s->ms.noncevalid(nonce.just(), slavename.just())) {
+        if (!s->ms.noncevalid(nonce.just(), peername.just())) {
             logmsg(loglevel::notice,
                    "HELLO with invalid nonce from " + fields::mk(peer));
             return messageresult(error::authenticationfailed); }
-        if (!slavename.just().samehost(peer)) {
+        if (!peername.just().samehost(peer)) {
             logmsg(loglevel::notice,
-                   "HELLO with bad host (" + fields::mk(slavename.just()) +
+                   "HELLO with bad host (" + fields::mk(peername.just()) +
                    ", expected host " + fields::mk(peer) +")");
             return messageresult(error::authenticationfailed); }
         if (digest.just() != ::digest("B" +
@@ -226,6 +239,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
         s->~waithello();
         state = s_done;
+        new (buf) done(_slavename);
         return messageresult(new wireproto::resp_message(rxm)); }
     case s_sendhelloslavea:
         /* Shouldn't get here; should have sent the HELLOSLAVE::A
@@ -279,6 +293,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             return messageresult(error::authenticationfailed); }
         state = s_done;
         s->~waithelloslaveb();
+        new (buf) done(Nothing);
         return messageresult(
             new wireproto::tx_message(proto::HELLOSLAVE::C::tag)); }
     case s_waithelloslavec: {
@@ -299,6 +314,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         wb->set(rxm.getparam(wireproto::err_parameter));
         s->~waithelloslavec();
         state = s_done;
+        new (buf) done(Nothing);
         return messageresult::noreply; } }
     if (!COVERAGE) abort();
     return Nothing; }
@@ -351,7 +367,9 @@ rpcconn::run(clientio io) {
        the deadline for receiving it, otherwise. */
     timestamp pingtime(timestamp::now() + timedelta::seconds(1));
 
-    auth.start(outgoing);
+    auto authtok(authlock.lock());
+    auth(authtok).start(outgoing);
+    authlock.unlock(&authtok);
 
     outarmed = true;
     subscriptionbase *ss;
@@ -405,7 +423,9 @@ rpcconn::run(clientio io) {
                         msg.failure().warn(
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
-                auto authres(auth.message(msg.success(), peer_));
+                authtok = authlock.lock();
+                auto authres(auth(authtok).message(msg.success(), peer_));
+                authlock.unlock(&authtok);
                 if (authres != Nothing) {
                     if (authres.just().isfailure()) {
                         /* Authentication protocol rejected the
@@ -492,7 +512,7 @@ rpcconn::run(clientio io) {
 
 rpcconn::rpcconn(
     socket_t _sock,
-    const rpcconnauth &_auth,
+    const rpcconnauth &__auth,
     const peername &_peer)
     : thr(NULL),
       shutdown(),
@@ -509,7 +529,7 @@ rpcconn::rpcconn(
       contactlock(),
       lastcontact(timestamp::now()),
       peer_(_peer),
-      auth(_auth) {}
+      _auth(__auth) {}
 
 messageresult
 rpcconn::message(const wireproto::rx_message &msg) {
@@ -529,6 +549,13 @@ rpcconn::allocsequencenr() {
 peername
 rpcconn::peer() const {
     return peer_; }
+
+maybe<class slavename>
+rpcconn::slavename() const {
+    auto token(authlock.lock());
+    auto res(auth(token).slavename());
+    authlock.unlock(&token);
+    return res; }
 
 rpcconn::sendres
 rpcconn::send(

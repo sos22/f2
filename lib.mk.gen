@@ -34,6 +34,7 @@ function bits() {
     _ rpcconn
     _ rpcserver
     _ shutdown
+    _ slavename
     _ socket
     _ storageslave
     _ tcpsocket

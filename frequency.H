@@ -18,9 +18,8 @@ class frequency {
     friend const fields::field &fields::mk(const frequency &);
     double hz_;
     explicit frequency(double);
-    double unwrap() const { return hz_; }
-public:
     WIREPROTO_WRAPPER_TYPE(frequency, double);
+public:
 
     static frequency hz(double);
     frequency(const quickcheck &);

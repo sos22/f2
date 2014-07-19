@@ -18,6 +18,7 @@
 class frequency;
 
 class beaconstatus {
+WIREPROTO_TYPE(beaconstatus);
 public: registrationsecret secret;
 public: ratelimiter_status limiter;
 public: unsigned errors;
@@ -40,7 +41,6 @@ public: bool operator==(const beaconstatus &o) const {
         limiter == o.limiter &&
         errors == o.errors &&
         rx == o.rx; }
-WIREPROTO_TYPE(beaconstatus);
 };
 
 namespace fields {

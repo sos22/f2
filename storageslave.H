@@ -17,6 +17,7 @@ public:  storageslavestatus(const rpcconn::status_t &_masterconn,
                             const list<rpcconn::status_t> &_clientconns)
     : masterconn(_masterconn),
       clientconns(_clientconns) {}
+public:  ~storageslavestatus() { clientconns.flush(); }
 WIREPROTO_TYPE(storageslavestatus);
 };
 
@@ -46,6 +47,7 @@ private: mutable mutex_t mux;
 public:  static orerror<storageslave *> build(
     clientio io,
     const registrationsecret &rs,
+    const slavename &,
     controlserver *);
 private: storageslave(const registrationsecret &_rs,
                       controlserver *cs);

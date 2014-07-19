@@ -10,6 +10,7 @@
 struct ratelimiter_status {
     WIREPROTO_TYPE(ratelimiter_status);
 
+public:
     const frequency max_rate;
     const unsigned bucket_size;
     const unsigned bucket_content;

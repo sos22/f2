@@ -12,10 +12,10 @@ class pingableconn : public rpcconn {
     friend class rpcconn;
 public:  waitbox<shutdowncode> &shutdown;
 private: pingableconn(socket_t _sock,
-                      const rpcconnauth &_auth,
+                      const rpcconnauth &__auth,
                       const peername &_peer,
                       waitbox<shutdowncode> &_shutdown)
-    : rpcconn(_sock, _auth, _peer),
+    : rpcconn(_sock, __auth, _peer),
       shutdown(_shutdown) {}
 public:  messageresult message(const wireproto::rx_message &);
 public:  ~pingableconn() {}

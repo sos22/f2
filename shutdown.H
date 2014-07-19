@@ -18,9 +18,8 @@ class shutdowncode {
     explicit shutdowncode(int _code)
         : code(_code)
         {}
-    int unwrap() const { return code; }
-public:
     WIREPROTO_WRAPPER_TYPE(shutdowncode, int);
+public:
 
     static const shutdowncode ok;
 

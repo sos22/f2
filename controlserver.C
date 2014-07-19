@@ -69,10 +69,10 @@ statusinterface::~statusinterface() {
     assert(!active.prev); }
 
 controlconn::controlconn(socket_t _sock,
-                         const rpcconnauth &_auth,
+                         const rpcconnauth &__auth,
                          const peername &_peer,
                          controlserver *_owner)
-    : rpcconn(_sock, _auth, _peer),
+    : rpcconn(_sock, __auth, _peer),
       owner(_owner) {}
 
 messageresult

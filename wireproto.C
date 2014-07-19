@@ -536,7 +536,9 @@ fields::mk(const wireproto::rx_message *msg)
 
 wireproto_simple_wrapper_type(wireproto::sequencer::status_t, uint64_t, nextseq)
 wireproto_simple_wrapper_type(wireproto::msgtag, uint16_t, val)
-wireproto_simple_wrapper_type(wireproto::rx_message::status_t, msgtag, t)
+wireproto_simple_wrapper_type(wireproto::rx_message::status_t,
+                              wireproto::msgtag,
+                              t)
 
 const fields::field &
 fields::mk(const wireproto::sequencer::status_t &o) {

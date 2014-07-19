@@ -33,6 +33,7 @@ rpcconn::fromsocket(socket_t sock,
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,
                        const beaconresult &br,
+                       const class slavename &slavename,
                        args ... parameters) {
     /* No need to authenticate: we assume that the caller has already
        done enough to check that the peername is correct (that is the
@@ -50,8 +51,10 @@ rpcconn::connectmaster(clientio io,
                                              conn->allocsequencenr())
                       .addparam(proto::HELLO::req::version, 1u)
                       .addparam(proto::HELLO::req::nonce, br.nonce)
+                      .addparam(proto::HELLO::req::peername,
+                                br.connectingname)
                       .addparam(proto::HELLO::req::slavename,
-                                br.slavename)
+                                slavename)
                       .addparam(proto::HELLO::req::digest,
                                 digest("B" +
                                        fields::mk(br.nonce) +

@@ -70,9 +70,8 @@ class memlog_idx {
     unsigned long val;
     explicit memlog_idx(unsigned long);
     memlog_idx operator++(int);
-    unsigned long unwrap() const { return val; }
-public:
     WIREPROTO_WRAPPER_TYPE(memlog_idx, unsigned long);
+public:
 
     static const memlog_idx min;
     static const memlog_idx max;
@@ -85,8 +84,8 @@ public:
 
 class memlog_entry {
     void operator=(const memlog_entry &) = delete;
-public:
     WIREPROTO_TYPE(memlog_entry);
+public:
 
     memlog_idx const idx;
     char *const msg;

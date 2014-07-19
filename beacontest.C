@@ -45,7 +45,7 @@ tests::beacon() {
             assert(client.success().mastername == mastername);
             assert(client.success().secret == rs);
             assert(ms.noncevalid(client.success().nonce,
-                                 client.success().slavename));
+                                 client.success().connectingname));
             server->status();
             server->destroy(clientio::CLIENTIO); });
 
@@ -91,7 +91,7 @@ tests::beacon() {
                 assert(client.success().mastername == mastername);
                 assert(client.success().secret == rs);
                 assert(ms.noncevalid(client.success().nonce,
-                                     client.success().slavename));
+                                     client.success().connectingname));
                 cntr++; }
             /* Allow a little bit of fuzz because of timing effects. */
             assert(cntr >= 290);
@@ -270,7 +270,7 @@ tests::beacon() {
             assert(r.issuccess());
             assert(iter == 3);
             assert(r.success().nonce == mnonce);
-            assert(r.success().slavename == peername::local("GOOD2"));
+            assert(r.success().connectingname == peername::local("GOOD2"));
             assert(r.success().mastername == peername::local("GOOD1"));
             assert(r.success().secret == rs); });
 
