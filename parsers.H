@@ -15,7 +15,6 @@ class string;
 
 /* Class for things which can take strings and turn them into
  * rvals. */
-template <typename rval> class parser;
 template <typename rval>
 class parser : public tmpheap::base {
     /* Partial parse result: represents the value of the current
@@ -36,51 +35,39 @@ public: template <typename o> const parser<o> &map(
 public: orerror<rval> match(const string &) const;
     /* Concatenate two parsers. */
 public: template <typename other> const parser< pair<rval, other> > &
-    operator + (const parser<other> &o);
+    operator + (const parser<other> &o) const;
+public: const parser<rval> &operator+(const parser<void> &o) const;
+
     /* Parser alternation.  Note that this has no look-ahead, so once
        something's matched we won't backtrack for later failures. */
 public: template <typename other> const parser< either<rval, other> > &
-    operator | (const parser<other> &o);
+    operator | (const parser<other> &o) const;
+public: const parser<maybe<rval> > &operator|(const parser<void> &o) const;
 };
 
 /* Special case for parsers which don't return anything. */
 template <>
 class parser<void> : public tmpheap::base {
+public: typedef const char *result;
 public: virtual orerror<const char *> parse(const char *) const = 0;
-public: orerror<const char *> match(const string &) const;
+public: maybe<error> match(const string &) const;
 /* Concatenation and alternation have simpler types here. */
 public: template <typename t> const parser<t> &operator+(
     const parser<t> &) const;
 public: template <typename t> const parser<maybe<t> > &operator|(
     const parser<t> &) const;
+public: const parser<void> &operator+(const parser<void> &) const;
+public: const parser<void> &operator|(const parser<void> &) const;
 };
 
-/* Simpler type of parser which matches part of the string and returns
- * a constant. */
-template <typename t>
-class strmatcher : public parser<t> {
-private: const char *what;
-private: const t val;
-public:  strmatcher(const char *_what, const t &_val)
-    : what(_what), val(_val) {}
-public:  orerror<typename parser<t>::result> parse(const char *) const;
-};
-
+/* Simple matching parser which matches a string and then returns a
+ * fixed constant. */
+template <typename t> const parser<t> &strmatcher(const char *, const t &);
 /* Also specialised to void */
-template <>
-class strmatcher<void> : public parser<void> {
-private: const char *what;
-public:  strmatcher(const char *_what)
-    : what(_what) {}
-public:  orerror<const char *> parse(const char *) const;
-};
+const parser<void> &strmatcher(const char *);
 
 /* Dummy parser which always returns an error. */
-template <typename r>
-class errparser : public parser<r> {
-private: error e;
-public:  errparser(error _e) : e(_e) {}
-public:  orerror<typename parser<r>::result> parse(const char *) const; };
+template <typename t> const parser<t> &errparser(error);
 
 /* Parser for the strings produced by fields::mk().escape().  Note
  * that the returned strings are in the temporary heap. */
@@ -88,6 +75,12 @@ extern const parser<const char *> &strparser;
 
 /* Parser for integers produced by fields::mk() */
 extern const parser<long> &intparser;
+
+/* Convenience functions. */
+template <typename t> const parser<t> &operator+(
+    const char *prefix, const parser<t> &w);
+template <typename t> const parser<t> &operator+(
+    const parser<t> &w, const char *suffix);
 
 namespace tests {
 void parsers(void);

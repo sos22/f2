@@ -1,0 +1,10 @@
+#ifndef FILENAME_TMPL__
+#define FILENAME_TMPL__
+
+template <typename t> orerror<t>
+filename::parse(const parser<t> &p) const {
+    orerror<string> contents(readasstring());
+    if (contents.isfailure()) return contents.failure();
+    else return p.match(contents.success()); }
+
+#endif /* !FILENAME_TMPL__ */

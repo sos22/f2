@@ -5,8 +5,11 @@ template <typename a, typename b>
 class either {
 private: bool isleft_;
 private: char content[sizeof(a) > sizeof(b) ? sizeof(a) : sizeof(b)];
+private: either() {};
 public:  either(const a &);
+public:  static either left(const a &);
 public:  either(const b &);
+public:  static either right(const b &);
 public:  bool isleft() const;
 public:  bool isright() const;
 public:  const a &left() const;

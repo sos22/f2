@@ -15,12 +15,8 @@ const fields::field &
 fields::mk(const slavename &s) {
     return "<slavename:" + mk(s.content).escape() + ">"; }
 
-class slavenameparser_ : public parser<slavename> {
-private: orerror<result> parse(const char *what) const {
-    return ("<slavename:" + strparser + ">")
-        .map<slavename>([] (const char *s) { return slavename(s); })
-        .parse(what); }
-};
-static slavenameparser_ slavenameparser;
-parser< ::slavename> &parsers::slavename(slavenameparser);
-template class parser< ::slavename>;
+const parser< ::slavename> &
+parsers::slavename() {
+    return ("<slavename:" + strparser + ">").map< ::slavename>(
+        [] (const char *const&what) {
+            return ::slavename(what); }); }

@@ -5,11 +5,23 @@ template <typename a, typename b>
 either<a,b>::either(const a &what)
     : isleft_(true) {
     new (content) a(what); }
+template <typename a, typename b> either<a,b>
+either<a,b>::left(const a &what) {
+    either<a,b> res;
+    res.isleft_ = true;
+    new (res.content) a(what);
+    return res; }
 
 template <typename a, typename b>
 either<a,b>::either(const b &what)
     : isleft_(false) {
     new (content) b(what); }
+template <typename a, typename b> either<a,b>
+either<a,b>::right(const b &what) {
+    either<a,b> res;
+    res.isleft_ = false;
+    new (res.content) b(what);
+    return res; }
 
 template <typename a, typename b> bool
 either<a,b>::isleft() const {

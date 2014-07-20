@@ -7,6 +7,7 @@
 
 class filename;
 template <typename> class orerror;
+template <typename> class parser;
 
 namespace fields {
 class field;
@@ -26,6 +27,9 @@ public:  filename operator+(const char *) const;
        any zero bytes, and returns an error if asked to read in either
        a large file or one containing nuls. */
 public:  orerror<string> readasstring() const;
+    /* Read a file and then parse it using some parser.  Similar size
+       restrictions to readasstring() */
+public:  template<typename t> orerror<t> parse(const parser<t> &) const;
 };
 
 #endif /* !FILE_H__ */

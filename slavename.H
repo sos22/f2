@@ -27,7 +27,7 @@ WIREPROTO_WRAPPER_TYPE(slavename, string, public);
 };
 
 namespace parsers {
-extern parser< ::slavename> &slavename;
+extern const parser< ::slavename> &slavename();
 }
 
 #endif /* !SLAVENAME_H__ */

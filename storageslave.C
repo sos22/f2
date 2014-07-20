@@ -5,6 +5,7 @@
 #include "parsers.H"
 #include "tcpsocket.H"
 
+#include "filename.tmpl"
 #include "list.tmpl"
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
@@ -52,7 +53,7 @@ storageslave::build(clientio io,
                     const filename &dir,
                     controlserver *cs) {
     auto name(
-        parsers::parsefile(dir + "slavename", parsers::slavename)
+        (dir + "slavename").parse(parsers::slavename())
         .fatal("parsing slave name from " + fields::mk(dir)));
     auto br(beaconclient(rs));
     if (br.isfailure()) return br.failure();
