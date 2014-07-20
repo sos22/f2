@@ -3,6 +3,11 @@
 #ifndef STRING_H__
 #define STRING_H__
 
+#include <stddef.h>
+
+#include "wireproto.H"
+
+class quickcheck;
 class string;
 
 namespace fields {
@@ -21,9 +26,11 @@ public:  static string steal(char *&);
 public:  string(const char *);
 public:  string(const string &);
 public:  string(string &&);
+public:  string(quickcheck &q);
 public:  void operator=(const string &);
 public:  string operator+(const string &) const;
 public:  bool operator==(const string &) const;
+public:  size_t len() const;
 public:  ~string();
 
     /* Return the string pointer embedded in the string.  Remains

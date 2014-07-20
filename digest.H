@@ -14,8 +14,7 @@ const field &mk(const digest &d);
 class digest {
     friend const fields::field &fields::mk(const digest &d);
     unsigned long val;
-    explicit digest(unsigned long _val);
-    WIREPROTO_WRAPPER_TYPE(digest, unsigned long);
+    WIREPROTO_WRAPPER_TYPE(digest, unsigned long, private);
 public:
     digest(const fields::field &);
     bool operator==(const digest &o) const;

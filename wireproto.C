@@ -10,6 +10,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "quickcheck.H"
+#include "string.H"
 #include "test.H"
 
 #include "wireproto.tmpl"
@@ -158,6 +159,12 @@ template <> tx_message &
 tx_message::addparam(parameter<const char *> tmpl, const char *const &val)
 {
     return addparam(tmpl.id, val, strlen(val)+1);
+}
+
+template <> tx_message &
+tx_message::addparam(parameter<string> tmpl, const string &val)
+{
+    return addparam(parameter<const char *>(tmpl), val.c_str());
 }
 
 template <> tx_message &
@@ -448,6 +455,11 @@ deserialise(bufslice &slice) {
     const char *res = (const char *)slice.content;
     if (slice.sz == 0 || res[slice.sz-1] != '\0') return Nothing;
     else return res; }
+template <> maybe<string>
+deserialise(bufslice &slice) {
+    auto r(deserialise<const char *>(slice));
+    if (r.isnothing()) return Nothing;
+    else return string(r.just()); }
 template <> maybe<rx_message>
 deserialise(bufslice &slice) {
     auto r(rx_message::fetch(slice));
@@ -534,11 +546,18 @@ fields::mk(const wireproto::rx_message *msg)
     return *prefix + ">";
 }
 
-wireproto_simple_wrapper_type(wireproto::sequencer::status_t, uint64_t, nextseq)
-wireproto_simple_wrapper_type(wireproto::msgtag, uint16_t, val)
-wireproto_simple_wrapper_type(wireproto::rx_message::status_t,
-                              wireproto::msgtag,
-                              t)
+_wireproto_simple_wrapper_type(wireproto::,
+                               sequencerstatus,
+                               uint64_t,
+                               nextseq)
+_wireproto_simple_wrapper_type(wireproto::,
+                               msgtag,
+                               uint16_t,
+                               val)
+_wireproto_simple_wrapper_type(wireproto::,
+                               rx_messagestatus,
+                               wireproto::msgtag,
+                               t)
 
 const fields::field &
 fields::mk(const wireproto::sequencer::status_t &o) {
@@ -684,6 +703,24 @@ tests::wireproto() {
                 assert(rxm.success().getparam(p2) != Nothing);
                 assert(!strcmp(rxm.success().getparam(p2).just(),
                                "Hello world")); }
+            assert(buf.empty()); });
+
+    testcaseV("wireproto", "strparam2", [t] () {
+            ::buffer buf;
+            parameter<int> p1(5);
+            parameter<string> p2(6);
+            tx_message(t)
+                .addparam(p1, 73)
+                .addparam(p2, string("Hello world"))
+                .serialise(buf);
+            {   auto rxm(rx_message::fetch(buf));
+                assert(rxm.issuccess());
+                assert(rxm.success().tag() == t);
+                assert(rxm.success().getparam(p1) != Nothing);
+                assert(rxm.success().getparam(p1).just() == 73);
+                assert(rxm.success().getparam(p2) != Nothing);
+                assert(rxm.success().getparam(p2).just() ==
+                       "Hello world"); }
             assert(buf.empty()); });
 
     testcaseV("wireproto", "strlist", [t] () {

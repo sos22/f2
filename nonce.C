@@ -5,10 +5,6 @@
 #include "fields.H"
 #include "logging.H"
 
-nonce::nonce(uint64_t _val)
-    : val(_val)
-{}
-
 nonce
 nonce::mk()
 {

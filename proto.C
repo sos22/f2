@@ -17,7 +17,7 @@ wireproto_simple_wrapper_type(frequency, double, hz_)
 wireproto_simple_wrapper_type(masternonce, digest, d);
 wireproto_simple_wrapper_type(memlog_idx, unsigned long, val)
 wireproto_simple_wrapper_type(nonce, uint64_t, val);
-wireproto_simple_wrapper_type(registrationsecret, const char *, secret);
+wireproto_simple_wrapper_type(registrationsecret, string, secret);
 wireproto_simple_wrapper_type(shutdowncode, int, code)
 
 wireproto_wrapper_type(memlog_entry)

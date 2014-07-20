@@ -53,6 +53,10 @@ bool
 string::operator==(const string &o) const {
     return strcmp(c_str(), o.c_str()) == 0; }
 
+size_t
+string::len() const {
+    return strlen(content); }
+
 string::~string() {
     free((void *)content); }
 

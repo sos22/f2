@@ -68,9 +68,8 @@ class memlog_idx {
     friend class memlog_sink;
     friend const fields::field &fields::mk(const memlog_idx &);
     unsigned long val;
-    explicit memlog_idx(unsigned long);
     memlog_idx operator++(int);
-    WIREPROTO_WRAPPER_TYPE(memlog_idx, unsigned long);
+    WIREPROTO_WRAPPER_TYPE(memlog_idx, unsigned long, private);
 public:
 
     static const memlog_idx min;

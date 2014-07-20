@@ -39,11 +39,12 @@ template <typename t> const field &mk(const wireproto::parameter<t> &);
                           wireproto::tx_message &) const;               \
     public: static maybe<name> fromcompound(const wireproto::rx_message &)
 
-#define WIREPROTO_WRAPPER_TYPE(wrapper, wrapped)                        \
+#define WIREPROTO_WRAPPER_TYPE(wrapper, wrapped, cons_visibility)       \
     friend class wireproto::tx_message;                                 \
     friend class wireproto::rx_message;                                 \
-    public: static wrapper __fromwrapped__(wrapped t);                  \
-    private: wrapped unwrap() const;                                    \
+    private:         wrapped unwrap() const;                            \
+    cons_visibility: explicit wrapper(wrapped const &);                 \
+    public:          static wrapper __fromwrapped__(wrapped const &);   \
     WIREPROTO_TYPE(wrapper)
 
 namespace wireproto {
@@ -68,10 +69,8 @@ namespace wireproto {
             return !!(val & (1ul << 63)); }
     };
     class sequencerstatus {
-        WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint64_t);
+        WIREPROTO_WRAPPER_TYPE(sequencerstatus, uint64_t, public);
     public:  uint64_t nextseq;
-    public:  sequencerstatus(uint64_t _nextseq)
-        : nextseq(_nextseq) {}
     public:  sequencerstatus(const quickcheck &q);
     public:  bool operator==(const sequencerstatus &o) const {
         return nextseq == o.nextseq; }
@@ -90,12 +89,8 @@ namespace wireproto {
     class msgtag {
         friend const class fields::field &fields::mk(const msgtag &);
         uint16_t val;
-        WIREPROTO_WRAPPER_TYPE(msgtag, uint16_t);
+        WIREPROTO_WRAPPER_TYPE(msgtag, uint16_t, public);
     public:
-        explicit msgtag(uint16_t _val)
-            : val(_val)
-            {}
-
         bool operator==(const msgtag &o) const {
             return val == o.val;
         }
@@ -218,10 +213,8 @@ namespace wireproto {
         void serialise(buffer &buf) const;
     };
     class rx_messagestatus {
-        WIREPROTO_WRAPPER_TYPE(rx_messagestatus, msgtag);
+        WIREPROTO_WRAPPER_TYPE(rx_messagestatus, msgtag, public);
     public: msgtag t;
-    public: explicit rx_messagestatus(const msgtag &_t)
-        : t(_t) {}
     public: rx_messagestatus()
         : t(0) {}
     public: bool operator==(const rx_messagestatus &o) const {

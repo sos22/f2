@@ -4,10 +4,6 @@
 #include "fields.H"
 #include "logging.H"
 
-digest::digest(unsigned long _val)
-    : val(_val)
-{}
-
 digest::digest(const fields::field &what)
 {
     logmsg(loglevel::error,

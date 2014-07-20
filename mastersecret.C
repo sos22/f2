@@ -23,10 +23,6 @@ mastersecret::nonce(const peername &slavename)
                               fields::mk(slavename) + secret));
 }
 
-masternonce::masternonce(const digest &_d)
-    : d(_d)
-{}
-
 bool
 mastersecret::noncevalid(const masternonce &masternonce,
                          const peername &slavename) const

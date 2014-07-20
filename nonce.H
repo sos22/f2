@@ -17,8 +17,7 @@ const fields::field &mk(const nonce &);
 class nonce {
     friend const fields::field &fields::mk(const nonce &);
     uint64_t val;
-    explicit nonce(uint64_t _val);
-    WIREPROTO_WRAPPER_TYPE(nonce, uint64_t);
+    WIREPROTO_WRAPPER_TYPE(nonce, uint64_t, private);
 public:
     static nonce mk();
 };

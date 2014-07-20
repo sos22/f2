@@ -15,10 +15,6 @@ frequency::frequency(const quickcheck &q) {
         hz_ = q;
     } while (hz_ <= 0); }
 
-frequency::frequency(double _hz)
-    : hz_(_hz)
-{}
-
 bool
 frequency::operator==(const frequency &o) const {
     return hz_ == o.hz_; }

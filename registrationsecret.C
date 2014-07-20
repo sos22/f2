@@ -16,37 +16,23 @@
  * limits. */
 #define MAX_LEN 1000
 
-registrationsecret::registrationsecret(const char *_secret)
-    : secret(strdup(_secret))
-{}
-
 registrationsecret::registrationsecret(const quickcheck &q) {
-    const char *s;
-    do { s = q; } while (strlen(s) > MAX_LEN);
-    secret = strdup(s); }
+    string s;
+    do { s = string(q); } while (s.len() > MAX_LEN);
+    secret = s; }
 
 registrationsecret::registrationsecret(const registrationsecret &o)
-    : secret(strdup(o.secret))
+    : secret(o.secret)
 {}
-
-registrationsecret::~registrationsecret()
-{
-    free(secret);
-}
-
-void
-registrationsecret::operator=(const registrationsecret &o) {
-    free(secret);
-    secret = strdup(o.secret); }
 
 bool
 registrationsecret::operator==(const registrationsecret &o) const {
-    return !strcmp(secret, o.secret); }
+    return secret == o.secret; }
 
 maybe<registrationsecret>
-registrationsecret::mk(const char *what)
+registrationsecret::mk(const string &what)
 {
-    if (strlen(what) > MAX_LEN) return Nothing;
+    if (what.len() > MAX_LEN) return Nothing;
     else return registrationsecret(what);
 }
 

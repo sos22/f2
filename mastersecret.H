@@ -21,10 +21,8 @@ class masternonce {
     friend class mastersecret;
     friend const fields::field &fields::mk(const masternonce &);
     digest d;
-    WIREPROTO_WRAPPER_TYPE(masternonce, digest);
+    WIREPROTO_WRAPPER_TYPE(masternonce, digest, public);
 public:
-
-    explicit masternonce(const digest &d);
     bool operator==(const masternonce &o) const { return d == o.d; }
 };
 

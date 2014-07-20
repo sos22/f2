@@ -46,10 +46,6 @@ memlog_idx::min(1ul << 32);
 const memlog_idx
 memlog_idx::max(ULONG_MAX);
 
-memlog_idx::memlog_idx(unsigned long _val)
-    : val(_val)
-{}
-
 memlog_idx
 memlog_idx::operator ++(int)
 {

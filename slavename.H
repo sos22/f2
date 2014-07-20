@@ -6,6 +6,7 @@
 #ifndef SLAVENAME_H__
 #define SLAVENAME_H__
 
+#include "string.H"
 #include "wireproto.H"
 
 class slavename;
@@ -18,13 +19,11 @@ const field &mk(const slavename &);
 
 class slavename {
     friend const fields::field &fields::mk(const slavename &);
-private: char *content; /* owned malloc() nul-terminated */
+private: string content;
 private: void operator=(const slavename &) = delete;
 private: slavename() = delete;
-public:  explicit slavename(const char *);
 public:  slavename(const slavename &);
-public:  ~slavename();
-WIREPROTO_WRAPPER_TYPE(slavename, const char *);
+WIREPROTO_WRAPPER_TYPE(slavename, string, public);
 };
 
 namespace parsers {

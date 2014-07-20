@@ -116,26 +116,34 @@ mk(const wireproto::parameter<t> &param)
             else return wrapper_type::fromcompound(m.just()); }         \
     }
 
-#define wireproto_simple_wrapper_type(wrapper_type, wrapped_type, field) \
+#define _wireproto_simple_wrapper_type(_namespace,                      \
+                                       wrapper_type,                    \
+                                       wrapped_type,                    \
+                                       field)                           \
     namespace wireproto {                                               \
-    template <> maybe<wrapper_type>                                     \
-    rx_message::getparam(parameter<wrapper_type> p) const {             \
+    template <> maybe<_namespace wrapper_type>                          \
+    rx_message::getparam(parameter<_namespace wrapper_type> p) const {  \
         auto m(getparam(parameter<wrapped_type>(p)));                   \
         if (m == Nothing) return Nothing;                               \
-        else return wrapper_type(m.just()); }                           \
+        else return _namespace wrapper_type(m.just()); }                \
     template <> tx_message &                                            \
-    tx_message::addparam(parameter<wrapper_type> p,                     \
-                         const wrapper_type &val) {                     \
+    tx_message::addparam(parameter<_namespace wrapper_type> p,          \
+                         const _namespace wrapper_type &val) {          \
         return addparam(parameter<wrapped_type>(p),                     \
                         val.unwrap()); }                                \
-    template <> maybe<wrapper_type>                                     \
+    template <> maybe<_namespace wrapper_type>                          \
     deserialise(bufslice &slice) {                                      \
         auto r(deserialise<wrapped_type>(slice));                       \
         if (r == Nothing) return Nothing;                               \
-        else return wrapper_type::__fromwrapped__(r.just()); } }        \
-    wrapper_type wrapper_type::__fromwrapped__(wrapped_type t) {        \
-        return wrapper_type(t); }                                       \
-    wrapped_type wrapper_type::unwrap() const {                         \
+        else return _namespace wrapper_type::__fromwrapped__(r.just()); } } \
+    _namespace wrapper_type::wrapper_type(wrapped_type const &__t)      \
+        : field(__t) { }                                                \
+    _namespace wrapper_type                                             \
+    _namespace wrapper_type::__fromwrapped__(wrapped_type const &__t) { \
+        return _namespace wrapper_type(__t); }                          \
+    wrapped_type _namespace wrapper_type::unwrap() const {              \
         return field; }
+#define wireproto_simple_wrapper_type(a, b, c)                          \
+    _wireproto_simple_wrapper_type(/**/, a, b, c)
 
 #endif /* !WIREPROTO_H__ */

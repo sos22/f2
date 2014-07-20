@@ -6,16 +6,10 @@
 #include "parsers.tmpl"
 #include "wireproto.tmpl"
 
-wireproto_simple_wrapper_type(slavename, const char *, content)
-
-slavename::slavename(const char *what)
-    : content(strdup(what)) {}
+wireproto_simple_wrapper_type(slavename, string, content)
 
 slavename::slavename(const slavename &o)
-    : content(strdup(o.content)) {}
-
-slavename::~slavename() {
-    free(content); }
+    : content(o.content) {}
 
 const fields::field &
 fields::mk(const slavename &s) {

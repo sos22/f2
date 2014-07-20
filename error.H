@@ -19,16 +19,14 @@ template <typename t> class maybe;
 class error {
     friend class errorfield;
     int e;
-    explicit error(int _e)
-        : e(_e)
-        {}
+    explicit error(const int &_e);
     int unwrap() const;
 public:
     /* Can't use WIREPROTO_WRAPPER_TYPE for header ordering rules, so
      * expand it manually. */
     friend class wireproto::rx_message;
     friend class wireproto::tx_message;
-    static error __fromwrapped__(int e);
+    static error __fromwrapped__(const int &e);
     void addparam(wireproto::parameter<error>, wireproto::tx_message &) const;
     static maybe<error> getparam(wireproto::parameter<error>,
                                  const wireproto::rx_message &);

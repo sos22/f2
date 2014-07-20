@@ -15,10 +15,7 @@ const field &mk(const shutdowncode &);
 class shutdowncode {
     friend const fields::field &fields::mk(const shutdowncode &);
     int code;
-    explicit shutdowncode(int _code)
-        : code(_code)
-        {}
-    WIREPROTO_WRAPPER_TYPE(shutdowncode, int);
+    WIREPROTO_WRAPPER_TYPE(shutdowncode, int, private);
 public:
 
     static const shutdowncode ok;
