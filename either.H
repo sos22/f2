@@ -6,7 +6,6 @@ class either {
 private: bool isleft_;
 private: char content[sizeof(a) > sizeof(b) ? sizeof(a) : sizeof(b)];
 private: either() {};
-public:  either(const a &);
 public:  static either left(const a &);
 public:  either(const b &);
 public:  static either right(const b &);

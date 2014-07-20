@@ -1,10 +1,6 @@
 #ifndef EITHER_TMPL__
 #define EITHER_TMPL__
 
-template <typename a, typename b>
-either<a,b>::either(const a &what)
-    : isleft_(true) {
-    new (content) a(what); }
 template <typename a, typename b> either<a,b>
 either<a,b>::left(const a &what) {
     either<a,b> res;

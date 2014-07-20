@@ -339,7 +339,9 @@ public:  class callres {
                             const wireproto::rx_message *> > const
         content;
     private: callres(error e) : content(e) {}
-    private: callres(subscriptionbase *s) : content(s) {}
+    private: callres(subscriptionbase *s)
+        : content(either<subscriptionbase *,
+                         const wireproto::rx_message *>::left(s)) {}
     private: callres(const wireproto::rx_message *m) : content(m) {}
     public:  bool isfailure() const { return content.isfailure(); }
     public:  error failure() const { return content.failure(); }
