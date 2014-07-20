@@ -10,6 +10,7 @@ class coordinatorconnstatus;
 class digest;
 class fd_tstatus;
 class frequency;
+class jobname;
 class masternonce;
 class memlog_idx;
 class memlog_entry;
@@ -19,6 +20,7 @@ class rpcconnstatus;
 class shutdowncode;
 class slavename;
 class storageslavestatus;
+class streamname;
 struct timeval;
 class ratelimiter_status;
 class registrationsecret;
@@ -187,6 +189,19 @@ namespace proto {
             static const msgtag tag(11);
             /* No parameters */
         }
+    }
+
+    /* Storage slave: Create a new empty output stream.  Existing
+       empty and partial streams are silently replaced.  Requests to
+       create which already exists and which is already full return
+       error::already. */
+    namespace CREATEEMPTY {
+        static const msgtag tag(12);
+        namespace req {
+            static const parameter< ::jobname> job(1200);
+            static const parameter< ::streamname> stream(1201);
+        }
+        /* No response parameters, except for possible error */
     }
 }
 

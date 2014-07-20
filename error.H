@@ -73,6 +73,8 @@ public:
     static const error authenticationfailed; /* Authentication failure */
     static const error ratelimit; /* Blocked by rate limiter */
     static const error invalidparameter; /* RPC message parameter is bad */
+    static const error already; /* Operation already completed */
+    static const error notfound; /* File or dictionary key not found */
 };
 
 namespace fields {

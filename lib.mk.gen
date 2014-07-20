@@ -19,6 +19,7 @@ function bits() {
     _ fields
     _ filename
     _ frequency
+    _ jobname
     _ listenfd
     _ logging
     _ mastersecret
@@ -38,6 +39,8 @@ function bits() {
     _ slavename
     _ socket
     _ storageslave
+    _ streamname
+    _ streamstate
     _ string
     _ tcpsocket
     _ test

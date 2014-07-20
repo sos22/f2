@@ -2,14 +2,16 @@
 #define STORAGESLAVE_H__
 
 #include "controlserver.H"
+#include "filename.H"
 #include "rpcconn.H"
 
 class clientio;
 class controlserver;
-class filename;
 template <typename> class orerror;
 class registrationsecret;
 class storageslave;
+class streamname;
+class jobname;
 
 class storageslavestatus {
 public:  rpcconn::status_t masterconn;
@@ -43,6 +45,7 @@ private: statusiface status_;
 private: registrationsecret const rs;
 private: storageslaveconn *masterconn;
 private: list<storageslaveconn *> clients;
+private: filename pool;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
 public:  static orerror<storageslave *> build(
@@ -51,8 +54,12 @@ public:  static orerror<storageslave *> build(
     const filename &,
     controlserver *);
 private: storageslave(const registrationsecret &_rs,
+                      const filename &,
                       controlserver *cs);
 private: orerror<rpcconn *> accept(socket_t);
+public:  maybe<error> createempty(
+    const jobname &t,
+    const streamname &sn) const;
 public:  void destroy(clientio);
 private: ~storageslave();
 

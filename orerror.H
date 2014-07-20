@@ -79,6 +79,9 @@ public:
             new (&err) error(other.failure());
         } else {
             new (buf) t(other.success()); } }
+
+    bool operator==(const error &e) {
+        return isfailure() && failure() == e; }
 };
 
 #endif /* !ORERROR_H__ */

@@ -2,6 +2,7 @@
 #define PARSERS_TMPL__
 
 #include "filename.H"
+#include "pair.H"
 #include "parsers.H"
 
 template <typename rval>
@@ -206,7 +207,6 @@ const parser<t> &
 errparser(error e) {
     return *new errparser_<t>(e); }
 
-
 template <typename t> const parser<t> &
 operator+(
     const char *prefix, const parser<t> &w) {
@@ -214,5 +214,18 @@ operator+(
 template <typename t> const parser<t> &
 operator+(const parser<t> &w, const char *suffix) {
     return w + strmatcher(suffix); }
+
+/* gcc isn't quite smart enough to handle this as a template (because
+   it can't look through the either type to figure out that both
+   branchs of the if return the same type).  Do it as a macro
+   instead. */
+#define __parsermkoperpipepipe(typename)                                \
+    template <> const parser<typename> &                                \
+    operator||(const parser<typename> &a, const parser<typename> &b) {  \
+        return (a | b)                                                  \
+            .map<typename>([] (const either<typename, typename> &what) { \
+                    if (what.isleft()) return what.left();              \
+                    else return what.right(); }); }
+
 
 #endif /* !PARSERS_TMPL__ */

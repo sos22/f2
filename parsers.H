@@ -77,10 +77,16 @@ extern const parser<const char *> &strparser;
 extern const parser<long> &intparser;
 
 /* Convenience functions. */
+/* Match and ignore a string prefix */
 template <typename t> const parser<t> &operator+(
     const char *prefix, const parser<t> &w);
+/* Match and ignore a string suffix */
 template <typename t> const parser<t> &operator+(
     const parser<t> &w, const char *suffix);
+/* Like | but specialised for cases where the two alternatives have
+   the same type and we don't care which we take. */
+template <typename t> const parser<t> &operator||(
+    const parser<t> &a, const parser<t> &b);
 
 namespace tests {
 void parsers(void);

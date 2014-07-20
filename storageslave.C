@@ -3,6 +3,9 @@
 #include "beaconclient.H"
 #include "filename.H"
 #include "parsers.H"
+#include "jobname.H"
+#include "streamname.H"
+#include "streamstate.H"
 #include "tcpsocket.H"
 
 #include "filename.tmpl"
@@ -20,6 +23,7 @@ private: storageslaveconn(socket_t &_socket,
                           const rpcconnauth &_auth,
                           const peername &_peer,
                           storageslave *_owner);
+private: messageresult message(const wireproto::rx_message &);
 private: void endconn(clientio);
 };
 
@@ -33,6 +37,18 @@ storageslaveconn::storageslaveconn(
     auto token(owner->mux.lock());
     owner->clients.pushtail(this);
     owner->mux.unlock(&token); }
+
+messageresult
+storageslaveconn::message(const wireproto::rx_message &rxm) {
+    if (rxm.tag() == proto::CREATEEMPTY::tag) {
+        auto job(rxm.getparam(proto::CREATEEMPTY::req::job));
+        auto stream(rxm.getparam(proto::CREATEEMPTY::req::stream));
+        if (!job || !stream) return error::missingparameter;
+        auto res(owner->createempty(job.just(), stream.just()));
+        if (res.isjust()) return res.just();
+        else return new wireproto::resp_message(rxm);
+    } else {
+        return rpcconn::message(rxm); } }
 
 void
 storageslaveconn::endconn(clientio) {
@@ -59,6 +75,7 @@ storageslave::build(clientio io,
     if (br.isfailure()) return br.failure();
     auto res(new storageslave(
                  br.success().secret,
+                 dir,
                  cs));
     auto mc(rpcconn::connectmaster<storageslaveconn>(
                 io,
@@ -79,11 +96,13 @@ storageslave::build(clientio io,
     return res; }
 
 storageslave::storageslave(const registrationsecret &_rs,
+                           const filename &_pool,
                            controlserver *cs)
     : status_(this, cs),
       rs(_rs),
       masterconn(NULL),
       clients(),
+      pool(_pool),
       mux() {}
 
 orerror<rpcconn *>
@@ -92,6 +111,46 @@ storageslave::accept(socket_t s) {
         s,
         rpcconnauth::mksendhelloslavea(rs),
         this); }
+
+/* XXX this can sometimes leave stuff behind after a partial
+ * failure. */
+maybe<error>
+storageslave::createempty(const jobname &t, const streamname &sn) const {
+    logmsg(loglevel::debug,
+           "create empty output " + fields::mk(t) + " " + fields::mk(sn));
+    filename jobdir(pool + t.asfilename());
+    {   auto r(jobdir.mkdir());
+        if (r.isjust() && r.just() != error::already) return r.just(); }
+    filename streamdir(jobdir + sn.asfilename());
+    {   auto r(streamdir.mkdir());
+        if (r.isjust() && r.just() != error::already) return r.just(); }
+    filename statefile(streamdir + "state");
+    auto r(statefile.createfile(fields::mk(streamstate::empty)));
+    if (r.isnothing() || r.just() != error::already) return r;
+    auto existing(statefile.parse(parsers::streamstate()));
+    if (existing.isfailure() && existing.failure() != error::noparse) {
+        return existing.failure(); }
+    /* Already in desired state -> just clean out any stale
+     * content. */
+    filename content(streamdir + "content");
+    if (existing.success().isempty()) {
+        {   auto rr(content.unlink());
+            if (rr.isjust() && rr.just() != error::notfound) return rr.just(); }
+        {   auto rr(content.createfile());
+            if (rr.isjust()) return rr.just(); }
+        return Nothing; }
+    /* Already have complete results -> tell caller to stop */
+    if (existing.success().iscomplete()) return error::already;
+    /* Have partial results from a previous run -> clean up */
+    assert(existing.success().ispartial());
+    {   auto rr( (streamdir + "content").unlink());
+        if (rr.isjust() && rr.just() != error::notfound) return rr.just(); }
+    {   auto rr(statefile.unlink());
+        if (rr.isjust()) return rr.just(); }
+    /* Cleared out old bits -> should be able to write new ones. */
+    {   auto rr(content.createfile());
+        if (rr.isjust()) return rr.just(); }
+    return statefile.createfile(fields::mk(streamstate::empty)); }
 
 void
 storageslave::destroy(clientio io) {

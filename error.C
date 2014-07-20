@@ -24,6 +24,8 @@ const error error::badversion(-11);
 const error error::authenticationfailed(-12);
 const error error::ratelimit(-13);
 const error error::invalidparameter(-14);
+const error error::already(-15);
+const error error::notfound(-16);
 
 class errorfield : public fields::field {
     error content;
@@ -67,6 +69,10 @@ public:
                 buf.push("ratelimit");
             } else if (content == error::invalidparameter) {
                 buf.push("invalidparameter");
+            } else if (content == error::already) {
+                buf.push("already");
+            } else if (content == error::notfound) {
+                buf.push("notfound");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

@@ -1,8 +1,16 @@
 /* This really doesn't deserve to be called a digest */
 #include "digest.H"
 
+#include "either.H"
 #include "fields.H"
 #include "logging.H"
+#include "parsers.H"
+#include "string.H"
+
+#include "either.tmpl"
+#include "parsers.tmpl"
+
+__parsermkoperpipepipe(long)
 
 digest::digest(const fields::field &what)
 {
@@ -33,8 +41,20 @@ digest::operator!=(const digest &o) const
     return !(*this == o);
 }
 
+string
+digest::denseprintable() const {
+    fields::fieldbuf f;
+    fields::mk(val).base(36).nosep().fmt(f);
+    return f.c_str(); }
+
 const fields::field &
 fields::mk(const digest &d)
 {
     return "<digest:" + mk(d.val).base(16).uppercase() + ">";
 }
+
+const parser<digest> &
+parsers::_digest() {
+    return (("<digest:" + intparser + ">") || intparser)
+        .map<digest>([] (const long &what) {
+                return digest((unsigned long)what); }); }
