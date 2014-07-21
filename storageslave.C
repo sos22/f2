@@ -157,7 +157,11 @@ storageslave::append(
     const jobname &jn,
     const streamname &sn,
     buffer &b) const {
-    filename content(pool + jn.asfilename() + sn.asfilename() + "content");
+    filename dirname(pool + jn.asfilename() + sn.asfilename());
+    auto finished((dirname + "finished").exists());
+    if (finished.isfailure()) return finished.failure();
+    else if (finished == true) return error::toolate;
+    filename content(dirname + "content");
     auto fd(content.openappend());
     if (fd.isfailure()) return fd.failure();
     unsigned long initialavail(b.avail());

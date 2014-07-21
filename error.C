@@ -27,6 +27,7 @@ const error error::invalidparameter(-14);
 const error error::already(-15);
 const error error::notfound(-16);
 const error error::notafile(-17);
+const error error::toolate(-18);
 
 class errorfield : public fields::field {
     error content;
@@ -76,6 +77,8 @@ public:
                 buf.push("notfound");
             } else if (content == error::notafile) {
                 buf.push("notafile");
+            } else if (content == error::toolate) {
+                buf.push("toolate");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

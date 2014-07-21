@@ -76,6 +76,7 @@ public:
     static const error already; /* Operation already completed */
     static const error notfound; /* File or dictionary key not found */
     static const error notafile; /* Expected regular file; got something else */
+    static const error toolate; /* Update arrived too late to be processed */
 };
 
 namespace fields {
