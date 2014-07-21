@@ -64,6 +64,9 @@ public:  maybe<error> append(
     const jobname &t,
     const streamname &sn,
     buffer &b) const;
+public:  maybe<error> finish(
+    const jobname &t,
+    const streamname &sn) const;
 public:  void destroy(clientio);
 private: ~storageslave();
 

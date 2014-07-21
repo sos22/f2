@@ -215,6 +215,15 @@ namespace proto {
         }
         /* No response parameters, except for possible error */
     }
+    /* Storage slave: mark a stream as completed. */
+    namespace FINISH {
+        static const msgtag tag(14);
+        namespace req {
+            static const parameter< ::jobname> job(1400);
+            static const parameter< ::streamname> stream(1401);
+        }
+        /* No response parameters, except for possible error */
+    }
 }
 
 #endif /* !PROTO_H__ */

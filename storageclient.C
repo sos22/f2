@@ -83,6 +83,23 @@ main(int argc, char *argv[]) {
             .addparam(proto::APPEND::req::bytes, buf))
             .fatal(fields::mk("appending to stream"));
         delete m;
+    } else if (!strcmp(argv[3], "FINISH")) {
+        if (argc != 6) {
+            errx(1, "FINISH needs a job and a stream name"); }
+        auto job(parsers::_jobname()
+                 .match(argv[4])
+                 .fatal("parsing job name " + fields::mk(argv[4])));
+        auto stream(parsers::_streamname()
+                    .match(argv[5])
+                    .fatal("parsing stream name " + fields::mk(argv[5])));
+        auto m = conn.success()->call(
+            clientio::CLIENTIO,
+            wireproto::req_message(proto::FINISH::tag,
+                                   conn.success()->allocsequencenr())
+            .addparam(proto::FINISH::req::job, job)
+            .addparam(proto::FINISH::req::stream, stream))
+            .fatal(fields::mk("finishing stream"));
+        delete m;
     } else {
         errx(1, "unknown mode %s", argv[3]); }
 

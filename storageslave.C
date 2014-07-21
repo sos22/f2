@@ -55,6 +55,13 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         auto res(owner->append(job.just(), stream.just(), bytes.just()));
         if (res.isjust()) return res.just();
         else return new wireproto::resp_message(rxm);
+    } else if (rxm.tag() == proto::FINISH::tag) {
+        auto job(rxm.getparam(proto::FINISH::req::job));
+        auto stream(rxm.getparam(proto::FINISH::req::stream));
+        if (!job || !stream) return error::missingparameter;
+        auto res(owner->finish(job.just(), stream.just()));
+        if (res.isjust()) return res.just();
+        else return new wireproto::resp_message(rxm);
     } else {
         return rpcconn::message(rxm); } }
 
@@ -192,6 +199,20 @@ storageslave::append(
         assert(r.success() == NULL); }
     fd.success().close();
     return Nothing; }
+
+maybe<error>
+storageslave::finish(
+    const jobname &jn,
+    const streamname &sn) const {
+    filename dirname(pool + jn.asfilename() + sn.asfilename());
+    {   auto content((dirname + "content").exists());
+        if (content.isfailure()) return content.failure();
+        else if (content == false) return error::notfound; }
+    filename finished(dirname + "finished");
+    auto exists(finished.exists());
+    if (exists.isfailure()) return exists.failure();
+    else if (exists == true) return error::already;
+    return finished.createfile(); }
 
 void
 storageslave::destroy(clientio io) {
