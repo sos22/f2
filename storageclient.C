@@ -59,7 +59,30 @@ main(int argc, char *argv[]) {
         if (m == error::already) {
             m.failure().warn("already created");
         } else if (m.isfailure()) {
-            m.failure().fatal("creating empty file"); }
+            m.failure().fatal("creating empty file");
+        } else {
+            delete m.success(); }
+    } else if (!strcmp(argv[3], "APPEND")) {
+        if (argc != 7) {
+            errx(1,
+                 "APPEND needs a job, a stream name, and a thing to append"); }
+        auto job(parsers::_jobname()
+                 .match(argv[4])
+                 .fatal("parsing job name " + fields::mk(argv[4])));
+        auto stream(parsers::_streamname()
+                    .match(argv[5])
+                    .fatal("parsing stream name " + fields::mk(argv[5])));
+        buffer buf;
+        buf.queue(argv[6], strlen(argv[6]));
+        auto m = conn.success()->call(
+            clientio::CLIENTIO,
+            wireproto::req_message(proto::APPEND::tag,
+                                   conn.success()->allocsequencenr())
+            .addparam(proto::APPEND::req::job, job)
+            .addparam(proto::APPEND::req::stream, stream)
+            .addparam(proto::APPEND::req::bytes, buf))
+            .fatal(fields::mk("appending to stream"));
+        delete m;
     } else {
         errx(1, "unknown mode %s", argv[3]); }
 

@@ -51,8 +51,8 @@ class buffer {
     subbuf *extend_end(size_t sz = 0) { return newsubbuf(sz, false, false, true); }
     subbuf *extend_start(size_t sz) { return newsubbuf(sz, true, true, true); }
     subbuf *unlinked_subbuf(size_t sz) { return newsubbuf(sz, false, false, false); }
-    buffer(const buffer &o) = delete;
     void operator=(const buffer &o) = delete;
+public: buffer(const buffer &o);
 public:
     buffer() : first(NULL), last(NULL), prod(0), cons(0) {}
     ~buffer();
@@ -123,6 +123,7 @@ public:
      * returned pointer remains valid until the buffer is destroyed,
      * or the relevant bytes of the buffer are consumed by fetch() or
      * discard(), or linearise() is called again. */
+    const void *linearise(size_t start, size_t end) const;
     const void *linearise(size_t start, size_t end);
 
     /* Fetch a byte from the buffer.  @i is a count of the number of

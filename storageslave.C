@@ -46,6 +46,15 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         auto res(owner->createempty(job.just(), stream.just()));
         if (res.isjust()) return res.just();
         else return new wireproto::resp_message(rxm);
+    } else if (rxm.tag() == proto::APPEND::tag) {
+        auto job(rxm.getparam(proto::APPEND::req::job));
+        auto stream(rxm.getparam(proto::APPEND::req::stream));
+        auto bytes(rxm.getparam(proto::APPEND::req::bytes));
+        if (!job || !stream || !bytes) return error::missingparameter;
+        if (bytes.just().empty()) return error::invalidparameter;
+        auto res(owner->append(job.just(), stream.just(), bytes.just()));
+        if (res.isjust()) return res.just();
+        else return new wireproto::resp_message(rxm);
     } else {
         return rpcconn::message(rxm); } }
 
@@ -142,6 +151,43 @@ storageslave::createempty(const jobname &t, const streamname &sn) const {
     {   auto r(content.unlink());
         if (r != Nothing) return r.just(); }
     return content.createfile(); }
+
+maybe<error>
+storageslave::append(
+    const jobname &jn,
+    const streamname &sn,
+    buffer &b) const {
+    filename content(pool + jn.asfilename() + sn.asfilename() + "content");
+    auto fd(content.openappend());
+    if (fd.isfailure()) return fd.failure();
+    unsigned long initialavail(b.avail());
+    while (!b.empty()) {
+        subscriber sub;
+        auto r(b.send(
+                   /* We know the FD points at a local file, not a
+                      network socket, so we don't have to worry about
+                      network deadlocks. */
+                   clientio::CLIENTIO,
+                   fd.success(),
+                   sub));
+        if (r.isfailure()) {
+            if (initialavail != b.avail()) {
+                logmsg(loglevel::error,
+                       "failed writing to " + fields::mk(jn) +
+                       " " + fields::mk(sn) + " after " +
+                       fields::mk(initialavail - b.avail()) + " of " +
+                       fields::mk(initialavail) + ": " +
+                       fields::mk(r.failure()));
+            } else {
+                logmsg(loglevel::failure,
+                       "failed writing to " + fields::mk(jn) +
+                       " " + fields::mk(sn) + ": " +
+                       fields::mk(r.failure())); }
+            fd.success().close();
+            return r.failure(); }
+        assert(r.success() == NULL); }
+    fd.success().close();
+    return Nothing; }
 
 void
 storageslave::destroy(clientio io) {

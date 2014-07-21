@@ -5,6 +5,7 @@
 
 #include "string.H"
 
+class fd_t;
 class filename;
 template <typename> class orerror;
 template <typename> class parser;
@@ -39,6 +40,8 @@ public:  maybe<error> createfile(const fields::field &) const;
 public:  maybe<error> createfile() const;
     /* Check whether a file exists and is a file. */
 public:  orerror<bool> exists() const;
+    /* Open a file in append mode.  The file must already exist. */
+public:  orerror<fd_t> openappend() const;
     /* Create a directory with this filename, or return an error.
      * Returns error::already if the directory already exists
      * (including if it is non-empty). */

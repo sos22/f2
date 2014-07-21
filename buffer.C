@@ -156,6 +156,18 @@ buffer::empty() const
     return first == NULL;
 }
 
+buffer::buffer(const buffer &o)
+    : first(NULL),
+      last(NULL),
+      prod(o.cons),
+      cons(o.cons) {
+    if (o.prod == o.cons) return;
+    extend_end(o.avail());
+    auto cursor(o.first);
+    while (cursor) {
+        queue(cursor->payload + cursor->cons, cursor->prod - cursor->cons);
+        cursor = cursor->next; } }
+
 buffer::~buffer(void)
 {
     auto i(first);
@@ -344,6 +356,12 @@ buffer::linearise(size_t start, size_t end)
     if (!first) last = NULL;
     return b->payload;
 }
+
+/* linearise doesn't change any externally-visible state of the
+   buffer, so allow it on const references. */
+const void *
+buffer::linearise(size_t start, size_t end) const {
+    return const_cast<buffer *>(this)->linearise(start, end); }
 
 buffer::status_t
 buffer::status() const {

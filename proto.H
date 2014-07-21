@@ -4,6 +4,7 @@
 #include "wireproto.H"
 
 class beaconstatus;
+class buffer;
 class bufferstatus;
 class coordinatorstatus;
 class coordinatorconnstatus;
@@ -200,6 +201,17 @@ namespace proto {
         namespace req {
             static const parameter< ::jobname> job(1200);
             static const parameter< ::streamname> stream(1201);
+        }
+        /* No response parameters, except for possible error */
+    }
+    /* Storage slave: add some bytes to the end of an output stream.
+       The stream must already exist. */
+    namespace APPEND {
+        static const msgtag tag(13);
+        namespace req {
+            static const parameter< ::jobname> job(1300);
+            static const parameter< ::streamname> stream(1301);
+            static const parameter< ::buffer> bytes(1302);
         }
         /* No response parameters, except for possible error */
     }

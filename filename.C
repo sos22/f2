@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "fd.H"
 #include "fields.H"
 #include "logging.H"
 #include "orerror.H"
@@ -106,6 +107,12 @@ filename::exists() const {
              S_ISSOCK(st.st_mode)) return error::notafile;
     else if (!S_ISREG(st.st_mode)) return error::from_errno(EINVAL);
     else return true; }
+
+orerror<fd_t>
+filename::openappend() const {
+    int fd(::open(content.c_str(), O_WRONLY | O_APPEND));
+    if (fd < 0) return error::from_errno();
+    else return fd_t(fd); }
 
 maybe<error>
 filename::mkdir() const {

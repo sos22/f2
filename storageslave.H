@@ -60,6 +60,10 @@ private: orerror<rpcconn *> accept(socket_t);
 public:  maybe<error> createempty(
     const jobname &t,
     const streamname &sn) const;
+public:  maybe<error> append(
+    const jobname &t,
+    const streamname &sn,
+    buffer &b) const;
 public:  void destroy(clientio);
 private: ~storageslave();
 

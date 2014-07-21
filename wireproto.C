@@ -162,6 +162,14 @@ tx_message::addparam(parameter<const char *> tmpl, const char *const &val)
 }
 
 template <> tx_message &
+tx_message::addparam(parameter<buffer> tmpl, const buffer &b)
+{
+    return addparam(tmpl.id,
+                    b.linearise(b.offset(), b.offset() + b.avail()),
+                    b.avail());
+}
+
+template <> tx_message &
 tx_message::addparam(parameter<string> tmpl, const string &val)
 {
     return addparam(parameter<const char *>(tmpl), val.c_str());
@@ -449,6 +457,11 @@ deserialise(bufslice &slice) {
     const char *res = (const char *)slice.content;
     if (slice.sz == 0 || res[slice.sz-1] != '\0') return Nothing;
     else return res; }
+template <> maybe<buffer>
+deserialise(bufslice &slice) {
+    buffer res;
+    res.queue(slice.content, slice.sz);
+    return res; }
 template <> maybe<string>
 deserialise(bufslice &slice) {
     auto r(deserialise<const char *>(slice));

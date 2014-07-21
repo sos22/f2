@@ -62,6 +62,7 @@ namespace fields {
 const field &mk(const fd_tstatus &); }
 
 class fd_t {
+    friend class filename;
     friend class listenfd;
     friend const fields::field &fields::mk(const fd_t &);
     friend class udpsocket;
