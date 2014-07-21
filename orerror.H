@@ -82,6 +82,8 @@ public:
 
     bool operator==(const error &e) {
         return isfailure() && failure() == e; }
+    bool operator==(const t &e) {
+        return issuccess() && success() == e; }
 };
 
 #endif /* !ORERROR_H__ */

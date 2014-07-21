@@ -93,6 +93,20 @@ filename::createfile() const {
     else if (S_ISREG(st.st_mode) && st.st_size == 0) return error::already;
     else return error::from_errno(EEXIST); }
 
+orerror<bool>
+filename::exists() const {
+    struct stat st;
+    if (::stat(content.c_str(), &st) < 0) {
+        if (errno == ENOENT) return false;
+        else return error::from_errno();
+    } else if (S_ISDIR(st.st_mode)) return error::from_errno(EISDIR);
+    else if (S_ISCHR(st.st_mode) ||
+             S_ISBLK(st.st_mode) ||
+             S_ISFIFO(st.st_mode) ||
+             S_ISSOCK(st.st_mode)) return error::notafile;
+    else if (!S_ISREG(st.st_mode)) return error::from_errno(EINVAL);
+    else return true; }
+
 maybe<error>
 filename::mkdir() const {
     int r(::mkdir(content.c_str(), 0700));

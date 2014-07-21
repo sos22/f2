@@ -86,7 +86,7 @@ public:
         return isjust() && just() == o;
     }
     bool operator!=(const t &o) const {
-        return isnothing || just() != o;
+        return isnothing() || just() != o;
     }
 };
 

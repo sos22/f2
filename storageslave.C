@@ -5,7 +5,6 @@
 #include "parsers.H"
 #include "jobname.H"
 #include "streamname.H"
-#include "streamstate.H"
 #include "tcpsocket.H"
 
 #include "filename.tmpl"
@@ -124,33 +123,25 @@ storageslave::createempty(const jobname &t, const streamname &sn) const {
     filename streamdir(jobdir + sn.asfilename());
     {   auto r(streamdir.mkdir());
         if (r.isjust() && r.just() != error::already) return r.just(); }
-    filename statefile(streamdir + "state");
-    auto r(statefile.createfile(fields::mk(streamstate::empty)));
-    if (r.isnothing() || r.just() != error::already) return r;
-    auto existing(statefile.parse(parsers::streamstate()));
-    if (existing.isfailure() && existing.failure() != error::noparse) {
-        return existing.failure(); }
-    /* Already in desired state -> just clean out any stale
-     * content. */
     filename content(streamdir + "content");
-    if (existing.success().isempty()) {
-        {   auto rr(content.unlink());
-            if (rr.isjust() && rr.just() != error::notfound) return rr.just(); }
-        {   auto rr(content.createfile());
-            if (rr.isjust()) return rr.just(); }
-        return Nothing; }
-    /* Already have complete results -> tell caller to stop */
-    if (existing.success().iscomplete()) return error::already;
-    /* Have partial results from a previous run -> clean up */
-    assert(existing.success().ispartial());
-    {   auto rr( (streamdir + "content").unlink());
-        if (rr.isjust() && rr.just() != error::notfound) return rr.just(); }
-    {   auto rr(statefile.unlink());
-        if (rr.isjust()) return rr.just(); }
-    /* Cleared out old bits -> should be able to write new ones. */
-    {   auto rr(content.createfile());
-        if (rr.isjust()) return rr.just(); }
-    return statefile.createfile(fields::mk(streamstate::empty)); }
+    filename finished(streamdir + "finished");
+    auto cexists(content.exists());
+    if (cexists.isfailure()) return cexists.failure();
+    auto fexists(finished.exists());
+    if (fexists.isfailure()) return fexists.failure();
+    if (cexists == true && fexists == true) {
+        /* Already have job results -> tell caller to stop */
+        return error::already; }
+    /* Remove any leftover finished marker. */
+    if (fexists == true) {
+        auto r(finished.unlink());
+        if (r != Nothing && r != error::already) return r.just(); }
+    /* Create the new content file. */
+    {   auto r(content.createfile());
+        if (r == Nothing || r == error::already) return Nothing; }
+    {   auto r(content.unlink());
+        if (r != Nothing) return r.just(); }
+    return content.createfile(); }
 
 void
 storageslave::destroy(clientio io) {

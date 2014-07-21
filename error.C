@@ -26,6 +26,7 @@ const error error::ratelimit(-13);
 const error error::invalidparameter(-14);
 const error error::already(-15);
 const error error::notfound(-16);
+const error error::notafile(-17);
 
 class errorfield : public fields::field {
     error content;
@@ -73,6 +74,8 @@ public:
                 buf.push("already");
             } else if (content == error::notfound) {
                 buf.push("notfound");
+            } else if (content == error::notafile) {
+                buf.push("notafile");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

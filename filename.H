@@ -37,6 +37,8 @@ public:  maybe<error> createfile(const fields::field &) const;
      * Returns error::already if the file exists with zero size, or
      * some other error for other error cases. */
 public:  maybe<error> createfile() const;
+    /* Check whether a file exists and is a file. */
+public:  orerror<bool> exists() const;
     /* Create a directory with this filename, or return an error.
      * Returns error::already if the directory already exists
      * (including if it is non-empty). */
