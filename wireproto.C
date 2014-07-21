@@ -410,17 +410,11 @@ rx_message::fetch(buffer &buffer) {
     if (res.isfailure()) {
         free(msg);
         return res.failure(); }
-    auto err(res.success().getparam(err_parameter));
-    if (err.isjust()) return err.just();
-    else return res.success(); }
+    return res.success(); }
 
 orerror<rx_message>
 rx_message::fetch(const bufslice &buf) {
-    auto res(parse((const struct wireheader *)buf.content, buf.sz, false));
-    if (res.isfailure()) return res.failure();
-    auto err(res.success().getparam(err_parameter));
-    if (err.isjust()) return err.just();
-    else return res.success(); }
+    return parse((const struct wireheader *)buf.content, buf.sz, false); }
 
 rx_message *
 rx_message::steal() {
@@ -828,8 +822,8 @@ tests::wireproto() {
             auto rxm(rx_message::fetch(buf));
             err_resp_message(rxm.success(), error::ratelimit).serialise(buf);
             auto rxm2(rx_message::fetch(buf));
-            assert(rxm2.isfailure());
-            assert(rxm2.failure() == error::ratelimit); });
+            auto errparam(rxm2.success().getparam(wireproto::err_parameter));
+            assert(errparam == error::ratelimit); });
 
     testcaseV("wireproto", "external", [t] () {
             ::buffer buf;

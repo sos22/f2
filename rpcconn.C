@@ -607,7 +607,12 @@ rpcconn::call(
                     auto res(*it);
                     it.remove();
                     rxlock.unlock(&rxtoken);
-                    return res; } }
+                    auto err(res->getparam(wireproto::err_parameter));
+                    if (err.isjust()) {
+                        delete res;
+                        return err.just();
+                    } else {
+                        return res; } } }
             rxlock.unlock(&rxtoken); }
         auto res(sub.wait(deadline));
         if (res == NULL) return error::timeout;

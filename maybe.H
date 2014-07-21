@@ -8,7 +8,10 @@
 
 #include "obj.H"
 
+template <typename> class maybe;
 class _Nothing {
+public: template <typename t> bool operator==(const maybe<t> &) const;
+public: template <typename t> bool operator!=(const maybe<t> &) const;
 };
 const class _Nothing Nothing;
 
@@ -79,6 +82,28 @@ public:
     bool operator!=(const _Nothing) const {
         return isjust();
     }
+    bool operator==(const t &o) const {
+        return isjust() && just() == o;
+    }
+    bool operator!=(const t &o) const {
+        return isnothing || just() != o;
+    }
 };
+
+template <typename t> bool
+_Nothing::operator==(const maybe<t> &o) const {
+    return o.isnothing(); }
+
+template <typename t> bool
+_Nothing::operator!=(const maybe<t> &o) const {
+    return o.isjust(); }
+
+template <typename t> bool
+operator ==(const t &a, const maybe<t> &o) {
+    return o.isjust() && a == o.just(); }
+
+template <typename t> bool
+operator !=(const t &a, const maybe<t> &o) {
+    return o.isnothing() || a != o.just(); }
 
 #endif /* !MAYBE_H__ */
