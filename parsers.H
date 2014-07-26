@@ -29,6 +29,9 @@ public: virtual orerror<result> parse(const char *) const = 0;
     /* Lift a function into the parser monad. */
 public: template <typename o> const parser<o> &map(
     const std::function<o (const rval &)> &what) const;
+    /* Like map, except that it can also see error values. */
+public: template <typename o> const parser<o> &maperr(
+    const std::function<orerror<o> (const orerror<rval> &)> &what) const;
     /* Convenience function which runs the parser and returns either
        the result, if it matched the entire string, or an error, if it
        didn't. */
@@ -69,12 +72,16 @@ const parser<void> &strmatcher(const char *);
 /* Dummy parser which always returns an error. */
 template <typename t> const parser<t> &errparser(error);
 
+namespace parsers {
 /* Parser for the strings produced by fields::mk().escape().  Note
  * that the returned strings are in the temporary heap. */
 extern const parser<const char *> &strparser;
 
 /* Parser for integers produced by fields::mk() */
-extern const parser<long> &intparser;
+template <typename inttype> const parser<inttype> &intparser();
+template <> const parser<unsigned long> &intparser();
+template <> const parser<long> &intparser();
+}
 
 /* Convenience functions. */
 /* Match and ignore a string prefix */

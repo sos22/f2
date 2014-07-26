@@ -9,6 +9,7 @@
 #include "spark.H"
 #include "test.H"
 #include "timedelta.H"
+#include "util.H"
 
 #include "list.tmpl"
 #include "spark.tmpl"
@@ -73,7 +74,10 @@ buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
 }
 
 maybe<error>
-buffer::receive(clientio io, fd_t fd, maybe<timestamp> deadline)
+buffer::receive(clientio io,
+                fd_t fd,
+                maybe<timestamp> deadline,
+                maybe<uint64_t> limit)
 {
     subbuf *b;
     bool unlinked;
@@ -83,7 +87,10 @@ buffer::receive(clientio io, fd_t fd, maybe<timestamp> deadline)
     } else {
         b = unlinked_subbuf(0);
         unlinked = true; }
-    auto read(fd.read(io, b->payload + b->prod, b->sz - b->prod, deadline));
+    auto read(fd.read(io,
+                      b->payload + b->prod,
+                      min(b->sz - b->prod, limit.dflt(UINT64_MAX)),
+                      deadline));
     if (read.isfailure()) {
         if (unlinked) free(b);
         return read.failure(); }
@@ -92,6 +99,7 @@ buffer::receive(clientio io, fd_t fd, maybe<timestamp> deadline)
         if (last) last->next = b;
         else first = b;
         last = b; }
+    if (read.success() == 0) return error::pastend;
     b->prod += read.success();
     prod += read.success();
     assert(b->cons != b->prod);
@@ -257,6 +265,18 @@ buffer::discard(size_t sz)
     fetch(NULL, sz);
 }
 
+buffer
+buffer::steal() {
+    buffer res;
+    res.prod = prod;
+    res.cons = cons;
+    res.first = first;
+    res.last = last;
+    first = NULL;
+    last = NULL;
+    prod = cons;
+    return res; }
+
 char
 buffer::idx(size_t off) const
 {
@@ -367,6 +387,195 @@ buffer::linearise(size_t start, size_t end) const {
 buffer::status_t
 buffer::status() const {
     return status_t(prod, cons); }
+
+const bufferfield &
+fields::mk(const buffer &b) {
+    return bufferfield::mk(false, bufferfield::c_ascii, true, b); }
+
+const bufferfield &
+bufferfield::mk(bool _showshape,
+                enum contentform _content,
+                bool _hiderepeats,
+                const buffer &_b) {
+    return *new bufferfield(_showshape, _content, _hiderepeats, _b); }
+
+bufferfield::bufferfield(bool _showshape,
+                         enum contentform _content,
+                         bool _hiderepeats,
+                         const buffer &_b)
+    : showshape_(_showshape),
+      content(_content),
+      hiderepeats_(_hiderepeats),
+      b(_b) {}
+
+bufferfield::bufferfield(const bufferfield &o)
+    : fields::field(o),
+      showshape_(o.showshape_),
+      content(o.content),
+      hiderepeats_(o.hiderepeats_),
+      b(o.b) {}
+
+const bufferfield &
+bufferfield::showshape() const {
+    auto r = new bufferfield(*this);
+    r->showshape_ = true;
+    return *r; }
+
+const bufferfield &
+bufferfield::bytes() const {
+    auto r = new bufferfield(*this);
+    r->content = c_bytes;
+    return *r; }
+
+const bufferfield &
+bufferfield::words() const {
+    auto r = new bufferfield(*this);
+    r->content = c_words;
+    return *r; }
+
+const bufferfield &
+bufferfield::showrepeats() const {
+    auto r = new bufferfield(*this);
+    r->hiderepeats_ = false;
+    return *r; }
+
+
+void
+bufferfield::fmt(fields::fieldbuf &buf) const {
+    struct _ {
+        const bufferfield &_this;
+        fields::fieldbuf &_buf;
+        bool isfirst;
+        unsigned char repeatbyte;
+        unsigned repeatcount;
+        unsigned long repeatword;
+        unsigned long wordacc;
+        unsigned wordbytes;
+        _(const bufferfield &__this, fields::fieldbuf &__buf)
+            : _this(__this),
+              _buf(__buf),
+              isfirst(true),
+              repeatbyte(0),
+              repeatcount(0),
+              repeatword(0),
+              wordacc(0),
+              wordbytes(0) {}
+        void operator()(unsigned char byte) {
+            switch (_this.content) {
+            case c_ascii:
+            case c_bytes:
+                if (_this.hiderepeats_ && byte == repeatbyte) {
+                    repeatcount++; }
+                else {
+                    flush();
+                    repeatbyte = byte;
+                    repeatcount = 1; }
+                return;
+            case c_words:
+                if (wordbytes == 8) {
+                    if (wordacc == repeatword) {
+                        repeatcount++; }
+                    else {
+                        wordbytes = 0;
+                        flush();
+                        repeatword = wordacc;
+                        repeatcount = 1;
+                        wordacc = 0; } }
+                wordacc = (wordacc << 8) | byte;
+                wordbytes++;
+                return; }
+            if (!COVERAGE) abort(); }
+        void flush() {
+            if (repeatcount != 0) {
+                bool suppressrepeats;
+                switch (_this.content) {
+                case c_ascii:
+                    suppressrepeats = repeatcount > 4;
+                    break;
+                case c_bytes:
+                    suppressrepeats = repeatcount > 2;
+                    break;
+                case c_words:
+                    suppressrepeats = true;
+                    break; }
+                for (unsigned x = 0;
+                     x < (suppressrepeats ? 1 : repeatcount);
+                     x++) {
+                    switch (_this.content) {
+                    case c_ascii:
+                        if (repeatbyte == '>' ||
+                            repeatbyte == ']' ||
+                            repeatbyte == '{' ||
+                            repeatbyte == '\\') {
+                            char b[] = {'\\', repeatbyte, 0};
+                            _buf.push(b); }
+                        else if (isprint(repeatbyte)) {
+                            char b[] = {repeatbyte, 0};
+                            _buf.push(b); }
+                        else {
+                            char b[5];
+                            sprintf(b, "\\x%02x", repeatbyte);
+                            _buf.push(b); }
+                        break;
+                    case c_bytes: {
+                        char b[3];
+                        sprintf(b, "%s%02X", isfirst ? "" : ".", repeatbyte);
+                        _buf.push(b);
+                        isfirst = false;
+                        break; }
+                    case c_words: {
+                        if (!isfirst) _buf.push("; ");
+                        fields::mk(repeatword)
+                            .base(16)
+                            .uppercase()
+                            .sep(fields::mk(":"), 4)
+                            .hidebase()
+                            .fmt(_buf);
+                        isfirst = false;
+                        break; } } }
+                if (suppressrepeats) {
+                    ("{" + fields::mk(repeatcount) + "}").fmt(_buf); }
+                repeatcount = 0; }
+            if (wordbytes != 0) {
+                if (!isfirst) _buf.push("; ");
+                (fields::mk(wordacc)
+                 .base(16)
+                 .uppercase()
+                 .sep(fields::mk(":"), 4)
+                 .hidebase() +
+                 "/" + fields::mk(wordbytes))
+                    .fmt(_buf);
+                isfirst = false;
+                wordbytes = 0;
+                wordacc = 0; } }
+        void reset() {
+            flush();
+            isfirst = true; }
+    } iter(*this, buf);
+    buf.push("<buffer: ");
+    if (showshape_) {
+        buf.push("prod:");
+        fields::mk(b.prod).fmt(buf);
+        buf.push(" cons:");
+        fields::mk(b.cons).fmt(buf);
+        buf.push(" ["); }
+    for (auto it(b.first); it; it = it->next) {
+        if (showshape_) {
+            if (it != b.first) buf.push("...");
+            buf.push("{prod:");
+            fields::mk(it->prod).fmt(buf);
+            buf.push(";cons:");
+            fields::mk(it->cons).fmt(buf);
+            buf.push(";sz:");
+            fields::mk(it->sz).fmt(buf);
+            buf.push("["); }
+        for (auto x(it->cons); x != it->prod; x++) iter(it->payload[x]);
+        if (showshape_) {
+            iter.reset();
+            buf.push("]}"); } }
+    iter.flush();
+    if (showshape_) buf.push("]");
+    buf.push(">"); }
 
 void
 tests::buffer(void)

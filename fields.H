@@ -28,9 +28,9 @@ public:
 };
 
 class field : protected tmpheap::base {
-    field(const field &) = delete;
     void operator=(const field &) = delete;
 protected:
+    field(const field &) {}
     field();
 public:
     virtual void fmt(fieldbuf &) const = 0;
@@ -74,17 +74,20 @@ class intfield : public field {
     unsigned sepwidth_;
     bool uppercase_;
     bool alwayssign_;
+    bool hidebase_;
+    intfield(const intfield &o) = delete;
     intfield(long _val, int _base, const field &sep, unsigned sepwidth,
-             bool _uppercase, bool _alwayssign);
+             bool _uppercase, bool _alwayssign, bool _hidebase);
 public:
     static const intfield &n(long val, int base, const field &sep,
                              unsigned sepwidth, bool uppercase,
-                             bool alwayssign);
+                             bool alwayssign, bool hidebase);
     const intfield &base(int b) const;
     const intfield &nosep() const;
     const intfield &sep(const field & = comma, unsigned = 3) const;
     const intfield &uppercase() const;
     const intfield &alwayssign() const;
+    const intfield &hidebase() const;
     void fmt(fieldbuf &) const;
 };
 const intfield &mk(long);
@@ -92,6 +95,7 @@ const intfield &mk(long);
 class doublefield : public field {
     double val_;
     doublefield(double _val);
+    doublefield(const doublefield &o) = delete;
 public:
     static const doublefield &n(double val);
     void fmt(fieldbuf &) const;
@@ -103,6 +107,7 @@ class timefield : public field {
     bool asdate_;
     timefield(const struct timeval &_v,
               bool _asdate);
+    timefield(const timefield &o) = delete;
 public:
     static const timefield &n(const struct timeval &,
                               bool asdate);

@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "buffer.H"
 #include "fd.H"
 #include "fields.H"
 #include "logging.H"
@@ -38,7 +39,7 @@ filename::readasstring() const {
     off_t off;
     ssize_t thistime;
     for (off = 0; off < sz; off += thistime) {
-        thistime = read(fd, buf + off, sz - off);
+        thistime = ::read(fd, buf + off, sz - off);
         if (thistime < 0) {
             close(fd);
             free(buf);
@@ -113,6 +114,34 @@ filename::openappend() const {
     int fd(::open(content.c_str(), O_WRONLY | O_APPEND));
     if (fd < 0) return error::from_errno();
     else return fd_t(fd); }
+
+orerror<uint64_t>
+filename::size() const {
+    struct stat st;
+    if (::stat(content.c_str(), &st) < 0) return error::from_errno();
+    else return st.st_size; }
+
+orerror<buffer>
+filename::read(uint64_t start, uint64_t end) const {
+    auto _fd(::open(content.c_str(), O_RDONLY));
+    if (_fd < 0) return error::from_errno();
+    if (start != 0) {
+        auto r(::lseek(_fd, start, SEEK_SET));
+        if (r < 0) return error::from_errno();
+        else if ((uint64_t)r != start) return error::pastend; }
+    fd_t fd(_fd);
+    buffer res;
+    while (res.avail() < end - start) {
+        /* IO to local files doesn't really need a clientio token. */
+        auto r(res.receive(clientio::CLIENTIO,
+                           fd,
+                           Nothing,
+                           end - start - res.avail()));
+        if (r.isjust()) {
+            ::close(_fd);
+            return r.just(); } }
+    ::close(_fd);
+    return res.steal(); }
 
 maybe<error>
 filename::mkdir() const {

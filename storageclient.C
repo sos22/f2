@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "buffer.H"
 #include "clientio.H"
 #include "fields.H"
 #include "jobname.H"
@@ -15,6 +16,8 @@
 
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
+
+#include "fieldfinal.H"
 
 int
 main(int argc, char *argv[]) {
@@ -99,6 +102,48 @@ main(int argc, char *argv[]) {
             .addparam(proto::FINISH::req::job, job)
             .addparam(proto::FINISH::req::stream, stream))
             .fatal(fields::mk("finishing stream"));
+        delete m;
+    } else if (!strcmp(argv[3], "READ")) {
+        if (argc < 6 || argc > 8) {
+            errx(1,
+                 "READ needs a job and a stream name, and "
+                 "optionally takes a start end end offset"); }
+        auto job(parsers::_jobname()
+                 .match(argv[4])
+                 .fatal("parsing job name " + fields::mk(argv[4])));
+        auto stream(parsers::_streamname()
+                    .match(argv[5])
+                    .fatal("parsing stream name " + fields::mk(argv[5])));
+        wireproto::req_message req(proto::READ::tag,
+                                   conn.success()->allocsequencenr());
+        req.addparam(proto::READ::req::job, job);
+        req.addparam(proto::READ::req::stream, stream);
+        if (argc > 6) {
+            req.addparam(
+                proto::READ::req::start,
+                parsers::intparser<unsigned long>()
+                .match(argv[6])
+                .fatal("parsing start offset " + fields::mk(argv[6]))); }
+        if (argc > 7) {
+            req.addparam(
+                proto::READ::req::end,
+                parsers::intparser<unsigned long>()
+                .match(argv[7])
+                .fatal("parsing end offset " + fields::mk(argv[7]))); }
+        auto m = conn.success()->call(clientio::CLIENTIO, req)
+            .fatal(fields::mk("reading stream"));
+        fields::print("size " +
+                      fields::mk(
+                          m->getparam(proto::READ::resp::size)
+                          .fatal(fields::mk("response missing stream size")))
+                      + "\n");
+        fields::print("content " +
+                      fields::mk(
+                          m->getparam(proto::READ::resp::bytes)
+                          .fatal(fields::mk("response missing stream content")))
+                      .showshape()
+                      .words()
+                      + "\n");
         delete m;
     } else {
         errx(1, "unknown mode %s", argv[3]); }

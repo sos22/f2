@@ -215,17 +215,14 @@ template <typename t> const parser<t> &
 operator+(const parser<t> &w, const char *suffix) {
     return w + strmatcher(suffix); }
 
-/* gcc isn't quite smart enough to handle this as a template (because
-   it can't look through the either type to figure out that both
-   branchs of the if return the same type).  Do it as a macro
-   instead. */
-#define __parsermkoperpipepipe(typename)                                \
-    template <> const parser<typename> &                                \
-    operator||(const parser<typename> &a, const parser<typename> &b) {  \
-        return (a | b)                                                  \
-            .map<typename>([] (const either<typename, typename> &what) { \
-                    if (what.isleft()) return what.left();              \
-                    else return what.right(); }); }
-
+template <typename typ> const parser<typ> &
+operator||(const parser<typ> &a, const parser<typ> &b) {
+    const std::function<typ(const either<typ,typ> &)> &r(
+        [] (const either<typ, typ> &what) -> typ {
+                if (what.isleft()) return what.left();
+                else return what.right();
+            });
+    return (a|b).map(r);
+}
 
 #endif /* !PARSERS_TMPL__ */

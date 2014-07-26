@@ -10,8 +10,6 @@
 #include "either.tmpl"
 #include "parsers.tmpl"
 
-__parsermkoperpipepipe(long)
-
 digest::digest(const fields::field &what)
 {
     logmsg(loglevel::error,
@@ -55,6 +53,7 @@ fields::mk(const digest &d)
 
 const parser<digest> &
 parsers::_digest() {
-    return (("<digest:" + intparser + ">") || intparser)
-        .map<digest>([] (const long &what) {
-                return digest((unsigned long)what); }); }
+    return (("<digest:" + intparser<typeof(digest::val)>() + ">") ||
+            intparser<typeof(digest::val)>())
+        .map<digest>([] (const unsigned long &what) {
+                return digest(what); }); }

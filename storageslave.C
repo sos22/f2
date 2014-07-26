@@ -62,6 +62,16 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         auto res(owner->finish(job.just(), stream.just()));
         if (res.isjust()) return res.just();
         else return new wireproto::resp_message(rxm);
+    } else if (rxm.tag() == proto::READ::tag) {
+        auto job(rxm.getparam(proto::READ::req::job));
+        auto stream(rxm.getparam(proto::READ::req::stream));
+        if (!job || !stream) return error::missingparameter;
+        else return owner->read(
+            rxm,
+            job.just(),
+            stream.just(),
+            rxm.getparam(proto::READ::req::start).dflt(0),
+            rxm.getparam(proto::READ::req::end).dflt(UINT64_MAX));
     } else {
         return rpcconn::message(rxm); } }
 
@@ -213,6 +223,35 @@ storageslave::finish(
     if (exists.isfailure()) return exists.failure();
     else if (exists == true) return error::already;
     return finished.createfile(); }
+
+messageresult
+storageslave::read(
+    const wireproto::rx_message &rxm,
+    const jobname &jn,
+    const streamname &sn,
+    uint64_t start,
+    uint64_t end) const {
+    if (start > end) return error::invalidparameter;
+    filename dirname(pool + jn.asfilename() + sn.asfilename());
+    {   auto finished((dirname + "finished").exists());
+        if (finished.isfailure()) return finished.failure();
+        else if (finished == false) return error::toosoon; }
+    auto content(dirname + "content");
+    {   auto r(content.exists());
+        if (r.isfailure()) return r.failure();
+        else if (r == false) return error::toosoon; }
+    auto sz(content.size());
+    if (sz.isfailure()) return sz.failure();
+    if (start > sz.success()) start = sz.success();
+    if (end > sz.success()) end = sz.success();
+    auto resp(new wireproto::resp_message(rxm));
+    resp->addparam(proto::READ::resp::size, sz.success());
+    auto b(content.read(start, end));
+    if (b.isfailure()) {
+        delete resp;
+        return b.failure(); }
+    resp->addparam(proto::READ::resp::bytes, b.success().steal());
+    return resp; }
 
 void
 storageslave::destroy(clientio io) {

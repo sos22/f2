@@ -67,6 +67,12 @@ public:  maybe<error> append(
 public:  maybe<error> finish(
     const jobname &t,
     const streamname &sn) const;
+private: messageresult read(
+    const wireproto::rx_message &rxm,
+    const jobname &jn,
+    const streamname &sn,
+    uint64_t start,
+    uint64_t end) const;
 public:  void destroy(clientio);
 private: ~storageslave();
 

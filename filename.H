@@ -42,6 +42,12 @@ public:  maybe<error> createfile() const;
 public:  orerror<bool> exists() const;
     /* Open a file in append mode.  The file must already exist. */
 public:  orerror<fd_t> openappend() const;
+    /* Get the size of a file.  The file must exist. */
+public:  orerror<uint64_t> size() const;
+    /* Read some bytes out of a file.  start is inclusive, end
+       exclusive.  The bounds must be within the file.  If start ==
+       end <= filesize then return an empty buffer (or an error). */
+public:  orerror<buffer> read(uint64_t start, uint64_t end) const;
     /* Create a directory with this filename, or return an error.
      * Returns error::already if the directory already exists
      * (including if it is non-empty). */

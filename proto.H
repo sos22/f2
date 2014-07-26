@@ -224,6 +224,39 @@ namespace proto {
         }
         /* No response parameters, except for possible error */
     }
+    /* Storage slave: read a chunk of a stream.  The stream must be
+     * complete. */
+    namespace READ {
+        static const msgtag tag(15);
+        namespace req {
+            static const parameter< ::jobname> job(1400);
+            static const parameter< ::streamname> stream(1401);
+            /* Optional limits on the data to read back.  start is
+               inclusive and end exclusive.  start defaults to zero
+               and end defaults to the size of the stream.  Values
+               beyond the end of the stream are silently truncated to
+               the stream size.  It is permissible to specify start
+               equal to end, and in that case an empty buffer is
+               returned.  */
+            static const parameter<unsigned long> start(1402);
+            static const parameter<unsigned long> end(1403);
+        }
+        namespace resp {
+            /* The read returns a buffer of data which always starts
+               at the start parameter (or 0, if the start parameter is
+               missing) but which might be truncated to finish before
+               the specified end.  Requests beyond the end of the
+               stream are always truncated; other requests may be
+               truncated at the discretion of the thing generating the
+               response.  The response buffer will always contain at
+               least one byte if any part of the request range falls
+               within the defined range of the stream. */
+            static const parameter< ::buffer> bytes(1450);
+            /* Total size of the stream, in bytes.  Present and
+               correct even when buffer is truncated. */
+            static const parameter<unsigned long> size(1451);
+        }
+    }
 }
 
 #endif /* !PROTO_H__ */

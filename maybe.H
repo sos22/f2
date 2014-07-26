@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "error.H"
 #include "obj.H"
 
 template <typename> class maybe;
@@ -76,6 +77,9 @@ public:
         if (isjust()) return just();
         else return what;
     }
+    const t &fatal(const fields::field &msg) const {
+        if (isjust()) return just();
+        else error::nothing.fatal(msg); }
     bool operator==(const _Nothing) const {
         return isnothing();
     }

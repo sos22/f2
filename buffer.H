@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 #include "error.H"
+#include "fields.H"
 #include "list.H"
 #include "maybe.H"
 #include "timestamp.H"
@@ -27,11 +28,16 @@ public: bufferstatus(
 WIREPROTO_TYPE(bufferstatus);
 };
 
+class buffer;
+class bufferfield;
+
 namespace fields {
 const field &mk(const bufferstatus &);
+const bufferfield &mk(const buffer &);
 }
 
 class buffer {
+    friend class bufferfield;
     class subbuf {
     public:
         subbuf *next;
@@ -68,8 +74,12 @@ public:
                                      maybe<timestamp> deadline = Nothing);
     /* Grab some bytes from the fd and put them at the end of the
      * buffer.  Only ever makes a single read syscall, so won't block
-     * if poll returns POLLIN. */
-    maybe<error> receive(clientio, fd_t, maybe<timestamp> deadline = Nothing);
+     * if poll returns POLLIN.  Optional limit on the number of bytes
+     * to read. */
+    maybe<error> receive(clientio,
+                         fd_t,
+                         maybe<timestamp> deadline = Nothing,
+                         maybe<uint64_t> maxbytes = Nothing);
     /* Grab some bytes from the fd, waiting at most until the deadline
      * or until the subscriber becomes notified.  If the subscriber
      * becomes notified, clear and return the subscription.  If an
@@ -113,6 +123,11 @@ public:
      * But usually more efficient. */
     void discard(size_t amt);
 
+    /* Return a new buffer which is a copy of this one and
+     * simultaneously reset this buffer to be empty.  offset() on this
+     * buffer is unchanged, but avail() becomes zero. */
+    buffer steal();
+
     /* Return a pointer to a range of the buffer, defragmenting as
      * necessary to ensure that the region is linear.  @start and @end
      * are relative to the initial empty buffer i.e. linearise(x, y)
@@ -134,6 +149,31 @@ public:
 public: typedef bufferstatus status_t;
 public: status_t status() const;
 
+};
+
+class bufferfield : public fields::field {
+private: bool showshape_;
+public:  enum contentform {
+        c_ascii,
+        c_bytes,
+        c_words,
+        } content;
+private: bool hiderepeats_;
+private: const buffer &b;
+public:  static const bufferfield &mk(bool,
+                                      enum contentform,
+                                      bool,
+                                      const buffer &);
+private: bufferfield(bool _showshape,
+                     enum contentform _content,
+                     bool _hiderepeats,
+                     const buffer &_b);
+private: bufferfield(const bufferfield &);
+public:  const bufferfield &showshape() const;
+public:  const bufferfield &bytes() const;
+public:  const bufferfield &words() const;
+public:  const bufferfield &showrepeats() const;
+private: void fmt(fields::fieldbuf &) const;
 };
 
 namespace tests {

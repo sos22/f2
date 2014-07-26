@@ -28,6 +28,9 @@ const error error::already(-15);
 const error error::notfound(-16);
 const error error::notafile(-17);
 const error error::toolate(-18);
+const error error::toosoon(-19);
+const error error::pastend(-20);
+const error error::nothing(-21);
 
 class errorfield : public fields::field {
     error content;
@@ -79,6 +82,12 @@ public:
                 buf.push("notafile");
             } else if (content == error::toolate) {
                 buf.push("toolate");
+            } else if (content == error::toosoon) {
+                buf.push("toosoon");
+            } else if (content == error::pastend) {
+                buf.push("pastend");
+            } else if (content == error::nothing) {
+                buf.push("nothing");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

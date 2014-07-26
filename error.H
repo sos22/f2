@@ -76,7 +76,11 @@ public:
     static const error already; /* Operation already completed */
     static const error notfound; /* File or dictionary key not found */
     static const error notafile; /* Expected regular file; got something else */
-    static const error toolate; /* Update arrived too late to be processed */
+    static const error toolate; /* Operation arrived too late to be processed */
+    static const error toosoon; /* Operation arrived too soon to be processed */
+    static const error pastend; /* Offset is past end of file */
+    static const error nothing; /* maybe<> was Nothing when it should
+                                 * have been just() */
 };
 
 namespace fields {

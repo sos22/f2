@@ -8,6 +8,7 @@
 
 template <typename t> class orerror;
 
+/* XXX convert everything over to parseint */
 orerror<long> parselong(const char *);
 
 template <typename t> t loadacquire(const t &what);

@@ -44,7 +44,7 @@ fields::mk(const registrationsecret &rs)
 
 orerror<registrationsecret>
 registrationsecret::parse(const char *what) {
-    return ("<registrationsecret:" + strparser + ">")
+    return ("<registrationsecret:" + parsers::strparser + ">")
         .map<registrationsecret>(
             [] (const char *x) { return registrationsecret(x); })
         .match(what); }

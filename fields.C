@@ -308,29 +308,35 @@ operator+(const field &a, const char *what)
 }
 
 intfield::intfield(long _val, int _base, const field &_sep, unsigned _sepwidth,
-                   bool _uppercase, bool _alwayssign)
+                   bool _uppercase, bool _alwayssign, bool _hidebase)
     : val_(_val), base_(_base), sep_(_sep), sepwidth_(_sepwidth),
-      uppercase_(_uppercase), alwayssign_(_alwayssign)
+      uppercase_(_uppercase), alwayssign_(_alwayssign), hidebase_(_hidebase)
 {}
 const intfield &
 intfield::n(long val, int base, const field &sep, unsigned sepwidth,
-            bool uppercase, bool alwayssign)
+            bool uppercase, bool alwayssign, bool hidebase)
 {
     assert(base>1);
     assert(base<37);
-    return *new intfield(val, base, sep, sepwidth, uppercase, alwayssign);
+    return *new intfield(val,
+                         base,
+                         sep,
+                         sepwidth,
+                         uppercase,
+                         alwayssign,
+                         hidebase);
 }
 const intfield &
 mk(long x)
 {
-    return intfield::n(x, 10, comma, 3, false, false);
+    return intfield::n(x, 10, comma, 3, false, false, false);
 }
 const intfield &
 intfield::base(int b) const
 {
     assert(b >= 2);
     assert(b <= 36);
-    return n(val_, b, sep_, sepwidth_, uppercase_, alwayssign_);
+    return n(val_, b, sep_, sepwidth_, uppercase_, alwayssign_, hidebase_);
 }
 const intfield &
 intfield::nosep() const
@@ -339,17 +345,26 @@ intfield::nosep() const
 }
 const intfield &
 intfield::sep(const field &newsep, unsigned sepwidth) const {
-    return n(val_, base_, newsep, sepwidth, uppercase_, alwayssign_); }
+    return n(val_,
+             base_,
+             newsep,
+             sepwidth,
+             uppercase_,
+             alwayssign_,
+             hidebase_); }
 const intfield &
 intfield::uppercase() const
 {
-    return n(val_, base_, sep_, sepwidth_, true, alwayssign_);
+    return n(val_, base_, sep_, sepwidth_, true, alwayssign_, hidebase_);
 }
 const intfield &
 intfield::alwayssign() const
 {
-    return n(val_, base_, sep_, sepwidth_, uppercase_, true);
+    return n(val_, base_, sep_, sepwidth_, uppercase_, true, hidebase_);
 }
+const intfield &
+intfield::hidebase() const {
+    return n(val_, base_, sep_, sepwidth_, uppercase_, alwayssign_, true); }
 void
 intfield::fmt(fieldbuf &out) const
 {
@@ -376,11 +391,10 @@ intfield::fmt(fieldbuf &out) const
         nr_digits += seplen * ((nr_digits - 1) / sepwidth_);
     }
     /* base indicator */
-    if (base_ < 10) {
-        nr_digits += 3;
-    } else if (base_ > 10) {
-        nr_digits += 4;
-    }
+    if (!hidebase_) {
+        if (base_ < 10)  nr_digits += 3;
+        else if (base_ > 10) nr_digits += 4; }
+
     /* Sign */
     if (alwayssign_ || val_ < 0)
         nr_digits++;
@@ -389,7 +403,7 @@ intfield::fmt(fieldbuf &out) const
 
     char buf[nr_digits];
     buf[--nr_digits] = 0;
-    if (base_ != 10) {
+    if (!hidebase_ && base_ != 10) {
         buf[--nr_digits] = '}';
         buf[--nr_digits] = "0123456789"[base_ % 10];
         if (base_ > 10)
