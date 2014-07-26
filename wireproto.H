@@ -53,13 +53,18 @@ namespace wireproto {
     /* Must be POD or serialise/deserialise won't work. */
     struct sequencenr {
         friend const fields::field &fields::mk(const wireproto::sequencenr &t);
-    private:
         friend class sequencer;
+    private:
+        void operator =(const sequencenr &) = delete;
+        sequencenr() = delete;
         uint64_t val;
         explicit sequencenr(uint64_t _val)
             : val(_val)
             {}
     public:
+        sequencenr(const sequencenr &o)
+            : val(o.val) {}
+        ~sequencenr() {}
         static const sequencenr invalid;
         bool operator ==(const sequencenr &o) const
             { return val == o.val; }
@@ -130,7 +135,7 @@ namespace wireproto {
     /* Similar limit on number of parameters per message. */
     static const unsigned MAXMSGPARAMS = 1000;
     struct wireheader {
-    public: uint32_t sz; /* bytes, limited to MAXMSGSIZE */
+    public: uint32_t sz; /* bytes, limited to MAXMSGSIZE, includes header */
     public: uint16_t nrparams; /* count, limited to MAXMSGPARAMS */
     public: msgtag tag;
     public: sequencenr seq;

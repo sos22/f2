@@ -1109,6 +1109,36 @@ tests::wireproto() {
                 txm.serialise(b);
                 assert(b.empty()); } });
 
+    testcaseV("wireproto", "bufparam", [t] () {
+            parameter< ::buffer> param(5);
+            ::buffer b;
+            {   tx_message txm(t);
+                ::buffer buf;
+                buf.queue("wibble", 6);
+                char bb;
+                buf.fetch(&bb, 1);
+                txm.addparam(param, buf);
+                txm.serialise(b); }
+            auto rxm(rx_message::fetch(b).fatal(fields::mk("dead")));
+            ::buffer b2(rxm.getparam(param).fatal(fields::mk("dead")));
+            assert(b2.offset() == 0);
+            assert(b2.avail() == 5);
+            assert(memcmp(b2.linearise(0, 5),
+                          "ibble",
+                          5) == 0); });
+
+    testcaseV("wireproto", "badindex", [t] () {
+            wireheader h(sizeof(h) + sizeof(wireproto::index),
+                         1,
+                         t,
+                         sequencenr::invalid);
+            ::buffer buf;
+            buf.queue(&h, sizeof(h));
+            wireproto::index idx(0, sizeof(h) - 2);
+            buf.queue(&idx, sizeof(idx));
+            auto rxm(rx_message::fetch(buf));
+            assert(rxm == error::invalidmessage); });
+
     testcaseV("wireproto", "sequencerstats", [] () {
             roundtrip<sequencerstatus>(); });
 }
