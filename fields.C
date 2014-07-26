@@ -108,6 +108,12 @@ fieldbuf::c_str(maybe<unsigned> limit)
 field::field()
 {}
 
+const char *
+field::c_str() const {
+    fieldbuf buf;
+    fmt(buf);
+    return buf.c_str(); }
+
 struct concfield : public field {
     const field &a;
     const field &b;

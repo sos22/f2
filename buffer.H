@@ -146,6 +146,10 @@ public:
      * is in the same coordinate system as offset() */
     char idx(size_t i) const;
 
+    /* Byte-by-byte comparison of two buffers.  Only considers the
+     * content, and not the producer or consumer values. */
+public: bool contenteq(const buffer &) const;
+
 public: typedef bufferstatus status_t;
 public: status_t status() const;
 

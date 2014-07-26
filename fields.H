@@ -34,6 +34,8 @@ protected:
     field();
 public:
     virtual void fmt(fieldbuf &) const = 0;
+    /* Returns a temporary heap string */
+    const char *c_str() const;
 };
 
 extern const field &space;

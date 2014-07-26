@@ -384,6 +384,34 @@ const void *
 buffer::linearise(size_t start, size_t end) const {
     return const_cast<buffer *>(this)->linearise(start, end); }
 
+bool
+buffer::contenteq(const buffer &o) const {
+    if (prod - cons != o.prod - o.cons) return false;
+    if (prod == cons) return true;
+    auto cursor1(first);
+    auto cursor2(o.first);
+    assert(cursor1);
+    assert(cursor2);
+    auto idx1(cursor1->cons);
+    auto idx2(cursor2->cons);
+    while (cursor1 && cursor2) {
+        auto n(min(cursor1->prod - idx1, cursor2->prod - idx2));
+        if (memcmp(cursor1->payload + idx1,
+                   cursor2->payload + idx2,
+                   n) != 0) {
+            return false; }
+        idx1 += n;
+        idx2 += n;
+        if (idx1 == cursor1->prod) {
+            cursor1 = cursor1->next;
+            if (cursor1) idx1 = cursor1->cons; }
+        if (idx2 == cursor2->prod) {
+            cursor2 = cursor2->next;
+            if (cursor2) idx2 = cursor2->cons; } }
+    assert(!cursor1);
+    assert(!cursor2);
+    return true; }
+
 buffer::status_t
 buffer::status() const {
     return status_t(prod, cons); }
@@ -472,17 +500,17 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
                     repeatcount = 1; }
                 return;
             case c_words:
+                wordacc = (wordacc << 8) | byte;
+                wordbytes++;
                 if (wordbytes == 8) {
+                    wordbytes = 0;
                     if (wordacc == repeatword) {
                         repeatcount++; }
                     else {
-                        wordbytes = 0;
                         flush();
                         repeatword = wordacc;
                         repeatcount = 1;
                         wordacc = 0; } }
-                wordacc = (wordacc << 8) | byte;
-                wordbytes++;
                 return; }
             if (!COVERAGE) abort(); }
         void flush() {
@@ -490,13 +518,13 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
                 bool suppressrepeats;
                 switch (_this.content) {
                 case c_ascii:
-                    suppressrepeats = repeatcount > 4;
+                    suppressrepeats = repeatcount >= 4;
                     break;
                 case c_bytes:
-                    suppressrepeats = repeatcount > 2;
+                    suppressrepeats = repeatcount >= 2;
                     break;
                 case c_words:
-                    suppressrepeats = true;
+                    suppressrepeats = repeatcount >= 2;
                     break; }
                 for (unsigned x = 0;
                      x < (suppressrepeats ? 1 : repeatcount);
@@ -525,7 +553,7 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
                         break; }
                     case c_words: {
                         if (!isfirst) _buf.push("; ");
-                        fields::mk(repeatword)
+                        fields::mk(be64toh(repeatword))
                             .base(16)
                             .uppercase()
                             .sep(fields::mk(":"), 4)
@@ -538,13 +566,13 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
                 repeatcount = 0; }
             if (wordbytes != 0) {
                 if (!isfirst) _buf.push("; ");
-                (fields::mk(wordacc)
-                 .base(16)
-                 .uppercase()
-                 .sep(fields::mk(":"), 4)
-                 .hidebase() +
-                 "/" + fields::mk(wordbytes))
+                fields::mk(be64toh(wordacc << (8 * (8 - wordbytes))))
+                    .base(16)
+                    .uppercase()
+                    .sep(fields::mk(":"), 4)
+                    .hidebase()
                     .fmt(_buf);
+                if (wordbytes != 8) ("/" + fields::mk(wordbytes)).fmt(_buf);
                 isfirst = false;
                 wordbytes = 0;
                 wordacc = 0; } }
@@ -859,7 +887,6 @@ tests::buffer(void)
             auto res(buf.receive(clientio::CLIENTIO,
                                  pipe.success().read,
                                  sub));
-            assert(worker.ready());
             assert(res.issuccess());
             assert(res.success() == &scn);
             assert(worker.get() == true);
@@ -875,9 +902,161 @@ tests::buffer(void)
             assert(t.just() == error::from_errno(EBADF));
             assert(buf.empty()); });
 
-    testcaseV("buffer", "edges", [] () {
+    testcaseV("buffer", "queueempty", [] () {
             ::buffer buf;
             buf.queue("", 0);
+            assert(buf.avail() == 0);;
             buf.queue("X", 1);
             assert(buf.avail() == 1); });
-}
+
+    testcaseV("buffer", "clone", [] () {
+            {   ::buffer buf1;
+                ::buffer buf2(buf1);
+                assert(buf2.avail() == 0); }
+            for (int i = 0; i < 100; i++) {
+                ::buffer buf1;
+                for (int j = 0; j < 10; j++) {
+                    switch (random() % 2) {
+                    case 0: {
+                        size_t sz(random() % 65536);
+                        unsigned char b[sz];
+                        memset(b, j, sz);
+                        buf1.queue(b, sz); }
+                    case 1: {
+                        if (buf1.avail() == 0) continue;
+                        size_t sz(random() % buf1.avail());
+                        unsigned char b[sz];
+                        buf1.fetch(b, sz); } } }
+                ::buffer buf2(buf1);
+                assert(buf1.offset() == buf2.offset());
+                assert(buf1.avail() == buf2.avail());
+                assert(buf1.contenteq(buf2));
+                {   ::buffer buf3(buf1);
+                    assert(buf1.offset() == buf3.offset());
+                    assert(buf1.avail() == buf3.avail());
+                    assert(buf1.contenteq(buf3)); }
+                assert(buf1.offset() == buf2.offset());
+                assert(buf1.avail() == buf2.avail());
+                assert(buf1.contenteq(buf2)); } });
+
+    testcaseV("buffer", "steal", [] () {
+            ::buffer buf1;
+            buf1.queue("HELLO", 5);
+            char b;
+            buf1.fetch(&b, 1);
+            ::buffer buf2(buf1.steal());
+            assert(buf2.avail() == 4);
+            assert(buf2.offset() == 1);
+            assert(buf1.avail() == 0);
+            assert(buf1.offset() == 1);
+            assert(memcmp(buf2.linearise(1, 5), "ELLO", 4) == 0); });
+
+    testcaseV("buffer", "constlinearise", [] () {
+            ::buffer buf1;
+            buf1.queue("HELLO", 5);
+            const ::buffer &ref(buf1);
+            assert(memcmp(ref.linearise(0, 5), "HELLO", 5) == 0); });
+
+    testcaseV("buffer", "buffercmp", [] () {
+            {   ::buffer buf1;
+                ::buffer buf2;
+                assert(buf1.contenteq(buf2));
+                buf1.queue("HELLO", 5);
+                assert(!buf1.contenteq(buf2));
+                buf2.queue("H", 1);
+                buf2.queue("E", 1);
+                buf2.queue("L", 1);
+                buf2.queue("L", 1);
+                buf2.queue("O", 1);
+                assert(buf1.contenteq(buf2));
+                buf1.queue("A", 1);
+                buf2.queue("B", 1);
+                assert(!buf1.contenteq(buf2)); }
+            {   ::buffer buf1;
+                ::buffer buf2;
+                buf1.queue("ABCD", 4);
+                buf2.queue("CD", 2);
+                assert(!buf1.contenteq(buf2));
+                char b[2];
+                buf1.fetch(b, 2);
+                assert(buf1.contenteq(buf2)); } });
+
+    testcaseV("buffer", "bufferfield", [] () {
+            {   ::buffer buf;
+                assert(strcmp(fields::mk(buf).c_str(), "<buffer: >") == 0); }
+            {   ::buffer buf;
+                assert(strcmp(fields::mk(buf).showshape().c_str(),
+                              "<buffer: prod:0 cons:0 []>") == 0); }
+            {   ::buffer buf;
+                buf.queue("AAAAAAAAAAAAAAAA", 16);
+                assert(strcmp(fields::mk(buf).c_str(),
+                              "<buffer: A{16}>") == 0); }
+            {   ::buffer buf;
+                buf.queue("ABCDEFGHIJKLMNOP", 16);
+                assert(strcmp(fields::mk(buf).c_str(),
+                              "<buffer: ABCDEFGHIJKLMNOP>") == 0); }
+            {   ::buffer buf;
+                buf.queue("AAABBBCCCDDDEEE", 15);
+                assert(strcmp(fields::mk(buf).c_str(),
+                              "<buffer: AAABBBCCCDDDEEE>") == 0); }
+            {   ::buffer buf;
+                buf.queue("AAAABBBBCCCCDDDD", 16);
+                assert(strcmp(fields::mk(buf).c_str(),
+                              "<buffer: A{4}B{4}C{4}D{4}>") == 0); }
+            {   ::buffer buf;
+                buf.queue("AAAABBBBBBCCCDDDDE", 18);
+                assert(strcmp(fields::mk(buf).c_str(),
+                              "<buffer: A{4}B{6}CCCD{4}E>") == 0); }
+            {   ::buffer buf;
+                buf.queue("AAAABBBBCCCCDDDDE", 17);
+                assert(strcmp(fields::mk(buf).showrepeats().c_str(),
+                              "<buffer: AAAABBBBCCCCDDDDE>") == 0); }
+            {   ::buffer buf;
+                buf.queue("\\{]>\x5", 5);
+                assert(strcmp(fields::mk(buf).c_str(),
+                              "<buffer: \\\\\\{\\]\\>\\x05>") == 0); }
+            {   ::buffer buf;
+                assert(strcmp(fields::mk(buf).bytes().c_str(),
+                              "<buffer: >") == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1\x2\x3", 3);
+                assert(strcmp(fields::mk(buf).bytes().c_str(),
+                              "<buffer: 01.02.03>") == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1\x1\x1", 3);
+                assert(strcmp(fields::mk(buf).bytes().c_str(),
+                              "<buffer: 01{3}>") == 0); }
+            {   ::buffer buf;
+                assert(strcmp(fields::mk(buf).words().c_str(),
+                              "<buffer: >") == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1", 1);
+                assert(strcmp(fields::mk(buf).words().c_str(),
+                              "<buffer: 1/1>") == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1\x1\x1\x1\x1\x1\x1\x1", 8);
+                assert(strcmp(fields::mk(buf).words().c_str(),
+                              "<buffer: 101:0101:0101:0101>") == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1\x1\x1\x1\x1\x1\x1\x1\x1\x1\x1", 11);
+                assert(strcmp(fields::mk(buf).words().c_str(),
+                              "<buffer: 101:0101:0101:0101; 1:0101/3>")
+                       == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1\x2\x3\x4\x5\x6\x7\x8\x9\xa\xb", 11);
+                assert(strcmp(fields::mk(buf).words().c_str(),
+                              "<buffer: 807:0605:0403:0201; B:0A09/3>")
+                       == 0); }
+            {   ::buffer buf;
+                buf.queue("\x1\x1\x1\x1\x1\x1\x1\x1", 8);
+                buf.queue("\x1\x1\x1\x1\x1\x1\x1\x1", 8);
+                assert(strcmp(fields::mk(buf).words().c_str(),
+                              "<buffer: 101:0101:0101:0101{2}>") == 0); }
+            {   ::buffer buf;
+                buf.queue("HELLO", 5);
+                char b;
+                buf.fetch(&b, 1);
+                assert(strcmp(
+                           fields::mk(buf).showshape().c_str(),
+                           "<buffer: prod:5 cons:1 [{prod:5;cons:1;sz:16,352[ELLO]}]>")
+                       == 0); } }); }
