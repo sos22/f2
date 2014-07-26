@@ -633,6 +633,10 @@ tests::fields()
             mk(123456).sep(fields::mk("ABC"), 1).fmt(buf);
             assert(!strcmp(buf.c_str(), "1ABC2ABC3ABC4ABC5ABC6"));  });
 
+    testcaseV("fields", "hidebase", [] () {
+            assert(strcmp(fields::mk(0xaabb).base(16).hidebase().c_str(),
+                          "a,abb") == 0); });
+
     testcaseV("fields", "period", [] () {
             fieldbuf buf;
             period.fmt(buf);
@@ -811,6 +815,9 @@ tests::fields()
             mk("ZZZ\xffXXX").escape().fmt(buf);
             assert(!strcmp(buf.c_str(), "\"ZZZ\\xffXXX\""));
             buf.reset(); });
+
+    testcaseV("fields", "c_str", [] () {
+            assert(!strcmp(fields::mk(5).c_str(), "5")); });
 
     /* Not really a useful test case, but it makes the coverage 100%,
      * and the print() function's simple enough that just confirming
