@@ -28,7 +28,6 @@ public:
         int p;
     public:
         explicit port(int);
-        static const port unixport;
     };
 
     /* Get a peername which can be used to send a UDP broadcast on a

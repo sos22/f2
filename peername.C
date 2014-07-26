@@ -165,15 +165,17 @@ peername::fromcompound(const wireproto::rx_message &msg)
 }
 
 peername::port::port(int _p)
-    : p(_p) {}
+    : p(_p) {
+    assert(_p > 0 && _p < 65536); }
 
 peername
 peername::udpbroadcast(peername::port p)
 {
     struct sockaddr_in sin;
+    assert(p.p > 0 && p.p < 65536);
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(p.p);
+    sin.sin_port = htons((uint16_t)p.p);
     memset(&sin.sin_addr, 0xff, sizeof(sin.sin_addr));
     return peername((const struct sockaddr *)&sin, sizeof(sin));
 }
@@ -253,7 +255,7 @@ peername::parse(const char *what) {
         buf[sep - what - 5] = 0;
         if (inet_pton(AF_INET, buf, &sin.sin_addr) <= 0) return error::noparse;
         sin.sin_family = AF_INET;
-        sin.sin_port = htons(port.success());
+        sin.sin_port = htons((uint16_t)port.success());
         return peername((const struct sockaddr *)&sin, sizeof(sin));
     } else if (!strncmp(what, "ip6://", 6)) {
         struct sockaddr_in6 sin6;
@@ -264,7 +266,7 @@ peername::parse(const char *what) {
         if (inet_pton(AF_INET6, buf, &sin6.sin6_addr) <= 0) {
               return error::noparse; }
         sin6.sin6_family = AF_INET6;
-        sin6.sin6_port = htons(port.success());
+        sin6.sin6_port = htons((uint16_t)port.success());
         return peername((const struct sockaddr *)&sin6, sizeof(sin6));
     } else {
         return error::noparse; } }

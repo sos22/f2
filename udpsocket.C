@@ -21,7 +21,8 @@ udpsocket::listen(peername::port p) {
     struct sockaddr_in sin;
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    sin.sin_port = htons(p.p);
+    assert(p.p > 0 && p.p < 65536);
+    sin.sin_port = htons((uint16_t)p.p);
     if (bind(fd, (const struct sockaddr *)&sin, sizeof(sin))) {
         ::close(fd);
         return error::from_errno();
