@@ -141,6 +141,7 @@ buffer::send(clientio io,
 void
 buffer::queue(const void *buf, size_t sz)
 {
+    if (sz == 0) return;
     auto tl(last);
     if (!tl || tl->sz - tl->prod < sz)
         tl = extend_end(sz);
@@ -664,4 +665,10 @@ tests::buffer(void)
             assert(t.isjust());
             assert(t.just() == error::from_errno(EBADF));
             assert(buf.empty()); });
+
+    testcaseV("buffer", "edges", [] () {
+            ::buffer buf;
+            buf.queue("", 0);
+            buf.queue("X", 1);
+            assert(buf.avail() == 1); });
 }
