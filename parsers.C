@@ -115,8 +115,9 @@ strparser_::parse(const char *what) const {
                     auto m([] (unsigned char c) {
                             if (c >= '0' && c <= '9') return c - '0';
                             else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-                            else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-                            else if (!COVERAGE) abort(); return -1; });
+                            else {
+                                assert(c >= 'A' && c <= 'F');
+                                return c - 'A' + 10; } } );
                     res[i] = (char)(m(what[cursor+2]) * 16 + m(what[cursor+3]));
                     i++;
                     cursor += 4;
@@ -172,7 +173,7 @@ intparser_<typ, signd>::parse(const char *_what) const {
         if (what[0] == '{') {
             if (isdigit(what[1]) && what[2] == '}') {
                 what += 3;
-            } else if (isdigit(what[1] && isdigit(what[2]) && what[3] == '}')) {
+            } else if (isdigit(what[1]) && isdigit(what[2]) && what[3] == '}') {
                 what += 4;
             } else {
                 return error::noparse; } }
@@ -330,7 +331,10 @@ tests::parsers() {
             {   const char *ee = "\"\\xAA\"";
                 auto r(strparser.parse(ee));
                 assert(!strcmp(r.success().res, "\xAA"));
-                assert(r.success().left == ee + 6); } });
+                assert(r.success().left == ee + 6); }
+            assert(strparser.match("\"\\xZ\"") == error::noparse);
+            assert(strparser.match("\"\\F\"") == error::noparse);
+            assert(strparser.match("\"\x01\"") == error::noparse); });
 
     testcaseV(
         "parsers",
@@ -364,7 +368,13 @@ tests::parsers() {
             assert(ip().match("-72").success() == -72);
             assert(ip().match("123,456").success() == 123456);
             assert(ip().match("ab").failure() == error::noparse);
-            assert(ip().match("ab{16}").success() == 0xab);});
+            assert(ip().match("ab{16}").success() == 0xab);
+            assert(ip().match("+7") == 7);
+            assert(ip().match("000000") == 0);
+            assert(ip().match("0{5}") == 0);
+            assert(ip().match("0{52}") == 0);
+            assert(ip().match("0{Z}") == error::noparse);
+            assert(ip().match("1{93}") == error::noparse); });
 
     testcaseV(
         "parsers",
@@ -401,6 +411,10 @@ tests::parsers() {
                     .match("ZZZ")
                     .failure()
                     == error::noparse);
+            assert( (ip()|ip())
+                    .match("ZZZ")
+                    .failure()
+                    == error::noparse);
             assert( (ip()|strmatcher("bar"))
                     .match("7")
                     .success()
@@ -411,6 +425,10 @@ tests::parsers() {
                     .isnothing());
             assert( (ip()|strmatcher("bar"))
                     .match("91bar")
+                    .failure()
+                    == error::noparse);
+            assert( (ip()|strmatcher("bar"))
+                    .match("dgha")
                     .failure()
                     == error::noparse);
             assert((strmatcher("foo")|strmatcher("bar"))
@@ -446,6 +464,16 @@ tests::parsers() {
                        .success()
                        .right(),
                        "hello")); });
+
+    testcaseV(
+        "parsers",
+        "algebra||",
+        [] () {
+            auto &p(strmatcher("X").val(6) ||
+                    strmatcher("Y").val(7));
+            assert(p.match("X") == 6);
+            assert(p.match("Y") == 7);
+            assert(p.match("Z") == error::noparse); });
 
     testcaseV(
         "parsers",
@@ -488,6 +516,13 @@ tests::parsers() {
                    == 0xfffffffffffffffful);
             assert(intparser<unsigned long>().match("1,0000,0000,0000,0000{16}")
                    == error::overflowed); });
+
+    testcaseV(
+        "parsers",
+        "nul",
+        [] () {
+            assert(nulparser(73).match("") == 73);
+            assert(nulparser(73).match("x") == error::noparse); });
 
     testcaseV(
         "parsers",

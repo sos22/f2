@@ -54,6 +54,7 @@ class parser<void> : public tmpheap::base {
 public: typedef const char *result;
 public: virtual orerror<const char *> parse(const char *) const = 0;
 public: maybe<error> match(const string &) const;
+public: template <typename t> const parser<t> &val(const t &) const;
 /* Concatenation and alternation have simpler types here. */
 public: template <typename t> const parser<t> &operator+(
     const parser<t> &) const;
@@ -62,6 +63,10 @@ public: template <typename t> const parser<maybe<t> > &operator|(
 public: const parser<void> &operator+(const parser<void> &) const;
 public: const parser<void> &operator|(const parser<void> &) const;
 };
+
+/* Special case for parsers which always succeed without consuming any
+ * input. */
+template <typename t> const parser<t> &nulparser(const t &);
 
 /* Simple matching parser which matches a string and then returns a
  * fixed constant. */

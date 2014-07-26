@@ -135,6 +135,10 @@ const parser<maybe<t> > &
 parser<t>::operator|(const parser<void> &what) const {
     return *new parseormatch<t>(*this, what); }
 
+template <typename t> const parser<t> &
+parser<void>::val(const t &what) const {
+    return *this + nulparser<t>(what); }
+
 template <typename t> class matchthenparse : public parser<t> {
 private: const parser<void> &_match;
 private: const parser<t> &_parse;
@@ -172,6 +176,20 @@ template <typename t>
 const parser<maybe<t> > &
 parser<void>::operator|(const parser<t> &what) const {
     return *new matchorparse<t>(*this, what); }
+
+template <typename t>
+class nulparser_ : public parser<t> {
+private: t val;
+public:  nulparser_(const t &_val)
+    : val(_val) {}
+public:  orerror<typename parser<t>::result> parse(const char *)const;
+};
+template <typename t> orerror<typename parser<t>::result>
+nulparser_<t>::parse(const char *what) const {
+    return typename parser<t>::result(val, what); }
+template <typename t> const parser<t> &
+nulparser(const t &what) {
+    return *new nulparser_<t>(what); }
 
 template <typename t>
 class strmatcher_ : public parser<t> {
