@@ -16,8 +16,20 @@ frequency::frequency(const quickcheck &q) {
     } while (hz_ <= 0); }
 
 bool
-frequency::operator==(const frequency &o) const {
+frequency::operator==(frequency o) const {
     return hz_ == o.hz_; }
+
+frequency
+frequency::operator+(frequency o) const {
+    return frequency(hz_ + o.hz_); }
+
+frequency
+frequency::operator-(frequency o) const {
+    return frequency(hz_ - o.hz_); }
+
+frequency
+frequency::operator*(double scale) const {
+    return frequency(hz_ * scale); }
 
 timedelta
 operator/(double val, frequency f)

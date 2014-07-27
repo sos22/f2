@@ -22,7 +22,10 @@ public:
 
     static frequency hz(double);
     frequency(const quickcheck &);
-    bool operator==(const frequency &) const;
+    bool operator==(frequency) const;
+    frequency operator+(frequency) const;
+    frequency operator-(frequency) const;
+    frequency operator*(double) const;
 };
 
 timedelta operator/(double, frequency);

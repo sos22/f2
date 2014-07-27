@@ -6,6 +6,7 @@
 #include "logging.H"
 #include "parsers.H"
 #include "pubsub.H"
+#include "ratelimiter.H"
 #include "test.H"
 
 int
@@ -17,6 +18,7 @@ main(int argc, char *argv[])
     tests::logging();
     tests::parsers();
     tests::pubsub();
+    tests::ratelimiter();
     tests::wireproto();
 
     switch (argc) {

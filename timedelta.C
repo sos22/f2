@@ -10,11 +10,19 @@ timedelta::operator+(timestamp ts)
     return ts + *this;
 }
 
+timedelta
+timedelta::operator+(timedelta d) {
+    return timedelta(v + d.v); }
+
 double
 timedelta::operator *(frequency f)
 {
     return (double)v * f.hz_ / 1e9;
 }
+
+double
+timedelta::operator /(timedelta o) {
+    return (double)v / (double)o.v; }
 
 timedelta
 timedelta::seconds(long nr) {

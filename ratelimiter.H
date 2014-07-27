@@ -61,4 +61,8 @@ class field;
 const field &mk(const ratelimiter_status &);
 }
 
+namespace tests {
+void ratelimiter();
+}
+
 #endif
