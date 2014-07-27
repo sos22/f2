@@ -92,6 +92,10 @@ public:
     bool operator!=(const t &o) const {
         return isnothing() || just() != o;
     }
+
+    template <typename o> maybe<o> map(const std::function<o (const t&)> &f) {
+        if (isnothing()) return Nothing;
+        else return f(just()); }
 };
 
 template <typename t> bool
