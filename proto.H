@@ -22,6 +22,7 @@ class shutdowncode;
 class slavename;
 class storageslavestatus;
 class streamname;
+class streamstatus;
 struct timeval;
 class ratelimiter_status;
 class registrationsecret;
@@ -87,6 +88,11 @@ namespace proto {
     namespace storageslavestatus {
         static const parameter<class ::rpcconnstatus> masterconn(1);
         static const parameter<list< ::rpcconnstatus> > clientconns(2);
+    };
+    namespace streamstatus {
+        static const parameter<class ::streamname> name(1);
+        static const parameter<bool> finished(2);
+        static const parameter<uint64_t> size(3);
     };
     namespace timeval {
         static const parameter<long> tv_sec(1);
@@ -275,6 +281,27 @@ namespace proto {
              * more. */
             static const parameter< ::jobname> cursor(1650);
             static const parameter<list< ::jobname> > jobs(1651);
+        }
+    }
+    /* Storage slave: list all of the streams which a given job has on
+     * this state, and some information about their state. */
+    namespace LISTSTREAMS {
+        static const msgtag tag(17);
+        namespace req {
+            static const parameter< ::jobname> job(1700);
+            /* Optional cursor from which to start returning results.
+             * If not present, start from the beginning. */
+            static const parameter< ::streamname> cursor(1701);
+            /* Optional limit on number of results to return.  If not
+             * present, return all of them. */
+            static const parameter< unsigned> limit(1702);
+        }
+        namespace resp {
+            /* Cursor from which client can restart iteration to get
+             * the rest of the results, or Nothing if there are no
+             * more. */
+            static const parameter< ::streamname> cursor(1750);
+            static const parameter<list< ::streamstatus> > streams(1751);
         }
     }
 }

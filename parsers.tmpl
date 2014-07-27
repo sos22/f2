@@ -32,6 +32,36 @@ parser<oldtype>::map(
     std::function<newtype (const oldtype &)> const &mapper) const {
     return *new mapparser<newtype, oldtype>(*this, mapper); }
 
+template <typename newtype, typename oldtype>
+class maperrparser : public parser<newtype> {
+private: const parser<oldtype> &underlying;
+private: std::function<orerror<newtype> (const orerror<oldtype> &)> mapper;
+private: orerror<typename parser<newtype>::result> parse(
+    const char *what) const {
+    auto r1(underlying.parse(what));
+    if (r1.isfailure()) {
+        auto r2(mapper(r1.failure()));
+        if (r2.isfailure()) return r2.failure();
+        else return typename parser<newtype>::result(r2.success(), what); }
+    else {
+        auto r2(mapper(r1.success().res));
+        if (r2.isfailure()) return r2.failure();
+        else return typename parser<newtype>::result(r2.success(),
+                                                     r1.success().left); } }
+public:  maperrparser(const parser<oldtype> &_underlying,
+                      const std::function<
+                          orerror<newtype> (const orerror<oldtype> &)> &_mapper)
+    : parser<newtype>(),
+      underlying(_underlying),
+      mapper(_mapper) {} };
+template <typename oldtype>
+template <typename newtype>
+parser<newtype> const &
+parser<oldtype>::maperr(
+    std::function<
+        orerror<newtype> (const orerror<oldtype> &)> const &mapper) const {
+    return *new maperrparser<newtype, oldtype>(*this, mapper); }
+
 template <typename r> orerror<r>
 parser<r>::match(const string &what) const {
     auto r1(parse(what.c_str()));

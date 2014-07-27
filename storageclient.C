@@ -13,6 +13,7 @@
 #include "registrationsecret.H"
 #include "rpcconn.H"
 #include "streamname.H"
+#include "streamstatus.H"
 
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
@@ -171,6 +172,38 @@ main(int argc, char *argv[]) {
         if (r.isjust()) r.just().fatal("getting jobs list");
         fields::print("jobs: " + fields::mk(jobs) + "\n");
         jobs.flush();
+    } else if (strcmp(argv[3], "LISTSTREAMS") == 0) {
+        if (argc < 5 || argc > 7) {
+            errx(1,
+                 "LISTSTREAMS takes a job name and "
+                 "optional cursor and limit arguments"); }
+        wireproto::req_message req(proto::LISTSTREAMS::tag,
+                                   conn.success()->allocsequencenr());
+        req.addparam(proto::LISTSTREAMS::req::job,
+                     parsers::_jobname()
+                     .match(argv[4])
+                     .fatal("parsing job name " + fields::mk(argv[4])));
+        if (argc > 5) {
+            req.addparam(proto::LISTSTREAMS::req::cursor,
+                         parsers::_streamname()
+                         .match(argv[5])
+                         .fatal("parsing stream name " +fields::mk(argv[5]))); }
+        if (argc > 6) {
+            req.addparam(proto::LISTSTREAMS::req::limit,
+                         parsers::intparser<unsigned>()
+                         .match(argv[6])
+                         .fatal("parsing limit " + fields::mk(argv[6]))); }
+        auto m = conn.success()->call(clientio::CLIENTIO, req)
+            .fatal(fields::mk("cannot list streams"));
+        fields::print(
+            "cursor: " +
+            fields::mk(m->getparam(proto::LISTSTREAMS::resp::cursor)) +
+            "\n");
+        list<streamstatus> streams;
+        auto r(m->fetch(proto::LISTSTREAMS::resp::streams, streams));
+        if (r.isjust()) r.just().fatal("getting streams list");
+        fields::print("streams: " + fields::mk(streams) + "\n");
+        streams.flush();
     } else {
         errx(1, "unknown mode %s", argv[3]); }
 

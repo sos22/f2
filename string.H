@@ -30,6 +30,8 @@ public:  string(quickcheck &q);
 public:  void operator=(const string &);
 public:  string operator+(const string &) const;
 public:  bool operator==(const string &) const;
+public:  bool operator<(const string &) const;
+public:  bool operator>(const string &) const;
 public:  size_t len() const;
 public:  ~string();
 

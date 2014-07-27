@@ -40,6 +40,7 @@ function bits() {
     _ socket
     _ storageslave
     _ streamname
+    _ streamstatus
     _ string
     _ tcpsocket
     _ test

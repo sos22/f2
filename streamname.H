@@ -30,6 +30,8 @@ private: string content;
 private: explicit streamname(const string &);
 public:  static maybe<streamname> mk(const string &);
 public:  string asfilename() const;
+public:  bool operator<(const streamname &o) const;
+public:  bool operator>(const streamname &o) const;
 };
 
 #endif /* !STREAMNAME_H__ */

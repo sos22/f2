@@ -1,8 +1,10 @@
 #include "streamname.H"
 
+#include "either.H"
 #include "fields.H"
 #include "parsers.H"
 
+#include "either.tmpl"
 #include "parsers.tmpl"
 #include "wireproto.tmpl"
 
@@ -40,8 +42,20 @@ string
 streamname::asfilename() const {
     return content; }
 
+bool
+streamname::operator<(const streamname &o) const {
+    return content < o.content; }
+
+bool
+streamname::operator>(const streamname &o) const {
+    return content > o.content; }
+
 const parser<streamname> &
 parsers::_streamname() {
-    return ("<stream:" + strparser + ">")
-        .map<streamname>([] (const char *x) {
-                return streamname(x); }); }
+    return (("<stream:" + strparser + ">") || strparser)
+        .maperr<streamname>(
+            [] (orerror<const char *> x) -> orerror<streamname> {
+                if (x.isfailure()) return x.failure();
+                auto r(streamname::mk(x.success()));
+                if (!r) return error::noparse;
+                else return r.just(); }); }

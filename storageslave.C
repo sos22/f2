@@ -5,6 +5,7 @@
 #include "parsers.H"
 #include "jobname.H"
 #include "streamname.H"
+#include "streamstatus.H"
 #include "tcpsocket.H"
 
 #include "filename.tmpl"
@@ -77,6 +78,14 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
             rxm,
             rxm.getparam(proto::LISTJOBS::req::cursor),
             rxm.getparam(proto::LISTJOBS::req::limit));
+    } else if (rxm.tag() == proto::LISTSTREAMS::tag) {
+        auto jn(rxm.getparam(proto::LISTSTREAMS::req::job));
+        if (!jn) return error::missingparameter;
+        return owner->liststreams(
+            rxm,
+            jn.just(),
+            rxm.getparam(proto::LISTSTREAMS::req::cursor),
+            rxm.getparam(proto::LISTSTREAMS::req::limit));
     } else {
         return rpcconn::message(rxm); } }
 
@@ -282,6 +291,7 @@ storageslave::listjobs(
             if (cursor != Nothing && jn.success() < cursor.just()) continue;
             res.pushtail(jn.success()); }
         if (it.isfailure()) {
+            it.failure().warn("listing " + fields::mk(pool));
             res.flush();
             return it.failure(); } }
     sort(res);
@@ -296,6 +306,69 @@ storageslave::listjobs(
     if (newcursor != Nothing) {
         resp->addparam(proto::LISTJOBS::resp::cursor, newcursor.just()); }
     resp->addparam(proto::LISTJOBS::resp::jobs, res);
+    res.flush();
+    return resp; }
+
+messageresult
+storageslave::liststreams(
+    const wireproto::rx_message &rxm,
+    const jobname &jn,
+    const maybe<streamname> &cursor,
+    const maybe<unsigned> &limit) {
+    if (limit == 0) return error::invalidparameter;
+    auto dir(pool + jn.asfilename());
+    const parser<streamname> &parser(parsers::_streamname());
+    list<streamstatus> res;
+    {   filename::diriter it(dir);
+        for (/**/;
+                 !it.isfailure() && !it.finished();
+                 it.next()) {
+            if (strcmp(it.filename(), ".") == 0 ||
+                strcmp(it.filename(), "..") == 0) {
+                continue; }
+            auto sn(parser.match(it.filename()));
+            if (sn.isfailure()) {
+                sn.failure().warn(
+                    "cannot parse " + fields::mk(dir + it.filename()) +
+                    " as stream name");
+                continue; }
+            if (cursor != Nothing && sn.success() < cursor.just()) continue;
+            auto fname(dir + it.filename());
+            auto size((fname + "content").size());
+            if (size.isfailure()) {
+                size.failure().warn("getting size of " +
+                                    fields::mk(fname + "content"));
+                res.flush();
+                return size.failure(); }
+            auto finished((fname + "finished").exists());
+            if (finished.isfailure()) {
+                finished.failure().warn("checking whether " + fields::mk(jn) +
+                                        "::" + fields::mk(it.filename()) +
+                                        " finished");
+                res.flush();
+                return finished.failure(); }
+            if (finished == true) {
+                res.pushtail(streamstatus::finished(sn.success(),
+                                                    size.success())); }
+            else {
+                res.pushtail(streamstatus::partial(sn.success(),
+                                                   size.success())); } }
+        if (it.isfailure()) {
+            it.failure().warn("listing " + fields::mk(dir));
+            res.flush();
+            return it.failure(); } }
+    sort(res);
+    maybe<streamname> newcursor(Nothing);
+    if (limit != Nothing) {
+        auto it(res.start());
+        unsigned n;
+        for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
+        if (!it.finished()) newcursor = it->name;
+        while (!it.finished()) it.remove(); }
+    auto resp(new wireproto::resp_message(rxm));
+    if (newcursor != Nothing) {
+        resp->addparam(proto::LISTSTREAMS::resp::cursor, newcursor.just()); }
+    resp->addparam(proto::LISTSTREAMS::resp::streams, res);
     res.flush();
     return resp; }
 

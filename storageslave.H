@@ -77,6 +77,11 @@ private: messageresult listjobs(
     const wireproto::rx_message &rxm,
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit);
+private: messageresult liststreams(
+    const wireproto::rx_message &rxm,
+    const jobname &jn,
+    const maybe<streamname> &cursor,
+    const maybe<unsigned> &limit);
 public:  void destroy(clientio);
 private: ~storageslave();
 
