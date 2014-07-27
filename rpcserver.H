@@ -32,7 +32,7 @@ protected: rpcserver();
      * derived classes early in the their startup sequence.  If this
      * fails then you should delete the server, rather than going
      * through the usual destroy() method. */
-protected: maybe<error> listen(const peername &);
+protected: orerror<void> listen(const peername &);
 
     /* We just accepted a new client and have a socket_t for them.
      * Turn that into a full rpcconn.  This runs in the main server

@@ -51,7 +51,7 @@ public:
     /* Construct and start a new thread.  @out is set to the new
        thread structure, before the thread starts running, avoiding
        the usual thread startup races. */
-    static maybe<error> spawn(threadfn *,
+    static orerror<void> spawn(threadfn *,
                               thread **out,
                               const fields::field &name);
     /* Wait for the thread to finish and tear down the thread

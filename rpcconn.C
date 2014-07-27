@@ -39,7 +39,7 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
 #undef doparam
     list<wireproto::rx_messagestatus> pendingrx;
     auto r(p.fetch(proto::rpcconnstatus::pendingrx, pendingrx));
-    if (r.isjust()) return Nothing;
+    if (r.isfailure()) return Nothing;
     rpcconn::status_t res(outgoing.just(),
                           fd.just(),
                           sequencer.just(),
@@ -107,7 +107,7 @@ rpcconnauth::sendhelloslavea::sendhelloslavea(
 rpcconnauth
 rpcconnauth::mkwaithelloslavea(
     const registrationsecret &rs,
-    waitbox<maybe<error> > *wb) {
+    waitbox<orerror<void> > *wb) {
     rpcconnauth r;
     r.state = s_waithelloslavea;
     new (r.buf) waithelloslavea(rs, wb);
@@ -115,7 +115,7 @@ rpcconnauth::mkwaithelloslavea(
 
 rpcconnauth::waithelloslavea::waithelloslavea(
     const registrationsecret &_rs,
-    waitbox<maybe<error> > *_wb)
+    waitbox<orerror<void> > *_wb)
     : rs(_rs),
       wb(_wb) {}
 
@@ -311,7 +311,9 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             wb->set(error::unrecognisedmessage);
             return messageresult(error::unrecognisedmessage); }
         logmsg(loglevel::info, fields::mk("got a HELLOSLAVE C"));
-        wb->set(rxm.getparam(wireproto::err_parameter));
+        {   auto err(rxm.getparam(wireproto::err_parameter));
+            if (err.isjust()) wb->set(err.just());
+            else wb->set(Success); }
         s->~waithelloslavec();
         state = s_done;
         new (buf) done(Nothing);
@@ -403,8 +405,8 @@ rpcconn::run(clientio io) {
             if (!outarmed) outsub.rearm();
         } else if (ss == &insub) {
             auto rxres(inbuffer.receive(io, sock));
-            if (rxres.isjust()) {
-                rxres.just().warn("receiving from " + fields::mk(peer_));
+            if (rxres.isfailure()) {
+                rxres.warn("receiving from " + fields::mk(peer_));
                 goto done; }
             insub.rearm();
             auto contacttoken(contactlock.lock());
@@ -577,7 +579,7 @@ rpcconn::send(
     txlock.unlock(&txtoken);
     return sendres(); }
 
-maybe<error>
+orerror<void>
 rpcconn::send(
     clientio io,
     const wireproto::tx_message &msg,
@@ -586,8 +588,7 @@ rpcconn::send(
     auto res(send(io, msg, sub, deadline));
     assert(!res.isnotified());
     if (res.isfailure()) return res.failure();
-    assert(res.issuccess());
-    return Nothing; }
+    else return Success; }
 
 rpcconn::callres
 rpcconn::call(

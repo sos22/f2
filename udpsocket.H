@@ -37,7 +37,7 @@ public:
     /* Send a UDP packet to a particular host and port, which must be
      * either UDP or UDP6, using the source address associated with
      * this socket. */
-    maybe<error> send(buffer &, const peername &) const;
+    orerror<void> send(buffer &, const peername &) const;
 
     /* Receive a packet and add it to a buffer, returning the peername
        from which we received it (according to the UDP envelope, so

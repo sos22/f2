@@ -63,8 +63,8 @@ tests::mutex() {
                 thrs[x]._holders = holders;
                 thrs[x].ident = x + 1;
                 thrs[x]._shutdown = &shutdown;
-                auto r(thread::spawn(&thrs[x], &threads[x], fields::mk(x)));
-                if (r.isjust()) r.just().fatal("spawn"); }
+                thread::spawn(&thrs[x], &threads[x], fields::mk(x))
+                    .fatal("spawn"); }
             (timestamp::now() + timedelta::seconds(5)).sleep();
             shutdown = true;
             for (unsigned x = 0; x < nr_threads; x++) {

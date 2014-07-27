@@ -43,9 +43,9 @@ orerror<pingableserver *>
 pingableserver::listen(const peername &p) {
     auto res(new pingableserver());
     auto rr(res->rpcserver::listen(p));
-    if (rr.isjust()) {
+    if (rr != Success) {
         delete res;
-        return rr.just(); }
+        return rr.failure(); }
     return res; }
 
 orerror<rpcconn *>

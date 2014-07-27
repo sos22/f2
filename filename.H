@@ -33,11 +33,11 @@ public:  orerror<string> readasstring() const;
 public:  template<typename t> orerror<t> parse(const parser<t> &) const;
     /* Create a file and populate it with a field.  Returns
      * error::already if the file already exists. */
-public:  maybe<error> createfile(const fields::field &) const;
+public:  orerror<void> createfile(const fields::field &) const;
     /* Create an empty file.  The file must not already exist.
      * Returns error::already if the file exists with zero size, or
      * some other error for other error cases. */
-public:  maybe<error> createfile() const;
+public:  orerror<void> createfile() const;
     /* Check whether a file exists and is a file. */
 public:  orerror<bool> exists() const;
     /* Open a file in append mode.  The file must already exist. */
@@ -69,13 +69,13 @@ public:  class diriter {
     /* Create a directory with this filename, or return an error.
      * Returns error::already if the directory already exists
      * (including if it is non-empty). */
-public:  maybe<error> mkdir() const;
+public:  orerror<void> mkdir() const;
     /* Remove a directory.  Fails and returns error::notempty if the
      * directory is not empty. */
-public:  maybe<error> rmdir() const;
+public:  orerror<void> rmdir() const;
     /* Delete a file.  Returns error::already if it doesn't exist, not
      * error::notfound. */
-public:  maybe<error> unlink() const;
+public:  orerror<void> unlink() const;
 };
 
 #endif /* !FILE_H__ */

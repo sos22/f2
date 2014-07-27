@@ -71,16 +71,13 @@ rpcserver::rpcserver()
       shutdown(),
       sock() {}
 
-maybe<error>
+orerror<void>
 rpcserver::listen(const peername &p) {
     auto s(socket_t::listen(p));
     if (s.isfailure()) return s.failure();
     sock = s.success();
-    auto spawnres(thread::spawn(this, &thr, "root " + fields::mk(p)));
-    if (spawnres.isjust()) {
-        sock.close();
-        return spawnres.just(); }
-    return Nothing; }
+    return thread::spawn(this, &thr, "root " + fields::mk(p))
+        .iffailed([&sock] () { sock.close();}); }
 
 void
 rpcserver::destroy(clientio io) {

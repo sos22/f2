@@ -111,7 +111,7 @@ public:  statusiface statusiface_;
     void operator=(const beaconserver &) = delete;
 
     ~beaconserver();
-    maybe<error> listen(peername::port);
+    orerror<void> listen(peername::port);
 public:
     static orerror<beaconserver *> build(const beaconserverconfig &,
                                          controlserver *);

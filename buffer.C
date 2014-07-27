@@ -73,7 +73,7 @@ buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
     return res;
 }
 
-maybe<error>
+orerror<void>
 buffer::receive(clientio io,
                 fd_t fd,
                 maybe<timestamp> deadline,
@@ -103,7 +103,7 @@ buffer::receive(clientio io,
     b->prod += read.success();
     prod += read.success();
     assert(b->cons != b->prod);
-    return Nothing;
+    return Success;
 }
 
 orerror<subscriptionbase *>
@@ -116,7 +116,7 @@ buffer::receive(clientio io,
         if (r == NULL) return error::timeout;
         if (r != &ios) return r; }
     auto r(receive(io, fd, deadline));
-    if (r.isjust()) return r.just();
+    if (r.isfailure()) return r.failure();
     else return NULL; }
 
 
@@ -810,7 +810,7 @@ tests::buffer(void)
                 assert(res.success() == 3); }
             ::buffer buf;
             {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
-                assert(res.isnothing());
+                assert(res.issuccess());
                 assert(buf.avail() == 3);
                 char bb[2];
                 buf.fetch(bb, 2);
@@ -821,7 +821,7 @@ tests::buffer(void)
                 assert(res.issuccess());
                 assert(res.success() == 4); }
             {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
-                assert(res.isnothing());
+                assert(res.issuccess());
                 assert(buf.avail() == 5);
                 char bb[5];
                 buf.fetch(bb, 5);
@@ -836,8 +836,8 @@ tests::buffer(void)
                              clientio::CLIENTIO,
                              pipe.success().read,
                              timestamp::now() + timedelta::milliseconds(10)));
-                assert(res.isjust());
-                assert(res.just() == error::timeout); }
+                assert(res.isfailure());
+                assert(res.failure() == error::timeout); }
             {   auto res(pipe.success().write.write(clientio::CLIENTIO,
                                                     "JKLM",
                                                     4));
@@ -898,8 +898,8 @@ tests::buffer(void)
             auto pipe(fd_t::pipe());
             pipe.success().close();
             auto t(buf.receive(clientio::CLIENTIO, pipe.success().read));
-            assert(t.isjust());
-            assert(t.just() == error::from_errno(EBADF));
+            assert(t.isfailure());
+            assert(t == error::from_errno(EBADF));
             assert(buf.empty()); });
 
     testcaseV("buffer", "queueempty", [] () {

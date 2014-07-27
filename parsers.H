@@ -4,6 +4,7 @@
 #include <functional>
 
 #include "error.H"
+#include "maybe.H"
 #include "pair.H"
 #include "tmpheap.H"
 
@@ -53,7 +54,7 @@ template <>
 class parser<void> : public tmpheap::base {
 public: typedef const char *result;
 public: virtual orerror<const char *> parse(const char *) const = 0;
-public: maybe<error> match(const string &) const;
+public: orerror<void> match(const string &) const;
 public: template <typename t> const parser<t> &val(const t &) const;
 /* Concatenation and alternation have simpler types here. */
 public: template <typename t> const parser<t> &operator+(

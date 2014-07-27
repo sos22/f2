@@ -97,10 +97,10 @@ public:
                          size_t bufsz,
                          maybe<timestamp> deadline = Nothing) const;
     /* Set the O_NONBLOCK flag on this FD. */
-    maybe<error> nonblock(bool) const;
+    orerror<void> nonblock(bool) const;
     /* Use ::dup2() to create a duplicate of this file descriptor over
      * the top of an existing FD. */
-    maybe<error> dup2(fd_t) const;
+    orerror<void> dup2(fd_t) const;
     typedef __piperes<fd_t> piperes;
     /* Wrapper around ::pipe().  Main advantage is that the read and
      * write FDs are named, rather than being fd[0] and fd[1]. */

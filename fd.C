@@ -82,22 +82,22 @@ fd_t::write(clientio,
     else
         return s; }
 
-maybe<error>
+orerror<void>
 fd_t::nonblock(bool fl) const {
     int oldflags;
     oldflags = ::fcntl(fd, F_GETFL);
     if (oldflags < 0) return error::from_errno();
-    if (!!(oldflags & O_NONBLOCK) == fl) return Nothing;
+    if (!!(oldflags & O_NONBLOCK) == fl) return Success;
     if (::fcntl(fd, F_SETFL, oldflags ^ O_NONBLOCK) < 0) {
         return error::from_errno(); }
-    else return Nothing; }
+    else return Success; }
 
-maybe<error>
+orerror<void>
 fd_t::dup2(fd_t other) const {
     int r;
     r = ::dup2(fd, other.fd);
     if (r < 0) return error::from_errno();
-    else return Nothing; }
+    else return Success; }
 
 orerror<fd_t::piperes>
 fd_t::pipe()

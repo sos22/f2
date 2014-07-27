@@ -25,9 +25,9 @@ rpcconn::fromsocket(socket_t sock,
                         parameters...));
     auto spawnres(thread::spawn(res, &res->thr,
                                 "IO:"+fields::mk(peer.success())));
-    if (spawnres.isjust()) {
+    if (spawnres.isfailure()) {
         delete res;
-        return spawnres.just(); }
+        return spawnres.failure(); }
     return res; }
 
 template <typename conn_t, typename... args> orerror<conn_t *>
@@ -71,16 +71,16 @@ rpcconn::connectslave(clientio io,
                       const peername &peer,
                       const registrationsecret &rs,
                       args ... parameters) {
-    waitbox<maybe<error> > wb;
+    waitbox<orerror<void> > wb;
     auto res(connect<conn_t>(io,
                              rpcconnauth::mkwaithelloslavea(rs, &wb),
                              peer,
                              parameters...));
     if (res.isfailure()) return res.failure();
     auto r(wb.get());
-    if (r.isjust()) {
+    if (r.isfailure()) {
         res.success()->destroy(io);
-        return r.just(); }
+        return r.failure(); }
     return res.success(); }
 
 template <typename conn_t, typename ... args> orerror<conn_t *>

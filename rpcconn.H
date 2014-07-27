@@ -75,7 +75,7 @@ public:  static rpcconnauth mksendhelloslavea(
     const registrationsecret &rs);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
-    waitbox<maybe<error> > *);
+    waitbox<orerror<void> > *);
 
 public:  ~rpcconnauth();
 private: rpcconnauth(const rpcconnauth &o);
@@ -108,9 +108,9 @@ private: struct sendhelloslavea {
     };
 private: struct waithelloslavea {
     registrationsecret rs;
-    waitbox<maybe<error> > *wb;
+    waitbox<orerror<void> > *wb;
     waithelloslavea(const registrationsecret &_rs,
-                    waitbox<maybe<error> > *_wb);
+                    waitbox<orerror<void> > *_wb);
     };
 private: struct waithelloslaveb {
     registrationsecret rs;
@@ -118,8 +118,8 @@ private: struct waithelloslaveb {
     waithelloslaveb(const registrationsecret &_rs, const nonce &_n);
     };
 private: struct waithelloslavec {
-    waitbox<maybe<error> > *wb;
-    waithelloslavec(waitbox<maybe<error> > *_wb)
+    waitbox<orerror<void> > *wb;
+    waithelloslavec(waitbox<orerror<void> > *_wb)
         : wb(_wb) {}
     };
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -326,7 +326,7 @@ public:  sendres send(
     const wireproto::tx_message &msg,
     subscriber &sub,
     maybe<timestamp> deadline = Nothing);
-public:   maybe<error> send(
+public:   orerror<void> send(
     clientio,
     const wireproto::tx_message &msg,
     maybe<timestamp> deadline = Nothing);

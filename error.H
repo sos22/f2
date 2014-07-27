@@ -13,7 +13,8 @@ namespace wireproto {
     class rx_message;
 };
 
-template <typename t> class maybe;
+template <typename t> class orerror;
+template <> class orerror<void>;
 
 /* Wrapper around errno */
 class error {
@@ -28,8 +29,8 @@ public:
     friend class wireproto::tx_message;
     static error __fromwrapped__(const int &e);
     void addparam(wireproto::parameter<error>, wireproto::tx_message &) const;
-    static maybe<error> getparam(wireproto::parameter<error>,
-                                 const wireproto::rx_message &);
+    static orerror<void> getparam(wireproto::parameter<error>,
+                                  const wireproto::rx_message &);
 
     error() : e(unknown.e) {}
     bool operator==(const error &o) const { return e == o.e; }

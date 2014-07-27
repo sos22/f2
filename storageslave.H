@@ -57,14 +57,14 @@ private: storageslave(const registrationsecret &_rs,
                       const filename &,
                       controlserver *cs);
 private: orerror<rpcconn *> accept(socket_t);
-public:  maybe<error> createempty(
+public:  orerror<void> createempty(
     const jobname &t,
     const streamname &sn) const;
-public:  maybe<error> append(
+public:  orerror<void> append(
     const jobname &t,
     const streamname &sn,
     buffer &b) const;
-public:  maybe<error> finish(
+public:  orerror<void> finish(
     const jobname &t,
     const streamname &sn) const;
 private: messageresult read(
@@ -82,7 +82,7 @@ private: messageresult liststreams(
     const jobname &jn,
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit) const;
-public:  maybe<error> removestream(
+public:  orerror<void> removestream(
     const jobname &jn,
     const streamname &sn) const;
 public:  void destroy(clientio);

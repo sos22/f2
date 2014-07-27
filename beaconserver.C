@@ -62,9 +62,9 @@ beaconserver::build(const beaconserverconfig &config,
 {
     auto res = new beaconserver(config, cs);
     auto r(res->listen(config.port_));
-    if (r.isjust()) {
+    if (r.isfailure()) {
         delete res;
-        return r.just();
+        return r.failure();
     }
     res->statusiface_.start();
     return res;
@@ -100,7 +100,7 @@ beaconserver::statusiface::getstatus(
     wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
-maybe<error>
+orerror<void>
 beaconserver::listen(peername::port port)
 {
     assert(!listenthread);
@@ -111,13 +111,11 @@ beaconserver::listen(peername::port port)
     listenfd = r.success();
     auto rr(thread::spawn(&listenthreadfn, &listenthread,
                           fields::mk("beacon listener")));
-    if (!COVERAGE && rr.isjust()) {
+    if (!COVERAGE && rr.isfailure()) {
         listenfd.close();
         listenfd = udpsocket();
-        return rr.just();
     }
-
-    return Nothing;
+    return rr;
 }
 
 beaconserver::~beaconserver()
@@ -212,10 +210,9 @@ beaconserver::listenthreadclass::run(clientio io)
                              fields::mk(owner->secret)))
             .serialise(outbuffer);
         auto sendres(owner->listenfd.send(outbuffer, rr.success()));
-        if (!COVERAGE && sendres.isjust()) {
-            logmsg(loglevel::failure,
-                   fields::mk(sendres.just()) + " sending HAIL response to " +
-                   fields::mk(rr.success()));
+        if (!COVERAGE && sendres.isfailure()) {
+            sendres.warn("sending HAIL response to " +
+                         fields::mk(rr.success()));
             owner->errors++;
         }
 

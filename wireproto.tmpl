@@ -33,7 +33,7 @@ rx_message::getparam(parameter<typ> p) const
     return deserialise<typ>(slice);
 }
 
-template <typename nested> maybe<error>
+template <typename nested> orerror<void>
 rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const {
     out.flush();
     for (unsigned x = 0; x < msg->nrparams; x++) {
@@ -48,7 +48,7 @@ rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const {
                 out.flush();
                 return error::invalidmessage; }
             out.pushtail(r.just()); } }
-    return Nothing; }
+    return Success; }
 
 template <typename nested> tx_message &
 tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)

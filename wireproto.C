@@ -741,12 +741,10 @@ tests::wireproto() {
                     .addparam(p3, l1)
                     .serialise(buf);
                 l1.flush(); }
-            {   auto rxm(rx_message::fetch(buf));
-                assert(rxm.issuccess());
-                assert(rxm.success().tag() == t);
+            {   auto rxm(rx_message::fetch(buf).fatal("decoding"));
+                assert(rxm.tag() == t);
                 list<const char *> l2;
-                auto fr(rxm.success().fetch(p3, l2));
-                assert(fr == Nothing);
+                rxm.fetch(p3, l2).fatal("fetching");
                 assert(l2.length() == 3);
                 auto it(l2.start());
                 assert(!strcmp(*it, "X"));
@@ -1004,7 +1002,7 @@ tests::wireproto() {
             auto rxm(rx_message::fetch(buf));
             list<int> l;
             auto fr(rxm.success().fetch(p, l));
-            assert(fr.just() == error::invalidmessage);
+            assert(fr == error::invalidmessage);
             assert(l.empty()); });
 
     testcaseV("wireproto", "msgtaglist", [t] () {
@@ -1016,8 +1014,7 @@ tests::wireproto() {
             tx_message(t).addparam(p, l).serialise(buf);
             auto rxm(rx_message::fetch(buf));
             list<msgtag> l2;
-            auto fr(rxm.success().fetch(p, l2));
-            assert(fr == Nothing);
+            rxm.success().fetch(p, l2).fatal("fetching");
             auto it1(l.start());
             auto it2(l2.start());
             while (1) {
@@ -1035,10 +1032,11 @@ tests::wireproto() {
             list<rx_message::status_t> l;
             l.pushtail(rx_message::status_t(msgtag(7)));
             tx_message(t).addparam(p, l).serialise(buf);
-            auto rxm(rx_message::fetch(buf));
             list<rx_message::status_t> l2;
-            auto fr(rxm.success().fetch(p, l2));
-            assert(fr == Nothing);
+            rx_message::fetch(buf)
+                .fatal("decoding")
+                .fetch(p, l2)
+                .fatal("fetching");
             auto it1(l.start());
             auto it2(l2.start());
             while (1) {

@@ -118,9 +118,9 @@ coordinator::build(
     controlserver *cs) {
     auto res(new coordinator(ms, rs, cs));
     auto r(res->listen(listenon));
-    if (r.isjust()) {
+    if (r.isfailure()) {
         delete res;
-        return r.just(); }
+        return r.failure(); }
     res->statusiface.start();
     return res; }
 
@@ -140,7 +140,7 @@ maybe<coordinator::status_t>
 coordinator::status_t::fromcompound(const wireproto::rx_message &msg) {
     list<coordinatorconn::status_t> conns;
     auto r(msg.fetch(proto::coordinatorstatus::conns, conns));
-    if (r.isjust()) return Nothing;
+    if (r.isfailure()) return Nothing;
     coordinator::status_t res(conns);
     conns.flush();
     return res; }

@@ -13,12 +13,12 @@
 #include "either.tmpl"
 #include "parsers.tmpl"
 
-maybe<error>
+orerror<void>
 parser<void>::match(const string &what) const {
     auto r1(parse(what.c_str()));
     if (r1.isfailure()) return r1.failure();
     else if (r1.success()[0] != '\0') return error::noparse;
-    else return Nothing; }
+    else return Success; }
 
 class matchthenmatch : public parser<void> {
 private: const parser<void> &a;
@@ -278,11 +278,11 @@ tests::parsers() {
         "parsers",
         "voidmatch",
         [] () {
-            assert(strmatcher("ABC").match("ABC").isnothing());
-            assert(strmatcher("ABC").match("A").just() == error::noparse);
-            assert(strmatcher("ABC").match("ABCD").just() == error::noparse);
-            assert(strmatcher("").match("A").just() == error::noparse);
-            assert(strmatcher("").match("").isnothing()); });
+            assert(strmatcher("ABC").match("ABC") == Success);
+            assert(strmatcher("ABC").match("A") == error::noparse);
+            assert(strmatcher("ABC").match("ABCD") == error::noparse);
+            assert(strmatcher("").match("A") == error::noparse);
+            assert(strmatcher("").match("") == Success); });
 
     testcaseV(
         "parsers",

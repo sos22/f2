@@ -45,7 +45,7 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         auto stream(rxm.getparam(proto::CREATEEMPTY::req::stream));
         if (!job || !stream) return error::missingparameter;
         auto res(owner->createempty(job.just(), stream.just()));
-        if (res.isjust()) return res.just();
+        if (res.isfailure()) return res.failure();
         else return new wireproto::resp_message(rxm);
     } else if (rxm.tag() == proto::APPEND::tag) {
         auto job(rxm.getparam(proto::APPEND::req::job));
@@ -54,14 +54,14 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         if (!job || !stream || !bytes) return error::missingparameter;
         if (bytes.just().empty()) return error::invalidparameter;
         auto res(owner->append(job.just(), stream.just(), bytes.just()));
-        if (res.isjust()) return res.just();
+        if (res.isfailure()) return res.failure();
         else return new wireproto::resp_message(rxm);
     } else if (rxm.tag() == proto::FINISH::tag) {
         auto job(rxm.getparam(proto::FINISH::req::job));
         auto stream(rxm.getparam(proto::FINISH::req::stream));
         if (!job || !stream) return error::missingparameter;
         auto res(owner->finish(job.just(), stream.just()));
-        if (res.isjust()) return res.just();
+        if (res.isfailure()) return res.failure();
         else return new wireproto::resp_message(rxm);
     } else if (rxm.tag() == proto::READ::tag) {
         auto job(rxm.getparam(proto::READ::req::job));
@@ -91,7 +91,7 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         auto sn(rxm.getparam(proto::REMOVESTREAM::req::stream));
         if (!jn || !sn) return error::missingparameter;
         auto res(owner->removestream(jn.just(), sn.just()));
-        if (res.isjust()) return res.just();
+        if (res.isfailure()) return res.failure();
         else return new wireproto::resp_message(rxm);
     } else {
         return rpcconn::message(rxm); } }
@@ -133,11 +133,11 @@ storageslave::build(clientio io,
         return mc.failure(); }
     res->masterconn = mc.success();
     auto r(res->listen(peername::tcpany()));
-    if (r.isjust()) {
+    if (r.isfailure()) {
         res->masterconn = NULL;
         delete res;
         mc.success()->destroy(io);
-        return r.just(); }
+        return r.failure(); }
     res->status_.start();
     return res; }
 
@@ -160,16 +160,16 @@ storageslave::accept(socket_t s) {
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */
-maybe<error>
+orerror<void>
 storageslave::createempty(const jobname &t, const streamname &sn) const {
     logmsg(loglevel::debug,
            "create empty output " + fields::mk(t) + " " + fields::mk(sn));
     filename jobdir(pool + t.asfilename());
     {   auto r(jobdir.mkdir());
-        if (r.isjust() && r.just() != error::already) return r.just(); }
+        if (r.isfailure() && r != error::already) return r.failure(); }
     filename streamdir(jobdir + sn.asfilename());
     {   auto r(streamdir.mkdir());
-        if (r.isjust() && r.just() != error::already) return r.just(); }
+        if (r.isfailure() && r != error::already) return r.failure(); }
     filename content(streamdir + "content");
     filename finished(streamdir + "finished");
     auto cexists(content.exists());
@@ -182,15 +182,15 @@ storageslave::createempty(const jobname &t, const streamname &sn) const {
     /* Remove any leftover finished marker. */
     if (fexists == true) {
         auto r(finished.unlink());
-        if (r != Nothing && r != error::already) return r.just(); }
+        if (r != Success && r != error::already) return r.failure(); }
     /* Create the new content file. */
     {   auto r(content.createfile());
-        if (r == Nothing || r == error::already) return Nothing; }
+        if (r == Success || r == error::already) return Success; }
     {   auto r(content.unlink());
-        if (r != Nothing) return r.just(); }
+        if (r.isfailure()) return r.failure(); }
     return content.createfile(); }
 
-maybe<error>
+orerror<void>
 storageslave::append(
     const jobname &jn,
     const streamname &sn,
@@ -229,9 +229,9 @@ storageslave::append(
             return r.failure(); }
         assert(r.success() == NULL); }
     fd.success().close();
-    return Nothing; }
+    return Success; }
 
-maybe<error>
+orerror<void>
 storageslave::finish(
     const jobname &jn,
     const streamname &sn) const {
@@ -379,25 +379,24 @@ storageslave::liststreams(
     res.flush();
     return resp; }
 
-maybe<error>
+orerror<void>
 storageslave::removestream(const jobname &jn,
                            const streamname &sn) const {
     auto jobdir(pool + jn.asfilename());
     auto streamdir(jobdir + sn.asfilename());
     bool already;
     {   auto r((streamdir + "content").unlink());
-        if (r.isjust() && r.just() != error::already) return r.just();
-        already = r.isjust(); }
+        if (r != Success && r != error::already) return r.failure();
+        already = r == error::already; }
     {   auto r((streamdir + "finished").unlink());
-        if (r.isjust() && r.just() != error::already) return r.just(); }
-    {   auto r(streamdir.rmdir());
-        if (r.isjust()) {
-            r.just().warn("cannot remove " + fields::mk(streamdir)); } }
+        if (r != Success && r != error::already) return r.failure(); }
+    streamdir.rmdir()
+        .warn("cannot remove " + fields::mk(streamdir));
     {   auto r(jobdir.rmdir());
-        if (r.isjust() && r != error::notempty) {
-            r.just().warn("cannot remove " + fields::mk(jobdir)); } }
+        if (r != error::notempty) {
+            r.warn("cannot remove " + fields::mk(jobdir)); } }
     if (already) return error::already;
-    else return Nothing; }
+    else return Success; }
 
 void
 storageslave::destroy(clientio io) {
@@ -448,7 +447,7 @@ storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
     if (!masterconn) return Nothing;
     list<rpcconn::status_t> clientconns;
     auto r(msg.fetch(proto::storageslavestatus::clientconns, clientconns));
-    if (r.isjust()) return Nothing;
+    if (r.isfailure()) return Nothing;
     storageslave::status_t res(masterconn.just(), clientconns);
     clientconns.flush();
     return res; }

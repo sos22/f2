@@ -79,9 +79,8 @@ main(int argc, const char *const argv[])
                 m.failure().fatal("requesting logs"); }
             auto mm(m.success());
             list<memlog_entry> msgs;
-            auto rr(mm->fetch(proto::GETLOGS::resp::msgs, msgs));
-            if (rr.isjust())
-                rr.just().fatal(fields::mk("decoding returned message list"));
+            mm->fetch(proto::GETLOGS::resp::msgs, msgs)
+                .fatal(fields::mk("decoding returned message list"));
             for (auto it(msgs.start()); !it.finished(); it.next())
                 printf("%9ld: %s\n", it->idx.as_long(), it->msg);
             msgs.flush();
@@ -116,13 +115,12 @@ main(int argc, const char *const argv[])
         if (code.isfailure())
             code.failure().fatal(fields::mk("cannot parse shutdown code"));
         const char *message = args[1];
-        auto rv(c.success()->send(
-                    clientio::CLIENTIO,
-                    wireproto::tx_message(proto::QUIT::tag)
-                    .addparam(proto::QUIT::req::message, message)
-                    .addparam(proto::QUIT::req::reason, code.success())));
-        if (rv.isjust())
-            rv.just().fatal(fields::mk("sending QUIT message"));
+        c.success()->send(
+            clientio::CLIENTIO,
+            wireproto::tx_message(proto::QUIT::tag)
+            .addparam(proto::QUIT::req::message, message)
+            .addparam(proto::QUIT::req::reason, code.success()))
+            .fatal(fields::mk("sending QUIT message"));
         c.success()->drain(clientio::CLIENTIO);
     } else {
         printf("Unknown command %s.  Known: PING, LOGS\n", mode);

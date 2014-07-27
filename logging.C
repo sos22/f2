@@ -139,12 +139,12 @@ public:
         : f(NULL)
         {}
     ~filelog_sink() { assert(f == NULL); }
-    maybe<error> open(const char *filename)
+    orerror<void> open(const char *filename)
         {
             assert(!f);
             f = fopen(filename, "w");
             if (f)
-                return Nothing;
+                return Success;
             else
                 return error::from_errno();
         }
@@ -220,9 +220,7 @@ logpolicy::init(const char *ident)
     int r;
     r = asprintf(&logfile, "%s.log", ident);
     assert(r >= 0);
-    auto t(filelog.open(logfile));
-    if (t.isjust())
-        t.just().fatal(fields::mk("opening logfile ") + logfile);
+    filelog.open(logfile).fatal(fields::mk("opening logfile ") + logfile);
     free(logfile);
 
     for (auto it(loglevel::begin()); !it.finished(); it.next()) {

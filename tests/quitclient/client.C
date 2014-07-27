@@ -22,12 +22,12 @@ main(int argc, char *argv[]) {
                   peer.success()));
     if (conn.isfailure()) {
         conn.failure().fatal("connecting to " + fields::mk(peer.success())); }
-    auto cr(conn.success()->send(
-                clientio::CLIENTIO,
-                wireproto::tx_message(proto::QUIT::tag)
-                .addparam(proto::QUIT::req::message, "quit now")
-                .addparam(proto::QUIT::req::reason, shutdowncode::ok)));
-    if (cr.isjust()) cr.just().fatal("sending QUIT");
+    conn.success()->send(
+        clientio::CLIENTIO,
+        wireproto::tx_message(proto::QUIT::tag)
+        .addparam(proto::QUIT::req::message, "quit now")
+        .addparam(proto::QUIT::req::reason, shutdowncode::ok))
+        .fatal("sending QUIT");
     conn.success()->drain(clientio::CLIENTIO);
     conn.success()->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);

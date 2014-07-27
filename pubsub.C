@@ -95,8 +95,8 @@ iopollingthread::start() {
         pr.failure().fatal("creating polling thread control pipe"); }
     readcontrolfd = pr.success().read;
     writecontrolfd = pr.success().write;
-    auto r(thread::spawn(this, &thrd, fields::mk("polling thread")));
-    if (r.isjust()) r.just().fatal("starting polling thread"); }
+    thread::spawn(this, &thrd, fields::mk("polling thread"))
+        .fatal("starting polling thread"); }
 
 void
 iopollingthread::attach(iosubscription &sub) {

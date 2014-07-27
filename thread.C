@@ -38,7 +38,7 @@ thread::thread()
       finished_(false),
       pub(pub_) {}
 
-maybe<error>
+orerror<void>
 thread::spawn(threadfn *fn, thread **out, const fields::field &name)
 {
     fields::fieldbuf buf;
@@ -60,7 +60,7 @@ thread::spawn(threadfn *fn, thread **out, const fields::field &name)
         while (work->tid_ == Nothing)
             token = work->startcond.wait(&token);
         work->startmux.unlock(&token);
-        return Nothing;
+        return Success;
     }
 }
 

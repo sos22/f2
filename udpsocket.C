@@ -103,7 +103,7 @@ udpsocket::receive(buffer &buf, maybe<timestamp> deadline) const {
     return peername((const struct sockaddr *)sockaddr,
                     sockaddr_size); }
 
-maybe<error>
+orerror<void>
 udpsocket::send(buffer &buf, const peername &p) const {
     size_t bytes(buf.avail());
     ssize_t sent(::sendto(fd,
@@ -118,7 +118,7 @@ udpsocket::send(buffer &buf, const peername &p) const {
             logmsg(loglevel::failure,
                    "tried to send " + fields::mk(bytes) +
                    " UDP packet, truncated to " + fields::mk(sent));
-        return Nothing;
+        return Success;
     } else {
         return error::from_errno(); } }
 

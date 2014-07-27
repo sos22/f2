@@ -24,7 +24,7 @@ wireproto_wrapper_type(memlog_entry)
 namespace wireproto {
     template tx_message &tx_message::addparam(
         parameter<list<memlog_entry> >, const list<memlog_entry> &);
-    template maybe<error> rx_message::fetch(
+    template orerror<void> rx_message::fetch(
         parameter<list<memlog_entry> >,
         list<memlog_entry> &) const;
 };

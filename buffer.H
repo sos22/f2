@@ -76,10 +76,10 @@ public:
      * buffer.  Only ever makes a single read syscall, so won't block
      * if poll returns POLLIN.  Optional limit on the number of bytes
      * to read. */
-    maybe<error> receive(clientio,
-                         fd_t,
-                         maybe<timestamp> deadline = Nothing,
-                         maybe<uint64_t> maxbytes = Nothing);
+    orerror<void> receive(clientio,
+                          fd_t,
+                          maybe<timestamp> deadline = Nothing,
+                          maybe<uint64_t> maxbytes = Nothing);
     /* Grab some bytes from the fd, waiting at most until the deadline
      * or until the subscriber becomes notified.  If the subscriber
      * becomes notified, clear and return the subscription.  If an

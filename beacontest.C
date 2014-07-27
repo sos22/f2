@@ -137,8 +137,7 @@ tests::beacon() {
                                                       b,
                                                       10));
                                 assert(r.success() == 10); }
-                            auto r(pipe.write.dup2(args.first()));
-                            assert(r == Nothing);
+                            pipe.write.dup2(args.first()).fatal("dup2");
                             pipe.write.close();
                             piperead = pipe.read; });
                     auto r(beaconclient(
@@ -165,14 +164,13 @@ tests::beacon() {
 
     /* Send crap to a given UDP socket */
     auto spamfd([] (udpsocket fd) {
-            auto r(udpsocket::client());
+            auto r(udpsocket::client().fatal("udpclient"));
             ::buffer buf;
             char b[1000];
             memset(b, 0xff, sizeof(b));
             buf.queue(b, sizeof(b));
-            auto rr(r.success().send(buf, fd.localname()));
-            assert(rr == Nothing);
-            r.success().close(); });
+            r.send(buf, fd.localname()).fatal("send");
+            r.close(); });
 
     testcaseV("beacon", "clientreceivenodecode", [spamfd] () {
             bool logged = false;
@@ -200,10 +198,9 @@ tests::beacon() {
         [] (udpsocket fd, const wireproto::tx_message &msg) {
             ::buffer buf;
             msg.serialise(buf);
-            auto r(udpsocket::client());
-            auto rr(r.success().send(buf, fd.localname()));
-            assert(rr == Nothing);
-            r.success().close(); });
+            auto r(udpsocket::client().fatal("udpclient"));
+            r.send(buf, fd.localname()).fatal("send");
+            r.close(); });
     testcaseV("beacon", "clientreceivemissingparam", [sendfdmessage] () {
             int cntr =0 ;
             eventwaiter<pair<udpsocket,nonce> > wait(

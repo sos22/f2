@@ -51,7 +51,7 @@ filename::readasstring() const {
         return error::noparse; }
     return string::steal(buf); }
 
-maybe<error>
+orerror<void>
 filename::createfile(const fields::field &f) const {
     fields::fieldbuf buf;
     f.fmt(buf);
@@ -72,23 +72,20 @@ filename::createfile(const fields::field &f) const {
                    : error::from_errno());
             close(fd);
             auto rr(unlink());
-            if (rr.isjust()) {
+            if (rr.isfailure()) {
                 /* Can't really do much here. */
-                logmsg(loglevel::error,
-                       "cannot unlink newly-created file " +
-                       fields::mk(*this) +
-                       ": " +
-                       fields::mk(rr.just())); }
+                rr.warn("cannot unlink newly-created file " +
+                        fields::mk(*this)); }
             return r; } }
     close(fd);
-    return Nothing; }
+    return Success; }
 
-maybe<error>
+orerror<void>
 filename::createfile() const {
     int fd(::open(content.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600));
     if (fd >= 0) {
         ::close(fd);
-        return Nothing; }
+        return Success; }
     if (errno != EEXIST) return error::from_errno();
     /* Empty files get special treatment. */
     struct stat st;
@@ -138,9 +135,9 @@ filename::read(uint64_t start, uint64_t end) const {
                            fd,
                            Nothing,
                            end - start - res.avail()));
-        if (r.isjust()) {
+        if (r.isfailure()) {
             ::close(_fd);
-            return r.just(); } }
+            return r.failure(); } }
     ::close(_fd);
     return res.steal(); }
 
@@ -189,10 +186,10 @@ filename::diriter::filename() const {
 filename::diriter::~diriter() {
     if (dir.issuccess() && dir.success() != NULL) closedir(dir.success()); }
 
-maybe<error>
+orerror<void>
 filename::mkdir() const {
     int r(::mkdir(content.c_str(), 0700));
-    if (r == 0) return Nothing;
+    if (r == 0) return Success;
     assert(r < 0);
     if (errno != EEXIST) return error::from_errno();
     struct stat st;
@@ -200,16 +197,16 @@ filename::mkdir() const {
     if (S_ISDIR(st.st_mode)) return error::already;
     else return error::from_errno(EEXIST); }
 
-maybe<error>
+orerror<void>
 filename::rmdir() const {
     int r(::rmdir(content.c_str()));
-    if (r == 0) return Nothing;
+    if (r == 0) return Success;
     else if (errno == ENOTEMPTY) return error::notempty;
     else return error::from_errno(); }
 
-maybe<error>
+orerror<void>
 filename::unlink() const {
     int r(::unlink(content.c_str()));
-    if (r == 0) return Nothing;
+    if (r == 0) return Success;
     else if (errno == ENOENT) return error::already;
     else return error::from_errno(); }

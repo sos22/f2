@@ -156,8 +156,8 @@ controlserver::build(const peername &p, waitbox<shutdowncode> &s)
 {
     auto r(new controlserver(s));
     auto e(r->listen(p));
-    if (e.isnothing()) {
+    if (e.issuccess()) {
         return r;
     } else {
         delete r;
-        return e.just(); } }
+        return e.failure(); } }

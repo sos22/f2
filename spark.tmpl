@@ -11,8 +11,8 @@ spark<t>::spark(std::function<t ()> _what)
       thr(NULL),
       what(_what),
       pub(wb.pub) {
-    auto r(thread::spawn(this, &thr, fields::mk("spark")));
-    assert(r == Nothing); }
+    thread::spawn(this, &thr, fields::mk("spark"))
+        .fatal(fields::mk("spawning spark")); }
 
 template <typename t> void
 spark<t>::run(clientio) {
