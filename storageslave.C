@@ -384,8 +384,10 @@ storageslave::removestream(const jobname &jn,
                            const streamname &sn) const {
     auto jobdir(pool + jn.asfilename());
     auto streamdir(jobdir + sn.asfilename());
+    bool already;
     {   auto r((streamdir + "content").unlink());
-        if (r.isjust() && r.just() != error::already) return r.just(); }
+        if (r.isjust() && r.just() != error::already) return r.just();
+        already = r.isjust(); }
     {   auto r((streamdir + "finished").unlink());
         if (r.isjust() && r.just() != error::already) return r.just(); }
     {   auto r(streamdir.rmdir());
@@ -394,7 +396,8 @@ storageslave::removestream(const jobname &jn,
     {   auto r(jobdir.rmdir());
         if (r.isjust() && r != error::notempty) {
             r.just().warn("cannot remove " + fields::mk(jobdir)); } }
-    return Nothing; }
+    if (already) return error::already;
+    else return Nothing; }
 
 void
 storageslave::destroy(clientio io) {

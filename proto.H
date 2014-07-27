@@ -304,8 +304,9 @@ namespace proto {
             static const parameter<list< ::streamstatus> > streams(1751);
         }
     }
-    /* Storage slave: remove a stream from the slave.  Jobs are removed
-     * automatically when the last stream is removed. */
+    /* Storage slave: remove a stream from the slave.  Jobs are
+     * removed automatically when the last stream is removed.  Returns
+     * error::already if the stream does not exist. */
     namespace REMOVESTREAM {
         static const msgtag tag(18);
         namespace req {

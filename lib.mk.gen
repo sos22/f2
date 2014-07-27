@@ -70,3 +70,35 @@ testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule pubsub pubsub.C
 testmodule ratelimiter ratelimiter.C ratelimiter.H
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
+
+# Things which would benefit from unit tests:
+#
+# cond
+# either
+# error
+# fd
+# filename
+# frequency
+# logging
+# mastersecret
+# maybe
+# nonce
+# orerror
+# pair
+# peername
+# rpcconn
+# rpcserver
+# slavename
+# socket
+# spark
+# streamname
+# streamstatus
+# string
+# tcpsocket
+# thread
+# tid
+# timedelta
+# timestamp
+# tmpheap
+# udpsocket
+# waitbox
