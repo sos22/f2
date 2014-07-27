@@ -10,11 +10,18 @@
 struct ratelimiter_status {
     WIREPROTO_TYPE(ratelimiter_status);
 
+private: ratelimiter_status() = delete;
+private: void operator=(const ratelimiter_status &) = delete;
 public:
     const frequency max_rate;
     const unsigned bucket_size;
     const unsigned bucket_content;
     const unsigned dropped;
+    ratelimiter_status(const ratelimiter_status &o)
+        : max_rate(o.max_rate),
+          bucket_size(o.bucket_size),
+          bucket_content(o.bucket_content),
+          dropped(o.dropped) {}
     ratelimiter_status(const frequency &_max_rate,
                        const unsigned _bucket_size,
                        const unsigned _bucket_content,
@@ -32,6 +39,7 @@ public:
             bucket_size == o.bucket_size &&
             bucket_content == o.bucket_content &&
             dropped == o.dropped; }
+    ~ratelimiter_status() {}
 };
 
 class ratelimiter {

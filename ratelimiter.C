@@ -88,8 +88,8 @@ tests::ratelimiter() {
                    to allow for timer oddities. */
                 assert(n - lastsuccess < timedelta::milliseconds(20));
                 /* Should get roughly the right number of tokens. */
-                assert(count >= (int)((n - start) * freq) - 20);
-                assert(count <= (int)((n - start) * freq) + 20);
+                assert(count >= (int)((n - start) * freq) - 50);
+                assert(count <= (int)((n - start) * freq) + 50);
                 if (res) lastsuccess = n; } });
     auto bursty(
         [] (bool over) {
@@ -165,4 +165,13 @@ tests::ratelimiter() {
               [&bursty] () { bursty(false); });
 
     testcaseV("ratelimiter", "burstybad",
-              [&bursty] () { bursty(true); }); }
+              [&bursty] () { bursty(true); });
+
+    testcaseV("ratelimiter", "eq", [] () {
+            ::ratelimiter r(frequency::hz(10), 5);
+            assert(r.status() == r.status());
+            ratelimiter_status copy(r.status());
+            assert(copy == r.status());
+            ratelimiter_status copy2(copy);
+            assert(copy2 == r.status());
+            assert(!(r.status() == ratelimiter_status(quickcheck()))); }); }
