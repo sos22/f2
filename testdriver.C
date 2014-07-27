@@ -4,6 +4,7 @@
 #include "buffer.H"
 #include "fields.H"
 #include "logging.H"
+#include "mutex.H"
 #include "parsers.H"
 #include "pubsub.H"
 #include "ratelimiter.H"
@@ -16,6 +17,7 @@ main(int argc, char *argv[])
     tests::buffer();
     tests::fields();
     tests::logging();
+    tests::mutex();
     tests::parsers();
     tests::pubsub();
     tests::ratelimiter();

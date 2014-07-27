@@ -38,4 +38,8 @@ public:
     void unlock(token *);
 };
 
+namespace tests {
+void mutex(void);
+}
+
 #endif
