@@ -3,8 +3,15 @@
 
 #include <functional>
 
+template <typename> class list;
+
+/* Sorting a linked list is usually a hint that you're doing something
+ * wrong, but it's sometimes useful in smaller programs. */
+template <typename t> void sort(list<t> &);
+
 template <typename t>
 class list {
+    friend void sort<t>(list<t> &);
     struct member;
     member *head;
     member *tail;

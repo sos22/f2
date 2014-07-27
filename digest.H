@@ -30,6 +30,9 @@ public:
     /* A representation of the digest which is reasonably dense and
        composed entirely of ASCII characters. */
     string denseprintable() const;
+
+public:  bool operator<(const digest &o) const;
+public:  bool operator>(const digest &o) const;
 };
 
 #endif /* !DIGEST_H__ */

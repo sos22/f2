@@ -73,6 +73,10 @@ private: messageresult read(
     const streamname &sn,
     uint64_t start,
     uint64_t end) const;
+private: messageresult listjobs(
+    const wireproto::rx_message &rxm,
+    const maybe<jobname> &cursor,
+    const maybe<unsigned> &limit);
 public:  void destroy(clientio);
 private: ~storageslave();
 

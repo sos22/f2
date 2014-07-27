@@ -72,6 +72,11 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
             stream.just(),
             rxm.getparam(proto::READ::req::start).dflt(0),
             rxm.getparam(proto::READ::req::end).dflt(UINT64_MAX));
+    } else if (rxm.tag() == proto::LISTJOBS::tag) {
+        return owner->listjobs(
+            rxm,
+            rxm.getparam(proto::LISTJOBS::req::cursor),
+            rxm.getparam(proto::LISTJOBS::req::limit));
     } else {
         return rpcconn::message(rxm); } }
 
@@ -251,6 +256,47 @@ storageslave::read(
         delete resp;
         return b.failure(); }
     resp->addparam(proto::READ::resp::bytes, b.success().steal());
+    return resp; }
+
+messageresult
+storageslave::listjobs(
+    const wireproto::rx_message &rxm,
+    const maybe<jobname> &cursor,
+    const maybe<unsigned> &limit) {
+    if (limit == 0) return error::invalidparameter;
+    auto &parser(parsers::_jobname());
+    list<jobname> res;
+    {   filename::diriter it(pool);
+        for (/**/;
+                 !it.isfailure() && !it.finished();
+                 it.next()) {
+            if (strcmp(it.filename(), ".") == 0 ||
+                strcmp(it.filename(), "..") == 0) {
+                continue; }
+            auto jn(parser.match(it.filename()));
+            if (jn.isfailure()) {
+                jn.failure().warn(
+                    "cannot parse " + fields::mk(pool + it.filename()) +
+                    " as job name");
+                continue; }
+            if (cursor != Nothing && jn.success() < cursor.just()) continue;
+            res.pushtail(jn.success()); }
+        if (it.isfailure()) {
+            res.flush();
+            return it.failure(); } }
+    sort(res);
+    maybe<jobname> newcursor(Nothing);
+    if (limit != Nothing) {
+        auto it(res.start());
+        unsigned n;
+        for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
+        if (!it.finished()) newcursor = *it;
+        while (!it.finished()) it.remove(); }
+    auto resp(new wireproto::resp_message(rxm));
+    if (newcursor != Nothing) {
+        resp->addparam(proto::LISTJOBS::resp::cursor, newcursor.just()); }
+    resp->addparam(proto::LISTJOBS::resp::jobs, res);
+    res.flush();
     return resp; }
 
 void

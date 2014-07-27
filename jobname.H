@@ -28,6 +28,8 @@ class jobname {
     friend const parser< ::jobname> &parsers::_jobname();
 private: digest d;
 public:  string asfilename() const;
+public:  bool operator<(const jobname &o) const;
+public:  bool operator>(const jobname &o) const;
 };
 
 #endif /* !JOBNAME_H__ */

@@ -48,6 +48,24 @@ public:  orerror<uint64_t> size() const;
        exclusive.  The bounds must be within the file.  If start ==
        end <= filesize then return an empty buffer (or an error). */
 public:  orerror<buffer> read(uint64_t start, uint64_t end) const;
+    /* Directory iterators.  I'd be happier if diriter were a member
+     * method of class filename, but then I'd need to implement a copy
+     * constructor, which is a pain. */
+public:  class diriter {
+    private: orerror<struct __dirstream *> dir;
+    private: const char *entry;
+    private: void operator=(const diriter &) = delete;
+    private: diriter() = delete;
+    private: diriter(const diriter &) = delete;
+    public:  diriter(const filename &);
+    public:  bool isfailure() const;
+    public:  error failure() const;
+    public:  bool finished() const;
+    public:  void next();
+        /* Returns strings in the temporary heap. */
+    public:  const char *filename() const;
+    public:  ~diriter();
+    };
     /* Create a directory with this filename, or return an error.
      * Returns error::already if the directory already exists
      * (including if it is non-empty). */

@@ -257,6 +257,26 @@ namespace proto {
             static const parameter<unsigned long> size(1451);
         }
     }
+    /* Storage slave: list all of the jobs which have any streams on
+       this slave. */
+    namespace LISTJOBS {
+        static const msgtag tag(16);
+        namespace req {
+            /* Optional cursor from which to start returning results.
+             * If not present, start from the beginning. */
+            static const parameter< ::jobname> cursor(1600);
+            /* Optional limit on number of results to return.  If not
+             * present, return all of them. */
+            static const parameter< unsigned> limit(1601);
+        }
+        namespace resp {
+            /* Cursor from which client can restart iteration to get
+             * the rest of the results, or Nothing if there are no
+             * more. */
+            static const parameter< ::jobname> cursor(1650);
+            static const parameter<list< ::jobname> > jobs(1651);
+        }
+    }
 }
 
 #endif /* !PROTO_H__ */

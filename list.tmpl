@@ -330,4 +330,36 @@ list<t>::map(std::function<other_t (const t&)> what) const {
         res.pushtail(what(*it)); }
     return std::move(res); }
 
+template <typename t> void
+sort(list<t> &what) {
+    /* Insertion sort, because what the hell. */
+    /* Everything before cursor1 is sorted. */
+    auto cursor1(what.head);
+    while (cursor1) {
+        auto next(cursor1->next);
+        /* Remove cursor1 from current place in list. */
+        if (cursor1->next) cursor1->next->prev = cursor1->prev;
+        else what.tail = cursor1->prev;
+        if (cursor1->prev) cursor1->prev->next = cursor1->next;
+        else what.head = cursor1->next;
+        /* Insert cursor1 somewhere */
+        auto cursor2(cursor1->prev);
+        while (cursor2 && cursor2->value > cursor1->value) {
+            cursor2 = cursor2->prev; }
+        /* cursor1 should be immediately after cursor2 */
+        assert(cursor1 != cursor2);
+        cursor1->prev = cursor2;
+        if (cursor2 == NULL) {
+            /* Insert at start */
+            cursor1->next = what.head;
+            if (what.head) what.head->prev = cursor1;
+            else what.tail = cursor1;
+            what.head = cursor1; }
+        else {
+            cursor1->next = cursor2->next;
+            if (cursor2->next) cursor2->next->prev = cursor1;
+            else what.tail = cursor1;
+            cursor2->next = cursor1; }
+        cursor1 = next; } }
+
 #endif /* !LIST_TMPL__ */

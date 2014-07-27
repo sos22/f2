@@ -16,6 +16,7 @@
 
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
+#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
@@ -145,6 +146,31 @@ main(int argc, char *argv[]) {
                       .words()
                       + "\n");
         delete m;
+    } else if (strcmp(argv[3], "LISTJOBS") == 0) {
+        if (argc > 6) {
+            errx(1,"LISTJOBS takes optional cursor and limit arguments only"); }
+        wireproto::req_message req(proto::LISTJOBS::tag,
+                                   conn.success()->allocsequencenr());
+        if (argc > 4) {
+            req.addparam(proto::LISTJOBS::req::cursor,
+                         parsers::_jobname()
+                         .match(argv[4])
+                         .fatal("parsing job name " + fields::mk(argv[4]))); }
+        if (argc > 5) {
+            req.addparam(proto::LISTJOBS::req::limit,
+                         parsers::intparser<unsigned>()
+                         .match(argv[5])
+                         .fatal("parsing limit " + fields::mk(argv[5]))); }
+        auto m = conn.success()->call(clientio::CLIENTIO, req)
+            .fatal(fields::mk("cannot list jobs"));
+        fields::print("cursor: " +
+                      fields::mk(m->getparam(proto::LISTJOBS::resp::cursor)) +
+                      "\n");
+        list<jobname> jobs;
+        auto r(m->fetch(proto::LISTJOBS::resp::jobs, jobs));
+        if (r.isjust()) r.just().fatal("getting jobs list");
+        fields::print("jobs: " + fields::mk(jobs) + "\n");
+        jobs.flush();
     } else {
         errx(1, "unknown mode %s", argv[3]); }
 

@@ -1,8 +1,10 @@
 #include "jobname.H"
 
+#include "either.H"
 #include "parsers.H"
 #include "string.H"
 
+#include "either.tmpl"
 #include "parsers.tmpl"
 #include "wireproto.tmpl"
 
@@ -18,6 +20,14 @@ jobname::asfilename() const {
 
 const parser< ::jobname> &
 parsers::_jobname() {
-    return ("<job:" + _digest() + ">")
+    return (("<job:" + _digest() + ">") || _digest())
         .map<jobname>([] (const digest &d) {
                 return jobname(d); }); }
+
+bool
+jobname::operator<(const jobname &o) const {
+    return d < o.d; }
+
+bool
+jobname::operator>(const jobname &o) const {
+    return d > o.d; }

@@ -247,6 +247,9 @@ template <>
 const parser<int> &intparser() {
     return *new intparser_<int, true>(); }
 template <>
+const parser<unsigned int> &intparser() {
+    return *new intparser_<unsigned int, false>(); }
+template <>
 const parser<short> &intparser() {
     return *new intparser_<short, true>(); }
 template <>

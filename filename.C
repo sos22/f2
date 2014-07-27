@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -142,6 +143,50 @@ filename::read(uint64_t start, uint64_t end) const {
             return r.just(); } }
     ::close(_fd);
     return res.steal(); }
+
+filename::diriter::diriter(const class filename &f)
+    : dir((DIR *)0xf001ul) {
+    DIR *d = opendir(f.content.c_str());
+    if (d == NULL) {
+        dir = error::from_errno();
+        entry = NULL; }
+    else {
+        dir = d;
+        next(); } }
+
+bool
+filename::diriter::isfailure() const {
+    return dir.isfailure(); }
+
+error
+filename::diriter::failure() const {
+    return dir.failure(); }
+
+bool
+filename::diriter::finished() const {
+    return dir.success() == NULL; }
+
+void
+filename::diriter::next() {
+    int e(errno);
+    errno = 0;
+    auto de(::readdir(dir.success()));
+    if (de == NULL) {
+        closedir(dir.success());
+        if (errno == 0) dir = NULL;
+        else dir = error::from_errno();
+        errno = e; }
+    else {
+        assert(errno == e);
+        entry = tmpheap::strdup(de->d_name); } }
+
+const char *
+filename::diriter::filename() const {
+    assert(!finished());
+    return entry; }
+
+filename::diriter::~diriter() {
+    if (dir.issuccess() && dir.success() != NULL) closedir(dir.success()); }
 
 maybe<error>
 filename::mkdir() const {
