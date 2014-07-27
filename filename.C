@@ -177,7 +177,8 @@ filename::diriter::next() {
         else dir = error::from_errno();
         errno = e; }
     else {
-        assert(errno == e);
+        assert(errno == 0);
+        errno = e;
         entry = tmpheap::strdup(de->d_name); } }
 
 const char *
