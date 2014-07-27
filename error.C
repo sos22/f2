@@ -31,6 +31,7 @@ const error error::toolate(-18);
 const error error::toosoon(-19);
 const error error::pastend(-20);
 const error error::nothing(-21);
+const error error::notempty(-22);
 
 class errorfield : public fields::field {
     error content;
@@ -88,6 +89,8 @@ public:
                 buf.push("pastend");
             } else if (content == error::nothing) {
                 buf.push("nothing");
+            } else if (content == error::notempty) {
+                buf.push("notempty");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

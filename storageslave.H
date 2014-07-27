@@ -76,12 +76,15 @@ private: messageresult read(
 private: messageresult listjobs(
     const wireproto::rx_message &rxm,
     const maybe<jobname> &cursor,
-    const maybe<unsigned> &limit);
+    const maybe<unsigned> &limit) const;
 private: messageresult liststreams(
     const wireproto::rx_message &rxm,
     const jobname &jn,
     const maybe<streamname> &cursor,
-    const maybe<unsigned> &limit);
+    const maybe<unsigned> &limit) const;
+public:  maybe<error> removestream(
+    const jobname &jn,
+    const streamname &sn) const;
 public:  void destroy(clientio);
 private: ~storageslave();
 

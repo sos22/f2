@@ -81,6 +81,7 @@ public:
     static const error pastend; /* Offset is past end of file */
     static const error nothing; /* maybe<> was Nothing when it should
                                  * have been just() */
+    static const error notempty; /* Container not empty */
 };
 
 namespace fields {

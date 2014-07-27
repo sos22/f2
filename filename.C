@@ -201,6 +201,13 @@ filename::mkdir() const {
     else return error::from_errno(EEXIST); }
 
 maybe<error>
+filename::rmdir() const {
+    int r(::rmdir(content.c_str()));
+    if (r == 0) return Nothing;
+    else if (errno == ENOTEMPTY) return error::notempty;
+    else return error::from_errno(); }
+
+maybe<error>
 filename::unlink() const {
     int r(::unlink(content.c_str()));
     if (r == 0) return Nothing;

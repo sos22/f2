@@ -70,6 +70,9 @@ public:  class diriter {
      * Returns error::already if the directory already exists
      * (including if it is non-empty). */
 public:  maybe<error> mkdir() const;
+    /* Remove a directory.  Fails and returns error::notempty if the
+     * directory is not empty. */
+public:  maybe<error> rmdir() const;
     /* Delete a file.  Returns error::already if it doesn't exist, not
      * error::notfound. */
 public:  maybe<error> unlink() const;

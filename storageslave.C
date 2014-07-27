@@ -86,6 +86,13 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
             jn.just(),
             rxm.getparam(proto::LISTSTREAMS::req::cursor),
             rxm.getparam(proto::LISTSTREAMS::req::limit));
+    } else if (rxm.tag() == proto::REMOVESTREAM::tag) {
+        auto jn(rxm.getparam(proto::REMOVESTREAM::req::job));
+        auto sn(rxm.getparam(proto::REMOVESTREAM::req::stream));
+        if (!jn || !sn) return error::missingparameter;
+        auto res(owner->removestream(jn.just(), sn.just()));
+        if (res.isjust()) return res.just();
+        else return new wireproto::resp_message(rxm);
     } else {
         return rpcconn::message(rxm); } }
 
@@ -271,7 +278,7 @@ messageresult
 storageslave::listjobs(
     const wireproto::rx_message &rxm,
     const maybe<jobname> &cursor,
-    const maybe<unsigned> &limit) {
+    const maybe<unsigned> &limit) const {
     if (limit == 0) return error::invalidparameter;
     auto &parser(parsers::_jobname());
     list<jobname> res;
@@ -314,7 +321,7 @@ storageslave::liststreams(
     const wireproto::rx_message &rxm,
     const jobname &jn,
     const maybe<streamname> &cursor,
-    const maybe<unsigned> &limit) {
+    const maybe<unsigned> &limit) const {
     if (limit == 0) return error::invalidparameter;
     auto dir(pool + jn.asfilename());
     const parser<streamname> &parser(parsers::_streamname());
@@ -371,6 +378,23 @@ storageslave::liststreams(
     resp->addparam(proto::LISTSTREAMS::resp::streams, res);
     res.flush();
     return resp; }
+
+maybe<error>
+storageslave::removestream(const jobname &jn,
+                           const streamname &sn) const {
+    auto jobdir(pool + jn.asfilename());
+    auto streamdir(jobdir + sn.asfilename());
+    {   auto r((streamdir + "content").unlink());
+        if (r.isjust() && r.just() != error::already) return r.just(); }
+    {   auto r((streamdir + "finished").unlink());
+        if (r.isjust() && r.just() != error::already) return r.just(); }
+    {   auto r(streamdir.rmdir());
+        if (r.isjust()) {
+            r.just().warn("cannot remove " + fields::mk(streamdir)); } }
+    {   auto r(jobdir.rmdir());
+        if (r.isjust() && r != error::notempty) {
+            r.just().warn("cannot remove " + fields::mk(jobdir)); } }
+    return Nothing; }
 
 void
 storageslave::destroy(clientio io) {

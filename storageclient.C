@@ -204,6 +204,22 @@ main(int argc, char *argv[]) {
         if (r.isjust()) r.just().fatal("getting streams list");
         fields::print("streams: " + fields::mk(streams) + "\n");
         streams.flush();
+    } else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
+        if (argc != 6) {
+            errx(1, "REMOVESTREAM needs a job and a stream name"); }
+        delete conn.success()->call(
+            clientio::CLIENTIO,
+            wireproto::req_message(proto::REMOVESTREAM::tag,
+                                   conn.success()->allocsequencenr())
+            .addparam(proto::REMOVESTREAM::req::job,
+                      parsers::_jobname()
+                      .match(argv[4])
+                      .fatal("parsing job name " + fields::mk(argv[4])))
+            .addparam(proto::REMOVESTREAM::req::stream,
+                      parsers::_streamname()
+                      .match(argv[5])
+                      .fatal("parsing stream name " + fields::mk(argv[5]))))
+            .fatal(fields::mk("cannot remove stream"));
     } else {
         errx(1, "unknown mode %s", argv[3]); }
 

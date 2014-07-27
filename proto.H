@@ -304,6 +304,17 @@ namespace proto {
             static const parameter<list< ::streamstatus> > streams(1751);
         }
     }
+    /* Storage slave: remove a stream from the slave.  Jobs are removed
+     * automatically when the last stream is removed. */
+    namespace REMOVESTREAM {
+        static const msgtag tag(18);
+        namespace req {
+            static const parameter< ::jobname> job(1800);
+            static const parameter< ::streamname> stream(1801);
+        }
+        /* No response parameters, except possibly an error
+         * indication. */
+    }
 }
 
 #endif /* !PROTO_H__ */
