@@ -1,6 +1,11 @@
 #include "cond.H"
 
+#include <assert.h>
 #include <errno.h>
+
+#include "clientio.H"
+#include "maybe.H"
+#include "timestamp.H"
 
 cond_t::cond_t(mutex_t &_associated_mux)
     : associated_mux(_associated_mux),
@@ -26,7 +31,7 @@ cond_t::broadcast(mutex_t::token tok)
 }
 
 mutex_t::token
-cond_t::wait(mutex_t::token *tok) const
+cond_t::wait(clientio, mutex_t::token *tok) const
 {
     tok->formux(associated_mux);
     tok->release();
@@ -35,11 +40,13 @@ cond_t::wait(mutex_t::token *tok) const
 }
 
 cond_t::waitres
-cond_t::wait(mutex_t::token *tok, maybe<timestamp> deadline) const {
+cond_t::wait(clientio io,
+             mutex_t::token *tok,
+             maybe<timestamp> deadline) const {
     if (deadline == Nothing) {
         waitres res;
         res.timedout = false;
-        res.token = wait(tok);
+        res.token = wait(io, tok);
         return res; }
     
     tok->formux(associated_mux);

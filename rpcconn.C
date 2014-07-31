@@ -343,7 +343,7 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
                 txres.failure().warn(
                     "clearing space for a reply to " + fields::mk(peer_));
                 return true; }
-            reducedsub.wait();
+            reducedsub.wait(io);
             txtoken = txlock.lock(); } }
     if (shutdown.ready()) {
         txlock.unlock(&txtoken);
@@ -357,8 +357,8 @@ rpcconn::run(clientio io) {
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
     subscription grewsub(sub, outgoinggrew);
-    iosubscription insub(io, sub, sock.poll(POLLIN));
-    iosubscription outsub(io, sub, sock.poll(POLLOUT));
+    iosubscription insub(sub, sock.poll(POLLIN));
+    iosubscription outsub(sub, sock.poll(POLLOUT));
     buffer inbuffer;
     bool outarmed;
 
@@ -376,7 +376,7 @@ rpcconn::run(clientio io) {
     outarmed = true;
     subscriptionbase *ss;
     while (!shutdown.ready()) {
-        ss = sub.wait(pingtime);
+        ss = sub.wait(io, pingtime);
       gotss:
         if (ss == NULL) {
             /* Run the ping machine. */
@@ -561,7 +561,7 @@ rpcconn::slavename() const {
 
 rpcconn::sendres
 rpcconn::send(
-    clientio,
+    clientio io,
     const wireproto::tx_message &msg,
     subscriber &sub,
     maybe<timestamp> deadline) {
@@ -570,7 +570,7 @@ rpcconn::send(
         subscription moretx(sub, outgoingshrunk);
         while (outgoing.avail() >= MAX_OUTGOING_BYTES) {
             txlock.unlock(&txtoken);
-            auto res = sub.wait(deadline);
+            auto res = sub.wait(io, deadline);
             if (res == NULL) return error::timeout;
             if (res != &moretx) return res;
             txtoken = txlock.lock(); } }
@@ -615,7 +615,7 @@ rpcconn::call(
                     } else {
                         return res; } } }
             rxlock.unlock(&rxtoken); }
-        auto res(sub.wait(deadline));
+        auto res(sub.wait(io, deadline));
         if (res == NULL) return error::timeout;
         if (res != &morerx) return res; } }
 
@@ -659,13 +659,13 @@ rpcconn::~rpcconn() {
     sock.close(); }
 
 void
-rpcconn::drain(clientio) {
+rpcconn::drain(clientio io) {
     subscriber sub;
     subscription ss(sub, outgoingshrunk);
     auto token(txlock.lock());
     while (!outgoing.empty()) {
         txlock.unlock(&token);
-        auto r(sub.wait());
+        auto r(sub.wait(io));
         assert(r == &ss);
         token = txlock.lock(); }
     txlock.unlock(&token); }
@@ -680,7 +680,7 @@ rpcconn::destroy(clientio io) {
         while (1) {
             dt = hasdied();
             if (dt.isjust()) break;
-            auto s = sub.wait();
+            auto s = sub.wait(io);
             assert(s == &ss); } }
     destroy(dt.just()); }
 

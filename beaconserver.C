@@ -131,11 +131,11 @@ void
 beaconserver::listenthreadclass::run(clientio io)
 {
     subscriber sub;
-    iosubscription iosub(io, sub, owner->listenfd.poll());
+    iosubscription iosub(sub, owner->listenfd.poll());
     subscription shutdown(sub, owner->shutdown.pub);
     while (!owner->shutdown.ready()) {
         tests::beaconserverreceive.trigger(owner->listenfd);
-        auto notified(sub.wait());
+        auto notified(sub.wait(io));
         if (notified == &shutdown) continue;
         assert(notified == &iosub);
         buffer inbuffer;

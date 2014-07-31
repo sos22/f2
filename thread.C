@@ -57,8 +57,11 @@ thread::spawn(threadfn *fn, thread **out, const fields::field &name)
            tid, because pthreads doesn't give us any easy way of doing
            so from the parent. */
         auto token(work->startmux.lock());
+        /* The new thread is guaranteed to set the tid soon, so we
+           don't need a proper clientio token here. */
         while (work->tid_ == Nothing)
-            token = work->startcond.wait(&token);
+            token = work->startcond.wait(clientio::CLIENTIO,
+                                         &token);
         work->startmux.unlock(&token);
         return Success;
     }

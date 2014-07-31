@@ -12,6 +12,7 @@
 #include "mutex.H"
 #include "timestamp.H"
 
+class clientio;
 class publisher;
 class subscriber;
 class subscription;
@@ -76,11 +77,7 @@ private: bool registered; /* Are we currently registered with the poll
                              mux. */
     /* Construct a new iosubscription connecting the subscriber to a
      * given poll descriptor. */
-    /* The type here isn't quite right: it isn't constructing the
-     * iosubscription which waits for the client, but waiting on the
-     * subscriber.  We can't encode that in the typesystem, though, so
-     * use this as a usually-reasonable approximation. */
-public:  iosubscription(clientio, subscriber &, struct pollfd);
+public:  iosubscription(subscriber &, struct pollfd);
     /* IO subscriptions are by default single-shot, so that once
      * they've been notified once they won't be notified again if
      * further IO becomes possible.  Calling rearm() resets the
@@ -115,7 +112,7 @@ public: subscriber();
      * notified, or NULL if nothing was notified before the deadline.
      * The notification flag on the subscription is cleared but it
      * remains in the subscription list. */
-public: subscriptionbase *wait(maybe<timestamp> deadline = Nothing);
+public: subscriptionbase *wait(clientio, maybe<timestamp> deadline = Nothing);
     /* Destruct a subscriber.  Any outstanding subscriptions are
      * automatically unsubscribed, leaving the subscription in an
      * invalid state in which the only safe operation is to destruct

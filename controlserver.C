@@ -58,7 +58,11 @@ statusinterface::stop() {
         subscription ss(sub, idle);
         while (running) {
             owner->statuslock.unlock(&token);
-            sub.wait();
+            /* running will be cleared when the getstatus() invocation
+               finishes.  getstatus() does not receive a clientio
+               token, so will complete quickly, and we do not need a
+               token for the wait here. */
+            sub.wait(clientio::CLIENTIO);
             token = owner->statuslock.lock(); } }
     owner->statuslock.unlock(&token); }
 

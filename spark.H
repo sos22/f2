@@ -4,9 +4,9 @@
 #ifndef SPARK_H__
 #define SPARK_H__
 
+#include "clientio.H"
 #include "thread.H"
 
-class clientio;
 class publisher;
 template <typename> class waitbox;
 
@@ -19,7 +19,10 @@ public:  const publisher &pub;
 public:  spark(std::function<t ()>);
 private: void run(clientio);
 public:  bool ready() const { return wb.ready(); }
-public:  const t &get() const { return wb.get(); }
+    /* sparked functions don't get clientio tokens, so must complete
+       quickly, and so we know that wb.get() is safe and spark::get()
+       doesn't need an additional clientio token. */
+public:  const t &get() const { return wb.get(clientio::CLIENTIO); }
 public:  ~spark();
 };
 

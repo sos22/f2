@@ -46,7 +46,7 @@ main()
                     c.success()));
     if (beacon.isfailure()) beacon.failure().fatal("build beacon server");
 
-    auto r = s.get();
+    auto r = s.get(clientio::CLIENTIO);
 
     beacon.success()->destroy(clientio::CLIENTIO);
     coord.success()->destroy(clientio::CLIENTIO);

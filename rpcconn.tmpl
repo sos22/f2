@@ -77,7 +77,7 @@ rpcconn::connectslave(clientio io,
                              peer,
                              parameters...));
     if (res.isfailure()) return res.failure();
-    auto r(wb.get());
+    auto r(wb.get(io));
     if (r.isfailure()) {
         res.success()->destroy(io);
         return r.failure(); }

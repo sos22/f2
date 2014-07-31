@@ -22,10 +22,10 @@ rpcserver::run(clientio io) {
     list<_rpcserver::connsub *> threads;
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
-    iosubscription ios(io, sub, sock.poll());
+    iosubscription ios(sub, sock.poll());
 
     while (!shutdown.ready() || !threads.empty()) {
-        auto s = sub.wait();
+        auto s = sub.wait(io);
         if (s == &shutdownsub) {
             shutdownsub.detach();
             for (auto it(threads.start()); !it.finished(); it.next()) {

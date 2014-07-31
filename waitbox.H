@@ -4,7 +4,8 @@
 #include "maybe.H"
 #include "mutex.H"
 #include "pubsub.H"
-#include "orerror.H"
+
+class clientio;
 
 /* A box you can put a value in, and some gubbins to wait until
    someone puts a value in it.  */
@@ -20,7 +21,7 @@ public:  const publisher &pub;
     /* Set the waitbox.  Must be called at most once. */
     void set(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
-    const t &get() const;
+    const t &get(clientio) const;
     /* Check whether the waitbox is set, returning true if it is and
        false otherwise. */
     bool ready() const;

@@ -11,10 +11,10 @@ waitbox<t>::ready() const {
     return res; }
 
 template <typename t> const t &
-waitbox<t>::get() const {
+waitbox<t>::get(clientio io) const {
     subscriber sub;
     subscription s(sub, pub);
-    while (!ready()) sub.wait();
+    while (!ready()) sub.wait(io);
     return content.just(); }
 
 template <typename t> void

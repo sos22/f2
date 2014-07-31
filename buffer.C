@@ -111,8 +111,8 @@ buffer::receive(clientio io,
                 fd_t fd,
                 subscriber &sub,
                 maybe<timestamp> deadline) {
-    {   iosubscription ios(io, sub, fd.poll(POLLIN));
-        auto r(sub.wait(deadline));
+    {   iosubscription ios(sub, fd.poll(POLLIN));
+        auto r(sub.wait(io, deadline));
         if (r == NULL) return error::timeout;
         if (r != &ios) return r; }
     auto r(receive(io, fd, deadline));
@@ -125,8 +125,8 @@ buffer::send(clientio io,
              fd_t fd,
              subscriber &sub,
              maybe<timestamp> deadline) {
-    {   iosubscription ios(io, sub, fd.poll(POLLOUT));
-        auto r(sub.wait(deadline));
+    {   iosubscription ios(sub, fd.poll(POLLOUT));
+        auto r(sub.wait(io, deadline));
         if (r == NULL) return error::timeout;
         if (r != &ios) return r; }
     assert(first);

@@ -60,12 +60,12 @@ main()
 {
     initlogging("pingableserver");
     initpubsub();
-    auto server(pingableserver::listen(peername::tcpany()));
-    if (server.isfailure()) server.failure().fatal("listening");
-    fields::print("listening on " + fields::mk(server.success()->localname())
+    auto server(pingableserver::listen(peername::tcpany())
+                .fatal("listening"));
+    fields::print("listening on " + fields::mk(server->localname())
                   + "\n");
-    auto r(server.success()->shutdown.get());
-    server.success()->destroy(clientio::CLIENTIO);
+    auto r(server->shutdown.get(clientio::CLIENTIO));
+    server->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
     r.finish();

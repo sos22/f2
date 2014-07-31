@@ -42,7 +42,7 @@ main(int argc, char *argv[])
     if (slave.isfailure())
         slave.failure().fatal("build storage slave");
 
-    auto r = s.get();
+    auto r = s.get(clientio::CLIENTIO);
     slave.success()->destroy(clientio::CLIENTIO);
     c.success()->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);

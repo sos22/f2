@@ -408,7 +408,7 @@ storageslave::destroy(clientio io) {
     masterconn->teardown();
     subscriber sub;
     subscription ss(sub, masterconn->deathpublisher());
-    while (!masterconn->hasdied()) sub.wait();
+    while (!masterconn->hasdied()) sub.wait(io);
     rpcserver::destroy(io); }
 
 storageslave::~storageslave() {
