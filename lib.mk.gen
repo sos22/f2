@@ -48,6 +48,7 @@ function bits() {
     _ timedelta
     _ timestamp
     _ thread
+    _ thread2
     _ tmpheap
     _ udpsocket
     _ util
