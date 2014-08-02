@@ -17,6 +17,10 @@ tests::either() {
     public: ~tracklife() {
         assert(!destruct);
         destruct = true; } };
+    class copy {
+    public: int counter;
+    public: copy() : counter(5) {}
+    public: copy(const copy &o) : counter(o.counter + 1) {} };
     testcaseV("either", "left", [] {
             auto x(::either<int, int>::left(7));
             assert(x.isleft());
@@ -30,13 +34,13 @@ tests::either() {
             assert(x.isright());
             assert(x.right() == 97); });
     testcaseV("either", "copyleft", [] {
-            auto x(::either<int, int>::left(9));
-            ::either<int, int> y(x);
-            assert(y.left() == 9); });
+            auto x(::either<copy, int>::left(copy()));
+            ::either<copy, int> y(x);
+            assert(y.left().counter == x.left().counter + 1); });
     testcaseV("either", "copyright", [] {
-            auto x(::either<int, int>::right(13));
-            ::either<int, int> y(x);
-            assert(y.right() == 13); });
+            auto x(::either<int, copy>::right(copy()));
+            ::either<int, copy> y(x);
+            assert(y.right().counter == x.right().counter + 1); });
     testcaseV("either", "leftlife", [] {
             bool cons = false;
             bool dest = false;

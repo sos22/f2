@@ -1,6 +1,12 @@
 #ifndef EITHER_TMPL__
 #define EITHER_TMPL__
 
+template <typename a, typename b>
+either<a,b>::either(const either &o)
+    : isleft_(o.isleft_) {
+    if (isleft()) new (content) a(o.left());
+    else new (content) b(o.right()); }
+
 template <typename a, typename b> either<a,b>
 either<a,b>::left(const a &what) {
     either<a,b> res;
@@ -12,6 +18,7 @@ template <typename a, typename b>
 either<a,b>::either(const b &what)
     : isleft_(false) {
     new (content) b(what); }
+
 template <typename a, typename b> either<a,b>
 either<a,b>::right(const b &what) {
     either<a,b> res;
