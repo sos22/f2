@@ -1,6 +1,3 @@
-/* Alternative, slightly nicer, alternative API for creating and
- * managing threads.  Everything using thread.H should be converted
- * over to this one. */
 #ifndef THREAD2_H__
 #define THREAD2_H__
 
