@@ -42,7 +42,8 @@ coordinatorconnstatus::fromcompound(const wireproto::rx_message &rxm) {
 
 class coordinatorconn : public rpcconn {
 public:  coordinator *const owner;
-public:  coordinatorconn(socket_t &_socket,
+public:  coordinatorconn(thread2::constoken,
+                         socket_t &_socket,
                          const rpcconnauth &_auth,
                          peername &_peer,
                          coordinator *_owner);
@@ -53,11 +54,12 @@ public:  status_t status(maybe<mutex_t::token> tok /* coordinator lock */) {
     return status_t( rpcconn::status(tok), slavename() ); }
 };
 
-coordinatorconn::coordinatorconn(socket_t &_socket,
+coordinatorconn::coordinatorconn(thread2::constoken tok,
+                                 socket_t &_socket,
                                  const rpcconnauth &__auth,
                                  peername &_peer,
                                  coordinator *_owner)
-    : rpcconn(_socket, __auth, _peer),
+    : rpcconn(tok, _socket, __auth, _peer),
       owner(_owner) {
     auto token(owner->mux.lock());
     owner->connections.pushtail(this);

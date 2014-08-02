@@ -513,10 +513,11 @@ rpcconn::run(clientio io) {
     endconn(io); }
 
 rpcconn::rpcconn(
+    thread2::constoken tok,
     socket_t _sock,
     const rpcconnauth &__auth,
     const peername &_peer)
-    : thr(NULL),
+    : thread2(tok),
       shutdown(),
       sock(_sock),
       txlock(),
@@ -637,25 +638,11 @@ rpcconn::teardown() {
 
 maybe<rpcconn::deathtoken>
 rpcconn::hasdied() const {
-    if (thr->finished()) return deathtoken();
-    else return Nothing; }
-
-const publisher &
-rpcconn::deathpublisher() const {
-    return thr->pub; }
-
-void
-rpcconn::destroy(deathtoken) {
-    assert(thr->finished());
-    /* Can't actually block because we know the thread has already
-       finished, so don't need a real clientio token. */
-    thr->join(clientio::CLIENTIO);
-    thr = NULL;
-    while (!pendingrx.empty()) delete pendingrx.pophead();
-    delete this; }
+    return thread2::hasdied()
+        .map<deathtoken>([] (thread2::deathtoken t) {
+                return deathtoken(t); }); }
 
 rpcconn::~rpcconn() {
-    assert(thr == NULL);
     sock.close(); }
 
 void
@@ -674,15 +661,7 @@ void
 rpcconn::destroy(clientio io) {
     drain(io);
     teardown();
-    maybe<deathtoken> dt(Nothing);
-    {   subscriber sub;
-        subscription ss(sub, deathpublisher());
-        while (1) {
-            dt = hasdied();
-            if (dt.isjust()) break;
-            auto s = sub.wait(io);
-            assert(s == &ss); } }
-    destroy(dt.just()); }
+    join(io); }
 
 rpcconn::status_t
 rpcconn::status(maybe<mutex_t::token>) const {

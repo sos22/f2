@@ -9,13 +9,14 @@
 #include "rpcconn.tmpl"
 
 class pingableconn : public rpcconn {
-    friend class rpcconn;
+    friend class thread2;
 public:  waitbox<shutdowncode> &shutdown;
-private: pingableconn(socket_t _sock,
+private: pingableconn(thread2::constoken tok,
+                      socket_t _sock,
                       const rpcconnauth &__auth,
                       const peername &_peer,
                       waitbox<shutdowncode> &_shutdown)
-    : rpcconn(_sock, __auth, _peer),
+    : rpcconn(tok, _sock, __auth, _peer),
       shutdown(_shutdown) {}
 public:  messageresult message(const wireproto::rx_message &);
 public:  ~pingableconn() {}

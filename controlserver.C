@@ -72,11 +72,12 @@ statusinterface::~statusinterface() {
     assert(!active.next);
     assert(!active.prev); }
 
-controlconn::controlconn(socket_t _sock,
+controlconn::controlconn(thread2::constoken tok,
+                         socket_t _sock,
                          const rpcconnauth &__auth,
                          const peername &_peer,
                          controlserver *_owner)
-    : rpcconn(_sock, __auth, _peer),
+    : rpcconn(tok, _sock, __auth, _peer),
       owner(_owner) {}
 
 messageresult

@@ -9,8 +9,8 @@
 #include "rpcconn.H"
 #include "socket.H"
 #include "tcpsocket.H"
-#include "thread.H"
 
+#include "thread2.tmpl"
 #include "waitbox.tmpl"
 
 template <typename conn_t, typename... args> orerror<conn_t *>
@@ -19,16 +19,12 @@ rpcconn::fromsocket(socket_t sock,
                     args... parameters) {
     auto peer(sock.peer());
     if (peer.isfailure()) return peer.failure();
-    auto res(new conn_t(sock,
-                        auth,
-                        peer.success(),
-                        parameters...));
-    auto spawnres(thread::spawn(res, &res->thr,
-                                "IO:"+fields::mk(peer.success())));
-    if (spawnres.isfailure()) {
-        delete res;
-        return spawnres.failure(); }
-    return res; }
+    else return thread2::spawn<conn_t>(
+        "IO:"+fields::mk(peer.success()),
+        sock,
+        auth,
+        peer.success(),
+        parameters...); }
 
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,

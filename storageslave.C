@@ -17,9 +17,10 @@
 wireproto_wrapper_type(storageslave::status_t);
 
 class storageslaveconn : public rpcconn {
-    friend class rpcconn;
+    friend class thread2;
 private: storageslave *const owner;
-private: storageslaveconn(socket_t &_socket,
+private: storageslaveconn(thread2::constoken,
+                          socket_t &_socket,
                           const rpcconnauth &_auth,
                           const peername &_peer,
                           storageslave *_owner);
@@ -28,11 +29,12 @@ private: void endconn(clientio);
 };
 
 storageslaveconn::storageslaveconn(
+    thread2::constoken tok,
     socket_t &_socket,
     const rpcconnauth &__auth,
     const peername &_peer,
     storageslave *_owner)
-    : rpcconn(_socket, __auth, _peer),
+    : rpcconn(tok, _socket, __auth, _peer),
       owner(_owner) {
     auto token(owner->mux.lock());
     owner->clients.pushtail(this);
@@ -407,7 +409,7 @@ storageslave::destroy(clientio io) {
        about than the synchronisation around a one-step. */
     masterconn->teardown();
     subscriber sub;
-    subscription ss(sub, masterconn->deathpublisher());
+    rpcconn::deathsubscription ss(sub, masterconn);
     while (!masterconn->hasdied()) sub.wait(io);
     rpcserver::destroy(io); }
 
@@ -417,7 +419,7 @@ storageslave::~storageslave() {
         /* Wait for master death before calling rpcconn::destroy(), so
            it should still be dead when we get here. */
         assert(dt != Nothing);
-        masterconn->destroy(dt.just()); } }
+        masterconn->join(dt.just()); } }
 
 storageslave::status_t
 storageslave::status() const {

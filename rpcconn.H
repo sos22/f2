@@ -13,7 +13,7 @@
 #include "registrationsecret.H"
 #include "slavename.H"
 #include "socket.H"
-#include "thread.H"
+#include "thread2.H"
 #include "util.H"
 #include "waitbox.H"
 #include "wireproto.H"
@@ -172,9 +172,9 @@ public:  wireproto::tx_message *reply() const {
     assert(content.success().isjust());
     return content.success().just(); } };
 
-class rpcconn : threadfn {
+class rpcconn : protected thread2 {
+    friend class thread2;
     /* Each rpcconn has an associated thread which does IO for it. */
-private: thread *thr;
 private: waitbox<bool> shutdown; /* To shut down the thread */
 private: void run(clientio);
 
@@ -257,7 +257,8 @@ public: template<typename t, typename... args> static orerror<t *> fromsocket(
     const rpcconnauth &auth,
     args...);
 
-protected: rpcconn(socket_t _sock,
+protected: rpcconn(thread2::constoken,
+                   socket_t _sock,
                    const rpcconnauth &_auth,
                    const peername &_peer);
 
@@ -370,26 +371,25 @@ public: orerror<const wireproto::rx_message *> call(
     /* Start a teardown sequence on a connection.  Outgoing sends are
      * cancelled and no further incoming messages will be accepted.
      * Messages which are still being processed will be completed
-     * (although the other end probably won't receive the results). */
+     * (although the other end probably won't receive the results).
+     * Use the thread death protocol to finish tearing the connection
+     * down. */
 public:  void teardown();
 
-    /* A deathtoken is a kind of proof that the connection has died.
-     * Holding one gives you permission to call destroy().  They can
-     * only be obtained by calling hasdied() and getting back a valid
-     * result. */
-    class deathtoken {
-        friend class rpcconn;
-    private: deathtoken() {};
+    /* Re-expose the thread death protocol. */
+public:  class deathtoken : public thread2::deathtoken {
+    public: deathtoken(thread2::deathtoken t)
+        : thread2::deathtoken(t) {}
     };
-public:    maybe<deathtoken> hasdied() const;
-
-    /* A publisher which gets notified whenever hasdied() goes from
-       Nothing to a valid token. */
-public:    const publisher &deathpublisher() const;
-
-    /* Finish tearing down a connection which has died.  This is the
-     * only way of destroying an RPC conn. */
-public:    void destroy(deathtoken);
+public:  maybe<deathtoken> hasdied() const;
+public:  class deathsubscription : public thread2::deathsubscription {
+    public: rpcconn *const conn;
+    public: deathsubscription(subscriber &_sub, rpcconn *_owner)
+        :  thread2::deathsubscription(_sub, _owner),
+           conn(_owner) {}
+    };
+public:  void join(deathtoken dt) { thread2::join(dt); }
+public:  void join(clientio io) { thread2::join(io); }
 
     /* Should only be called from the destroy() method. */
 protected: virtual ~rpcconn();
@@ -404,7 +404,7 @@ protected: virtual ~rpcconn();
 public:    void drain(clientio);
 
     /* Convenience function which runs the entire shutdown protocol:
-     * drain(), teardown(), wait for hasdied(), destroy(). */
+     * drain(), teardown(), wait for hasdied(), join(). */
 public:    void destroy(clientio);
 
     /* Status interface */

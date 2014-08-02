@@ -5,21 +5,9 @@
 
 #include "list.tmpl"
 
-namespace _rpcserver {
-class connsub : public subscription {
-    public: rpcconn *conn;
-    public: connsub(subscriber &_sub, rpcconn *_conn);
-};
-}
-
-_rpcserver::connsub::connsub(subscriber &_sub, rpcconn *_conn)
-    : subscription(_sub, _conn->deathpublisher()),
-      conn(_conn) {
-    if (_conn->hasdied() != Nothing) set(); }
-
 void
 rpcserver::run(clientio io) {
-    list<_rpcserver::connsub *> threads;
+    list<rpcconn::deathsubscription *> threads;
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
     iosubscription ios(sub, sock.poll());
@@ -48,10 +36,11 @@ rpcserver::run(clientio io) {
                     "derived class rejected incoming connection");
                 newsock.success().close();
                 continue; }
-            threads.pushtail(new _rpcserver::connsub(sub, conn.success()));
+            threads.pushtail(
+                new rpcconn::deathsubscription(sub, conn.success()));
         } else {
             /* Must have been a connection sub. */
-            auto cs(static_cast<_rpcserver::connsub *>(s));
+            auto cs(static_cast<rpcconn::deathsubscription *>(s));
             auto death(cs->conn->hasdied());
             if (!death) continue;
             /* Connection has died.  Finish tearing it down. */
@@ -64,7 +53,7 @@ rpcserver::run(clientio io) {
             assert(found);
             rpcconn *conn = cs->conn;
             delete cs;
-            conn->destroy(death.just()); } } }
+            conn->join(death.just()); } } }
 
 rpcserver::rpcserver()
     : thr(NULL),

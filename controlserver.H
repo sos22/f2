@@ -50,7 +50,8 @@ public:    virtual ~statusinterface();
 
 class controlconn : public rpcconn {
 private: controlserver *const owner;
-public:  controlconn(socket_t _sock,
+public:  controlconn(thread2::constoken tok,
+                     socket_t _sock,
                      const rpcconnauth &_auth,
                      const peername &_peer,
                      controlserver *_owner);
