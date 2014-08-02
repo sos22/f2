@@ -302,7 +302,7 @@ tests::beacon() {
                                  cs));
             while (!done) sub.wait(clientio::CLIENTIO);
             /* make sure race with shutdown goes the right way. */
-            (timestamp::now() + timedelta::milliseconds(10)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
             server->destroy(clientio::CLIENTIO); });
 
     testcaseCS(
