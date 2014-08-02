@@ -5,7 +5,10 @@
 #include "tid.H"
 #include "util.H"
 
-thread2::thread2()
+#include "list.tmpl"
+#include "waitbox.tmpl"
+
+thread2::thread2(thread2::constoken)
     : thr(),
       tid_(),
       name(NULL),
@@ -53,6 +56,9 @@ thread2::deathsubscription::detach() {
                 break; } } }
     owner->lock.unlock(&token);
     owner = NULL; }
+
+thread2::deathsubscription::~deathsubscription() {
+    detach(); }
 
 void
 thread2::join(deathtoken) {

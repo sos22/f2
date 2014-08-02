@@ -32,7 +32,11 @@ private:   const char *name; /* nul-terminated malloc()ed owned */
 private:   mutex_t lock;
 private:   bool dead; /* Access with loadacquire() and storerelease() */
 private:   list<deathsubscription *> subscribers;
-protected: thread2();
+protected: class constoken {
+    friend class thread2;
+    private: constoken() {}
+    };
+protected: thread2(constoken);
     /* Create a new thread.  Template parameter t should be a derived
        class of thread2.  args are arguments to its constructor.  The
        new thread becomes runnable as soon as the constructor returns.
@@ -57,7 +61,7 @@ private:   virtual void run(clientio) = 0;
      * once the thread has died join() is guaranteed to be quick. */
 public:    class deathtoken {
         friend class thread2;
-    private: deathtoken();
+    private: deathtoken() {}
     };
     /* Check whether the thread has exitted.  Returns a death token if
      * it has or Nothing if it's still running. */

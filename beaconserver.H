@@ -12,7 +12,7 @@
 #include "registrationsecret.H"
 #include "rpcconn.H"
 #include "rpcinterface.H"
-#include "thread.H"
+#include "thread2.H"
 #include "udpsocket.H"
 
 class frequency;
@@ -70,9 +70,9 @@ public: beaconserverconfig(const registrationsecret &_rs,
       port_(9009),
       rs_(_rs) {} };
 
-class beaconserver {
+class beaconserver : private thread2 {
+    friend class thread2;
     friend class statusiface;
-    friend class configureiface;
 
     class statusiface : public statusinterface {
     private: beaconserver *owner;
@@ -80,38 +80,27 @@ class beaconserver {
     public:  void getstatus(wireproto::tx_message *) const;
     };
 
-    class listenthreadclass : public threadfn {
-        beaconserver *owner;
-        listenthreadclass() = delete;
-        listenthreadclass(const listenthreadclass &) = delete;
-        void operator=(const listenthreadclass &) = delete;
-        void run(clientio);
-    public:
-        listenthreadclass(beaconserver *);
-    };
-
 public:  statusiface statusiface_;
     registrationsecret secret;
     peername mastername;
     mastersecret mastersecret_;
     ratelimiter limiter;
-    listenthreadclass listenthreadfn;
-    thread *listenthread;
     udpsocket listenfd;
     waitbox<bool> shutdown;
 
     unsigned errors; /* total number of errors, ever */
     unsigned rx; /* total number of packets received, ever */
 
-    beaconserver(const beaconserverconfig &config,
-                 controlserver *cs);
+    beaconserver(thread2::constoken,
+                 const beaconserverconfig &config,
+                 controlserver *cs,
+                 udpsocket listenfd);
+
+    void run(clientio);
 
     beaconserver() = delete;
     beaconserver(const beaconserver &) = delete;
     void operator=(const beaconserver &) = delete;
-
-    ~beaconserver();
-    orerror<void> listen(peername::port);
 public:
     static orerror<beaconserver *> build(const beaconserverconfig &,
                                          controlserver *);

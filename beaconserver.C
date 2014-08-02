@@ -20,6 +20,7 @@
 #include "waitbox.H"
 
 #include "test.tmpl"
+#include "thread2.tmpl"
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(beaconstatus);
@@ -58,33 +59,30 @@ fields::mk(const beaconserver::status_t &o) {
 
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
-                    controlserver *cs)
-{
-    auto res = new beaconserver(config, cs);
-    auto r(res->listen(config.port_));
-    if (r.isfailure()) {
-        delete res;
-        return r.failure();
-    }
-    res->statusiface_.start();
-    return res;
-}
+                    controlserver *cs) {
+    auto r(udpsocket::listen(config.port_));
+    if (r.isfailure()) return r.failure();
+    else return thread2::spawn<beaconserver>(
+        fields::mk("beacon listener"),
+        config,
+        cs,
+        r.success()); }
 
-beaconserver::beaconserver(const beaconserverconfig &config,
-                           controlserver *cs)
-    : statusiface_(this, cs),
+beaconserver::beaconserver(thread2::constoken tok,
+                           const beaconserverconfig &config,
+                           controlserver *cs,
+                           udpsocket _listenfd)
+    : thread2(tok),
+      statusiface_(this, cs),
       secret(config.rs_),
       mastername(config.coordinator_),
       mastersecret_(config.ms_),
       limiter(config.maxresponses_, 100),
-      listenthreadfn(this),
-      listenthread(NULL),
-      listenfd(),
+      listenfd(_listenfd),
       shutdown(),
       errors(0),
-      rx(0)
-{
-}
+      rx(0) {
+    statusiface_.start(); }
 
 beaconserver::statusiface::statusiface(beaconserver *server,
                                        controlserver *cs)
@@ -100,54 +98,27 @@ beaconserver::statusiface::getstatus(
     wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
-orerror<void>
-beaconserver::listen(peername::port port)
-{
-    assert(!listenthread);
-
-    auto r(udpsocket::listen(port));
-    if (r.isfailure()) return r.failure();
-
-    listenfd = r.success();
-    auto rr(thread::spawn(&listenthreadfn, &listenthread,
-                          fields::mk("beacon listener")));
-    if (!COVERAGE && rr.isfailure()) {
-        listenfd.close();
-        listenfd = udpsocket();
-    }
-    return rr;
-}
-
-beaconserver::~beaconserver()
-{
-    assert(listenthread == NULL);
-}
-
-beaconserver::listenthreadclass::listenthreadclass(beaconserver *_owner)
-    : owner(_owner)
-{}
-
 void
-beaconserver::listenthreadclass::run(clientio io)
+beaconserver::run(clientio io)
 {
     subscriber sub;
-    iosubscription iosub(sub, owner->listenfd.poll());
-    subscription shutdown(sub, owner->shutdown.pub);
-    while (!owner->shutdown.ready()) {
-        tests::beaconserverreceive.trigger(owner->listenfd);
+    iosubscription iosub(sub, listenfd.poll());
+    subscription shutdownsub(sub, shutdown.pub);
+    while (!shutdown.ready()) {
+        tests::beaconserverreceive.trigger(listenfd);
         auto notified(sub.wait(io));
-        if (notified == &shutdown) continue;
+        if (notified == &shutdownsub) continue;
         assert(notified == &iosub);
         buffer inbuffer;
-        auto rr(owner->listenfd.receive(inbuffer));
+        auto rr(listenfd.receive(inbuffer));
         iosub.rearm();
-        if (!owner->limiter.probe()) {
+        if (!limiter.probe()) {
             /* DOS protection: drop things over the rate limit */
             continue;
         }
         if (rr.isfailure()) {
             rr.failure().warn("reading beacon interface");
-            owner->errors++;
+            errors++;
             /* Shouldn't happen, but back off a little bit if it does,
                just to avoid spamming the logs when things are bad. */
             (timestamp::now() + timedelta::milliseconds(100)).sleep();
@@ -156,7 +127,7 @@ beaconserver::listenthreadclass::run(clientio io)
         auto rrr(wireproto::rx_message::fetch(inbuffer));
         if (rrr.isfailure()) {
             rrr.failure().warn("parsing beacon message");
-            owner->errors++;
+            errors++;
             continue;
         }
         auto &msg(rrr.success());
@@ -165,7 +136,7 @@ beaconserver::listenthreadclass::run(clientio io)
                    "unexpected message tag " +
                    fields::mk(msg.tag()) +
                    " on beacon interface");
-            owner->errors++;
+            errors++;
             continue;
         }
 
@@ -182,7 +153,7 @@ beaconserver::listenthreadclass::run(clientio io)
         }
         logmsg(loglevel::debug, "version " + fields::mk(reqversion.just()));
         logmsg(loglevel::debug, "nonce " + fields::mk(reqnonce.just()));
-        owner->rx++;
+        rx++;
 
         if (reqversion.just() != 1) {
             logmsg(loglevel::failure,
@@ -191,29 +162,29 @@ beaconserver::listenthreadclass::run(clientio io)
                    " requested bad protocol version " +
                    fields::mk(reqversion.just()) +
                    " in HAIL message");
-            owner->errors++;
+            errors++;
             continue;
         }
 
         buffer outbuffer;
         wireproto::tx_message(proto::HAIL::tag)
             .addparam(proto::HAIL::resp::version, 1u)
-            .addparam(proto::HAIL::resp::mastername, owner->mastername)
+            .addparam(proto::HAIL::resp::mastername, mastername)
             .addparam(proto::HAIL::resp::slavename, rr.success())
-            .addparam(proto::HAIL::resp::nonce, owner->mastersecret_.nonce(
+            .addparam(proto::HAIL::resp::nonce, mastersecret_.nonce(
                           rr.success()))
             .addparam(proto::HAIL::resp::slavename, rr.success())
             .addparam(proto::HAIL::resp::digest,
                       digest("A" +
-                             fields::mk(owner->mastername) +
+                             fields::mk(mastername) +
                              fields::mk(reqnonce.just()) +
-                             fields::mk(owner->secret)))
+                             fields::mk(secret)))
             .serialise(outbuffer);
-        auto sendres(owner->listenfd.send(outbuffer, rr.success()));
+        auto sendres(listenfd.send(outbuffer, rr.success()));
         if (!COVERAGE && sendres.isfailure()) {
             sendres.warn("sending HAIL response to " +
                          fields::mk(rr.success()));
-            owner->errors++;
+            errors++;
         }
 
         continue;
@@ -226,13 +197,11 @@ beaconserver::listenthreadclass::run(clientio io)
 void
 beaconserver::destroy(clientio io)
 {
-    assert(listenthread);
     statusiface_.stop();
     shutdown.set(true);
-    listenthread->join(io);
-    listenthread = NULL;
-    listenfd.close();
-    delete this;
+    auto l(listenfd);
+    join(io);
+    l.close();
 }
 
 class tests::event<udpsocket> tests::beaconserverreceive;

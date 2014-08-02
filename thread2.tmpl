@@ -9,15 +9,16 @@
 #include "error.H"
 #include "fields.H"
 
-template <typename t, typename ... args> static t *thread2::spawn(
+template <typename t, typename ... args> t *thread2::spawn(
     const fields::field &name,
     args...params) {
-    auto res = new t(params...);
-    res->name = strdup(name.c_str());
-    if (pthread_create(&res->thr,
+    auto res = new t(constoken(), params...);
+    thread2 *rr = res;
+    rr->name = strdup(name.c_str());
+    if (pthread_create(&rr->thr,
                        NULL,
                        pthreadstart,
-                       static_cast<thread2 *>(res)) != 0) {
+                       rr) != 0) {
         error::from_errno().fatal("spawn thread " + name); }
     return res; }
 
