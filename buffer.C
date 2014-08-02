@@ -759,6 +759,7 @@ tests::buffer(void)
             assert(!memcmp(b2, "Hello", 5)); });
 
     testcaseV("buffer", "send", [] () {
+            initpubsub();
             auto pipe(fd_t::pipe());
             assert(pipe.issuccess());
             ::buffer buf;
@@ -788,7 +789,8 @@ tests::buffer(void)
             assert(res.issuccess());
             assert(res.success() == 4);
             assert(!memcmp(bb, "ABCD", 4));
-            pipe.success().close(); });
+            pipe.success().close();
+            deinitpubsub(clientio::CLIENTIO); });
 
     testcaseV("buffer", "senderror", [] () {
             auto pipe(fd_t::pipe());

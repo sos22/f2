@@ -96,7 +96,6 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 # streamstatus
 # string
 # tcpsocket
-# thread
 # tid
 # timedelta
 # timestamp
