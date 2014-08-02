@@ -3,26 +3,30 @@
 
 #include "fields.H"
 #include "spark.H"
-#include "thread.H"
+#include "thread2.tmpl"
 
 template <typename t>
-spark<t>::spark(std::function<t ()> _what)
+spark<t>::spark(const std::function<t ()> &_what)
     : wb(),
-      thr(NULL),
-      what(_what),
-      pub(wb.pub) {
-    thread::spawn(this, &thr, fields::mk("spark"))
-        .fatal(fields::mk("spawning spark")); }
+      th(thread2::spawn<thr>(fields::mk("spark"), this, _what)) {}
+
+template <typename t>
+spark<t>::thr::thr(thread2::constoken tok,
+                   spark<t> *_owner,
+                   const std::function<t ()> &_what)
+    : thread2(tok),
+      owner(_owner),
+      what(_what) {}
 
 template <typename t> void
-spark<t>::run(clientio) {
-    wb.set(what()); }
+spark<t>::thr::run(clientio) {
+    owner->wb.set(what()); }
 
 template <typename t>
 spark<t>::~spark() {
     /* We rely here on the fact that sparks are required to be very
        quick functions (and do not receive a clientio token), so
        joining them should also be very quick. */
-    thr->join(clientio::CLIENTIO); }
+    th->join(clientio::CLIENTIO); }
 
 #endif /* !SPARK_TMPL__ */

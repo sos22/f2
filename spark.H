@@ -5,19 +5,25 @@
 #define SPARK_H__
 
 #include "clientio.H"
-#include "thread.H"
+#include "thread2.H"
 
 class publisher;
 template <typename> class waitbox;
 
 template <typename t>
-class spark : private threadfn {
+class spark {
+private: class thr : public thread2 {
+        friend class thread2;
+    private: spark *owner;
+    private: std::function<t ()> what;
+    private: thr(thread2::constoken,
+                 spark *,
+                 const std::function<t ()> &);
+    private: void run(clientio);
+    };
 private: waitbox<t> wb;
-private: thread *thr;
-private: std::function<t ()> what;
-public:  const publisher &pub;
-public:  spark(std::function<t ()>);
-private: void run(clientio);
+private: thr *th;
+public:  spark(const std::function<t ()> &what);
 public:  bool ready() const { return wb.ready(); }
     /* sparked functions don't get clientio tokens, so must complete
        quickly, and so we know that wb.get() is safe and spark::get()
