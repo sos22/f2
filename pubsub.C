@@ -586,8 +586,7 @@ tests::pubsub() {
                     (timestamp::now() + timedelta::milliseconds(10)).sleep();});
             spark<bool> reader([fd = pipe.success().read, deadline] () {
                     subscriber sub;
-                    iosubscription ios(clientio::CLIENTIO,
-                                       sub,
+                    iosubscription ios(sub,
                                        fd.poll(POLLIN));
                     return true; });
             reader.get();

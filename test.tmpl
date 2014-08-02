@@ -47,7 +47,7 @@ tests::eventwaiter<t>::~eventwaiter() {
        either, so it's not completely unreasonable. */
     subscriber sub;
     subscription ss(sub, idle);
-    while (refcount != 0) sub.wait(); }
+    while (refcount != 0) sub.wait(clientio::CLIENTIO); }
 #endif /* !TESTING */
 
 #endif /* !TEST_TMPL__ */

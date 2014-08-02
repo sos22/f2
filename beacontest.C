@@ -291,7 +291,7 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret("ms"),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (!done) sub.wait();
+            while (!done) sub.wait(clientio::CLIENTIO);
             /* make sure race with shutdown goes the right way. */
             (timestamp::now() + timedelta::milliseconds(10)).sleep();
             server->destroy(clientio::CLIENTIO); });
@@ -314,7 +314,7 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret("ms"),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (!done) sub.wait();
+            while (!done) sub.wait(clientio::CLIENTIO);
             server->destroy(clientio::CLIENTIO); });
 
     testcaseCS(
@@ -366,7 +366,7 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret("ms"),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (cntr < 5) sub.wait();
+            while (cntr < 5) sub.wait(clientio::CLIENTIO);
             wireproto::tx_message txm(wireproto::msgtag(5));
             server->statusiface_.getstatus(&txm);
             server->destroy(clientio::CLIENTIO); });
