@@ -2,8 +2,10 @@
 
 #include "fields.H"
 #include "test.H"
-#include "thread.H"
+#include "thread2.H"
 #include "timedelta.H"
+
+#include "thread2.tmpl"
 
 mutex_t::mutex_t()
 {
@@ -41,13 +43,23 @@ tests::mutex() {
             int holders[nr_muxes];
             memset(holders, 0, sizeof(holders));
             volatile bool shutdown(false);
-            struct thr : public threadfn {
-                mutex_t *_muxes;
-                int *_holders;
-                int ident;
-                volatile bool *_shutdown;
+            struct thr : public thread2 {
+                mutex_t *const _muxes;
+                int *const _holders;
+                int const ident;
+                volatile bool &_shutdown;
+                thr(constoken token,
+                    mutex_t *__muxes,
+                    int *__holders,
+                    int _ident,
+                    volatile bool &__shutdown)
+                    : thread2(token),
+                      _muxes(__muxes),
+                      _holders(__holders),
+                      ident(_ident),
+                      _shutdown(__shutdown) {}
                 void run(clientio) {
-                    while (!*_shutdown) {
+                    while (!_shutdown) {
                         int i((int)random() % nr_muxes);
                         auto token(_muxes[i].lock());
                         assert(!_holders[i]);
@@ -56,16 +68,12 @@ tests::mutex() {
                         assert(_holders[i] == ident);
                         _holders[i] = 0;
                         _muxes[i].unlock(&token); } } };
-            thr thrs[nr_threads];
-            thread *threads[nr_threads];
+            thr *thrs[nr_threads];
             for (unsigned x = 0; x < nr_threads; x++) {
-                thrs[x]._muxes = muxes;
-                thrs[x]._holders = holders;
-                thrs[x].ident = x + 1;
-                thrs[x]._shutdown = &shutdown;
-                thread::spawn(&thrs[x], &threads[x], fields::mk(x))
-                    .fatal("spawn"); }
+                unsigned y(x+1);
+                thrs[x] = thread2::spawn<thr>(fields::mk(x), muxes, holders,
+                                              y, shutdown).go(); }
             (timestamp::now() + timedelta::seconds(5)).sleep();
             shutdown = true;
             for (unsigned x = 0; x < nr_threads; x++) {
-                threads[x]->join(clientio::CLIENTIO); } }); }
+                thrs[x]->join(clientio::CLIENTIO); } }); }
