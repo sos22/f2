@@ -9,8 +9,10 @@
 #include "fields.H"
 #include "maybe.H"
 #include "proto.H"
+#include "test.H"
 #include "timedelta.H"
 
+#include "maybe.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -51,13 +53,13 @@ fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
             if (r == 1) break;
             assert(r == 0); } }
     auto s(::read(fd, buf, sz));
-    if (s < 0)
-        return error::from_errno();
-    else if (s == 0)
-        return error::disconnected;
-    else
-        return s;
-}
+    if (s < 0) {
+        if (errno == EAGAIN) return error::wouldblock;
+        else return error::from_errno(); }
+    else if (s == 0) {
+        return error::disconnected; }
+    else {
+        return s; } }
 
 orerror<size_t>
 fd_t::write(clientio,
@@ -70,17 +72,16 @@ fd_t::write(clientio,
             auto remaining(
                 (deadline.just() - timestamp::now()).as_milliseconds());
             assert(remaining == (int)remaining);
+            if (remaining < 0) return error::timeout;
             int r = ::poll(&pfd, 1, (int)remaining);
             if (r < 0) return error::from_errno();
             if (r == 1) break;
             assert(r == 0); } }
     auto s(::write(fd, buf, sz));
-    if (s < 0)
-        return error::from_errno();
-    else if (s == 0)
-        return error::disconnected;
-    else
-        return s; }
+    assert(s != 0);
+    if (s > 0) return s;
+    else if (errno == EAGAIN) return error::wouldblock;
+    else return error::from_errno(); }
 
 orerror<void>
 fd_t::nonblock(bool fl) const {
@@ -88,8 +89,7 @@ fd_t::nonblock(bool fl) const {
     oldflags = ::fcntl(fd, F_GETFL);
     if (oldflags < 0) return error::from_errno();
     if (!!(oldflags & O_NONBLOCK) == fl) return Success;
-    if (::fcntl(fd, F_SETFL, oldflags ^ O_NONBLOCK) < 0) {
-        return error::from_errno(); }
+    if (fcntl(fd, F_SETFL, oldflags^O_NONBLOCK) < 0) return error::from_errno();
     else return Success; }
 
 orerror<void>
@@ -103,8 +103,7 @@ orerror<fd_t::piperes>
 fd_t::pipe()
 {
     int fds[2];
-    if (::pipe(fds) < 0)
-        return error::from_errno();
+    if (::pipe(fds) < 0) return error::from_errno();
     piperes r;
     r.read = fd_t(fds[0]);
     r.write = fd_t(fds[1]);
@@ -155,6 +154,25 @@ fd_t::status() const {
 #undef doparam1
         ); }
 
+fd_tstatus::fd_tstatus(const quickcheck &q)
+    : fd((unsigned short)q),
+      domain(q),
+      protocol(q),
+      flags(q),
+      sndbuf(q),
+      rcvbuf(q),
+      sndqueue(q),
+      rcvqueue(q),
+      revents(q) {}
+
+bool
+fd_tstatus::operator==(const fd_tstatus &o) {
+    if (fd != o.fd) return false;
+#define iter(x) if (x != o.x) return false;
+    fd_tstatus_params(iter);
+#undef iter
+    return true; }
+
 wireproto_wrapper_type(fd_t::status_t)
 void
 fd_t::status_t::addparam(
@@ -193,3 +211,146 @@ fields::mk(const fd_t::status_t &o) {
         fd_tstatus_params(doparam)
 #undef doparam
         ">"; }
+
+void
+tests::fd() {
+    testcaseV("fd", "statuswire", [] {
+            wireproto::roundtrip<fd_t::status_t>(); });
+    testcaseV("fd", "closepoll", [] {
+            int p[2];
+            int r(::pipe(p));
+            assert(r >= 0);
+            ::close(p[1]);
+            fd_t fd(p[0]);
+            assert(fd.poll(POLLIN).revents == 0);
+            assert(fd.poll(POLLIN).events == POLLIN);
+            assert(fd.poll(POLLOUT).events == POLLOUT);
+            assert(fd.poll(POLLIN).fd == p[0]);
+            assert(fd.polled(fd.poll(POLLIN)));
+            fd.close();
+            assert(write(p[0], "foo", 3) == -1);
+            assert(errno == EBADF); });
+    testcaseV("fd", "readwrite", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            {   auto s(r.write.write(clientio::CLIENTIO, "X", 1));
+                assert(s.success() == 1); }
+            {   char buf[] = "Hello";
+                auto s(r.read.read(clientio::CLIENTIO, buf, 5));
+                assert(s.success() == 1);
+                assert(!strcmp(buf, "Xello")); }
+            r.read.close();
+            r.write.close(); });
+    testcaseV("fd", "readtimeout", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[] = "Hello";
+            auto s(r.read.read(
+                       clientio::CLIENTIO,
+                       buf,
+                       5,
+                       timestamp::now() + timedelta::milliseconds(5)));
+            assert(s == error::timeout);
+            assert(!strcmp(buf, "Hello"));
+            r.read.close();
+            r.write.close(); });
+    testcaseV("fd", "readerr", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[] = "Hello";
+            r.read.close();
+            auto s(r.read.read(
+                       clientio::CLIENTIO,
+                       buf,
+                       5));
+            assert(s == error::from_errno(EBADF));
+            assert(!strcmp(buf, "Hello"));
+            r.write.close(); });
+    testcaseV("fd", "readdisconnected", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[] = "Hello";
+            r.write.close();
+            auto s(r.read.read(
+                       clientio::CLIENTIO,
+                       buf,
+                       5));
+            assert(s == error::disconnected);
+            assert(!strcmp(buf, "Hello"));
+            r.read.close(); });
+    testcaseV("fd", "writeerr", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[] = "Hello";
+            r.write.close();
+            auto s(r.write.write(
+                       clientio::CLIENTIO,
+                       buf,
+                       5));
+            assert(s == error::from_errno(EBADF));
+            r.read.close(); });
+    testcaseV("fd", "writedisconnected", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[] = "Hello";
+            r.read.close();
+            auto s(r.write.write(
+                       clientio::CLIENTIO,
+                       buf,
+                       5));
+            assert(s == error::from_errno(EPIPE));
+            r.write.close(); });
+    testcaseV("fd", "writetimeout", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            while (true) {
+                char buf[] = "Hello";
+                auto s(r.write.write(
+                           clientio::CLIENTIO,
+                           buf,
+                           sizeof(buf),
+                           timestamp::now() + timedelta::milliseconds(5)));
+                if (s == error::timeout) break;
+                assert(s.success() == sizeof(buf)); }
+            r.read.close();
+            r.write.close(); });
+    testcaseV("fd", "nonblockread", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[] = "Hello";
+            r.read.nonblock(true).fatal("nonblock");
+            auto s(r.read.read(
+                       clientio::CLIENTIO,
+                       buf,
+                       5));
+            assert(s == error::wouldblock);
+            assert(!strcmp(buf, "Hello"));
+            r.read.close();
+            r.write.close(); });
+    testcaseV("fd", "nonblockwrite", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            r.write.nonblock(true).fatal("nonblock");
+            while (true) {
+                char buf[] = "Hello";
+                auto s(r.write.write(
+                           clientio::CLIENTIO,
+                           buf,
+                           sizeof(buf)));
+                if (s == error::wouldblock) break;
+                assert(s.success() == sizeof(buf)); }
+            r.close(); });
+    testcaseV("fd", "status", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            fields::print(fields::mk(r.read.status()) + "\n");
+            fields::print(fields::mk(r.write.status()) + "\n"); });
+    testcaseV("fd", "dup2", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            r.write.write(clientio::CLIENTIO, "HELLO", 5);
+            auto r2(fd_t::pipe().fatal("pipe"));
+            r2.write.close();
+            r.read.dup2(r2.read).fatal("dup2");
+            r.read.close();
+            char buf[5];
+            auto r3(r2.read.read(clientio::CLIENTIO, buf, 5));
+            assert(r3.success() == 5);
+            r2.read.close();
+            r.write.close(); });
+    testcaseV("fd", "field", [] {
+            assert(!strcmp(fields::mk(fd_t(7)).c_str(),
+                           "fd:7")); });
+    testcaseV("fd", "badstatus", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            r.close();
+            fields::print(fields::mk(r.read.status()) + "\n"); }); }

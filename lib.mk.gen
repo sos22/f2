@@ -70,6 +70,7 @@ testmodule buffer buffer.C buffer.H
 testmodule cond cond.C cond.H
 testmodule either either.C either.H either.tmpl
 testmodule error error.C error.H
+testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule mutex mutex.C mutex.H
 testmodule parsers parsers.C parsers.H parsers.tmpl
@@ -80,7 +81,6 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:
 #
-# fd
 # filename
 # frequency
 # logging

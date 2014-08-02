@@ -34,6 +34,8 @@ quickcheck::operator unsigned long() const {
 
 quickcheck::operator unsigned() const {
     return (unsigned)(unsigned long)*this; }
+quickcheck::operator int() const {
+    return (int)(unsigned long)*this; }
 
 quickcheck::operator unsigned short() const {
     return (unsigned short)(unsigned long)*this; }

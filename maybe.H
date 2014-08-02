@@ -9,6 +9,8 @@
 #include "error.H"
 #include "obj.H"
 
+class quickcheck;
+
 template <typename> class maybe;
 class _Nothing {
 public: template <typename t> bool operator==(const maybe<t> &) const;
@@ -22,6 +24,7 @@ class maybe {
     unsigned char content[sizeof(t)];
     maybe() = delete;
 public:
+    maybe(const quickcheck &);
     maybe(const maybe &o)
         : r(o.r)
         {
@@ -80,6 +83,11 @@ public:
     const t &fatal(const fields::field &msg) const {
         if (isjust()) return just();
         else error::nothing.fatal(msg); }
+    bool operator==(const maybe &o) const {
+        if (isjust() != o.isjust()) return false;
+        else return isnothing() || just() == o.just(); }
+    bool operator!=(const maybe &o) const {
+        return !(*this == o); }
     bool operator==(const _Nothing) const {
         return isnothing();
     }
@@ -102,6 +110,7 @@ public:
 template <> class maybe<void> {
 private: bool r;
 private: maybe() : r(false) {}
+public:  maybe(const quickcheck &);
 public:  template <typename t> maybe(const maybe<t> &o)
     : r(o.r) {}
 public:  maybe(_Nothing)

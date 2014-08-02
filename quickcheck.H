@@ -1,6 +1,8 @@
 #ifndef QUICKCHECK_H__
 #define QUICKCHECK_H__
 
+template <typename> class maybe;
+
 /* The actual quickcheck type doesn't do a great deal; it's just there
  * to give us something to hang the generator operators off of. */
 class quickcheck {
@@ -9,6 +11,7 @@ class quickcheck {
      * that it should. */
 public: operator unsigned long() const;
 public: operator unsigned() const;
+public: operator int() const;
 public: operator unsigned short() const;
 public: operator bool() const;
     /* Cauchy distributed with location 0 and scale 1 */

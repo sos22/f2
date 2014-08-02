@@ -1,10 +1,12 @@
 #include <err.h>
+#include <signal.h>
 
 #include "beacontest.H"
 #include "buffer.H"
 #include "cond.H"
 #include "either.H"
 #include "error.H"
+#include "fd.H"
 #include "fields.H"
 #include "logging.H"
 #include "mutex.H"
@@ -22,6 +24,7 @@ main(int argc, char *argv[])
     tests::cond();
     tests::either();
     tests::_error();
+    tests::fd();
     tests::fields();
     tests::logging();
     tests::mutex();
@@ -30,6 +33,8 @@ main(int argc, char *argv[])
     tests::ratelimiter();
     tests::thread();
     tests::wireproto();
+
+    signal(SIGPIPE, SIG_IGN);
 
     switch (argc) {
     case 1: tests::listcomponents(); break;

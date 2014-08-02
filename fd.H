@@ -26,6 +26,10 @@ class field;
 const field &mk(const fd_t &);
 };
 
+namespace tests {
+void fd();
+}
+
 class fd_tstatus {
 public: int fd;
 #define _fd_tstatus_params(iter, iter1) \
@@ -56,6 +60,8 @@ public: fd_tstatus(
 #undef doparam
 #undef doparam1
         {}
+public: fd_tstatus(const quickcheck &);
+public: bool operator==(const fd_tstatus &o);
 WIREPROTO_TYPE(fd_tstatus);
 };
 namespace fields {
@@ -68,6 +74,7 @@ class fd_t {
     friend class udpsocket;
     friend class tcpsocket;
     friend class socket_t;
+    friend void tests::fd();
     int fd;
 protected:
     explicit fd_t(int _fd)

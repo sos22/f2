@@ -1,0 +1,9 @@
+#ifndef MAYBE_TMPL__
+#define MAYBE_TMPL__
+
+template <typename t>
+maybe<t>::maybe(const quickcheck &o)
+    : r(o) {
+    if (!r) new (content) t(o); }
+
+#endif /* !MAYBE_TMPL__ */

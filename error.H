@@ -91,6 +91,8 @@ public:
     static const error nothing; /* maybe<> was Nothing when it should
                                  * have been just() */
     static const error notempty; /* Container not empty */
+    static const error wouldblock; /* Cannot complete operation
+                                    * without blocking. */
 };
 
 namespace fields {
