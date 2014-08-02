@@ -23,6 +23,7 @@ function bits() {
     _ listenfd
     _ logging
     _ mastersecret
+    _ maybe
     _ mutex
     _ nonce
     _ obj
@@ -38,6 +39,7 @@ function bits() {
     _ shutdown
     _ slavename
     _ socket
+    _ spark
     _ storageslave
     _ streamname
     _ streamstatus
@@ -64,6 +66,7 @@ ar lib.a $(bits .o)
 
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
+testmodule cond cond.C cond.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule mutex mutex.C mutex.H
 testmodule parsers parsers.C parsers.H parsers.tmpl
@@ -74,7 +77,6 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:
 #
-# cond
 # either
 # error
 # fd

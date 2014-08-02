@@ -27,4 +27,17 @@ public:  const publisher &pub;
     bool ready() const;
 };
 
+/* Special case for void. */
+template <>
+class waitbox<void> {
+private: mutable mutex_t mux;
+private: maybe<void> content;
+private: publisher pub_;
+public:  waitbox() : mux(), content(Nothing), pub(pub_) {};
+public:  const publisher &pub;
+public:  void set();
+public:  void get(clientio) const;
+public:  bool ready() const;
+};
+
 #endif

@@ -5,7 +5,12 @@
 
 #include "clientio.H"
 #include "maybe.H"
+#include "spark.H"
+#include "test.H"
+#include "timedelta.H"
 #include "timestamp.H"
+
+#include "spark.tmpl"
 
 cond_t::cond_t(mutex_t &_associated_mux)
     : associated_mux(_associated_mux),
@@ -60,3 +65,46 @@ cond_t::wait(clientio io,
     res.token = mutex_t::token();
     res.timedout = r == ETIMEDOUT;
     return res; }
+
+void
+tests::cond() {
+    testcaseV("cond", "wake", [] {
+            mutex_t mux;
+            cond_t cond(mux);
+            spark<void> notify( [&mux, &cond] {
+                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    auto token(mux.lock());
+                    cond.broadcast(token);
+                    mux.unlock(&token); });
+            auto token(mux.lock());
+            token = cond.wait(clientio::CLIENTIO, &token);
+            mux.unlock(&token);
+            notify.get(); });
+    testcaseV("cond", "wake2", [] {
+            mutex_t mux;
+            cond_t cond(mux);
+            spark<void> notify( [&mux, &cond] {
+                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    auto token(mux.lock());
+                    cond.broadcast(token);
+                    mux.unlock(&token);});
+            auto token(mux.lock());
+            auto r(cond.wait(clientio::CLIENTIO, &token,
+                             timestamp::now() + timedelta::milliseconds(200)));
+            assert(!r.timedout);
+            mux.unlock(&r.token);
+            notify.get(); });
+    testcaseV("cond", "timeout", [] {
+            mutex_t mux;
+            cond_t cond(mux);
+            spark<void> notify( [&mux, &cond] {
+                    (timestamp::now() + timedelta::milliseconds(200)).sleep();
+                    auto token(mux.lock());
+                    cond.broadcast(token);
+                    mux.unlock(&token); });
+            auto token(mux.lock());
+            auto r(cond.wait(clientio::CLIENTIO, &token,
+                             timestamp::now() + timedelta::milliseconds(100)));
+            assert(r.timedout);
+            mux.unlock(&r.token);
+            notify.get(); }); }

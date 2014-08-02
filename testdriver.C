@@ -2,6 +2,7 @@
 
 #include "beacontest.H"
 #include "buffer.H"
+#include "cond.H"
 #include "fields.H"
 #include "logging.H"
 #include "mutex.H"
@@ -16,6 +17,7 @@ main(int argc, char *argv[])
 {
     tests::beacon();
     tests::buffer();
+    tests::cond();
     tests::fields();
     tests::logging();
     tests::mutex();

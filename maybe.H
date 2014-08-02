@@ -98,6 +98,28 @@ public:
         else return f(just()); }
 };
 
+/* Special case for maybe<void> */
+template <> class maybe<void> {
+private: bool r;
+private: maybe() : r(false) {}
+public:  template <typename t> maybe(const maybe<t> &o)
+    : r(o.r) {}
+public:  maybe(_Nothing)
+    : r(true) {}
+public:  static maybe just;
+public:  void operator=(const maybe &o) {
+    r = o.r; }
+public:   bool isnothing() const { return r; }
+public:   bool operator!() const { return isnothing(); }
+public:   bool isjust() const { return !r; }
+public:   bool operator==(const _Nothing) const {
+    return isnothing(); }
+public:   bool operator!=(const _Nothing) const {
+        return isjust(); }
+public:   template <typename o> maybe<o> map(const std::function<o ()> &f) {
+        if (isnothing()) return Nothing;
+        else return f(); } };
+
 template <typename t> bool
 _Nothing::operator==(const maybe<t> &o) const {
     return o.isnothing(); }

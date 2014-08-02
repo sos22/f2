@@ -29,7 +29,8 @@ public:  bool ready() const { return wb.ready(); }
     /* sparked functions don't get clientio tokens, so must complete
        quickly, and so we know that wb.get() is safe and spark::get()
        doesn't need an additional clientio token. */
-public:  const t &get() const { return wb.get(clientio::CLIENTIO); }
+public:  decltype(wb.get(clientio::CLIENTIO)) get() const {
+    return wb.get(clientio::CLIENTIO); }
 public:  ~spark();
 };
 

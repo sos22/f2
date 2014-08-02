@@ -4,6 +4,7 @@
 #include "fields.H"
 #include "spark.H"
 #include "thread.tmpl"
+#include "waitbox.tmpl"
 
 template <typename t>
 spark<t>::spark(const std::function<t ()> &_what)
@@ -18,6 +19,7 @@ spark<t>::thr::thr(thread::constoken tok,
       owner(_owner),
       what(_what) {}
 
+template <> void spark<void>::thr::run(clientio);
 template <typename t> void
 spark<t>::thr::run(clientio) {
     owner->wb.set(what()); }
