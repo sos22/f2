@@ -14,6 +14,7 @@ function bits() {
     _ controlserver
     _ coordinator
     _ digest
+    _ either
     _ error
     _ fd
     _ fields
@@ -67,6 +68,7 @@ ar lib.a $(bits .o)
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
 testmodule cond cond.C cond.H
+testmodule either either.C either.H either.tmpl
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule mutex mutex.C mutex.H
 testmodule parsers parsers.C parsers.H parsers.tmpl
@@ -77,7 +79,6 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:
 #
-# either
 # error
 # fd
 # filename

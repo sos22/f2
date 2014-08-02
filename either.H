@@ -18,4 +18,8 @@ public:  b &right();
 public:  ~either();
 };
 
+namespace tests {
+void either();
+}
+
 #endif /* !EITHER_H__ */
