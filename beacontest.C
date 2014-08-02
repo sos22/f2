@@ -38,7 +38,8 @@ tests::beacon() {
             auto rs(registrationsecret::mk("rs").just());
             mastersecret ms("ms");
             auto server(mkbeacon(ms, rs, cs));
-            auto client(beaconclient(beaconclientconfig(rs)
+            auto client(beaconclient(clientio::CLIENTIO,
+                                     beaconclientconfig(rs)
                                      .port(port)
                                      .retrylimit(maybe<int>(5))));
             assert(client.issuccess());
@@ -52,6 +53,7 @@ tests::beacon() {
     testcaseV("beacon", "noserver", [port] () {
             auto rs(registrationsecret::mk("rs").just());
             auto client(beaconclient(
+                            clientio::CLIENTIO,
                             beaconclientconfig(rs)
                             .port(port)
                             .retrylimit(maybe<int>(5))
@@ -83,10 +85,12 @@ tests::beacon() {
             timestamp deadline(timestamp::now() + timedelta::seconds(2));
             int cntr = 0;
             while (timestamp::now() < deadline) {
-                auto client(beaconclient(beaconclientconfig(rs)
-                                         .port(port)
-                                         .retrylimit(maybe<int>(2))
-                                         .retryinterval(timedelta::milliseconds(20))));
+                auto client(beaconclient(
+                                clientio::CLIENTIO,
+                                beaconclientconfig(rs)
+                                .port(port)
+                                .retrylimit(maybe<int>(2))
+                                .retryinterval(timedelta::milliseconds(20))));
                 assert(client.issuccess());
                 assert(client.success().mastername == mastername);
                 assert(client.success().secret == rs);
@@ -141,6 +145,7 @@ tests::beacon() {
                             pipe.write.close();
                             piperead = pipe.read; });
                     auto r(beaconclient(
+                               clientio::CLIENTIO,
                                beaconclientconfig(registrationsecret::mk("rs").just())
                                .port(peername::port(
                                          (unsigned short)
@@ -157,6 +162,7 @@ tests::beacon() {
                 [] (pair<udpsocket,nonce> args) {
                     args.first().asfd().close(); });
             auto r(beaconclient(
+                       clientio::CLIENTIO,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .port(peername::port(
                                  (unsigned short)(random()%32768 + 32768)))));
@@ -185,6 +191,7 @@ tests::beacon() {
                     if (cntr++ > 1) return;
                     spamfd(args.first()); });
             auto r(beaconclient(
+                       clientio::CLIENTIO,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .port(peername::port(
                                  (unsigned short)(random()%32768 + 32768)))
@@ -211,6 +218,7 @@ tests::beacon() {
                         args.first(),
                         wireproto::tx_message(proto::HAIL::tag)); });
             auto r(beaconclient(
+                       clientio::CLIENTIO,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .port(peername::port(
                                  (unsigned short)(random()%32768 + 32768)))
@@ -259,6 +267,7 @@ tests::beacon() {
                                            fields::mk(rs))));
                     iter++; });
             auto r(beaconclient(
+                       clientio::CLIENTIO,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .port(peername::port(
                                  (unsigned short)(random()%32768 + 32768)))

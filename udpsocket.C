@@ -73,7 +73,7 @@ udpsocket::close() const {
     ::close(fd); }
 
 orerror<peername>
-udpsocket::receive(buffer &buf, maybe<timestamp> deadline) const {
+udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
     ssize_t recved;
     unsigned char sockaddr[4096];
     socklen_t sockaddr_size;

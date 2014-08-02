@@ -6,6 +6,7 @@
 #include "registrationsecret.H"
 #include "timedelta.H"
 
+class clientio;
 template <typename> class orerror;
 
 class beaconresult {
@@ -19,10 +20,11 @@ public: beaconresult(const masternonce &, const peername &, const peername &,
 
 class beaconclientconfig;
 
-orerror<beaconresult> beaconclient(const beaconclientconfig &rs);
+orerror<beaconresult> beaconclient(clientio, const beaconclientconfig &rs);
 
 class beaconclientconfig {
-    friend orerror<beaconresult> beaconclient(const beaconclientconfig &rs);
+    friend orerror<beaconresult> beaconclient(clientio,
+                                              const beaconclientconfig &rs);
 #define mkparam(type, name)                                             \
 private: type name ##_;                                                 \
 public: beaconclientconfig name(const type &what) const {               \

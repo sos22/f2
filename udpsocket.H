@@ -6,6 +6,7 @@
 #include "timestamp.H"
 
 class buffer;
+class clientio;
 class error;
 class fd_t;
 template <typename> class orerror;
@@ -42,7 +43,8 @@ public:
     /* Receive a packet and add it to a buffer, returning the peername
        from which we received it (according to the UDP envelope, so
        easily faked by an attacker). */
-    orerror<peername> receive(buffer &buf,
+    orerror<peername> receive(clientio,
+                              buffer &buf,
                               maybe<timestamp> deadline = Nothing) const;
 
     /* Extract an fd_t for this socket.  Be careful with this: udp

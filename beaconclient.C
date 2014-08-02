@@ -18,7 +18,7 @@
 #include "test.tmpl"
 
 orerror<beaconresult>
-beaconclient(const beaconclientconfig &config)
+beaconclient(clientio io, const beaconclientconfig &config)
 {
     auto _sock(udpsocket::client());
     if (_sock.isfailure()) return _sock.failure();
@@ -52,7 +52,7 @@ beaconclient(const beaconclientconfig &config)
         while (1) {
             buffer inbuf;
             tests::beaconclientreceiving.trigger(mkpair(sock,n));
-            auto recvres(sock.receive(inbuf, respdeadline));
+            auto recvres(sock.receive(io, inbuf, respdeadline));
             if (recvres.isfailure()) {
                 if (recvres.failure() == error::timeout) {
 /**/                break; /* Send another HAIL */

@@ -121,7 +121,7 @@ storageslave::build(clientio io,
     auto name(
         (dir + "slavename").parse(parsers::slavename())
         .fatal("parsing slave name from " + fields::mk(dir)));
-    auto br(beaconclient(rs));
+    auto br(beaconclient(io, rs));
     if (br.isfailure()) return br.failure();
     auto server(rpcserver::listen<storageslave>(
                     peername::tcpany(),

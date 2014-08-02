@@ -111,7 +111,8 @@ beaconserver::run(clientio io)
         if (notified == &shutdownsub) continue;
         assert(notified == &iosub);
         buffer inbuffer;
-        auto rr(listenfd.receive(inbuffer));
+        /* Can't block because the iosub is notified. */
+        auto rr(listenfd.receive(clientio::CLIENTIO, inbuffer));
         iosub.rearm();
         if (!limiter.probe()) {
             /* DOS protection: drop things over the rate limit */
