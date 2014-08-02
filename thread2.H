@@ -29,7 +29,6 @@ public:    class deathsubscription;
 private:   pthread_t thr;
 private:   waitbox<tid> tid_;
 private:   const char *name; /* nul-terminated malloc()ed owned */
-private:   mutex_t lock;
 private:   bool dead; /* Access with loadacquire() and storerelease() */
 private:   list<deathsubscription *> subscribers;
 protected: class constoken {
@@ -73,6 +72,9 @@ public:    maybe<deathtoken> hasdied() const;
      * dead. */
 public:    class deathsubscription : public subscriptionbase {
         friend class thread2;
+    private: deathsubscription() = delete;
+    private: deathsubscription(const deathsubscription &) = delete;
+    private: void operator =(const deathsubscription &) = delete;
     private: thread2 *owner;
         /* Construct a new death subscription for a given thread.  The
          * subscription will be notified shortly after the thread

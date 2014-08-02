@@ -8,11 +8,13 @@
 #include "list.tmpl"
 #include "waitbox.tmpl"
 
+static mutex_t
+detachlock;
+
 thread2::thread2(thread2::constoken)
     : thr(),
       tid_(),
       name(NULL),
-      lock(),
       dead(false),
       subscribers() {}
 
@@ -24,11 +26,12 @@ thread2::pthreadstart(void *_this) {
     thr->tid_.set(tid::me());
     thr->run(clientio::CLIENTIO);
     /* Tell subscribers that we died. */
-    auto token(thr->lock.lock());
+    auto token(detachlock.lock());
     storerelease(&thr->dead, true);
     for (auto it(thr->subscribers.start()); !it.finished(); it.remove()) {
+        (*it)->owner = NULL;
         (*it)->set(); }
-    thr->lock.unlock(&token);
+    detachlock.unlock(&token);
     return NULL; }
 
 maybe<thread2::deathtoken>
@@ -40,24 +43,24 @@ thread2::deathsubscription::deathsubscription(subscriber &_sub,
                                               thread2 *_owner)
     : subscriptionbase(_sub),
       owner(_owner) {
-    auto token(owner->lock.lock());
+    auto token(detachlock.lock());
     owner->subscribers.pushtail(this);
-    owner->lock.unlock(&token);
-    if (loadacquire(owner->dead)) set(); }
+    detachlock.unlock(&token);
+    if (loadacquire(_owner->dead)) set(); }
 
 void
 thread2::deathsubscription::detach() {
-    if (owner == NULL) return;
-    auto token(owner->lock.lock());
-    bool found = false;
-    for (auto it(owner->subscribers.start()); !it.finished(); it.next()) {
-        if (*it == this) {
-            it.remove();
-            found = true;
-            break; } }
-    assert(found);
-    owner->lock.unlock(&token);
-    owner = NULL; }
+    auto token(detachlock.lock());
+    if (owner) {
+        bool found = false;
+        for (auto it(owner->subscribers.start()); !it.finished(); it.next()) {
+            if (*it == this) {
+                it.remove();
+                found = true;
+                break; } }
+        assert(found);
+        owner = NULL; }
+    detachlock.unlock(&token); }
 
 thread2::deathsubscription::~deathsubscription() {
     detach(); }
@@ -65,16 +68,15 @@ thread2::deathsubscription::~deathsubscription() {
 void
 thread2::join(deathtoken) {
     assert(loadacquire(dead));
-    /* subscribers list might be non-empty if someone attached after
-     * we died.  Nobody should attach after join() has been called,
-     * and the actual thread is dead, so we don't need the lock here.
-     * Which is handy, because otherwise we'd deadlock calling
-     * detach(). */
-    while (!subscribers.empty()) {
-        assert(subscribers.peekhead()->owner == this);
-        subscribers.peekhead()->detach(); }
     if (pthread_join(thr, NULL) < 0) {
         error::from_errno().fatal("joining thread " + fields::mk(name)); }
+    auto token(detachlock.lock());
+    while (!subscribers.empty()) {
+        auto i = subscribers.pophead();
+        if (i->owner == NULL) continue;
+        assert(i->owner == this);
+        i->owner = NULL; }
+    detachlock.unlock(&token);
     delete this; }
 
 void
