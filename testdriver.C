@@ -9,6 +9,7 @@
 #include "fd.H"
 #include "fields.H"
 #include "logging.H"
+#include "maybe.H"
 #include "mutex.H"
 #include "parsers.H"
 #include "pubsub.H"
@@ -27,6 +28,7 @@ main(int argc, char *argv[])
     tests::fd();
     tests::fields();
     tests::logging();
+    tests::_maybe();
     tests::mutex();
     tests::parsers();
     tests::pubsub();

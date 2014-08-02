@@ -744,7 +744,7 @@ tests::fields()
 
     testcaseV("fields", "maybe", [] () {
             fieldbuf buf;
-            maybe<int> x(Nothing);
+            ::maybe<int> x(Nothing);
             mk(x).fmt(buf);
             assert(!strcmp(buf.c_str(), "Nothing"));
             buf.reset();

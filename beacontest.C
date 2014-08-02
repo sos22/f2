@@ -41,7 +41,7 @@ tests::beacon() {
             auto client(beaconclient(clientio::CLIENTIO,
                                      beaconclientconfig(rs)
                                      .port(port)
-                                     .retrylimit(maybe<int>(5))));
+                                     .retrylimit(5)));
             assert(client.issuccess());
             assert(client.success().mastername == mastername);
             assert(client.success().secret == rs);
@@ -56,7 +56,7 @@ tests::beacon() {
                             clientio::CLIENTIO,
                             beaconclientconfig(rs)
                             .port(port)
-                            .retrylimit(maybe<int>(5))
+                            .retrylimit(5)
                             .retryinterval(timedelta::milliseconds(10))));
             assert(client.isfailure());
             assert(client.failure() == error::timeout); });
@@ -89,7 +89,7 @@ tests::beacon() {
                                 clientio::CLIENTIO,
                                 beaconclientconfig(rs)
                                 .port(port)
-                                .retrylimit(maybe<int>(2))
+                                .retrylimit(2)
                                 .retryinterval(timedelta::milliseconds(20))));
                 assert(client.issuccess());
                 assert(client.success().mastername == mastername);

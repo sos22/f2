@@ -80,9 +80,11 @@ public:
         if (isjust()) return just();
         else return what;
     }
+#ifndef COVERAGESKIP
     const t &fatal(const fields::field &msg) const {
         if (isjust()) return just();
         else error::nothing.fatal(msg); }
+#endif
     bool operator==(const maybe &o) const {
         if (isjust() != o.isjust()) return false;
         else return isnothing() || just() == o.just(); }
@@ -124,7 +126,11 @@ public:   bool isjust() const { return !r; }
 public:   bool operator==(const _Nothing) const {
     return isnothing(); }
 public:   bool operator!=(const _Nothing) const {
-        return isjust(); }
+    return isjust(); }
+public:   bool operator==(const maybe<void> &x) const {
+    return isjust() == x.isjust(); }
+public:   bool operator!=(const maybe<void> &x) const {
+    return !(*this == x); }
 public:   template <typename o> maybe<o> map(const std::function<o ()> &f) {
         if (isnothing()) return Nothing;
         else return f(); } };
@@ -144,5 +150,9 @@ operator ==(const t &a, const maybe<t> &o) {
 template <typename t> bool
 operator !=(const t &a, const maybe<t> &o) {
     return o.isnothing() || a != o.just(); }
+
+namespace tests {
+void _maybe();
+}
 
 #endif /* !MAYBE_H__ */
