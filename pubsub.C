@@ -9,7 +9,6 @@
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
-#include "util.H"
 
 #include "list.tmpl"
 #include "test.tmpl"
@@ -75,8 +74,8 @@ iopollingthread::run(clientio io) {
                 if (reg->pfd.fd == pfds[i].fd) {
                     it.remove();
                     assert(reg->registered);
+                    reg->registered = false;
                     reg->set();
-                    storerelease(&reg->registered, false);
                     found = true;
                     break; } }
             if (!found) {
@@ -253,9 +252,8 @@ iosubscription::detach() {
     /* This isn't properly synchronised with the IO polling thread, so
        we could double unregister.  Polling thread is tolerant of
        that. */
-    if (loadacquire(registered)) {
-        tests::iosubdetachrace.trigger();
-        pollthread->detach(*this); } }
+    tests::iosubdetachrace.trigger();
+    pollthread->detach(*this); }
 
 iosubscription::~iosubscription() {
     detach(); }
