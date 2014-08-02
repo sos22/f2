@@ -15,10 +15,16 @@ namespace wireproto {
 
 template <typename t> class orerror;
 template <> class orerror<void>;
+class quickcheck;
+
+namespace tests {
+void _error();
+}
 
 /* Wrapper around errno */
 class error {
     friend class errorfield;
+    friend void tests::_error();
     int e;
     explicit error(const int &_e);
     int unwrap() const;
@@ -33,6 +39,8 @@ public:
                                   const wireproto::rx_message &);
 
     error() : e(unknown.e) {}
+    error(const quickcheck &q);
+
     bool operator==(const error &o) const { return e == o.e; }
     bool operator!=(const error &o) const { return e != o.e; }
 

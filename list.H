@@ -88,6 +88,11 @@ public:
     /* Check that the list looks vaguely reasonable */
     void sanitycheck() const;
 
+    /* Check a list for duplicates with an O(n^2) algorithm.  Only
+       really useful in test programs, because it's too slow for real
+       work. */
+    bool hasdupes() const;
+
     /* Create a new list and initialise it by running a mapping
        function over this list. */
     template <typename other_t> list<other_t> map(

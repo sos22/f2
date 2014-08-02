@@ -38,6 +38,9 @@ quickcheck::operator unsigned() const {
 quickcheck::operator unsigned short() const {
     return (unsigned short)(unsigned long)*this; }
 
+quickcheck::operator bool() const {
+    return random() % 2 == 0; }
+
 quickcheck::operator double() const {
     /* Standard Cauchy distribution, because why not? */
     return tan(M_PI * (drand48() - .5)); }

@@ -10,11 +10,14 @@ class quickcheck {
 public: operator unsigned long() const;
 public: operator unsigned() const;
 public: operator unsigned short() const;
+public: operator bool() const;
     /* Cauchy distributed with location 0 and scale 1 */
 public: operator double() const;
-    /* Returns a string in the quickcheck heap using the 8 bit char
-     * space, except for nul.  The pointer remains valid until the
-     * quickcheck heap is reset. */
+    /* Returns a string in the quickcheck heap using the entire 8 bit
+     * char space, except for nul.  The pointer remains valid until
+     * the quickcheck heap is reset.  The strings length is roughly
+     * log-uniform up to about 32k, with a preference for numbers near
+     * powers of two. */
 public: operator const char *() const;
     /* Flush the quickcheck heap, releasing all strings (etc)
      * allocated by this thread. */

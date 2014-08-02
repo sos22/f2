@@ -323,6 +323,16 @@ list<t>::sanitycheck() const
     }
 }
 
+template <typename t> bool
+list<t>::hasdupes() const {
+    for (auto it(start()); !it.finished(); it.next()) {
+        auto it2(it);
+        it2.next();
+        while (!it2.finished()) {
+            if (*it == *it2) return true;
+            it2.next(); } }
+    return false; }
+
 template <typename t> template <typename other_t> list<other_t>
 list<t>::map(std::function<other_t (const t&)> what) const {
     list<other_t> res;

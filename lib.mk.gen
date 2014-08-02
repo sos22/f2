@@ -69,6 +69,7 @@ testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H be
 testmodule buffer buffer.C buffer.H
 testmodule cond cond.C cond.H
 testmodule either either.C either.H either.tmpl
+testmodule error error.C error.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule mutex mutex.C mutex.H
 testmodule parsers parsers.C parsers.H parsers.tmpl
@@ -79,7 +80,6 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:
 #
-# error
 # fd
 # filename
 # frequency

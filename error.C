@@ -7,8 +7,15 @@
 
 #include "fields.H"
 #include "logging.H"
+#include "parsers.H"
+#include "string.H"
+#include "test.H"
+
+#include "list.tmpl"
+#include "parsers.tmpl"
 #include "wireproto.tmpl"
 
+static const int firsterror = 0;
 const error error::unknown(0);
 const error error::disconnected(-1);
 const error error::overflowed(-2);
@@ -32,6 +39,11 @@ const error error::toosoon(-19);
 const error error::pastend(-20);
 const error error::nothing(-21);
 const error error::notempty(-22);
+static const int lasterror = 22;
+
+error::error(const quickcheck &q) {
+    if ((bool)q) e = (unsigned)q % 300 + 1;
+    else e = firsterror - ((unsigned)q % (lasterror+1)); }
 
 class errorfield : public fields::field {
     error content;
@@ -116,6 +128,8 @@ error::from_errno(int err)
     return error(err);
 }
 
+/* Can't really test these from the unit tests */
+#ifndef COVERAGESKIP
 void
 error::fatal(const fields::field &msg) const
 {
@@ -131,6 +145,7 @@ error::fatal(const char *msg) const
 {
     fatal(fields::mk(msg));
 }
+#endif
 
 void
 error::warn(const fields::field &msg) const
@@ -149,3 +164,52 @@ error::warn(const char *msg) const
 }
 
 wireproto_simple_wrapper_type(error, int, e);
+
+void
+tests::_error() {
+    testcaseV("error", "eq", [] {
+            for (int x = -lasterror;
+                 x <= firsterror + 10;
+                 x++) {
+                for (int y = -lasterror;
+                     y <= firsterror + 10;
+                     y++) {
+                    assert((::error(x) == ::error(y)) ==
+                           (x == y)); } } });
+    testcaseV("error", "neq", [] {
+            for (int x = -lasterror;
+                 x <= firsterror + 10;
+                 x++) {
+                for (int y = -lasterror;
+                     y <= firsterror + 10;
+                     y++) {
+                    assert((::error(x) != ::error(y)) ==
+                           (x != y)); } } });
+    testcaseV("error", "uniqfields", [] {
+            list<string> fmted;
+            for (int x = -lasterror; x <= firsterror + 10; x++) {
+                fmted.pushtail(string(fields::mk(error(x)).c_str())); }
+            assert(!fmted.hasdupes());
+            fmted.flush(); });
+    testcaseV("error", "errno", [] {
+            errno = 7;
+            auto e(error::from_errno());
+            assert(errno == 99);
+            assert(e == error::from_errno(7)); });
+    testcaseV("error", "wireproto", [] {
+            wireproto::roundtrip<error>(); });
+    testcaseV("error", "fmtinvalid", [] {
+            assert(!strcmp(fields::mk(error(-99)).c_str(),
+                           "<invalid error -99>")); });
+#if TESTING
+    testcaseV("error", "warn", [] {
+            bool warned = false;
+            eventwaiter<loglevel> logwait(
+                tests::logmsg,
+                [&warned] (loglevel level) {
+                    if (level == loglevel::failure) {
+                        assert(!warned);
+                        warned = true; } });
+            error::underflowed.warn("should underflow"); });
+#endif
+}

@@ -4,6 +4,7 @@
 #include "buffer.H"
 #include "cond.H"
 #include "either.H"
+#include "error.H"
 #include "fields.H"
 #include "logging.H"
 #include "mutex.H"
@@ -20,6 +21,7 @@ main(int argc, char *argv[])
     tests::buffer();
     tests::cond();
     tests::either();
+    tests::_error();
     tests::fields();
     tests::logging();
     tests::mutex();
