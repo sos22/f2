@@ -49,11 +49,13 @@ void
 thread2::deathsubscription::detach() {
     if (owner == NULL) return;
     auto token(owner->lock.lock());
-    if (!owner->dead) {
-        for (auto it(owner->subscribers.start()); !it.finished(); it.next()) {
-            if (*it == this) {
-                it.remove();
-                break; } } }
+    bool found = false;
+    for (auto it(owner->subscribers.start()); !it.finished(); it.next()) {
+        if (*it == this) {
+            it.remove();
+            found = true;
+            break; } }
+    assert(found);
     owner->lock.unlock(&token);
     owner = NULL; }
 
@@ -69,6 +71,7 @@ thread2::join(deathtoken) {
      * Which is handy, because otherwise we'd deadlock calling
      * detach(). */
     while (!subscribers.empty()) {
+        assert(subscribers.peekhead()->owner == this);
         subscribers.peekhead()->detach(); }
     if (pthread_join(thr, NULL) < 0) {
         error::from_errno().fatal("joining thread " + fields::mk(name)); }
