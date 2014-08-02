@@ -291,6 +291,12 @@ subscriber::wait(clientio io, maybe<timestamp> deadline) {
                 mux.unlock(&token);
                 return NULL; } } } }
 
+subscriptionbase *
+subscriber::poll() {
+    /* Setting a deadline of now means that the wait will never block,
+       so doesn't need a clientio token. */
+    return wait(clientio::CLIENTIO, timestamp::now()); }
+
 subscriber::~subscriber() {
     while (!subscriptions.empty()) {
         auto r(subscriptions.pophead());

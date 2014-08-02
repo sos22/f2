@@ -9,6 +9,7 @@
 #include "pubsub.H"
 #include "ratelimiter.H"
 #include "test.H"
+#include "thread.H"
 
 int
 main(int argc, char *argv[])
@@ -21,6 +22,7 @@ main(int argc, char *argv[])
     tests::parsers();
     tests::pubsub();
     tests::ratelimiter();
+    tests::thread();
     tests::wireproto();
 
     switch (argc) {

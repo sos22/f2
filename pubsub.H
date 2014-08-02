@@ -113,6 +113,10 @@ public: subscriber();
      * The notification flag on the subscription is cleared but it
      * remains in the subscription list. */
 public: subscriptionbase *wait(clientio, maybe<timestamp> deadline = Nothing);
+    /* Special case of wait() with a timeout of right now, so that it
+     * never waits and only returns things which have already been
+     * notified. */
+public: subscriptionbase *poll();
     /* Destruct a subscriber.  Any outstanding subscriptions are
      * automatically unsubscribed, leaving the subscription in an
      * invalid state in which the only safe operation is to destruct

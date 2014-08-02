@@ -128,4 +128,8 @@ public:     void join(clientio);
 protected: virtual ~thread();
 };
 
+namespace tests {
+void thread();
+}
+
 #endif /* !THREAD_H__ */

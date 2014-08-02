@@ -69,6 +69,7 @@ testmodule mutex mutex.C mutex.H
 testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule pubsub pubsub.C
 testmodule ratelimiter ratelimiter.C ratelimiter.H
+testmodule thread thread.C thread.tmpl thread.H
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:

@@ -105,7 +105,7 @@ ${targ}-cov-report: test-c
 	rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.gcno ../*.H ../*.tmpl . ; gcov *.gcda) > /dev/null && cat ${reports} > \$@
 .PHONY: ${targ}-cov
 ${targ}-cov: ${targ}-cov-report
-	@if grep -q '#####' ${targ}-cov-report; then echo "${targ} FAILED"; false; else echo "${targ} passed"; true; fi
+	@if sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/d' ${targ}-cov-report | grep -q '#####' ; then echo "${targ} FAILED"; false; else echo "${targ} passed"; true; fi
 coverage:: ${targ}-cov
 clean::
 	rm -rf ${targ}-cov.d
