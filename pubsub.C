@@ -75,6 +75,7 @@ iopollingthread::run(clientio io) {
                     it.remove();
                     assert(reg->registered);
                     reg->registered = false;
+                    if (COVERAGE) pthread_yield();
                     reg->set();
                     found = true;
                     break; } }
@@ -623,6 +624,35 @@ tests::pubsub() {
                 ss = new subscription(sub, pub); }
             delete ss; });
 
+    testcaseV("pubsub", "detachnotifyrace", [] {
+            initpubsub();
+            auto pipe(fd_t::pipe().fatal("pipe()"));
+            volatile bool shutdown(false);
+            spark<bool> bounce([&pipe, &shutdown] {
+                    while (!shutdown) {
+                        (void)pipe.write.write(clientio::CLIENTIO,
+                                               "X",
+                                               1);
+                        char buf;
+                        (void)pipe.read.read(clientio::CLIENTIO,
+                                             &buf,
+                                             1); }
+                    return true; });
+            spark<bool> watcher([&pipe, &shutdown] {
+                    while (!shutdown) {
+                        subscriber sub;
+                        char buf[sizeof(iosubscription)];
+                        auto r = new (buf) iosubscription(
+                            sub, pipe.read.poll(POLLIN));
+                        /* Give it a chance to actually register. */
+                        if (!sub.poll()) pthread_yield();
+                        r->~iosubscription();
+                        memset(buf, 0x99, sizeof(buf)); }
+                    return true; });
+            (timestamp::now() + timedelta::seconds(5)).sleep();
+            shutdown = true;
+            watcher.get();
+            deinitpubsub(clientio::CLIENTIO); });
 }
 
 tests::event<void> tests::iosubdetachrace;
