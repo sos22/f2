@@ -7,27 +7,29 @@
 #include "logging.H"
 #include "spark.H"
 #include "test.H"
-#include "thread.H"
+#include "thread2.H"
 #include "timedelta.H"
 
 #include "list.tmpl"
 #include "test.tmpl"
+#include "thread2.tmpl"
 #include "timedelta.tmpl"
 
-class iopollingthread : public threadfn {
-private: thread *thrd;
+class iopollingthread : public thread2 {
+    friend class thread2;
 private: mutex_t mux;
 private: bool shutdown;
 private: list<iosubscription *> what;
 private: fd_t readcontrolfd;
 private: fd_t writecontrolfd;
+private: iopollingthread(constoken);
 private: void run(clientio);
 public:  void start();
 public:  void attach(iosubscription &);
 public:  void detach(iosubscription &);
 public:  void stop(clientio);
 };
-static iopollingthread pollthread;
+static iopollingthread *pollthread;
 
 void
 iopollingthread::run(clientio io) {
@@ -86,17 +88,19 @@ iopollingthread::run(clientio io) {
     mux.unlock(&token);
     free(pfds); }
 
-void
-iopollingthread::start() {
-    assert(thrd == NULL);
+iopollingthread::iopollingthread(constoken tok)
+    : thread2(tok),
+      mux(),
+      shutdown(false),
+      what(),
+      readcontrolfd(),
+      writecontrolfd() {
     assert(!shutdown);
     auto pr(fd_t::pipe());
     if (!COVERAGE && pr.isfailure()) {
         pr.failure().fatal("creating polling thread control pipe"); }
     readcontrolfd = pr.success().read;
-    writecontrolfd = pr.success().write;
-    thread::spawn(this, &thrd, fields::mk("polling thread"))
-        .fatal("starting polling thread"); }
+    writecontrolfd = pr.success().write; }
 
 void
 iopollingthread::attach(iosubscription &sub) {
@@ -142,7 +146,6 @@ iopollingthread::detach(iosubscription &sub) {
 
 void
 iopollingthread::stop(clientio io) {
-    assert(thrd != NULL);
     auto token(mux.lock());
     assert(!shutdown);
     shutdown = true;
@@ -150,9 +153,7 @@ iopollingthread::stop(clientio io) {
     mux.unlock(&token);
     if (!COVERAGE && r.isfailure()) {
         r.failure().fatal("writing to poller control FD for shutdown"); }
-    thrd->join(io);
-    thrd = NULL;
-    shutdown = false; }
+    join(io); }
 
 publisher::publisher()
     : mux(),
@@ -243,7 +244,7 @@ iosubscription::rearm() {
         set();
         return; }
     
-    pollthread.attach(*this); }
+    pollthread->attach(*this); }
 
 void
 iosubscription::detach() {
@@ -252,7 +253,7 @@ iosubscription::detach() {
        that. */
     if (registered) {
         tests::iosubdetachrace.trigger();
-        pollthread.detach(*this); } }
+        pollthread->detach(*this); } }
 
 iosubscription::~iosubscription() {
     detach(); }
@@ -297,11 +298,11 @@ subscriber::~subscriber() {
 
 void
 initpubsub() {
-    pollthread.start(); }
+    pollthread = thread2::spawn<iopollingthread>(fields::mk("iopoll")).go(); }
 
 void
 deinitpubsub(clientio io) {
-    pollthread.stop(io); }
+    pollthread->stop(io); }
 
 void
 tests::pubsub() {

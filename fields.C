@@ -8,7 +8,6 @@
 #include "list.H"
 #include "test.H"
 #include "spark.H"
-#include "thread.H"
 #include "tmpheap.H"
 #include "util.H"
 
