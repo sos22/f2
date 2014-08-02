@@ -6,6 +6,7 @@
 
 #include "list.tmpl"
 #include "rpcconn.tmpl"
+#include "rpcserver.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -94,12 +95,16 @@ coordinator::status() const {
     return res; }
 
 coordinator::coordinator(
+    constoken token,
+    listenfd fd,
     const mastersecret &_ms,
     const registrationsecret &_rs,
     controlserver *cs)
-    : ms(_ms),
+    : rpcserver(token, fd),
+      ms(_ms),
       rs(_rs),
-      statusiface(this, cs) { }
+      statusiface(this, cs) {
+    statusiface.start(); }
 
 orerror<rpcconn *>
 coordinator::accept(socket_t s) {
@@ -119,13 +124,9 @@ coordinator::build(
     const registrationsecret &rs,
     const peername &listenon,
     controlserver *cs) {
-    auto res(new coordinator(ms, rs, cs));
-    auto r(res->listen(listenon));
-    if (r.isfailure()) {
-        delete res;
-        return r.failure(); }
-    res->statusiface.start();
-    return res; }
+    return rpcserver::listen<coordinator>(listenon, ms, rs, cs)
+        .map<coordinator *>([] (pausedrpcserver<coordinator> c) {
+                return c.go(); }); }
 
 const fields::field &
 fields::mk(const coordinatorconn::status_t &o) {

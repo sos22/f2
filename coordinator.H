@@ -33,6 +33,8 @@ const field &mk(const coordinatorstatus &);
 
 class coordinator : public rpcserver {
     friend class coordinatorconn;
+    friend class pausedthread<coordinator>;
+    friend class thread2;
 private: mastersecret ms;
 private: registrationsecret rs;
 
@@ -56,7 +58,9 @@ public:  static orerror<coordinator *> build(
     const registrationsecret &,
     const peername &,
     controlserver *);
-private: coordinator(const mastersecret &,
+private: coordinator(constoken,
+                     listenfd,
+                     const mastersecret &,
                      const registrationsecret &,
                      controlserver *);
 private: orerror<rpcconn *> accept(socket_t);

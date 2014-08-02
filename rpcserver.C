@@ -55,27 +55,14 @@ rpcserver::run(clientio io) {
             delete cs;
             conn->join(death.just()); } } }
 
-rpcserver::rpcserver()
-    : thr(NULL),
+rpcserver::rpcserver(constoken t, listenfd fd)
+    : thread2(t),
       shutdown(),
-      sock() {}
-
-orerror<void>
-rpcserver::listen(const peername &p) {
-    auto s(socket_t::listen(p));
-    if (s.isfailure()) return s.failure();
-    sock = s.success();
-    return thread::spawn(this, &thr, "root " + fields::mk(p))
-        .iffailed([&sock] () { sock.close();}); }
+      sock(fd) {}
 
 void
 rpcserver::destroy(clientio io) {
-    assert(thr);
     shutdown.set(true);
-    thr->join(io);
-    thr = NULL;
-    sock.close();
-    delete this; }
-
-rpcserver::~rpcserver() {
-    assert(thr == NULL); }
+    auto s(sock);
+    join(io);
+    s.close(); }

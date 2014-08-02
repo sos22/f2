@@ -33,6 +33,8 @@ class storageslaveconn;
 
 class storageslave : rpcserver {
     friend class storageslaveconn;
+    friend class pausedthread<storageslave>;
+    friend class thread2;
 private: class statusiface : public statusinterface {
     private: storageslave *const owner;
     public:  statusiface(storageslave *_owner,
@@ -53,7 +55,9 @@ public:  static orerror<storageslave *> build(
     const registrationsecret &rs,
     const filename &,
     controlserver *);
-private: storageslave(const registrationsecret &_rs,
+private: storageslave(constoken,
+                      listenfd,
+                      const registrationsecret &_rs,
                       const filename &,
                       controlserver *cs);
 private: orerror<rpcconn *> accept(socket_t);

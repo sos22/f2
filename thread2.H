@@ -36,7 +36,7 @@ public:  t *go();
 public:  void destroy();
     /* Extract the wrapper thread structure, to allow any necessary
      * initialisation to be run. */
-public:  t *unwrap() {
+public:  t *unwrap() const {
     assert(inner_ != NULL);
     return inner_; }
 };
@@ -72,7 +72,7 @@ protected: thread2(constoken);
 public:    template <typename t, typename ... args>
     static pausedthread<t> spawn(
     const fields::field &name,
-    args...params);
+    args &...params);
 private:   void go();
 private:   static void *pthreadstart(void *);
     /* The main thread run method.  Derived classes should override

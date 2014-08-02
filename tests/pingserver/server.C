@@ -7,6 +7,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "rpcconn.tmpl"
+#include "rpcserver.tmpl"
 
 class pingableconn : public rpcconn {
     friend class thread2;
@@ -24,6 +25,10 @@ public:  ~pingableconn() {}
 };
 
 class pingableserver : public rpcserver {
+    friend class pausedthread<pingableserver>;
+    friend class thread2;
+public:  pingableserver(constoken t, listenfd fd)
+    : rpcserver(t, fd) {}
 public:  waitbox<shutdowncode> shutdown;
 public:  static orerror<pingableserver *> listen(
     const peername &p);
@@ -43,12 +48,9 @@ pingableconn::message(const wireproto::rx_message &msg) {
 
 orerror<pingableserver *>
 pingableserver::listen(const peername &p) {
-    auto res(new pingableserver());
-    auto rr(res->rpcserver::listen(p));
-    if (rr != Success) {
-        delete res;
-        return rr.failure(); }
-    return res; }
+    return rpcserver::listen<pingableserver>(p)
+        .map<pingableserver *>([] (pausedrpcserver<pingableserver> s) {
+                return s.go(); }); }
 
 orerror<rpcconn *>
 pingableserver::accept(socket_t s) {

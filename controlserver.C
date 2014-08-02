@@ -9,6 +9,7 @@
 
 #include "list.tmpl"
 #include "rpcconn.tmpl"
+#include "rpcserver.tmpl"
 
 /* Cast to 1 rather than NULL to avoid stupid compiler crap. */
 #define containerof(thing, type, field)                                 \
@@ -143,8 +144,11 @@ controlconn::message(const wireproto::rx_message &rxm) {
     } else {
         return rpcconn::message(rxm); } }
 
-controlserver::controlserver(waitbox<shutdowncode> &_shutdown)
-    : shutdown(_shutdown) {}
+controlserver::controlserver(constoken token,
+                             listenfd fd,
+                             waitbox<shutdowncode> &_shutdown)
+    : rpcserver(token, fd),
+      shutdown(_shutdown) {}
 
 orerror<rpcconn *>
 controlserver::accept(socket_t s) {
@@ -157,12 +161,7 @@ controlserver::accept(socket_t s) {
         this); }
 
 orerror<controlserver *>
-controlserver::build(const peername &p, waitbox<shutdowncode> &s)
-{
-    auto r(new controlserver(s));
-    auto e(r->listen(p));
-    if (e.issuccess()) {
-        return r;
-    } else {
-        delete r;
-        return e.failure(); } }
+controlserver::build(const peername &p, waitbox<shutdowncode> &s) {
+    return rpcserver::listen<controlserver>(p, s)
+        .map<controlserver *>([] (pausedrpcserver<controlserver> ss) {
+                return ss.go(); }); }

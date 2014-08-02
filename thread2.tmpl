@@ -23,13 +23,14 @@ pausedthread<t>::go() {
 
 template <typename t> void
 pausedthread<t>::destroy() {
-    assert(!inner_->started);
+    thread2 *i(inner_);
+    assert(!i->started);
     inner_->join(clientio::CLIENTIO);
     inner_ = NULL; }
 
 template <typename t, typename ... args> pausedthread<t> thread2::spawn(
     const fields::field &name,
-    args...params) {
+    args &...params) {
     auto res = new t(constoken(name), params...);
     /* Check it derives from thread2. */
     thread2 *rr = res;

@@ -84,6 +84,10 @@ public:
         } else {
             new (buf) t(other.success()); } }
 
+    template <typename o> orerror<o> map(std::function<o (const t &)> f) {
+        if (isfailure()) return failure();
+        else return f(success()); }
+
     bool operator==(const error &e) {
         return isfailure() && failure() == e; }
     bool operator==(const t &e) {

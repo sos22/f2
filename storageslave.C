@@ -12,6 +12,7 @@
 #include "list.tmpl"
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
+#include "rpcserver.tmpl"
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(storageslave::status_t);
@@ -122,37 +123,36 @@ storageslave::build(clientio io,
         .fatal("parsing slave name from " + fields::mk(dir)));
     auto br(beaconclient(rs));
     if (br.isfailure()) return br.failure();
-    auto res(new storageslave(
-                 br.success().secret,
-                 dir,
-                 cs));
+    auto server(rpcserver::listen<storageslave>(
+                    peername::tcpany(),
+                    br.success().secret,
+                    dir,
+                    cs));
+    if (server.isfailure()) return server.failure();
     auto mc(rpcconn::connectmaster<storageslaveconn>(
                 io,
                 br.success(),
                 name,
-                res));
+                server.success().unwrap()));
     if (mc.isfailure()) {
-        delete res;
+        server.success().destroy();
         return mc.failure(); }
-    res->masterconn = mc.success();
-    auto r(res->listen(peername::tcpany()));
-    if (r.isfailure()) {
-        res->masterconn = NULL;
-        delete res;
-        mc.success()->destroy(io);
-        return r.failure(); }
-    res->status_.start();
-    return res; }
+    server.success().unwrap()->masterconn = mc.success();
+    return server.success().go(); }
 
-storageslave::storageslave(const registrationsecret &_rs,
+storageslave::storageslave(constoken token,
+                           listenfd fd,
+                           const registrationsecret &_rs,
                            const filename &_pool,
                            controlserver *cs)
-    : status_(this, cs),
+    : rpcserver(token, fd),
+      status_(this, cs),
       rs(_rs),
       masterconn(NULL),
       clients(),
       pool(_pool),
-      mux() {}
+      mux() {
+    status_.start(); }
 
 orerror<rpcconn *>
 storageslave::accept(socket_t s) {

@@ -96,6 +96,9 @@ thread2::join(deathtoken) {
 
 void
 thread2::join(clientio io) {
+    if (!started) {
+        delete this;
+        return; }
     subscriber sub;
     deathsubscription ds(sub, this);
     auto d(sub.wait(io));

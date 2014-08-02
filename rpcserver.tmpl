@@ -1,0 +1,14 @@
+#ifndef RPCSERVER_TMPL__
+#define RPCSERVER_TMPL__
+
+template <typename t, typename ... args> orerror<pausedrpcserver<t> >
+rpcserver::listen(const peername &p, args &... params) {
+    auto s(socket_t::listen(p));
+    if (s.isfailure()) return s.failure();
+    else return pausedrpcserver<t>(
+        thread2::spawn<t>(
+            fields::mk("root " + fields::mk(p)),
+            s.success(),
+            params...)); }
+
+#endif /* !RPCSERVER_TMPL__ */

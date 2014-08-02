@@ -6,17 +6,30 @@
 #include "mutex.H"
 #include "peername.H"
 #include "pubsub.H"
-#include "thread.H"
+#include "thread2.H"
 #include "waitbox.H"
+
+class rpcserver;
 
 template <typename> class orerror;
 class rpcconn;
 
-class rpcserver : threadfn {
+/* New servers are initially paused, and must be unpaused before they
+   will start accepting incoming connections.  Attempts by remote
+   peers to connect to a paused will block until it is unpaused
+   (modulo the usual connect() timeouts). */
+template <typename t> class pausedrpcserver {
+    friend class rpcserver;
+private: pausedthread<t> inner_;
+private: pausedrpcserver(pausedthread<t> _inner) : inner_(_inner) {}
+public:  t *go() { return inner_.go(); }
+public:  void destroy() { inner_.destroy(); }
+public:  t *unwrap() const { return inner_.unwrap(); } };
+
+class rpcserver : protected thread2 {
     /* Each rpcserver has a dedicated thread which listens for
        incoming connections, spawns new connection threads, and teards
        down connection threads when they die. */
-private:   thread *thr;
 private:   void run(clientio);
 private:   waitbox<bool> shutdown;
 
@@ -26,13 +39,14 @@ private:   listenfd sock;
 private:   rpcserver(const rpcserver &) = delete;
 private:   void operator=(const rpcserver &) = delete;
 
-protected: rpcserver();
+protected: rpcserver(constoken, listenfd);
 
-    /* Start listening on a particular peer name.  Should be called by
-     * derived classes early in the their startup sequence.  If this
-     * fails then you should delete the server, rather than going
-     * through the usual destroy() method. */
-protected: orerror<void> listen(const peername &);
+    /* Create a new RPC server listening on a particular peername.  @t
+       should be derived from rpcserver. */
+public:    template <typename t, typename ... args>
+    static orerror<pausedrpcserver<t> > listen(
+        const peername &,
+        args &...);
 
     /* We just accepted a new client and have a socket_t for them.
      * Turn that into a full rpcconn.  This runs in the main server
@@ -55,8 +69,7 @@ public:    peername localname() const { return sock.localname(); }
     /* Not a true destructor because it can wait for things. */
 public:    virtual void destroy(clientio);
 
-    /* Only called from destroy() method and when listen() fails. */
-protected: virtual ~rpcserver();
+protected: virtual ~rpcserver() {}
 };
 
 #endif /* !RPCSERVER_H__ */

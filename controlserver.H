@@ -62,11 +62,15 @@ public:  virtual ~controlconn() {}
 
 class controlserver : public rpcserver {
     friend class controlconn;
+    friend class pausedthread<controlserver>;
+    friend class thread2;
     friend class statusinterface;
 private: list<statusinterface *> statusifaces;
 private: mutex_t statuslock;
 private: waitbox<shutdowncode> &shutdown;
-private: controlserver(waitbox<shutdowncode> &_shutdown);
+private: controlserver(constoken,
+                       listenfd,
+                       waitbox<shutdowncode> &_shutdown);
     /* Create a new control server and start serving requests.  The
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you
