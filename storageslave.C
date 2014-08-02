@@ -18,6 +18,7 @@ wireproto_wrapper_type(storageslave::status_t);
 
 class storageslaveconn : public rpcconn {
     friend class thread2;
+    friend class pausedthread<storageslaveconn>;
 private: storageslave *const owner;
 private: storageslaveconn(thread2::constoken,
                           socket_t &_socket,

@@ -14,6 +14,7 @@ template <typename t>
 class spark {
 private: class thr : public thread2 {
         friend class thread2;
+        friend class pausedthread<thr>;
     private: spark *owner;
     private: std::function<t ()> what;
     private: thr(thread2::constoken,

@@ -1,5 +1,7 @@
 #include "thread2.H"
 
+#include <sys/prctl.h>
+
 #include "error.H"
 #include "fields.H"
 #include "tid.H"
@@ -11,19 +13,32 @@
 static mutex_t
 detachlock;
 
-thread2::thread2(thread2::constoken)
+thread2::thread2(thread2::constoken token)
     : thr(),
+      started(false),
       tid_(),
-      name(NULL),
+      name(strdup(token.name.c_str())),
       dead(false),
       subscribers() {}
+
+void
+thread2::go() {
+    assert(!started);
+    started = true;
+    if (pthread_create(&thr,
+                       NULL,
+                       pthreadstart,
+                       this) != 0) {
+        error::from_errno().fatal("spawn thread " + fields::mk(name)); } }
 
 void *
 thread2::pthreadstart(void *_this) {
     thread2 *thr = static_cast<thread2 *>(_this);
+    assert(thr->started == true);
     /* pthread API doesn't give a good way of getting tid from parent
        process, so do it from here instead. */
     thr->tid_.set(tid::me());
+    prctl(PR_SET_NAME, (unsigned long)thr->name, 0, 0);
     thr->run(clientio::CLIENTIO);
     /* Tell subscribers that we died. */
     auto token(detachlock.lock());

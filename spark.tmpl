@@ -8,7 +8,7 @@
 template <typename t>
 spark<t>::spark(const std::function<t ()> &_what)
     : wb(),
-      th(thread2::spawn<thr>(fields::mk("spark"), this, _what)) {}
+      th(thread2::spawn<thr>(fields::mk("spark"), this, _what).go()) {}
 
 template <typename t>
 spark<t>::thr::thr(thread2::constoken tok,

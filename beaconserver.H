@@ -72,6 +72,7 @@ public: beaconserverconfig(const registrationsecret &_rs,
 
 class beaconserver : private thread2 {
     friend class thread2;
+    friend class pausedthread<beaconserver>;
     friend class statusiface;
 
     class statusiface : public statusinterface {

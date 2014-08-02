@@ -9,17 +9,31 @@
 #include "error.H"
 #include "fields.H"
 
-template <typename t, typename ... args> t *thread2::spawn(
+template <typename t>
+pausedthread<t>::pausedthread(t *_inner)
+    : inner_(_inner) {}
+
+template <typename t> t *
+pausedthread<t>::go() {
+    auto res(inner_);
+    thread2 *r(res);
+    inner_ = NULL;
+    r->go();
+    return res; }
+
+template <typename t> void
+pausedthread<t>::destroy() {
+    assert(!inner_->started);
+    inner_->join(clientio::CLIENTIO);
+    inner_ = NULL; }
+
+template <typename t, typename ... args> pausedthread<t> thread2::spawn(
     const fields::field &name,
     args...params) {
-    auto res = new t(constoken(), params...);
+    auto res = new t(constoken(name), params...);
+    /* Check it derives from thread2. */
     thread2 *rr = res;
-    rr->name = strdup(name.c_str());
-    if (pthread_create(&rr->thr,
-                       NULL,
-                       pthreadstart,
-                       rr) != 0) {
-        error::from_errno().fatal("spawn thread " + name); }
+    (void)rr;
     return res; }
 
 #endif /* !THREAD2_TMPL__ */

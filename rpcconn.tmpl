@@ -24,7 +24,8 @@ rpcconn::fromsocket(socket_t sock,
         sock,
         auth,
         peer.success(),
-        parameters...); }
+        parameters...)
+             .go(); }
 
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,

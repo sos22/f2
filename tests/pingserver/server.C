@@ -10,6 +10,7 @@
 
 class pingableconn : public rpcconn {
     friend class thread2;
+    friend class pausedthread<pingableconn>;
 public:  waitbox<shutdowncode> &shutdown;
 private: pingableconn(thread2::constoken tok,
                       socket_t _sock,

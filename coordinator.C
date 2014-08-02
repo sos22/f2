@@ -41,6 +41,7 @@ coordinatorconnstatus::fromcompound(const wireproto::rx_message &rxm) {
         rxm.getparam(proto::coordinatorconnstatus::slave)); }
 
 class coordinatorconn : public rpcconn {
+    friend class pausedthread<coordinatorconn>;
 public:  coordinator *const owner;
 public:  coordinatorconn(thread2::constoken,
                          socket_t &_socket,

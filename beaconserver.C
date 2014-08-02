@@ -66,7 +66,8 @@ beaconserver::build(const beaconserverconfig &config,
         fields::mk("beacon listener"),
         config,
         cs,
-        r.success()); }
+        r.success())
+             .go(); }
 
 beaconserver::beaconserver(thread2::constoken tok,
                            const beaconserverconfig &config,

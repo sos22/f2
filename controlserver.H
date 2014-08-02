@@ -49,6 +49,7 @@ public:    virtual ~statusinterface();
 };
 
 class controlconn : public rpcconn {
+    friend class pausedthread<controlconn>;
 private: controlserver *const owner;
 public:  controlconn(thread2::constoken tok,
                      socket_t _sock,

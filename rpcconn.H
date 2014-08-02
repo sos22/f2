@@ -174,6 +174,7 @@ public:  wireproto::tx_message *reply() const {
 
 class rpcconn : protected thread2 {
     friend class thread2;
+    friend class pausedthread<rpcconn>;
     /* Each rpcconn has an associated thread which does IO for it. */
 private: waitbox<bool> shutdown; /* To shut down the thread */
 private: void run(clientio);

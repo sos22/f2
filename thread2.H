@@ -6,11 +6,10 @@
 
 #include <pthread.h>
 
+#include "clientio.H"
 #include "pubsub.H"
 #include "tid.H"
 #include "waitbox.H"
-
-class clientio;
 
 namespace fields {
 class field;
@@ -22,33 +21,59 @@ namespace fields {
 const field &mk(const thread2 &);
 }
 
+/* Threads are initially creted in a paused state, allowing some
+   initialisation work before the thread's run() method is called. */
+template <typename t> class pausedthread {
+    friend class thread2;
+private: pausedthread() = delete;
+private: pausedthread(t *);
+private: t *inner_;
+    /* Unpause the thread and let it go.  The pausedthread structure
+       becomes invalid when this is called. */
+public:  t *go();
+    /* Paused threads can be destroyed without needing a clientio
+       token.  Destroyed threads should not be unpaused. */
+public:  void destroy();
+    /* Extract the wrapper thread structure, to allow any necessary
+     * initialisation to be run. */
+public:  t *unwrap() {
+    assert(inner_ != NULL);
+    return inner_; }
+};
+
 class thread2 {
+    template <typename t> friend class pausedthread;
 public:    class deathsubscription;
     friend class deathsubscription;
     friend const fields::field &fields::mk(const thread2 &);
 private:   pthread_t thr;
+private:   bool started;
 private:   waitbox<tid> tid_;
 private:   const char *name; /* nul-terminated malloc()ed owned */
 private:   bool dead; /* Access with loadacquire() and storerelease() */
 private:   list<deathsubscription *> subscribers;
 protected: class constoken {
     friend class thread2;
-    private: constoken() {}
+    private: const fields::field &name;
+    private: constoken(const fields::field &_name)
+        : name(_name) {}
     };
 protected: thread2(constoken);
     /* Create a new thread.  Template parameter t should be a derived
        class of thread2.  args are arguments to its constructor.  The
-       new thread becomes runnable as soon as the constructor returns.
-       The constructor should only block for a long time if the
-       argument list includes a clientio token.  The name gives a name
-       for the thread which will be made available in the debugger and
-       through the fields::mk() method.  The derived class should
-       usually have only private constructors and should be friends
-       with this one. */
+       new thread is initially paused and will become runnable when
+       go() is called.  The constructor should only block for a long
+       time if the argument list includes a clientio token.  The name
+       gives a name for the thread which will be made available in the
+       debugger and through the fields::mk() method.  The derived
+       class should usually have only private constructors and should
+       be friends with this one. */
     /* Note that this will abort() if the thread creation fails. */
-public:    template <typename t, typename ... args> static t *spawn(
+public:    template <typename t, typename ... args>
+    static pausedthread<t> spawn(
     const fields::field &name,
     args...params);
+private:   void go();
 private:   static void *pthreadstart(void *);
     /* The main thread run method.  Derived classes should override
      * this to control what the thread does.  Note that the thread
