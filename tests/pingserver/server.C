@@ -10,10 +10,10 @@
 #include "rpcserver.tmpl"
 
 class pingableconn : public rpcconn {
-    friend class thread2;
+    friend class thread;
     friend class pausedthread<pingableconn>;
 public:  waitbox<shutdowncode> &shutdown;
-private: pingableconn(thread2::constoken tok,
+private: pingableconn(constoken tok,
                       socket_t _sock,
                       const rpcconnauth &__auth,
                       const peername &_peer,
@@ -26,7 +26,7 @@ public:  ~pingableconn() {}
 
 class pingableserver : public rpcserver {
     friend class pausedthread<pingableserver>;
-    friend class thread2;
+    friend class thread;
 public:  pingableserver(constoken t, listenfd fd)
     : rpcserver(t, fd) {}
 public:  waitbox<shutdowncode> shutdown;
