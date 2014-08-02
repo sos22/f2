@@ -2,10 +2,10 @@
 
 #include "fields.H"
 #include "test.H"
-#include "thread2.H"
+#include "thread.H"
 #include "timedelta.H"
 
-#include "thread2.tmpl"
+#include "thread.tmpl"
 
 mutex_t::mutex_t()
 {
@@ -43,7 +43,7 @@ tests::mutex() {
             int holders[nr_muxes];
             memset(holders, 0, sizeof(holders));
             volatile bool shutdown(false);
-            struct thr : public thread2 {
+            struct thr : public thread {
                 mutex_t *const _muxes;
                 int *const _holders;
                 int const ident;
@@ -53,7 +53,7 @@ tests::mutex() {
                     int *__holders,
                     int _ident,
                     volatile bool &__shutdown)
-                    : thread2(token),
+                    : thread(token),
                       _muxes(__muxes),
                       _holders(__holders),
                       ident(_ident),
@@ -71,7 +71,7 @@ tests::mutex() {
             thr *thrs[nr_threads];
             for (unsigned x = 0; x < nr_threads; x++) {
                 unsigned y(x+1);
-                thrs[x] = thread2::spawn<thr>(fields::mk(x), muxes, holders,
+                thrs[x] = thread::spawn<thr>(fields::mk(x), muxes, holders,
                                               y, shutdown).go(); }
             (timestamp::now() + timedelta::seconds(5)).sleep();
             shutdown = true;

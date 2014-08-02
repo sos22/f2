@@ -6,7 +6,7 @@
 #include "mutex.H"
 #include "peername.H"
 #include "pubsub.H"
-#include "thread2.H"
+#include "thread.H"
 #include "waitbox.H"
 
 class rpcserver;
@@ -26,7 +26,7 @@ public:  t *go() { return inner_.go(); }
 public:  void destroy() { inner_.destroy(); }
 public:  t *unwrap() const { return inner_.unwrap(); } };
 
-class rpcserver : protected thread2 {
+class rpcserver : protected thread {
     /* Each rpcserver has a dedicated thread which listens for
        incoming connections, spawns new connection threads, and teards
        down connection threads when they die. */

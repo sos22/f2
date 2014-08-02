@@ -73,7 +73,7 @@ statusinterface::~statusinterface() {
     assert(!active.next);
     assert(!active.prev); }
 
-controlconn::controlconn(thread2::constoken tok,
+controlconn::controlconn(thread::constoken tok,
                          socket_t _sock,
                          const rpcconnauth &__auth,
                          const peername &_peer,

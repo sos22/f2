@@ -5,19 +5,19 @@
 #define SPARK_H__
 
 #include "clientio.H"
-#include "thread2.H"
+#include "thread.H"
 
 class publisher;
 template <typename> class waitbox;
 
 template <typename t>
 class spark {
-private: class thr : public thread2 {
-        friend class thread2;
+private: class thr : public thread {
+        friend class thread;
         friend class pausedthread<thr>;
     private: spark *owner;
     private: std::function<t ()> what;
-    private: thr(thread2::constoken,
+    private: thr(thread::constoken,
                  spark *,
                  const std::function<t ()> &);
     private: void run(clientio);

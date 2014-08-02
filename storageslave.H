@@ -34,7 +34,7 @@ class storageslaveconn;
 class storageslave : rpcserver {
     friend class storageslaveconn;
     friend class pausedthread<storageslave>;
-    friend class thread2;
+    friend class thread;
 private: class statusiface : public statusinterface {
     private: storageslave *const owner;
     public:  statusiface(storageslave *_owner,

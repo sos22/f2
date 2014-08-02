@@ -1,7 +1,7 @@
-#ifndef THREAD2_TMPL__
-#define THREAD2_TMPL__
+#ifndef THREAD_TMPL__
+#define THREAD_TMPL__
 
-#include "thread2.H"
+#include "thread.H"
 
 #include <pthread.h>
 #include <string.h>
@@ -16,25 +16,25 @@ pausedthread<t>::pausedthread(t *_inner)
 template <typename t> t *
 pausedthread<t>::go() {
     auto res(inner_);
-    thread2 *r(res);
+    thread *r(res);
     inner_ = NULL;
     r->go();
     return res; }
 
 template <typename t> void
 pausedthread<t>::destroy() {
-    thread2 *i(inner_);
+    thread *i(inner_);
     assert(!i->started);
     inner_->join(clientio::CLIENTIO);
     inner_ = NULL; }
 
-template <typename t, typename ... args> pausedthread<t> thread2::spawn(
+template <typename t, typename ... args> pausedthread<t> thread::spawn(
     const fields::field &name,
     args &...params) {
     auto res = new t(constoken(name), params...);
-    /* Check it derives from thread2. */
-    thread2 *rr = res;
+    /* Check it derives from thread. */
+    thread *rr = res;
     (void)rr;
     return res; }
 
-#endif /* !THREAD2_TMPL__ */
+#endif /* !THREAD_TMPL__ */

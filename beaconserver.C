@@ -20,7 +20,7 @@
 #include "waitbox.H"
 
 #include "test.tmpl"
-#include "thread2.tmpl"
+#include "thread.tmpl"
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(beaconstatus);
@@ -62,18 +62,18 @@ beaconserver::build(const beaconserverconfig &config,
                     controlserver *cs) {
     auto r(udpsocket::listen(config.port_));
     if (r.isfailure()) return r.failure();
-    else return thread2::spawn<beaconserver>(
+    else return thread::spawn<beaconserver>(
         fields::mk("beacon listener"),
         config,
         cs,
         r.success())
              .go(); }
 
-beaconserver::beaconserver(thread2::constoken tok,
+beaconserver::beaconserver(thread::constoken tok,
                            const beaconserverconfig &config,
                            controlserver *cs,
                            udpsocket _listenfd)
-    : thread2(tok),
+    : thread(tok),
       statusiface_(this, cs),
       secret(config.rs_),
       mastername(config.coordinator_),

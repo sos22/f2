@@ -18,10 +18,10 @@
 wireproto_wrapper_type(storageslave::status_t);
 
 class storageslaveconn : public rpcconn {
-    friend class thread2;
+    friend class thread;
     friend class pausedthread<storageslaveconn>;
 private: storageslave *const owner;
-private: storageslaveconn(thread2::constoken,
+private: storageslaveconn(thread::constoken,
                           socket_t &_socket,
                           const rpcconnauth &_auth,
                           const peername &_peer,
@@ -31,7 +31,7 @@ private: void endconn(clientio);
 };
 
 storageslaveconn::storageslaveconn(
-    thread2::constoken tok,
+    thread::constoken tok,
     socket_t &_socket,
     const rpcconnauth &__auth,
     const peername &_peer,

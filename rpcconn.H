@@ -13,7 +13,7 @@
 #include "registrationsecret.H"
 #include "slavename.H"
 #include "socket.H"
-#include "thread2.H"
+#include "thread.H"
 #include "util.H"
 #include "waitbox.H"
 #include "wireproto.H"
@@ -172,8 +172,8 @@ public:  wireproto::tx_message *reply() const {
     assert(content.success().isjust());
     return content.success().just(); } };
 
-class rpcconn : protected thread2 {
-    friend class thread2;
+class rpcconn : protected thread {
+    friend class thread;
     friend class pausedthread<rpcconn>;
     /* Each rpcconn has an associated thread which does IO for it. */
 private: waitbox<bool> shutdown; /* To shut down the thread */
@@ -258,7 +258,7 @@ public: template<typename t, typename... args> static orerror<t *> fromsocket(
     const rpcconnauth &auth,
     args...);
 
-protected: rpcconn(thread2::constoken,
+protected: rpcconn(thread::constoken,
                    socket_t _sock,
                    const rpcconnauth &_auth,
                    const peername &_peer);
@@ -378,19 +378,19 @@ public: orerror<const wireproto::rx_message *> call(
 public:  void teardown();
 
     /* Re-expose the thread death protocol. */
-public:  class deathtoken : public thread2::deathtoken {
-    public: deathtoken(thread2::deathtoken t)
-        : thread2::deathtoken(t) {}
+public:  class deathtoken : public thread::deathtoken {
+    public: deathtoken(thread::deathtoken t)
+        : thread::deathtoken(t) {}
     };
 public:  maybe<deathtoken> hasdied() const;
-public:  class deathsubscription : public thread2::deathsubscription {
+public:  class deathsubscription : public thread::deathsubscription {
     public: rpcconn *const conn;
     public: deathsubscription(subscriber &_sub, rpcconn *_owner)
-        :  thread2::deathsubscription(_sub, _owner),
+        :  thread::deathsubscription(_sub, _owner),
            conn(_owner) {}
     };
-public:  void join(deathtoken dt) { thread2::join(dt); }
-public:  void join(clientio io) { thread2::join(io); }
+public:  void join(deathtoken dt) { thread::join(dt); }
+public:  void join(clientio io) { thread::join(io); }
 
     /* Should only be called from the destroy() method. */
 protected: virtual ~rpcconn();

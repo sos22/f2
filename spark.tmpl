@@ -3,18 +3,18 @@
 
 #include "fields.H"
 #include "spark.H"
-#include "thread2.tmpl"
+#include "thread.tmpl"
 
 template <typename t>
 spark<t>::spark(const std::function<t ()> &_what)
     : wb(),
-      th(thread2::spawn<thr>(fields::mk("spark"), this, _what).go()) {}
+      th(thread::spawn<thr>(fields::mk("spark"), this, _what).go()) {}
 
 template <typename t>
-spark<t>::thr::thr(thread2::constoken tok,
+spark<t>::thr::thr(thread::constoken tok,
                    spark<t> *_owner,
                    const std::function<t ()> &_what)
-    : thread2(tok),
+    : thread(tok),
       owner(_owner),
       what(_what) {}
 

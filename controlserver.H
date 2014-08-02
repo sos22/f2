@@ -51,7 +51,7 @@ public:    virtual ~statusinterface();
 class controlconn : public rpcconn {
     friend class pausedthread<controlconn>;
 private: controlserver *const owner;
-public:  controlconn(thread2::constoken tok,
+public:  controlconn(thread::constoken tok,
                      socket_t _sock,
                      const rpcconnauth &_auth,
                      const peername &_peer,
@@ -63,7 +63,7 @@ public:  virtual ~controlconn() {}
 class controlserver : public rpcserver {
     friend class controlconn;
     friend class pausedthread<controlserver>;
-    friend class thread2;
+    friend class thread;
     friend class statusinterface;
 private: list<statusinterface *> statusifaces;
 private: mutex_t statuslock;

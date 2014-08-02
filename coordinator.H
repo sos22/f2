@@ -34,7 +34,7 @@ const field &mk(const coordinatorstatus &);
 class coordinator : public rpcserver {
     friend class coordinatorconn;
     friend class pausedthread<coordinator>;
-    friend class thread2;
+    friend class thread;
 private: mastersecret ms;
 private: registrationsecret rs;
 

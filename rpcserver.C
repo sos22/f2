@@ -56,7 +56,7 @@ rpcserver::run(clientio io) {
             conn->join(death.just()); } } }
 
 rpcserver::rpcserver(constoken t, listenfd fd)
-    : thread2(t),
+    : thread(t),
       shutdown(),
       sock(fd) {}
 

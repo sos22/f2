@@ -513,11 +513,11 @@ rpcconn::run(clientio io) {
     endconn(io); }
 
 rpcconn::rpcconn(
-    thread2::constoken tok,
+    thread::constoken tok,
     socket_t _sock,
     const rpcconnauth &__auth,
     const peername &_peer)
-    : thread2(tok),
+    : thread(tok),
       shutdown(),
       sock(_sock),
       txlock(),
@@ -638,8 +638,8 @@ rpcconn::teardown() {
 
 maybe<rpcconn::deathtoken>
 rpcconn::hasdied() const {
-    return thread2::hasdied()
-        .map<deathtoken>([] (thread2::deathtoken t) {
+    return thread::hasdied()
+        .map<deathtoken>([] (thread::deathtoken t) {
                 return deathtoken(t); }); }
 
 rpcconn::~rpcconn() {

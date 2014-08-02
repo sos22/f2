@@ -1,5 +1,5 @@
-#ifndef THREAD2_H__
-#define THREAD2_H__
+#ifndef THREAD_H__
+#define THREAD_H__
 
 #include <pthread.h>
 
@@ -12,16 +12,16 @@ namespace fields {
 class field;
 }
 
-class thread2;
+class thread;
 
 namespace fields {
-const field &mk(const thread2 &);
+const field &mk(const thread &);
 }
 
 /* Threads are initially creted in a paused state, allowing some
    initialisation work before the thread's run() method is called. */
 template <typename t> class pausedthread {
-    friend class thread2;
+    friend class thread;
 private: pausedthread() = delete;
 private: pausedthread(t *);
 private: t *inner_;
@@ -38,11 +38,11 @@ public:  t *unwrap() const {
     return inner_; }
 };
 
-class thread2 {
+class thread {
     template <typename t> friend class pausedthread;
 public:    class deathsubscription;
     friend class deathsubscription;
-    friend const fields::field &fields::mk(const thread2 &);
+    friend const fields::field &fields::mk(const thread &);
 private:   pthread_t thr;
 private:   bool started;
 private:   waitbox<tid> tid_;
@@ -50,14 +50,14 @@ private:   const char *name; /* nul-terminated malloc()ed owned */
 private:   bool dead; /* Access with loadacquire() and storerelease() */
 private:   list<deathsubscription *> subscribers;
 protected: class constoken {
-    friend class thread2;
+    friend class thread;
     private: const fields::field &name;
     private: constoken(const fields::field &_name)
         : name(_name) {}
     };
-protected: thread2(constoken);
+protected: thread(constoken);
     /* Create a new thread.  Template parameter t should be a derived
-       class of thread2.  args are arguments to its constructor.  The
+       class of thread.  args are arguments to its constructor.  The
        new thread is initially paused and will become runnable when
        go() is called.  The constructor should only block for a long
        time if the argument list includes a clientio token.  The name
@@ -81,7 +81,7 @@ private:   virtual void run(clientio) = 0;
      * can be presented to join() in lieu of a clientio token, because
      * once the thread has died join() is guaranteed to be quick. */
 public:    class deathtoken {
-        friend class thread2;
+        friend class thread;
     private: deathtoken() {}
     };
     /* Check whether the thread has exitted.  Returns a death token if
@@ -93,11 +93,11 @@ public:    maybe<deathtoken> hasdied() const;
      * notified when added to a subscriber if the thread is already
      * dead. */
 public:    class deathsubscription : public subscriptionbase {
-        friend class thread2;
+        friend class thread;
     private: deathsubscription() = delete;
     private: deathsubscription(const deathsubscription &) = delete;
     private: void operator =(const deathsubscription &) = delete;
-    private: thread2 *owner;
+    private: thread *owner;
         /* Construct a new death subscription for a given thread.  The
          * subscription will be notified shortly after the thread
          * hasdied() method starts returning a valid death token, and
@@ -106,7 +106,7 @@ public:    class deathsubscription : public subscriptionbase {
         /* Note that this is still edge, rather than level, sensitive:
          * each subscription will only be notified once when the
          * thread dies. */
-    public:  deathsubscription(subscriber &sub, thread2 *owner);
+    public:  deathsubscription(subscriber &sub, thread *owner);
         /* Detach the thread death subscription from the thread.  The
          * subscription will no longer be notified when the thread
          * dies.  It is valid to call detach() multiple times (but
@@ -125,7 +125,7 @@ public:     void join(clientio);
     /* Should be private, but gcc doesn't let you inherit from classes
      * with a private destructor.  Can be overridden by child
      * classes. */
-protected: virtual ~thread2();
+protected: virtual ~thread();
 };
 
-#endif /* !THREAD2_H__ */
+#endif /* !THREAD_H__ */

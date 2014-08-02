@@ -44,7 +44,7 @@ coordinatorconnstatus::fromcompound(const wireproto::rx_message &rxm) {
 class coordinatorconn : public rpcconn {
     friend class pausedthread<coordinatorconn>;
 public:  coordinator *const owner;
-public:  coordinatorconn(thread2::constoken,
+public:  coordinatorconn(thread::constoken,
                          socket_t &_socket,
                          const rpcconnauth &_auth,
                          peername &_peer,
@@ -56,7 +56,7 @@ public:  status_t status(maybe<mutex_t::token> tok /* coordinator lock */) {
     return status_t( rpcconn::status(tok), slavename() ); }
 };
 
-coordinatorconn::coordinatorconn(thread2::constoken tok,
+coordinatorconn::coordinatorconn(thread::constoken tok,
                                  socket_t &_socket,
                                  const rpcconnauth &__auth,
                                  peername &_peer,

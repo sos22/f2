@@ -10,7 +10,7 @@
 #include "socket.H"
 #include "tcpsocket.H"
 
-#include "thread2.tmpl"
+#include "thread.tmpl"
 #include "waitbox.tmpl"
 
 template <typename conn_t, typename... args> orerror<conn_t *>
@@ -19,7 +19,7 @@ rpcconn::fromsocket(socket_t sock,
                     args... parameters) {
     auto peer(sock.peer());
     if (peer.isfailure()) return peer.failure();
-    else return thread2::spawn<conn_t>(
+    else return thread::spawn<conn_t>(
         "IO:"+fields::mk(peer.success()),
         sock,
         auth,

@@ -6,7 +6,7 @@ rpcserver::listen(const peername &p, args &... params) {
     auto s(socket_t::listen(p));
     if (s.isfailure()) return s.failure();
     else return pausedrpcserver<t>(
-        thread2::spawn<t>(
+        thread::spawn<t>(
             fields::mk("root " + fields::mk(p)),
             s.success(),
             params...)); }

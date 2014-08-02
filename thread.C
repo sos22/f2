@@ -1,4 +1,4 @@
-#include "thread2.H"
+#include "thread.H"
 
 #include <sys/prctl.h>
 
@@ -13,7 +13,7 @@
 static mutex_t
 detachlock;
 
-thread2::thread2(thread2::constoken token)
+thread::thread(thread::constoken token)
     : thr(),
       started(false),
       tid_(),
@@ -22,7 +22,7 @@ thread2::thread2(thread2::constoken token)
       subscribers() {}
 
 void
-thread2::go() {
+thread::go() {
     assert(!started);
     started = true;
     if (pthread_create(&thr,
@@ -32,8 +32,8 @@ thread2::go() {
         error::from_errno().fatal("spawn thread " + fields::mk(name)); } }
 
 void *
-thread2::pthreadstart(void *_this) {
-    thread2 *thr = static_cast<thread2 *>(_this);
+thread::pthreadstart(void *_this) {
+    thread *thr = static_cast<thread *>(_this);
     assert(thr->started == true);
     /* pthread API doesn't give a good way of getting tid from parent
        process, so do it from here instead. */
@@ -49,13 +49,13 @@ thread2::pthreadstart(void *_this) {
     detachlock.unlock(&token);
     return NULL; }
 
-maybe<thread2::deathtoken>
-thread2::hasdied() const {
+maybe<thread::deathtoken>
+thread::hasdied() const {
     if (loadacquire(dead)) return deathtoken();
     else return Nothing; }
 
-thread2::deathsubscription::deathsubscription(subscriber &_sub,
-                                              thread2 *_owner)
+thread::deathsubscription::deathsubscription(subscriber &_sub,
+                                              thread *_owner)
     : subscriptionbase(_sub),
       owner(_owner) {
     auto token(detachlock.lock());
@@ -64,7 +64,7 @@ thread2::deathsubscription::deathsubscription(subscriber &_sub,
     if (loadacquire(_owner->dead)) set(); }
 
 void
-thread2::deathsubscription::detach() {
+thread::deathsubscription::detach() {
     auto token(detachlock.lock());
     if (owner) {
         bool found = false;
@@ -77,11 +77,11 @@ thread2::deathsubscription::detach() {
         owner = NULL; }
     detachlock.unlock(&token); }
 
-thread2::deathsubscription::~deathsubscription() {
+thread::deathsubscription::~deathsubscription() {
     detach(); }
 
 void
-thread2::join(deathtoken) {
+thread::join(deathtoken) {
     assert(loadacquire(dead));
     if (pthread_join(thr, NULL) < 0) {
         error::from_errno().fatal("joining thread " + fields::mk(name)); }
@@ -95,7 +95,7 @@ thread2::join(deathtoken) {
     delete this; }
 
 void
-thread2::join(clientio io) {
+thread::join(clientio io) {
     if (!started) {
         delete this;
         return; }
@@ -107,12 +107,12 @@ thread2::join(clientio io) {
     assert(token != Nothing);
     join(token.just()); }
 
-thread2::~thread2() {
+thread::~thread() {
     assert(subscribers.empty());
     free((void *)name); }
 
 const fields::field &
-fields::mk(const thread2 &thr) {
+fields::mk(const thread &thr) {
     auto &prefix("<thread:" +
                  /* The new thread is guaranteed to populate tid soon
                     after starting, so we don't need a real clientio

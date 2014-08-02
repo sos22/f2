@@ -12,7 +12,7 @@
 #include "registrationsecret.H"
 #include "rpcconn.H"
 #include "rpcinterface.H"
-#include "thread2.H"
+#include "thread.H"
 #include "udpsocket.H"
 
 class frequency;
@@ -70,8 +70,8 @@ public: beaconserverconfig(const registrationsecret &_rs,
       port_(9009),
       rs_(_rs) {} };
 
-class beaconserver : private thread2 {
-    friend class thread2;
+class beaconserver : private thread {
+    friend class thread;
     friend class pausedthread<beaconserver>;
     friend class statusiface;
 
@@ -92,7 +92,7 @@ public:  statusiface statusiface_;
     unsigned errors; /* total number of errors, ever */
     unsigned rx; /* total number of packets received, ever */
 
-    beaconserver(thread2::constoken,
+    beaconserver(thread::constoken,
                  const beaconserverconfig &config,
                  controlserver *cs,
                  udpsocket listenfd);

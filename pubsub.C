@@ -7,16 +7,16 @@
 #include "logging.H"
 #include "spark.H"
 #include "test.H"
-#include "thread2.H"
+#include "thread.H"
 #include "timedelta.H"
 
 #include "list.tmpl"
 #include "test.tmpl"
-#include "thread2.tmpl"
+#include "thread.tmpl"
 #include "timedelta.tmpl"
 
-class iopollingthread : public thread2 {
-    friend class thread2;
+class iopollingthread : public thread {
+    friend class thread;
 private: mutex_t mux;
 private: bool shutdown;
 private: list<iosubscription *> what;
@@ -89,7 +89,7 @@ iopollingthread::run(clientio io) {
     free(pfds); }
 
 iopollingthread::iopollingthread(constoken tok)
-    : thread2(tok),
+    : thread(tok),
       mux(),
       shutdown(false),
       what(),
@@ -298,7 +298,7 @@ subscriber::~subscriber() {
 
 void
 initpubsub() {
-    pollthread = thread2::spawn<iopollingthread>(fields::mk("iopoll")).go(); }
+    pollthread = thread::spawn<iopollingthread>(fields::mk("iopoll")).go(); }
 
 void
 deinitpubsub(clientio io) {
