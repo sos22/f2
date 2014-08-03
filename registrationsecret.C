@@ -47,9 +47,8 @@ const parser<registrationsecret> &
 parsers::_registrationsecret() {
     return ("<registrationsecret:" + parsers::strparser + ">")
         .maperr<registrationsecret>(
-            [] (const orerror<const char *> &x) -> orerror<registrationsecret> {
-                if (x.isfailure()) return x.failure();
-                auto r(registrationsecret::mk(x.success()));
+            [] (const char *x) -> orerror<registrationsecret> {
+                auto r(registrationsecret::mk(x));
                 if (r == Nothing) return error::noparse;
                 else return r.just(); }); }
 

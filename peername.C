@@ -150,7 +150,7 @@ fields::mk(const peername &p) {
             fields::mk(htons(addr->sin6_port)).nosep() + "/";
     }
     default:
-        return "<unknown address family " + fields::mk(sa->sa_family);
+        return "<unknown address family " + fields::mk(sa->sa_family) + ">";
     }
 }
 
@@ -325,16 +325,14 @@ parsers::_peername() {
     auto parseunix([] () -> const parser<peername> & {
         return ("unix://" + strparser + "/")
             .maperr<peername>(
-                [] (const orerror<const char *> &what) -> orerror<peername> {
+                [] (const char *what) -> orerror<peername> {
                     struct sockaddr_un sun;
-                    if (what.isfailure()) {
-                        return what.failure(); }
-                    else if (strlen(what.success()) >= sizeof(sun.sun_path)) {
+                    if (strlen(what) >= sizeof(sun.sun_path)) {
                         return error::overflowed; }
                     else {
                         memset(&sun, 0, sizeof(sun));
                         sun.sun_family = AF_UNIX;
-                        strcpy(sun.sun_path, what.success());
+                        strcpy(sun.sun_path, what);
                         return peername((const sockaddr *)&sun,
                                         sizeof(sun)); } })
             || (strmatcher("unix*:///")
@@ -350,14 +348,12 @@ parsers::_peername() {
                   intparser<unsigned>()) +
                 ~(":" + intparser<unsigned>()) + "/")
             .maperr<peername>(
-                [] (const orerror<pair<maybe<pair<pair<pair<unsigned,
-                                                            unsigned>,
-                                                       unsigned>,
-                                                  unsigned> >,
-                                       maybe<unsigned> > > &_x)
-                    -> orerror<peername> {
-                    if (_x.isfailure()) return _x.failure();
-                    auto &x(_x.success());
+                [] (const pair<maybe<pair<pair<pair<unsigned,
+                                                    unsigned>,
+                                               unsigned>,
+                                          unsigned> >,
+                               maybe<unsigned> > &x)
+                -> orerror<peername> {
                     struct sockaddr_in sin;
                     memset(&sin, 0, sizeof(sin));
                     sin.sin_family = AF_INET;
@@ -383,11 +379,9 @@ parsers::_peername() {
             return ("ip6://" + ~ip6litparser +
                     ~(":" + intparser<unsigned>()) + "/")
                 .maperr<peername>(
-                    [] (const orerror<pair<maybe<in6_addr>,
-                                           maybe<unsigned> > > &_x)
+                    [] (const pair<maybe<in6_addr>,
+                                   maybe<unsigned> > &x)
                     -> orerror<peername> {
-                        if (_x.isfailure()) return _x.failure();
-                        auto &x(_x.success());
                         struct sockaddr_in6 sin6;
                         memset(&sin6, 0, sizeof(sin6));
                         sin6.sin6_family = AF_INET6;
@@ -405,7 +399,7 @@ parsers::_peername() {
 const parser<peername::port> &
 parsers::_peernameport() {
     return ("<port:" + intparser<unsigned short>() + ">")
-        .map<peername::port>([] (const unsigned short &x) {
+        .map<peername::port>([] (const unsigned short x) {
                 return peername::port(x); }); }
 
 void

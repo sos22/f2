@@ -614,28 +614,38 @@ tests::parsers() {
         "maperr",
         [] {
             assert(intparser<unsigned>()
-                   .maperr<double>(
+                   ._maperr<double>(
                        [] (const orerror<unsigned> &x) {
                            return x.failure(); })
                    .match("Z") == error::noparse);
             assert(intparser<unsigned>()
-                   .maperr<double>(
+                   ._maperr<double>(
                        [] (const orerror<unsigned> &x) {
                            assert(x.success() == 73);
                            return error::noparse; })
                    .match("73") == error::noparse);
             assert(intparser<unsigned>()
-                   .maperr<double>(
+                   ._maperr<double>(
                        [] (const orerror<unsigned> &x) {
                            assert(x.success() == 73);
                            return 92.5; })
                    .match("73") == 92.5);
             assert(intparser<unsigned>()
-                   .maperr<double>(
+                   ._maperr<double>(
                        [] (const orerror<unsigned> &x) {
                            assert(x == error::noparse);
                            return 92.25; })
-                   .match("") == 92.25); });
+                   .match("") == 92.25);
+            assert(intparser<unsigned>()
+                   .maperr<double>(
+                       [] (const unsigned &x) {
+                           return x + 5; })
+                   .match("12") == 17);
+            assert(intparser<unsigned>()
+                   .maperr<double>(
+                       [] (const unsigned &) {
+                           return error::overflowed; })
+                   .match("12") == error::overflowed); });
 
     testcaseV("parsers", "mapvoid", [] {
             int cntr;

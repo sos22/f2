@@ -54,8 +54,7 @@ const parser<streamname> &
 parsers::_streamname() {
     return (("<stream:" + strparser + ">") || strparser)
         .maperr<streamname>(
-            [] (orerror<const char *> x) -> orerror<streamname> {
-                if (x.isfailure()) return x.failure();
-                auto r(streamname::mk(x.success()));
-                if (!r) return error::noparse;
+            [] (const char * x) -> orerror<streamname> {
+                auto r(streamname::mk(x));
+                if (r == Nothing) return error::noparse;
                 else return r.just(); }); }
