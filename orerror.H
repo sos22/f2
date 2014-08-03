@@ -88,9 +88,9 @@ public:
         if (isfailure()) return failure();
         else return f(success()); }
 
-    bool operator==(const error &e) {
+    bool operator==(const error &e) const {
         return isfailure() && failure() == e; }
-    bool operator==(const t &e) {
+    bool operator==(const t &e) const {
         return issuccess() && success() == e; }
 };
 
