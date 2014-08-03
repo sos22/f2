@@ -23,6 +23,7 @@ function bits() {
     _ jobname
     _ listenfd
     _ logging
+    _ masterconfig
     _ mastersecret
     _ maybe
     _ mutex
@@ -73,6 +74,7 @@ testmodule error error.C error.H
 testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule frequency frequency.C frequency.H
+testmodule masterconfig masterconfig.C masterconfig.H
 testmodule maybe maybe.C maybe.H maybe.tmpl
 testmodule mutex mutex.C mutex.H
 testmodule parsers parsers.C parsers.H parsers.tmpl

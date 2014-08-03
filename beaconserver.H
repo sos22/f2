@@ -63,11 +63,13 @@ public:  beaconserverconfig name(const type &_ ## name) {       \
 #undef mkfield
 public: beaconserverconfig(const registrationsecret &_rs,
                            const peername &_coordinator,
-                           const mastersecret &_ms)
+                           frequency _maxresponses,
+                           const mastersecret &_ms,
+                           peername::port _port)
     : coordinator_(_coordinator),
-      maxresponses_(frequency::hz(10)),
+      maxresponses_(_maxresponses),
       ms_(_ms),
-      port_(9009),
+      port_(_port),
       rs_(_rs) {} };
 
 class beaconserver : private thread {

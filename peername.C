@@ -86,6 +86,13 @@ peername::peername(const peername &o)
     memcpy(sockaddr_, o.sockaddr_, o.sockaddrsize_);
 }
 
+void
+peername::operator=(const peername &o) {
+    free(sockaddr_);
+    sockaddr_ = malloc(o.sockaddrsize_ + 1);
+    sockaddrsize_ = o.sockaddrsize_;
+    memcpy(sockaddr_, o.sockaddr_, sockaddrsize_ + 1); }
+
 peername::peername(const struct sockaddr *s, unsigned size)
     : sockaddr_(malloc(size + 1)),
       sockaddrsize_(size)
@@ -430,6 +437,12 @@ tests::_peername() {
             for (unsigned x = 0; x < 100; x++) {
                 peername p1((quickcheck()));
                 assert(p1.samehost(p1)); }});
+    testcaseV("peername", "=", [] {
+            peername p(peername::tcpany());
+            peername q(peername::local("foo"));
+            assert(!(p == q));
+            p = q;
+            assert(p == q); });
     testcaseV("peername", "parseedge", [] {
             assert(parsers::_peername()
                    .match("unix://\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"/")

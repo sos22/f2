@@ -10,6 +10,7 @@
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
+#include "masterconfig.H"
 #include "maybe.H"
 #include "mutex.H"
 #include "parsers.H"
@@ -32,6 +33,7 @@ main(int argc, char *argv[])
     tests::fields();
     tests::_frequency();
     tests::logging();
+    tests::_masterconfig();
     tests::_maybe();
     tests::mutex();
     tests::parsers();

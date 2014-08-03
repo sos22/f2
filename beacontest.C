@@ -26,8 +26,11 @@ tests::beacon() {
                       const registrationsecret &rs,
                       controlserver *cs) {
             auto server(beaconserver::build(
-                            beaconserverconfig(rs, mastername, ms)
-                            .port(port),
+                            beaconserverconfig(rs,
+                                               mastername,
+                                               frequency::hz(10),
+                                               ms,
+                                               port),
                             cs));
             assert(server.issuccess());
             return server.success(); });
@@ -65,8 +68,11 @@ tests::beacon() {
             auto rs(registrationsecret::mk("rs").just());
             auto ms(mastersecret::mk());
             auto server(beaconserver::build(
-                            beaconserverconfig(rs, mastername, ms)
-                            .port(peername::port(1)),
+                            beaconserverconfig(rs,
+                                               mastername,
+                                               frequency::hz(10),
+                                               ms,
+                                               peername::port(1)),
                             cs));
             assert(server.isfailure());});
 
@@ -74,9 +80,11 @@ tests::beacon() {
             auto rs(registrationsecret::mk("rs").just());
             auto ms(mastersecret::mk());
             auto server(beaconserver::build(
-                            beaconserverconfig(rs, mastername, ms)
-                            .maxresponses(frequency::hz(100))
-                            .port(port),
+                            beaconserverconfig(rs,
+                                               mastername,
+                                               frequency::hz(100),
+                                               ms,
+                                               port),
                             cs));
             assert(server.issuccess());
             /* Should be able to run the protocol about 300 times in

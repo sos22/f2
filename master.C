@@ -8,34 +8,42 @@
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
+#include "masterconfig.H"
+#include "parsers.H"
 #include "pubsub.H"
 #include "registrationsecret.H"
 #include "shutdown.H"
 #include "waitbox.H"
 
 int
-main()
+main(int argc, char *argv[])
 {
     initlogging("master");
     initpubsub();
+
+    if (argc != 2) errx(1, "need a masterconfig as single argument");
+    auto config(parsers::_masterconfig()
+                .match(argv[1])
+                .fatal("cannot parse master config " + fields::mk(argv[1])));
 
     logmsg(loglevel::notice, fields::mk("master starting"));
 
     signal(SIGPIPE, SIG_IGN);
     waitbox<shutdowncode> s;
-    (void)unlink("mastersock");
-    auto c(controlserver::build(peername::local("mastersock"), s)
+    (void)unlink(config.controlsock.c_str());
+    auto c(controlserver::build(peername::local(config.controlsock.c_str()), s)
            .fatal("build control interface"));
-    logmsg(loglevel::error,
-           fields::mk("should use a less guessable registration secret"));
     auto ms(mastersecret::mk());
-    auto rs(registrationsecret::mk("<default password>")
-            .fatal(fields::mk("cannot build registration secret")));
-    auto coord(coordinator::build(ms, rs, peername::tcpany(), c)
+    auto coord(coordinator::build(ms, config.rs, config.listenon, c)
                .fatal("build worker coordinator"));
 
     auto beacon(
-        beaconserver::build(beaconserverconfig(rs, coord->localname(), ms), c)
+        beaconserver::build(beaconserverconfig(
+                                config.rs,
+                                coord->localname(),
+                                config.beaconlimit,
+                                ms,
+                                config.beaconport), c)
         .fatal("build beacon server"));
 
     auto r = s.get(clientio::CLIENTIO);
