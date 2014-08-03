@@ -31,16 +31,14 @@ main(int argc, char *argv[]) {
     if (rs.isfailure()) {
         rs.failure().fatal("parsing registration secret " +
                            fields::mk(argv[1])); }
-    auto peer(peername::parse(argv[2]));
-    if (peer.isfailure()) {
-        peer.failure().fatal("parsing peername " +
-                             fields::mk(argv[2])); }
+    auto peer(parsers::_peername()
+              .match(argv[2])
+              .fatal("parsing peername " + fields::mk(argv[2])));
     auto conn(rpcconn::connectslave<rpcconn>(
                   clientio::CLIENTIO,
-                  peer.success(),
-                  rs.success()));
-    if (conn.isfailure()) {
-        conn.failure().fatal("connecting to " + fields::mk(peer.success())); }
+                  peer,
+                  rs.success())
+              .fatal("connecting to " + fields::mk(peer)));
     if (!strcmp(argv[3], "STALL")) {
         if (argc != 4) errx(1, "STALL takes no additional arguments");
         /* Just hang around for a bit so that we can see if PING is
@@ -55,10 +53,10 @@ main(int argc, char *argv[]) {
         auto stream(parsers::_streamname()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
-        auto m = conn.success()->call(
+        auto m = conn->call(
             clientio::CLIENTIO,
             wireproto::req_message(proto::CREATEEMPTY::tag,
-                                   conn.success()->allocsequencenr())
+                                   conn->allocsequencenr())
             .addparam(proto::CREATEEMPTY::req::job, job)
             .addparam(proto::CREATEEMPTY::req::stream, stream));
         if (m == error::already) {
@@ -79,15 +77,14 @@ main(int argc, char *argv[]) {
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         buffer buf;
         buf.queue(argv[6], strlen(argv[6]));
-        auto m = conn.success()->call(
+        delete conn->call(
             clientio::CLIENTIO,
             wireproto::req_message(proto::APPEND::tag,
-                                   conn.success()->allocsequencenr())
+                                   conn->allocsequencenr())
             .addparam(proto::APPEND::req::job, job)
             .addparam(proto::APPEND::req::stream, stream)
             .addparam(proto::APPEND::req::bytes, buf))
             .fatal(fields::mk("appending to stream"));
-        delete m;
     } else if (!strcmp(argv[3], "FINISH")) {
         if (argc != 6) {
             errx(1, "FINISH needs a job and a stream name"); }
@@ -97,14 +94,13 @@ main(int argc, char *argv[]) {
         auto stream(parsers::_streamname()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
-        auto m = conn.success()->call(
+        delete conn->call(
             clientio::CLIENTIO,
             wireproto::req_message(proto::FINISH::tag,
-                                   conn.success()->allocsequencenr())
+                                   conn->allocsequencenr())
             .addparam(proto::FINISH::req::job, job)
             .addparam(proto::FINISH::req::stream, stream))
             .fatal(fields::mk("finishing stream"));
-        delete m;
     } else if (!strcmp(argv[3], "READ")) {
         if (argc < 6 || argc > 8) {
             errx(1,
@@ -117,7 +113,7 @@ main(int argc, char *argv[]) {
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         wireproto::req_message req(proto::READ::tag,
-                                   conn.success()->allocsequencenr());
+                                   conn->allocsequencenr());
         req.addparam(proto::READ::req::job, job);
         req.addparam(proto::READ::req::stream, stream);
         if (argc > 6) {
@@ -132,7 +128,7 @@ main(int argc, char *argv[]) {
                 parsers::intparser<unsigned long>()
                 .match(argv[7])
                 .fatal("parsing end offset " + fields::mk(argv[7]))); }
-        auto m = conn.success()->call(clientio::CLIENTIO, req)
+        auto m = conn->call(clientio::CLIENTIO, req)
             .fatal(fields::mk("reading stream"));
         fields::print("size " +
                       fields::mk(
@@ -151,7 +147,7 @@ main(int argc, char *argv[]) {
         if (argc > 6) {
             errx(1,"LISTJOBS takes optional cursor and limit arguments only"); }
         wireproto::req_message req(proto::LISTJOBS::tag,
-                                   conn.success()->allocsequencenr());
+                                   conn->allocsequencenr());
         if (argc > 4) {
             req.addparam(proto::LISTJOBS::req::cursor,
                          parsers::_jobname()
@@ -162,7 +158,7 @@ main(int argc, char *argv[]) {
                          parsers::intparser<unsigned>()
                          .match(argv[5])
                          .fatal("parsing limit " + fields::mk(argv[5]))); }
-        auto m = conn.success()->call(clientio::CLIENTIO, req)
+        auto m = conn->call(clientio::CLIENTIO, req)
             .fatal(fields::mk("cannot list jobs"));
         fields::print("cursor: " +
                       fields::mk(m->getparam(proto::LISTJOBS::resp::cursor)) +
@@ -178,7 +174,7 @@ main(int argc, char *argv[]) {
                  "LISTSTREAMS takes a job name and "
                  "optional cursor and limit arguments"); }
         wireproto::req_message req(proto::LISTSTREAMS::tag,
-                                   conn.success()->allocsequencenr());
+                                   conn->allocsequencenr());
         req.addparam(proto::LISTSTREAMS::req::job,
                      parsers::_jobname()
                      .match(argv[4])
@@ -193,7 +189,7 @@ main(int argc, char *argv[]) {
                          parsers::intparser<unsigned>()
                          .match(argv[6])
                          .fatal("parsing limit " + fields::mk(argv[6]))); }
-        auto m = conn.success()->call(clientio::CLIENTIO, req)
+        auto m = conn->call(clientio::CLIENTIO, req)
             .fatal(fields::mk("cannot list streams"));
         fields::print(
             "cursor: " +
@@ -204,13 +200,14 @@ main(int argc, char *argv[]) {
             .fatal("getting streams list");
         fields::print("streams: " + fields::mk(streams) + "\n");
         streams.flush();
+        delete m;
     } else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
         if (argc != 6) {
             errx(1, "REMOVESTREAM needs a job and a stream name"); }
-        delete conn.success()->call(
+        delete conn->call(
             clientio::CLIENTIO,
             wireproto::req_message(proto::REMOVESTREAM::tag,
-                                   conn.success()->allocsequencenr())
+                                   conn->allocsequencenr())
             .addparam(proto::REMOVESTREAM::req::job,
                       parsers::_jobname()
                       .match(argv[4])
@@ -223,6 +220,6 @@ main(int argc, char *argv[]) {
     } else {
         errx(1, "unknown mode %s", argv[3]); }
 
-    conn.success()->destroy(clientio::CLIENTIO);
+    conn->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging(); }

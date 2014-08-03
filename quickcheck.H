@@ -22,6 +22,10 @@ public: operator double() const;
      * log-uniform up to about 32k, with a preference for numbers near
      * powers of two. */
 public: operator const char *() const;
+    /* Generate a pathname component.  This consists of printable
+       characters excluding / and will be at most 256 characters
+       long. */
+public: const char *filename() const;
     /* Flush the quickcheck heap, releasing all strings (etc)
      * allocated by this thread. */
 public: static void flush();

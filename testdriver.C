@@ -12,6 +12,7 @@
 #include "maybe.H"
 #include "mutex.H"
 #include "parsers.H"
+#include "peername.H"
 #include "pubsub.H"
 #include "ratelimiter.H"
 #include "test.H"
@@ -31,6 +32,7 @@ main(int argc, char *argv[])
     tests::_maybe();
     tests::mutex();
     tests::parsers();
+    tests::_peername();
     tests::pubsub();
     tests::ratelimiter();
     tests::thread();

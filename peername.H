@@ -5,6 +5,7 @@
 
 #include "wireproto.H"
 
+class quickcheck;
 struct sockaddr;
 
 class peername {
@@ -13,6 +14,7 @@ class peername {
     peername() = delete;
     WIREPROTO_TYPE(peername);
 public:
+    peername(const quickcheck &);
     peername(const peername &);
     void operator=(const peername &);
     ~peername();
@@ -53,14 +55,20 @@ public:
     /* peernames are their own status representation */
 public: typedef peername status_t;
 public: status_t status() const { return *this; }
-
-    /* Parse a peername from a string */
-public: static orerror<peername> parse(const char *);
 };
 
 namespace fields {
 class field;
 const field &mk(const peername &p);
 };
+
+template <typename> class parser;
+namespace parsers {
+const parser<peername> &_peername();
+}
+
+namespace tests {
+void _peername();
+}
 
 #endif /* !PEERNAME_H__ */

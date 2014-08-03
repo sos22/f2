@@ -609,4 +609,23 @@ tests::parsers() {
                        [] (const orerror<unsigned> &x) {
                            assert(x == error::noparse);
                            return 92.25; })
-                   .match("") == 92.25); }); }
+                   .match("") == 92.25); });
+
+    testcaseV("parsers", "mapvoid", [] {
+            int cntr;
+            cntr = 0;
+            assert(strmatcher("Foo")
+                   .map<int>([&cntr] { return cntr++; })
+                   .match("Foo") == 0);
+            assert(strmatcher("Foo")
+                   .map<int>([&cntr] { return cntr++; })
+                   .match("Foo") == 1);
+            assert(strmatcher("Foo")
+                   .map<int>([&cntr] { return cntr++; })
+                   .match("Foo") == 2);
+            assert(strmatcher("Foo")
+                   .map<int>([&cntr] { return cntr++; })
+                   .match("Bar") == error::noparse); });
+
+    testcaseV("parsers", "roundtrip", [] {
+            parsers::roundtrip(intparser<unsigned>()); }); }

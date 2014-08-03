@@ -57,6 +57,8 @@ template <>
 class parser<void> : public tmpheap::base {
 public: typedef const char *result;
 public: virtual orerror<const char *> parse(const char *) const = 0;
+public: template <typename o> const parser<o> &map(
+    const std::function<o ()> &what) const;
 public: orerror<void> match(const string &) const;
 public: template <typename t> const parser<t> &val(const t &) const;
 /* Concatenation and alternation have simpler types here. */
@@ -107,6 +109,11 @@ template <typename t> const parser<t> &operator||(
 
 namespace tests {
 void parsers(void);
+}
+
+/* Test support */
+namespace parsers {
+template <typename t> void roundtrip(const parser<t> &, unsigned nr = 1000);
 }
 
 #endif /* !PARSERS_H__ */

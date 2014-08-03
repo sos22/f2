@@ -183,6 +183,22 @@ const parser<maybe<t> > &
 parser<t>::operator|(const parser<void> &what) const {
     return *new parseormatch<t>(*this, what); }
 
+template <typename t>
+class mapvoidparser : public parser<t> {
+private: const parser<void> &underlying;
+private: const std::function<t ()> what;
+public:  mapvoidparser(const parser<void> &_underlying,
+                       const std::function<t ()> &_what)
+    : underlying(_underlying),
+      what(_what) {}
+private: orerror<typename parser<t>::result> parse(const char *str) const {
+    auto r(underlying.parse(str));
+    if (r.isfailure()) return r.failure();
+    else return typename parser<t>::result(what(), r.success()); } };
+template <typename t> const parser<t> &
+parser<void>::map(const std::function<t ()> &what) const {
+    return *new mapvoidparser<t>(*this, what); }
+
 template <typename t> const parser<t> &
 parser<void>::val(const t &what) const {
     return *this + nulparser<t>(what); }
@@ -290,5 +306,13 @@ operator||(const parser<typ> &a, const parser<typ> &b) {
             });
     return (a|b).map(r);
 }
+
+template <typename t> void
+parsers::roundtrip(const parser<t> &what, unsigned nr) {
+    for (unsigned x = 0; x < nr; x++) {
+        t val((quickcheck()));
+        auto c(fields::mk(val).c_str());
+        auto res(what.match(c));
+        assert(res == val); } }
 
 #endif /* !PARSERS_TMPL__ */

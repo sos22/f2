@@ -67,8 +67,9 @@ namespace proto {
         static const parameter<const char *> local(1);
         static const parameter<uint16_t> port(2);
         static const parameter<uint32_t> ipv4(3);
-        static const parameter<uint64_t> ipv6a(3);
-        static const parameter<uint64_t> ipv6b(3);
+        static const parameter<uint64_t> ipv6a(4);
+        static const parameter<uint64_t> ipv6b(5);
+        static const parameter<bool> wildcardlocal(6);
     };
     namespace ratelimiter_status {
         static const parameter<frequency> max_rate(1);

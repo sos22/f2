@@ -1,5 +1,6 @@
 #include "quickcheck.H"
 
+#include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
 
@@ -60,3 +61,16 @@ quickcheck::operator const char *() const {
     for (int x = 0; x < len - 1; x++) buf[x] = (char)((random() % 255) + 1);
     buf[len] = '\0';
     return (const char *)buf; }
+
+const char *
+quickcheck::filename() const {
+    int len = ((unsigned)random() % 255) + 1;
+    char *buf = (char *)tmpheap::_alloc(len + 1);
+    for (int x = 0; x < len - 1; x++) {
+        char c;
+        do {
+            c = (char)(random() % 255 + 1);
+        } while (c == '/' || !isprint(c));
+        buf[x] = c; }
+    buf[len] = 0;
+    return buf; }
