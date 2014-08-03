@@ -1,8 +1,12 @@
 #include "frequency.H"
 
 #include "fields.H"
+#include "parsers.H"
 #include "quickcheck.H"
+#include "test.H"
 #include "timedelta.H"
+
+#include "parsers.tmpl"
 
 frequency
 frequency::hz(double hz)
@@ -17,7 +21,8 @@ frequency::frequency(const quickcheck &q) {
 
 bool
 frequency::operator==(frequency o) const {
-    return hz_ == o.hz_; }
+    return (hz_ >= o.hz_ * 0.9999 && hz_ <= o.hz_ * 1.0001) ||
+        (hz_ >= o.hz_ - 0.0001 && hz_ <= o.hz_ + 0.0001); }
 
 frequency
 frequency::operator+(frequency o) const {
@@ -42,3 +47,18 @@ fields::mk(const frequency &f)
 {
     return fields::mk_double(f.hz_) + "Hz";
 }
+
+const parser<frequency> &
+parsers::_frequency() {
+    return (parsers::doubleparser + "Hz")
+        .map<frequency>([] (double d) { return frequency::hz(d); }); }
+
+void
+tests::_frequency() {
+    testcaseV("frequency", "parser", [] {
+            parsers::roundtrip(parsers::_frequency()); });
+    testcaseV("frequency", "algebra", [] {
+            assert(frequency::hz(5) + frequency::hz(7) == frequency::hz(12));
+            assert(frequency::hz(5) - frequency::hz(3) == frequency::hz(2));
+            assert(frequency::hz(5) * 2 == frequency::hz(10));
+            assert(5.0/frequency::hz(10) == timedelta::milliseconds(500)); }); }

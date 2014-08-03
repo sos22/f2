@@ -274,6 +274,20 @@ const parser<char> &intparser() {
     return *new intparser_<char, true>(); }
 }
 
+class _doubleparser : public parser<double> {
+public:  orerror<result> parse(const char *) const;
+};
+orerror<_doubleparser::result>
+_doubleparser::parse(const char *start) const {
+    int n;
+    double r;
+    int rr = sscanf(start, "%lf%n", &r, &n);
+    if (rr <= 0) return error::noparse;
+    else return result(r, start + n); }
+
+static _doubleparser __doubleparser;
+const parser<double> &parsers::doubleparser((__doubleparser));
+
 void
 tests::parsers() {
     using namespace parsers;
@@ -570,6 +584,11 @@ tests::parsers() {
                    == 0xfffful);
             assert(intparser<unsigned short>().match("1,0000{16}")
                    == error::overflowed); });
+
+    testcaseV("parsers", "double", [] {
+            assert(doubleparser.match("7.25") == 7.25);
+            assert(doubleparser.match("-1") == -1);
+            assert(doubleparser.match("Z") == error::noparse); });
 
     testcaseV(
         "parsers",

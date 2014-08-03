@@ -93,6 +93,8 @@ extern const parser<const char *> &strparser;
 template <typename inttype> const parser<inttype> &intparser();
 template <> const parser<unsigned long> &intparser();
 template <> const parser<long> &intparser();
+
+extern const parser<double> &doubleparser;
 }
 
 /* Convenience functions. */

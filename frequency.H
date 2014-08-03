@@ -30,4 +30,13 @@ public:
 
 timedelta operator/(double, frequency);
 
+template <typename> class parser;
+namespace parsers {
+const parser<frequency> &_frequency();
+}
+
+namespace tests {
+void _frequency();
+}
+
 #endif /* !FREQUENCY_H__ */

@@ -24,6 +24,10 @@ double
 timedelta::operator /(timedelta o) {
     return (double)v / (double)o.v; }
 
+bool
+timedelta::operator ==(timedelta o) {
+    return v == o.v; }
+
 timedelta
 timedelta::seconds(long nr) {
     return timedelta(nr * 1000000000l); }

@@ -28,6 +28,7 @@ public:
     timedelta operator+(timedelta);
     double operator*(frequency);
     double operator/(timedelta);
+    bool operator==(timedelta);
 
     long as_milliseconds() const;
     bool operator<(const timedelta &o) const;

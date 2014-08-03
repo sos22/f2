@@ -8,6 +8,7 @@
 #include "error.H"
 #include "fd.H"
 #include "fields.H"
+#include "frequency.H"
 #include "logging.H"
 #include "maybe.H"
 #include "mutex.H"
@@ -29,6 +30,7 @@ main(int argc, char *argv[])
     tests::_error();
     tests::fd();
     tests::fields();
+    tests::_frequency();
     tests::logging();
     tests::_maybe();
     tests::mutex();
