@@ -54,6 +54,20 @@ const parser<void> &
 parser<void>::operator|(const parser<void> &o) const {
     return *new matchormatch(*this, o); }
 
+class optmatch : public parser<maybe<void> > {
+private: const parser<void> &underlying;
+public:  optmatch(const parser<void> &_underlying)
+    : underlying(_underlying) {}
+private: orerror<result> parse(const char*) const; };
+orerror<optmatch::result>
+optmatch::parse(const char *what) const {
+    auto r(underlying.parse(what));
+    if (r.isfailure()) return result(Nothing, what);
+    else return result(maybe<void>::just, r.success()); }
+const parser<maybe<void> > &
+parser<void>::operator~() const {
+    return *new optmatch(*this); }
+
 class strmatchervoid : public parser<void> {
 private: const char *what;
 public:  strmatchervoid(const char *_what)
@@ -480,6 +494,32 @@ tests::parsers() {
 
     testcaseV(
         "parsers",
+        "algebra~",
+        [] {
+            auto &p(~strmatcher("X", 5) +
+                    intparser<unsigned>() +
+                    ~strmatcher("Y"));
+            {   auto r(p.match("73"));
+                assert(r.success().first().first() == Nothing);
+                assert(r.success().first().second() == 73);
+                assert(r.success().second() == Nothing); }
+            {   auto r(p.match("73Y"));
+                assert(r.success().first().first() == Nothing);
+                assert(r.success().first().second() == 73);
+                assert(r.success().second() != Nothing); }
+            {   auto r(p.match("X73"));
+                assert(r.success().first().first().just() == 5);
+                assert(r.success().first().second() == 73);
+                assert(r.success().second() == Nothing); }
+            {   auto r(p.match("X73Y"));
+                assert(r.success().first().first().just() == 5);
+                assert(r.success().first().second() == 73);
+                assert(r.success().second() != Nothing); }
+            assert(p.match("X") == error::noparse);
+            assert(p.match("Y") == error::noparse); });
+
+    testcaseV(
+        "parsers",
         "intedges",
         [] () {
             assert(intparser<long>()
@@ -543,4 +583,30 @@ tests::parsers() {
                     .map<const char *>([] (int) { return "Huh?"; })
                     .match("7")
                     .failure() == error::ratelimit);});
-}
+    testcaseV(
+        "parsers",
+        "maperr",
+        [] {
+            assert(intparser<unsigned>()
+                   .maperr<double>(
+                       [] (const orerror<unsigned> &x) {
+                           return x.failure(); })
+                   .match("Z") == error::noparse);
+            assert(intparser<unsigned>()
+                   .maperr<double>(
+                       [] (const orerror<unsigned> &x) {
+                           assert(x.success() == 73);
+                           return error::noparse; })
+                   .match("73") == error::noparse);
+            assert(intparser<unsigned>()
+                   .maperr<double>(
+                       [] (const orerror<unsigned> &x) {
+                           assert(x.success() == 73);
+                           return 92.5; })
+                   .match("73") == 92.5);
+            assert(intparser<unsigned>()
+                   .maperr<double>(
+                       [] (const orerror<unsigned> &x) {
+                           assert(x == error::noparse);
+                           return 92.25; })
+                   .match("") == 92.25); }); }

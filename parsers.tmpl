@@ -141,6 +141,24 @@ template <typename other> const parser<either<rval, other> > &
 parser<rval>::operator|(const parser<other> &o) const {
     return *new alternateparser<rval,other>(*this, o); }
 
+template <typename t>
+class optionparser : public parser<maybe<t> > {
+public: const parser<t> &underlying;
+public: optionparser(const parser<t> &_underlying)
+    : underlying(_underlying) {}
+public: orerror<typename optionparser<t>::result> parse(
+    const char *what) const;
+};
+template <typename t> orerror<typename optionparser<t>::result>
+optionparser<t>::parse(const char *what) const {
+    auto r(underlying.parse(what));
+    if (r.isfailure()) return typename optionparser<t>::result(Nothing, what);
+    else return typename optionparser<t>::result(r.success().res,
+                                                 r.success().left); }
+template <typename t> const parser<maybe<t> > &
+parser<t>::operator ~() const {
+    return *new optionparser<t>(*this); }
+
 template <typename t> class parseormatch : public parser<maybe<t> > {
 private: const parser<t> &_parse;
 private: const parser<void> &_match;

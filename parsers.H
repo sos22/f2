@@ -47,6 +47,9 @@ public: const parser<rval> &operator+(const parser<void> &o) const;
 public: template <typename other> const parser< either<rval, other> > &
     operator | (const parser<other> &o) const;
 public: const parser<maybe<rval> > &operator|(const parser<void> &o) const;
+
+    /* Optional parsers. */
+public: const parser<maybe<rval> > &operator~() const;
 };
 
 /* Special case for parsers which don't return anything. */
@@ -63,6 +66,7 @@ public: template <typename t> const parser<maybe<t> > &operator|(
     const parser<t> &) const;
 public: const parser<void> &operator+(const parser<void> &) const;
 public: const parser<void> &operator|(const parser<void> &) const;
+public: const parser<maybe<void> > &operator~() const;
 };
 
 /* Special case for parsers which always succeed without consuming any
