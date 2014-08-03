@@ -27,17 +27,17 @@ main(int argc, char *argv[]) {
     initpubsub();
     if (argc < 4) {
         errx(1, "need at least three arguments: a secret, a peer, and a mode");}
-    auto rs(registrationsecret::parse(argv[1]));
-    if (rs.isfailure()) {
-        rs.failure().fatal("parsing registration secret " +
-                           fields::mk(argv[1])); }
+    auto rs(parsers::_registrationsecret()
+            .match(argv[1])
+            .fatal("parsing registration secret " +
+                   fields::mk(argv[1])));
     auto peer(parsers::_peername()
               .match(argv[2])
               .fatal("parsing peername " + fields::mk(argv[2])));
     auto conn(rpcconn::connectslave<rpcconn>(
                   clientio::CLIENTIO,
                   peer,
-                  rs.success())
+                  rs)
               .fatal("connecting to " + fields::mk(peer)));
     if (!strcmp(argv[3], "STALL")) {
         if (argc != 4) errx(1, "STALL takes no additional arguments");

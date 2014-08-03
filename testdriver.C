@@ -15,6 +15,7 @@
 #include "peername.H"
 #include "pubsub.H"
 #include "ratelimiter.H"
+#include "registrationsecret.H"
 #include "test.H"
 #include "thread.H"
 
@@ -35,6 +36,7 @@ main(int argc, char *argv[])
     tests::_peername();
     tests::pubsub();
     tests::ratelimiter();
+    tests::_registrationsecret();
     tests::thread();
     tests::wireproto();
 

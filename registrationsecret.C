@@ -8,6 +8,7 @@
 #include "fields.H"
 #include "parsers.H"
 #include "quickcheck.H"
+#include "test.H"
 #include "tmpheap.H"
 
 #include "parsers.tmpl"
@@ -42,9 +43,17 @@ fields::mk(const registrationsecret &rs)
     return "<registrationsecret:" + fields::mk(rs.secret).escape() + ">";
 }
 
-orerror<registrationsecret>
-registrationsecret::parse(const char *what) {
+const parser<registrationsecret> &
+parsers::_registrationsecret() {
     return ("<registrationsecret:" + parsers::strparser + ">")
-        .map<registrationsecret>(
-            [] (const char *x) { return registrationsecret(x); })
-        .match(what); }
+        .maperr<registrationsecret>(
+            [] (const orerror<const char *> &x) -> orerror<registrationsecret> {
+                if (x.isfailure()) return x.failure();
+                auto r(registrationsecret::mk(x.success()));
+                if (r == Nothing) return error::noparse;
+                else return r.just(); }); }
+
+void
+tests::_registrationsecret() {
+    testcaseV("registrationsecret", "parsers", [] {
+            parsers::roundtrip(parsers::_registrationsecret()); }); }

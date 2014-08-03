@@ -23,7 +23,15 @@ public:
     explicit registrationsecret(const quickcheck &);
     bool operator==(const registrationsecret &) const;
     static maybe<registrationsecret> mk(const string &);
-    static orerror<registrationsecret> parse(const char *);
 };
+
+template <typename> class parser;
+namespace parsers {
+const parser<registrationsecret> &_registrationsecret();
+}
+
+namespace tests {
+void _registrationsecret();
+}
 
 #endif /* !REGISTRATIONSECRET_H__ */
