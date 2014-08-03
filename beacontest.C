@@ -36,7 +36,7 @@ tests::beacon() {
         [mkbeacon, mastername, port]
         (controlserver *cs) {
             auto rs(registrationsecret::mk("rs").just());
-            mastersecret ms("ms");
+            auto ms(mastersecret::mk());
             auto server(mkbeacon(ms, rs, cs));
             auto client(beaconclient(clientio::CLIENTIO,
                                      beaconclientconfig(rs)
@@ -63,7 +63,7 @@ tests::beacon() {
 
     testcaseCS("beacon", "badserver", [mastername, port] (controlserver *cs) {
             auto rs(registrationsecret::mk("rs").just());
-            mastersecret ms("ms");
+            auto ms(mastersecret::mk());
             auto server(beaconserver::build(
                             beaconserverconfig(rs, mastername, ms)
                             .port(peername::port(1)),
@@ -72,7 +72,7 @@ tests::beacon() {
 
     testcaseCS("beacon", "ratelimit", [mastername, port] (controlserver *cs) {
             auto rs(registrationsecret::mk("rs").just());
-            mastersecret ms("ms");
+            auto ms(mastersecret::mk());
             auto server(beaconserver::build(
                             beaconserverconfig(rs, mastername, ms)
                             .maxresponses(frequency::hz(100))
@@ -297,7 +297,7 @@ tests::beacon() {
                 sock.close();
                 done = true;
                 pub.publish(); });
-            auto server(mkbeacon(mastersecret("ms"),
+            auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
             while (!done) sub.wait(clientio::CLIENTIO);
@@ -320,7 +320,7 @@ tests::beacon() {
                     spamfd(sock);
                     done = true;
                     pub.publish(); });
-            auto server(mkbeacon(mastersecret("ms"),
+            auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
             while (!done) sub.wait(clientio::CLIENTIO);
@@ -372,7 +372,7 @@ tests::beacon() {
                     }
                     cntr++;
                     if (cntr == 5) pub.publish(); });
-            auto server(mkbeacon(mastersecret("ms"),
+            auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
             while (cntr < 5) sub.wait(clientio::CLIENTIO);

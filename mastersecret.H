@@ -5,10 +5,10 @@
 #define MASTERSECRET_H__
 
 #include "digest.H"
+#include "nonce.H"
 #include "wireproto.H"
 
 class masternonce;
-class nonce;
 class peername;
 class registrationsecret;
 
@@ -27,17 +27,15 @@ public:
 };
 
 class mastersecret {
-    const char *secret;
-    mastersecret() = delete;
-public:
-    explicit mastersecret(const mastersecret &);
-    void operator=(const mastersecret &);
-    /* XXX there's no reason to do it this way; we'd be better off
-       generating master secrets at random at startup time. */
-    explicit mastersecret(const char *);
-    masternonce nonce(const peername &slavename);
-    bool noncevalid(const masternonce &nonce,
-                    const peername &slavename) const;
+private: mastersecret() = delete;
+private: class nonce secret;
+public:  static mastersecret mk();
+private: mastersecret(const class nonce &);
+public:  mastersecret(const mastersecret &);
+public:  void operator=(const mastersecret &);
+public:  masternonce nonce(const peername &slavename);
+public:  bool noncevalid(const masternonce &nonce,
+                         const peername &slavename) const;
 };
 
 #endif /* MASTERSECRET_H__ */
