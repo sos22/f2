@@ -267,6 +267,9 @@ template <>
 const parser<short> &intparser() {
     return *new intparser_<short, true>(); }
 template <>
+const parser<unsigned short> &intparser() {
+    return *new intparser_<unsigned short, false>(); }
+template <>
 const parser<char> &intparser() {
     return *new intparser_<char, true>(); }
 }
@@ -562,6 +565,10 @@ tests::parsers() {
             assert(intparser<unsigned>().match("ffff,ffff{16}")
                    == 0xfffffffful);
             assert(intparser<unsigned>().match("1,0000,0000{16}")
+                   == error::overflowed);
+            assert(intparser<unsigned short>().match("ffff{16}")
+                   == 0xfffful);
+            assert(intparser<unsigned short>().match("1,0000{16}")
                    == error::overflowed); });
 
     testcaseV(

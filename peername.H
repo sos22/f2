@@ -29,7 +29,10 @@ public:
         friend class udpsocket;
         int p;
     public:
+        port(const quickcheck &q);
         explicit port(int);
+        int unwrap() const { return p; }
+        bool operator==(const port &o) const { return p == o.p; }
     };
 
     /* Get a peername which can be used to send a UDP broadcast on a
@@ -60,11 +63,13 @@ public: status_t status() const { return *this; }
 namespace fields {
 class field;
 const field &mk(const peername &p);
+const field &mk(const peername::port &p);
 };
 
 template <typename> class parser;
 namespace parsers {
 const parser<peername> &_peername();
+const parser<peername::port> &_peernameport();
 }
 
 namespace tests {

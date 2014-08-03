@@ -147,6 +147,10 @@ fields::mk(const peername &p) {
     }
 }
 
+const fields::field &
+fields::mk(const peername::port &p) {
+    return "<port:" + mk(p.unwrap()) + ">"; }
+
 void
 peername::addparam(wireproto::parameter<peername> tmpl,
                    wireproto::tx_message &tx_msg) const
@@ -222,6 +226,11 @@ peername::fromcompound(const wireproto::rx_message &msg)
     ((uint64_t *)&in6.sin6_addr)[1] = ipv6b.just();
     return peername((struct sockaddr *)&in6, sizeof(in6));
 }
+
+peername::port::port(const quickcheck &q) {
+    do {
+        p = (unsigned short)q;
+    } while (p == 0); }
 
 peername::port::port(int _p)
     : p(_p) {
@@ -386,6 +395,12 @@ parsers::_peername() {
                                         sizeof(sin6)); }); });
     return parseunix() || parseip() || parseip6(); }
 
+const parser<peername::port> &
+parsers::_peernameport() {
+    return ("<port:" + intparser<unsigned short>() + ">")
+        .map<peername::port>([] (const unsigned short &x) {
+                return peername::port(x); }); }
+
 void
 tests::_peername() {
     testcaseV("peername", "parser",
@@ -424,4 +439,6 @@ tests::_peername() {
                    == error::noparse);
             assert(parsers::_peername()
                    .match("ip6://[::]:99999/")
-                   == error::noparse); }); }
+                   == error::noparse); });
+    testcaseV("peername", "peernameport", [] {
+            parsers::roundtrip(parsers::_peernameport()); }); }
