@@ -559,6 +559,13 @@ tests::parsers() {
             assert(intparser<char>().match("{16}80") == error::overflowed);
             assert(intparser<char>().match("{16}7f") == 0x7fl);
 
+            assert(intparser<long>().match("0") == 0);
+            assert(intparser<long>().match("000000") == 0);
+            assert(intparser<unsigned long>().match("0") == 0);
+            assert(intparser<unsigned long>().match("00") == 0);
+            assert(intparser<unsigned long>().match("001") == 1);
+            assert((intparser<long>() + "ns").match("0ns") == 0);
+
             assert(intparser<unsigned long>().match("{16}ffff,ffff,ffff,ffff")
                    == 0xfffffffffffffffful);
             assert(intparser<unsigned long>().match("{16}1,0000,0000,0000,0000")
