@@ -14,15 +14,15 @@ quickcheck::operator unsigned long() const {
         switch (r % 13) {
         case 0: return 0;
         case 1: return 1;
-        case 2: return -1;
+        case 2: return -1l;
         case 3: return 2;
-        case 4: return -2;
+        case 4: return -2l;
         case 5: return 0xff;
         case 6: return 0xffff;
         case 7: return 10;
         case 8: return 100;
-        case 9: return -10;
-        case 10: return -100;
+        case 9: return -10l;
+        case 10: return -100l;
         case 11: return (1ul << (random() % 64));
         case 12: return (1ul << (random() % 64)) - 64 + (random() % 64);
         default: abort(); }
@@ -32,6 +32,9 @@ quickcheck::operator unsigned long() const {
         r ^= random() * (1ul << 32);
         r ^= random() * (1ul << 48);
         return r; } }
+
+quickcheck::operator long() const {
+    return (long)(unsigned long)*this; }
 
 quickcheck::operator unsigned() const {
     return (unsigned)(unsigned long)*this; }

@@ -28,10 +28,6 @@ timestamp::operator-(timestamp o) const
     return timedelta(v - o.v);
 }
 
-bool
-timestamp::operator<(const timestamp o) const {
-    return v < o.v; }
-
 struct timespec
 timestamp::as_timespec() const {
     struct timespec res;

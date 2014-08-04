@@ -18,8 +18,9 @@ class timestamp {
 public:
     timedelta operator-(timestamp) const;
     timestamp operator+(timedelta) const;
-    bool operator<(const timestamp) const;
-    bool operator>=(const timestamp &o) const { return !(*this < o); }
+    bool operator<(timestamp o) const { return v < o.v; }
+    bool operator>=(timestamp o) const { return v >= o.v; }
+    bool operator==(timestamp o) const { return v == o.v; }
     /* Why do we expose both timespec and timeval versions of this?
        Because timespecs are measured relative to CLOCK_MONOTONIC, and
        are hence process-specific, whereas timevals are measured

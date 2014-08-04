@@ -3,6 +3,7 @@
 
 #include <functional>
 
+class quickcheck;
 class timedelta;
 class timestamp;
 class frequency;
@@ -21,14 +22,16 @@ class timedelta {
     long v;
     explicit timedelta(long _v) : v(_v) {}
 public:
+    timedelta(const quickcheck &);
     static timedelta seconds(long nr) __attribute__((const));
     static timedelta milliseconds(long nr) __attribute__((const));
     static timedelta microseconds(long nr) __attribute__((const));
-    timestamp operator+(timestamp);
-    timedelta operator+(timedelta);
-    double operator*(frequency);
-    double operator/(timedelta);
-    bool operator==(timedelta);
+    static timedelta nanoseconds(long nr) __attribute__((const));
+    timestamp operator+(timestamp) const;
+    timedelta operator+(timedelta) const;
+    double operator*(frequency) const;
+    double operator/(timedelta) const;
+    bool operator==(timedelta) const;
 
     long as_milliseconds() const;
     bool operator<(const timedelta &o) const;
@@ -44,5 +47,14 @@ public: timeres(const timedelta &_td, const t &_v)
 public: operator t&() { return v; }
 public: operator class timedelta &() { return td; }
 };
+
+template <typename> class parser;
+namespace parsers {
+const parser<timedelta> &_timedelta();
+}
+
+namespace tests {
+void _timedelta();
+}
 
 #endif /* !TIMEDELTA_H__ */

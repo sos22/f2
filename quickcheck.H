@@ -10,6 +10,7 @@ class quickcheck {
      * for trying to pick ``interesting'' numbers a bit more often
      * that it should. */
 public: operator unsigned long() const;
+public: operator long() const;
 public: operator unsigned() const;
 public: operator int() const;
 public: operator unsigned short() const;

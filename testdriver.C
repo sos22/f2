@@ -20,6 +20,7 @@
 #include "registrationsecret.H"
 #include "test.H"
 #include "thread.H"
+#include "timedelta.H"
 
 int
 main(int argc, char *argv[])
@@ -42,6 +43,7 @@ main(int argc, char *argv[])
     tests::ratelimiter();
     tests::_registrationsecret();
     tests::thread();
+    tests::_timedelta();
     tests::wireproto();
 
     signal(SIGPIPE, SIG_IGN);
