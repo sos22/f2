@@ -2,12 +2,14 @@
 
 #include "buffer.H"
 #include "logging.H"
+#include "either.H"
 #include "fields.H"
 #include "mastersecret.H"
 #include "maybe.H"
 #include "nonce.H"
 #include "orerror.H"
 #include "pair.H"
+#include "parsers.H"
 #include "peername.H"
 #include "proto.H"
 #include "registrationsecret.H"
@@ -15,7 +17,21 @@
 #include "timedelta.H"
 #include "udpsocket.H"
 
+#include "either.tmpl"
+#include "parsers.tmpl"
 #include "test.tmpl"
+
+/* You'd think that this would be the perfect place to use a template,
+   and you'd be right, except that I can't figure out the syntax.  Do
+   it by hand instead. */
+namespace parsers {
+template <> const parser<maybe<int> > &
+_maybe(const parser<int> &inner) {
+    return strmatcher("Nothing", maybe<int>(Nothing)) ||
+        (("<" + inner + ">").map < maybe<int> > (
+            [] (const int &what) {
+                return maybe<int>(what); })); }
+}
 
 orerror<beaconresult>
 beaconclient(clientio io, const beaconclientconfig &config)
@@ -112,6 +128,44 @@ beaconresult::beaconresult(const masternonce &_nonce,
                            const registrationsecret &_secret)
     : nonce(_nonce), connectingname(_connectingname),
       mastername(_mastername), secret(_secret) {}
+
+const fields::field &
+fields::mk(const beaconclientconfig &bc) {
+    return "<beaconclientconfig: rs=" + mk(bc.rs_) +
+        " retryinterval=" + mk(bc.retryinterval_) +
+        " retrylimit=" + mk(bc.retrylimit_) +
+        " port=" + mk(bc.port_) + ">"; }
+
+beaconclientconfig::beaconclientconfig(const quickcheck &q)
+    : rs_(q),
+      retryinterval_(q),
+      retrylimit_(q),
+      port_(q) {}
+
+bool
+beaconclientconfig::operator==(const beaconclientconfig &o) const {
+    return rs_ == o.rs_ &&
+        retryinterval_ == o.retryinterval_ &&
+        retrylimit_ == o.retrylimit_ &&
+        port_ == o.port_; }
+
+const parser<beaconclientconfig> &
+parsers::_beaconclientconfig() {
+    return ("<beaconclientconfig: rs=" + _registrationsecret() +
+            ~(" retryinterval=" + _timedelta()) +
+            ~(" retrylimit=" + _maybe(intparser<int>())) +
+            ~(" port=" + _peernameport()) +
+            ">")
+        .map<beaconclientconfig>(
+            [] (const pair<pair<pair<registrationsecret,
+                                     maybe<timedelta> >,
+                                maybe<maybe<int> > >,
+                           maybe<peername::port> > &x) {
+                return beaconclientconfig(
+                    x.first().first().first(),
+                    x.first().first().second().dflt(timedelta::seconds(1)),
+                    x.first().second().dflt(Nothing),
+                    x.second().dflt(peername::port(9009))); }); }
 
 namespace tests {
 event< ::pair< ::fd_t, ::buffer *> > beaconclientreadytosend;

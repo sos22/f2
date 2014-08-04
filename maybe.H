@@ -151,6 +151,11 @@ template <typename t> bool
 operator !=(const t &a, const maybe<t> &o) {
     return o.isnothing() || a != o.just(); }
 
+template <typename> class parser;
+namespace parsers {
+template <typename t> const parser<maybe<t> > &_maybe(const parser<t> &);
+}
+
 namespace tests {
 void _maybe();
 }

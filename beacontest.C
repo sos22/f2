@@ -14,6 +14,7 @@
 #include "registrationsecret.H"
 #include "test.H"
 
+#include "parsers.tmpl"
 #include "test.tmpl"
 #include "wireproto.tmpl"
 
@@ -394,4 +395,10 @@ tests::beacon() {
     testcaseV("beacon", "statusprint", [] () {
             fields::print(
                 fields::mk(beaconserver::status_t(quickcheck()))+"\n"); });
-}
+    testcaseV("beacon", "clientconfig", [] {
+            parsers::roundtrip(parsers::_beaconclientconfig());
+            auto r(parsers::_beaconclientconfig()
+                   .match("<beaconclientconfig: rs=<registrationsecret:\"foo\">>"));
+            assert(r
+                   == beaconclientconfig(registrationsecret::mk("foo")
+                                         .fatal(fields::mk("foo")))); }); }

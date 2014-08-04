@@ -26,7 +26,7 @@ class beaconclientconfig {
     friend orerror<beaconresult> beaconclient(clientio,
                                               const beaconclientconfig &rs);
 #define mkparam(type, name)                                             \
-private: type name ##_;                                                 \
+public: type name ##_;                                                 \
 public: beaconclientconfig name(const type &what) const {               \
     beaconclientconfig res(*this);                                      \
     res.name ##_ = what;                                                \
@@ -36,11 +36,32 @@ public: beaconclientconfig name(const type &what) const {               \
     mkparam(maybe<int>, retrylimit);
     mkparam(peername::port, port);
 #undef mkparam
-public: beaconclientconfig(const registrationsecret &_rs)
+public: beaconclientconfig(const registrationsecret &_rs,
+                           const timedelta &_retryinterval,
+                           const maybe<int> &_retrylimit,
+                           const peername::port &_port)
+    : rs_(_rs),
+      retryinterval_(_retryinterval),
+      retrylimit_(_retrylimit),
+      port_(_port) {}
+public: explicit beaconclientconfig(const registrationsecret &_rs)
     : rs_(_rs),
       retryinterval_(timedelta::seconds(1)),
       retrylimit_(Nothing),
-      port_(9009) {} };
+      port_(9009) {}
+public: explicit beaconclientconfig(const quickcheck &q);
+
+public: bool operator==(const beaconclientconfig &o) const; };
+
+namespace fields {
+class field;
+const field &mk(const beaconclientconfig &);
+}
+
+template <typename> class parser;
+namespace parsers {
+const parser<beaconclientconfig> &_beaconclientconfig();
+}
 
 class buffer;
 template <typename, typename> class pair;
