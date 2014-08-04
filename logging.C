@@ -60,7 +60,7 @@ public:
 };
 
 class memlog_sink : public log_sink {
-    const int backlog;
+    const unsigned backlog;
     list<memlog_entry> outstanding;
     memlog_idx next_sequence;
     mutex_t lock;

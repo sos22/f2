@@ -11,17 +11,34 @@
 #include "fields.H"
 #include "logging.H"
 #include "orerror.H"
+#include "parsers.H"
+#include "test.H"
+
+#include "list.tmpl"
+#include "parsers.tmpl"
+#include "test.tmpl"
+
+static tests::event<ssize_t *> readasstringloop;
+static tests::event<ssize_t *> createfileloop;
+static tests::event<struct dirent **> diriterevt;
 
 const fields::field &
 fields::mk(const filename &f) {
-    return "<filename:" + mk(f.content) + ">"; }
+    return "<filename:" + mk(f.content).escape() + ">"; }
 
 filename::filename(const string &s)
     : content(s) {}
 
+filename::filename(const quickcheck &q)
+    : content(q.filename()) {}
+
 filename
 filename::operator+(const string &x) const {
     return filename(content + "/" + x); }
+
+bool
+filename::operator==(const filename &o) const {
+    return content == o.content; }
 
 orerror<string>
 filename::readasstring() const {
@@ -36,15 +53,17 @@ filename::readasstring() const {
     if (sz > 10000000l) {
         close(fd);
         return error::overflowed; }
-    char *buf = (char *)malloc(sz + 1);
+    char *buf = (char *)calloc(1, sz + 1);
     off_t off;
     ssize_t thistime;
     for (off = 0; off < sz; off += thistime) {
         thistime = ::read(fd, buf + off, sz - off);
+        readasstringloop.trigger(&thistime);
         if (thistime < 0) {
             close(fd);
             free(buf);
-            return error::from_errno(); } }
+            return error::from_errno(); }
+        if (thistime == 0) return error::pastend; }
     close(fd);
     if (memchr(buf, '\0', sz) != NULL) {
         free(buf);
@@ -66,6 +85,7 @@ filename::createfile(const fields::field &f) const {
     ssize_t this_time;
     for (off = 0; off < (ssize_t)s; off += this_time) {
         this_time = write(fd, c + off, s - off);
+        createfileloop.trigger(&this_time);
         if (this_time <= 0) {
             auto r(this_time == 0
                    ? error::truncated
@@ -98,8 +118,8 @@ filename::exists() const {
     struct stat st;
     if (::stat(content.c_str(), &st) < 0) {
         if (errno == ENOENT) return false;
-        else return error::from_errno();
-    } else if (S_ISDIR(st.st_mode)) return error::from_errno(EISDIR);
+        else return error::from_errno(); }
+    else if (S_ISDIR(st.st_mode)) return error::from_errno(EISDIR);
     else if (S_ISCHR(st.st_mode) ||
              S_ISBLK(st.st_mode) ||
              S_ISFIFO(st.st_mode) ||
@@ -168,6 +188,7 @@ filename::diriter::next() {
     int e(errno);
     errno = 0;
     auto de(::readdir(dir.success()));
+    diriterevt.trigger(&de);
     if (de == NULL) {
         closedir(dir.success());
         if (errno == 0) dir = NULL;
@@ -210,3 +231,144 @@ filename::unlink() const {
     if (r == 0) return Success;
     else if (errno == ENOENT) return error::already;
     else return error::from_errno(); }
+
+const parser<filename> &
+parsers::_filename() {
+    return ("<filename:" + strparser + ">")
+        .map<filename>([] (const char *x) { return filename(string(x)); }); }
+
+/* Basic functionality tests.  A lot of these are more to make sure
+   that the behaviour doesn't change unexpectedly, rather than to
+   check that the current behaviour is actually desirable. */
+void
+tests::_filename() {
+    testcaseV("filename", "parser", [] {
+            parsers::roundtrip(parsers::_filename()); });
+    testcaseV("filename", "basics", [] {
+            filename foo("foo");
+            assert(foo + "bar" == filename("foo/bar"));
+            foo.unlink();
+            (foo + "bar").unlink();
+            foo.rmdir();
+            assert(foo.exists() == false);
+            assert(!foo
+                   .createfile(fields::mk(5))
+                   .isfailure());
+            assert(foo.createfile(fields::mk(5)) == error::already);
+            assert(foo.exists() == true);
+            assert(foo.readasstring() == string("5"));
+            assert(foo.size() == 1);
+            {   auto r(foo.read(0,1).fatal("read foo"));
+                assert(r.avail() == 1);
+                assert(r.offset() == 0);
+                assert(r.idx(0) == '5'); }
+            assert(foo.read(1,2) == error::disconnected);
+            assert(foo.createfile() == error::from_errno(EEXIST));
+            assert(filename("/dev/tty").readasstring() ==
+                   error::from_errno(ESPIPE));
+            assert(foo.unlink().issuccess());
+            assert(foo.unlink() == error::already);
+            assert(foo.createfile().issuccess());
+            assert(foo.createfile() == error::already);
+            assert(foo.mkdir() == error::from_errno(EEXIST));
+            assert(foo.unlink().issuccess());
+            assert(foo.exists() == false);
+            assert(foo.mkdir().issuccess());
+            assert(foo.mkdir() == error::already);
+            assert(foo.exists() == error::from_errno(EISDIR));
+            assert((foo + "bar").createfile().issuccess());
+            {   list<string> r;
+                for (filename::diriter it(foo); !it.finished(); it.next()) {
+                    r.pushtail(string(it.filename())); }
+                sort(r);
+                assert(r.length() == 3);
+                assert(r.idx(0) == ".");
+                assert(r.idx(1) == "..");
+                assert(r.idx(2) == "bar");
+                r.flush(); }
+            assert(foo.rmdir() == error::notempty);
+            assert((foo + "bar").unlink().issuccess());
+            assert(foo.rmdir().issuccess());
+        });
+    testcaseV("filename", "fifo", [] {
+            filename foo2("foo2");
+            foo2.unlink();
+            if(mknod("foo2",0600|S_IFIFO,0)<0)error::from_errno().fatal("foo2");
+            assert(foo2.exists() == error::notafile);
+            assert(foo2.rmdir() == error::from_errno(ENOTDIR));
+            filename::diriter it(foo2);
+            assert(it.isfailure());
+            assert(it.failure() == error::from_errno(ENOTDIR));
+            assert(foo2.unlink().issuccess()); });
+    testcaseV("filename", "bigfile", [] {
+            filename foo3("foo3");
+            foo3.unlink();
+            assert(foo3.createfile(fields::mk("ABCD")).issuccess());
+            {   auto r(foo3.openappend().fatal("openappend"));
+                unsigned char buf[8192];
+                memset(buf, 'Z', 8192);
+                for (unsigned long x = 0; x < 10000000; x += sizeof(buf)) {
+                    assert(r.write(clientio::CLIENTIO, buf, sizeof(buf))
+                           == sizeof(buf)); }
+                r.close(); }
+            {   auto r(foo3.read(1, 5).fatal("readbig"));
+                assert(r.avail() == 4);
+                assert(r.offset() == 0);
+                assert(r.idx(0) == 'B');
+                assert(r.idx(1) == 'C');
+                assert(r.idx(2) == 'D');
+                assert(r.idx(3) == 'Z'); }
+            assert(foo3.readasstring() == error::overflowed);
+            assert(foo3.unlink().issuccess());
+            assert(foo3.createfile().issuccess());
+            {   auto r(foo3.openappend().fatal("openappend"));
+                assert(r.write(clientio::CLIENTIO, "AB\0CD", 5) == 5);
+                r.close(); }
+            assert(foo3.readasstring() == error::noparse);
+            assert(foo3.unlink().issuccess()); });
+    testcaseV("filename", "rodir", [] {
+            filename dir("foo4");
+            dir.rmdir();
+            auto file(dir + "bar");
+            dir.mkdir().fatal("foo4");
+            if (chmod("foo4", 0) < 0) error::from_errno().fatal("chmod");
+            assert(file.createfile() == error::from_errno(EACCES));
+            assert(file.createfile(fields::mk(73)) ==
+                   error::from_errno(EACCES));
+            assert(file.exists() == error::from_errno(EACCES));
+            assert(file.unlink() == error::from_errno(EACCES));
+            dir.rmdir().fatal("rm foo4"); });
+#if TESTING
+    testcaseV("filename", "errinject", [] {
+            {   eventwaiter<ssize_t *> w(
+                    readasstringloop, [] (ssize_t *what) {
+                        errno = ETXTBSY;
+                        *what = -1; });
+                filename foo("foo");
+                foo.unlink();
+                foo.createfile(fields::mk(7)).fatal("create foo");
+                assert(foo.readasstring() == error::from_errno(ETXTBSY));
+                foo.unlink().fatal("unlink foo"); }
+            {   eventwaiter<ssize_t *> w(
+                    createfileloop, [] (ssize_t *what) {
+                        filename("foo").unlink().fatal("badness");
+                        errno = ETXTBSY;
+                        *what = -1; });
+                filename foo("foo");
+                foo.unlink();
+                assert(foo.createfile(fields::mk(73)) ==
+                       error::from_errno(ETXTBSY)); }
+            {   filename f("foo");
+                f.mkdir().fatal("mkdir foo");
+                filename::diriter it(f);
+                assert(!it.isfailure());
+                eventwaiter<struct dirent **> w(
+                    diriterevt, [] (struct dirent **d) {
+                        errno = ETXTBSY;
+                        *d = NULL; });
+                assert(!it.isfailure());
+                it.next();
+                assert(it.isfailure());
+                assert(it.failure() == error::from_errno(ETXTBSY)); } } );
+#endif
+}

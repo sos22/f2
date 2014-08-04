@@ -73,6 +73,7 @@ testmodule either either.C either.H either.tmpl
 testmodule error error.C error.H
 testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
+testmodule filename filename.C filename.H
 testmodule frequency frequency.C frequency.H
 testmodule masterconfig masterconfig.C masterconfig.H
 testmodule maybe maybe.C maybe.H maybe.tmpl
@@ -88,7 +89,6 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:
 #
-# filename
 # logging
 # mastersecret
 # nonce

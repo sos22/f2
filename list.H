@@ -60,7 +60,7 @@ public:
     /* Check whether a list is currently empty */
     bool empty() const;
     /* Count the number of elements in the list */
-    int length() const;
+    unsigned length() const;
     /* delete everything which is currently in the list */
     void flush();
 
@@ -76,6 +76,11 @@ public:
     void pushhead(const t &);
     /* Add a copy of an item to the end of the list */
     void pushtail(const t &);
+
+    /* Grab a reference to an element of the list given its zero-based
+       index.  The index must be within bounds. */
+    t &idx(unsigned);
+    const t &idx(unsigned) const;
 
     /* Non-copying interface, suitable for more complicated types. */
     /* Allocate a new item, using the default constructor, place it at

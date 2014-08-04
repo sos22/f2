@@ -19,10 +19,15 @@ class filename {
     friend const fields::field &fields::mk(const filename &);
 private: string content;
 public:  filename(const string &s);
+    /* Quickcheck filenames are single component i.e. no / character. */
+public:  filename(const quickcheck &q);
     /* Add another component to the end of the path, with a separating
        slash.  i.e. filename(x) + "y" = filename("x/y"), not
        filename("xy"). */
 public:  filename operator+(const string &) const;
+    /* Compare two filenames for equality.  No attempt is made to
+     * normalise the filenames, so ./x/../y != ./y. */
+public:  bool operator==(const filename &o) const;
     /* Read the entire file, returning a string.  This is limited to
        only read in relatively small files (a few kilobytes) without
        any zero bytes, and returns an error if asked to read in either
@@ -77,5 +82,14 @@ public:  orerror<void> rmdir() const;
      * error::notfound. */
 public:  orerror<void> unlink() const;
 };
+
+template <typename> class parser;
+namespace parsers {
+const parser<filename> &_filename();
+}
+
+namespace tests {
+void _filename();
+}
 
 #endif /* !FILE_H__ */

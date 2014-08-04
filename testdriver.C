@@ -8,6 +8,7 @@
 #include "error.H"
 #include "fd.H"
 #include "fields.H"
+#include "filename.H"
 #include "frequency.H"
 #include "logging.H"
 #include "masterconfig.H"
@@ -32,6 +33,7 @@ main(int argc, char *argv[])
     tests::_error();
     tests::fd();
     tests::fields();
+    tests::_filename();
     tests::_frequency();
     tests::logging();
     tests::_masterconfig();

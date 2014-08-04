@@ -59,6 +59,12 @@ list<t>::empty() const
     return !head;
 }
 
+template <typename t> unsigned
+list<t>::length() const {
+    unsigned acc = 0;
+    for (auto it(start()); !it.finished(); it.next()) acc++;
+    return acc; }
+
 template <typename t> t
 list<t>::pophead()
 {
@@ -112,8 +118,20 @@ list<t>::pushtail(const t &what)
     tail = m;
 }
 
+template <typename t> t &
+list<t>::idx(unsigned x) {
+    for (auto it(start()); true; it.next()) {
+        if (!x) return *it;
+        x--; } }
+
+template <typename t> const t &
+list<t>::idx(unsigned x) const {
+    for (auto it(start()); true; it.next()) {
+        if (!x) return *it;
+        x--; } }
+
 template <typename t> template <typename ... args> t &
-list<t>:: append(args ... params)
+list<t>::append(args ... params)
 {
     auto m(new member(NULL, tail, 73, params...));
     if (tail) {
@@ -273,16 +291,6 @@ list<t>::const_iter::operator->() const
 {
     assert(!finished());
     return &cursor->value;
-}
-
-template <typename t> int
-list<t>::length() const
-{
-    int res;
-    res = 0;
-    for (auto it(start()); !it.finished(); it.next())
-        res++;
-    return res;
 }
 
 template <typename t> void
