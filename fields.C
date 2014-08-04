@@ -408,13 +408,6 @@ intfield::fmt(fieldbuf &out) const
 
     char buf[nr_digits];
     buf[--nr_digits] = 0;
-    if (!hidebase_ && base_ != 10) {
-        buf[--nr_digits] = '}';
-        buf[--nr_digits] = "0123456789"[base_ % 10];
-        if (base_ > 10)
-            buf[--nr_digits] = "0123456789"[base_ / 10];
-        buf[--nr_digits] = '{';
-    }
     if (val_ == 0) {
         buf[--nr_digits] = '0';
     } else {
@@ -440,6 +433,12 @@ intfield::fmt(fieldbuf &out) const
     }
     if (val_ < 0 || alwayssign_)
         buf[--nr_digits] = (val_ < 0) ? '-' : '+';
+    if (!hidebase_ && base_ != 10) {
+        buf[--nr_digits] = '}';
+        buf[--nr_digits] = "0123456789"[base_ % 10];
+        if (base_ > 10)
+            buf[--nr_digits] = "0123456789"[base_ / 10];
+        buf[--nr_digits] = '{'; }
     assert(nr_digits == 0);
     out.push(buf);
 }
@@ -580,27 +579,27 @@ tests::fields()
     testcaseV("fields", "negbinint", [] () {
             fieldbuf buf;
             mk(-5).base(2).fmt(buf);
-            assert(!strcmp(buf.c_str(), "-101{2}"));  });
+            assert(!strcmp(buf.c_str(), "{2}-101"));  });
 
     testcaseV("fields", "negtrinint", [] () {
             fieldbuf buf;
             mk(-5).base(3).fmt(buf);
-            assert(!strcmp(buf.c_str(), "-12{3}"));  });
+            assert(!strcmp(buf.c_str(), "{3}-12"));  });
 
     testcaseV("fields", "trinint", [] () {
             fieldbuf buf;
             mk(5).base(3).fmt(buf);
-            assert(!strcmp(buf.c_str(), "12{3}"));  });
+            assert(!strcmp(buf.c_str(), "{3}12"));  });
 
     testcaseV("fields", "hexint", [] () {
             fieldbuf buf;
             mk(10).base(16).fmt(buf);
-            assert(!strcmp(buf.c_str(), "a{16}"));  });
+            assert(!strcmp(buf.c_str(), "{16}a"));  });
 
     testcaseV("fields", "HEXint", [] () {
             fieldbuf buf;
             mk(10).base(16).uppercase().fmt(buf);
-            assert(!strcmp(buf.c_str(), "A{16}"));  });
+            assert(!strcmp(buf.c_str(), "{16}A"));  });
 
     testcaseV("fields", "thousandsep", [] () {
             fieldbuf buf;
@@ -615,12 +614,12 @@ tests::fields()
     testcaseV("fields", "binthousandsep", [] () {
             fieldbuf buf;
             mk(72).base(2).fmt(buf);
-            assert(!strcmp(buf.c_str(), "1,001,000{2}"));  });
+            assert(!strcmp(buf.c_str(), "{2}1,001,000"));  });
 
     testcaseV("fields", "hexthousandsep", [] () {
             fieldbuf buf;
             mk(0x123456).base(16).fmt(buf);
-            assert(!strcmp(buf.c_str(), "123,456{16}"));  });
+            assert(!strcmp(buf.c_str(), "{16}123,456"));  });
 
     testcaseV("fields", "nosep", [] () {
             fieldbuf buf;

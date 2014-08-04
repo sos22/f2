@@ -172,69 +172,54 @@ public: orerror<typename parser<typ>::result> parse(const char *) const;
 template <typename typ, bool signd>
 orerror<typename parser<typ>::result>
 intparser_<typ, signd>::parse(const char *_what) const {
-    bool negative = false;
+    /* We only support default (i.e. ',') thousands separators. */
     const char *what = _what;
+    /* Parse base marker, if present */
+    int nbase = 10;
+    if (what[0] == '{') {
+        if (!isdigit(what[1])) return error::noparse;
+        if (what[2] == '}') {
+            nbase = what[1] - '0';
+            what += 3; }
+        else if (isdigit(what[2]) && what[3] == '}') {
+            nbase = (what[1] - '0') * 10 + (what[2] - '0');
+            if (nbase >= 36) return error::noparse;
+            what += 4;
+        } else {
+            return error::noparse; } }
+    auto validdigit([nbase] (char c) {
+            return (c >= '0' && c < nbase + '0') ||
+                (c >= 'a' && c < nbase + 'a' - 10) ||
+                (c >= 'A' && c < nbase + 'A' - 10); });
+    bool negative = false;
     if (signd) {
         if (what[0] == '-') {
             negative = true;
             what++;
         } else if (what[0] == '+') {
             what++; } }
-    if (!isalnum(what[0])) return error::noparse;
+    if (!validdigit(what[0])) return error::noparse;
+    /* Special case for zeroes. */
     while (what[0] == '0') what++;
-    if (!isalnum(what[0])) {
-        /* Special case for zeroes. */
-        if (what[0] == '{') {
-            if (isdigit(what[1]) && what[2] == '}') {
-                what += 3;
-            } else if (isdigit(what[1]) && isdigit(what[2]) && what[3] == '}') {
-                what += 4;
-            } else {
-                return error::noparse; } }
-        return typename parser<typ>::result(0, what); }
-    /* We only support default (i.e. ',') thousands separators. */
-    /* Scan for a base marker */
-    int basestart;
-    for (basestart = 0;
-         isalnum(what[basestart]) ||
-             (what[basestart] == ',' && isalnum(what[basestart+1]));
-         basestart++)
-        ;
-    int nbase = 10;
-    int basechars = 0;
-    if (what[basestart] == '{' && isdigit(what[basestart + 1])) {
-        /* Explicit base marker.  Parse it up. */
-        nbase = 0;
-        basechars = 1;
-        while (isdigit(what[basestart + basechars])) {
-            /* Avoid overflow */
-            if (nbase > 100) return error::noparse;
-            nbase *= 10;
-            nbase += what[basestart + basechars] - '0';
-            basechars++; }
-        if (nbase < 2 || nbase > 36 || what[basestart + basechars] != '}') {
-            return error::noparse; }
-        basechars++; }
+    if (!validdigit(what[0])) return typename parser<typ>::result(0, what);
     /* Now parse the number. */
     /* For signed types we always parse it as a negative number and
        then flip the sign at the end, if it's positive, to avoid
        overflow issues caused by the two's complement asymmetry. */
     typ acc = 0;
-    int i = 0;
     while (1) {
         int slot;
         bool must = false;
-        if (what[i] == ',') {
+        if (what[0] == ',') {
             must = true;
-            i++; }
-        if (what[i] >= '0' && what[i] <= '9') slot = what[i] - '0';
-        else if (what[i] >= 'a' && what[i] <= 'z') slot = what[i] - 'a' + 10;
-        else if (what[i] >= 'A' && what[i] <= 'Z') slot = what[i] - 'A' + 10;
-        else slot = -1;
-        if (slot == -1 || slot >= nbase) {
+            what++; }
+        if (what[0] >= '0' && what[0] <= '9') slot = what[0] - '0';
+        else if (what[0] >= 'a' && what[0] <= 'z') slot = what[0] - 'a' + 10;
+        else if (what[0] >= 'A' && what[0] <= 'Z') slot = what[0] - 'A' + 10;
+        else slot = nbase;
+        if (slot >= nbase) {
             if (must) return error::noparse;
-            if (basechars != 0 && what[i] != '{') return error::noparse;
-            break; }
+            else break; }
         typ newacc;
         if (signd) {
             newacc = (typ)(acc * nbase - slot);
@@ -243,12 +228,11 @@ intparser_<typ, signd>::parse(const char *_what) const {
             newacc = (typ)(acc * nbase + slot);
             if (newacc < acc) return error::overflowed; }
         acc = newacc;
-        i++; }
-    if (i == 0) return error::noparse;
+        what++; }
     if (signd && !negative) {
         if ((typ)acc == (typ)-acc) return error::overflowed;
         acc = (typ)-acc; }
-    return typename parser<typ>::result(acc, what + i + basechars); }
+    return typename parser<typ>::result(acc, what); }
 
 namespace parsers {
 template <>
@@ -402,13 +386,16 @@ tests::parsers() {
             assert(ip().match("-72").success() == -72);
             assert(ip().match("123,456").success() == 123456);
             assert(ip().match("ab").failure() == error::noparse);
-            assert(ip().match("ab{16}").success() == 0xab);
+            assert(ip().match("{16}ab").success() == 0xab);
+            assert(ip().match("{16}AB").success() == 0xab);
+            assert(ip().match("{16}Ab").success() == 0xab);
             assert(ip().match("+7") == 7);
             assert(ip().match("000000") == 0);
-            assert(ip().match("0{5}") == 0);
-            assert(ip().match("0{52}") == 0);
-            assert(ip().match("0{Z}") == error::noparse);
-            assert(ip().match("1{93}") == error::noparse); });
+            assert(ip().match("{5}0") == 0);
+            assert(ip().match("{52}0") == error::noparse);
+            assert(ip().match("{Z}0") == error::noparse);
+            assert(ip().match("{93}1") == error::noparse);
+            assert(ip().match("{1") == error::noparse); });
 
     testcaseV(
         "parsers",
@@ -540,49 +527,49 @@ tests::parsers() {
         "intedges",
         [] () {
             assert(intparser<long>()
-                   .match("-8000,0000,0000,0000{16}")
+                   .match("{16}-8000,0000,0000,0000")
                    == -0x8000000000000000l);
             assert(intparser<long>()
-                   .match("-8000,0000,0000,0001{16}")
+                   .match("{16}-8000,0000,0000,0001")
                    == error::overflowed);
             assert(intparser<long>()
-                   .match("8000,0000,0000,0000{16}")
+                   .match("{16}8000,0000,0000,0000")
                    == error::overflowed);
             assert(intparser<long>()
-                   .match("7fff,ffff,ffff,ffff{16}")
+                   .match("{16}7fff,ffff,ffff,ffff")
                    == 0x7fffffffffffffffl);
             assert(intparser<int>()
-                   .match("-8000,0000{16}")
+                   .match("{16}-8000,0000")
                    == -0x80000000);
             assert(intparser<int>()
-                   .match("-8000,0001{16}")
+                   .match("{16}-8000,0001")
                    == error::overflowed);
             assert(intparser<int>()
-                   .match("8000,0000{16}")
+                   .match("{16}8000,0000")
                    == error::overflowed);
             assert(intparser<int>()
-                   .match("7fff,ffff{16}")
+                   .match("{16}7fff,ffff")
                    == 0x7fffffff);
-            assert(intparser<short>().match("-8000{16}") == -0x8000);
-            assert(intparser<short>().match("-8001{16}") == error::overflowed);
-            assert(intparser<short>().match("8000{16}") == error::overflowed);
-            assert(intparser<short>().match("7fff{16}") == 0x7fffl);
-            assert(intparser<char>().match("-80{16}") == -0x80);
-            assert(intparser<char>().match("-81{16}") == error::overflowed);
-            assert(intparser<char>().match("80{16}") == error::overflowed);
-            assert(intparser<char>().match("7f{16}") == 0x7fl);
+            assert(intparser<short>().match("{16}-8000") == -0x8000);
+            assert(intparser<short>().match("{16}-8001") == error::overflowed);
+            assert(intparser<short>().match("{16}8000") == error::overflowed);
+            assert(intparser<short>().match("{16}7fff") == 0x7fffl);
+            assert(intparser<char>().match("{16}-80") == -0x80);
+            assert(intparser<char>().match("{16}-81") == error::overflowed);
+            assert(intparser<char>().match("{16}80") == error::overflowed);
+            assert(intparser<char>().match("{16}7f") == 0x7fl);
 
-            assert(intparser<unsigned long>().match("ffff,ffff,ffff,ffff{16}")
+            assert(intparser<unsigned long>().match("{16}ffff,ffff,ffff,ffff")
                    == 0xfffffffffffffffful);
-            assert(intparser<unsigned long>().match("1,0000,0000,0000,0000{16}")
+            assert(intparser<unsigned long>().match("{16}1,0000,0000,0000,0000")
                    == error::overflowed);
-            assert(intparser<unsigned>().match("ffff,ffff{16}")
+            assert(intparser<unsigned>().match("{16}ffff,ffff")
                    == 0xfffffffful);
-            assert(intparser<unsigned>().match("1,0000,0000{16}")
+            assert(intparser<unsigned>().match("{16}1,0000,0000")
                    == error::overflowed);
-            assert(intparser<unsigned short>().match("ffff{16}")
+            assert(intparser<unsigned short>().match("{16}ffff")
                    == 0xfffful);
-            assert(intparser<unsigned short>().match("1,0000{16}")
+            assert(intparser<unsigned short>().match("{16}1,0000")
                    == error::overflowed); });
 
     testcaseV("parsers", "double", [] {
