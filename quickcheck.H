@@ -14,6 +14,7 @@ public: operator long() const;
 public: operator unsigned() const;
 public: operator int() const;
 public: operator unsigned short() const;
+public: operator short() const;
 public: operator bool() const;
     /* Cauchy distributed with location 0 and scale 1 */
 public: operator double() const;

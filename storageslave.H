@@ -9,6 +9,7 @@ class clientio;
 class controlserver;
 template <typename> class orerror;
 class registrationsecret;
+class storageconfig;
 class storageslave;
 class streamname;
 class jobname;
@@ -52,8 +53,7 @@ private: filename pool;
 private: mutable mutex_t mux;
 public:  static orerror<storageslave *> build(
     clientio io,
-    const registrationsecret &rs,
-    const filename &,
+    const storageconfig &config,
     controlserver *);
 private: storageslave(constoken,
                       listenfd,

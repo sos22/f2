@@ -9,6 +9,7 @@
 #include "string.H"
 #include "wireproto.H"
 
+class quickcheck;
 class slavename;
 template <typename> class parser;
 
@@ -23,11 +24,13 @@ private: string content;
 private: void operator=(const slavename &) = delete;
 private: slavename() = delete;
 public:  slavename(const slavename &);
+public:  slavename(const quickcheck &);
+public:  bool operator==(const slavename &) const;
 WIREPROTO_WRAPPER_TYPE(slavename, string, public);
 };
 
 namespace parsers {
-extern const parser< ::slavename> &slavename();
+extern const parser< ::slavename> &_slavename();
 }
 
 #endif /* !SLAVENAME_H__ */

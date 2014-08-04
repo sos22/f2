@@ -42,6 +42,7 @@ function bits() {
     _ slavename
     _ socket
     _ spark
+    _ storageconfig
     _ storageslave
     _ streamname
     _ streamstatus
@@ -83,6 +84,7 @@ testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
 testmodule ratelimiter ratelimiter.C ratelimiter.H
 testmodule registrationsecret registrationsecret.C registrationsecret.H
+testmodule storageconfig storageconfig.C storageconfig.H
 testmodule thread thread.C thread.tmpl thread.H
 testmodule timedelta timedelta.C timedelta.H
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl

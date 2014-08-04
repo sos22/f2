@@ -19,6 +19,7 @@
 #include "pubsub.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
+#include "storageconfig.H"
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
@@ -44,6 +45,7 @@ main(int argc, char *argv[])
     tests::pubsub();
     tests::ratelimiter();
     tests::_registrationsecret();
+    tests::_storageconfig();
     tests::thread();
     tests::_timedelta();
     tests::wireproto();

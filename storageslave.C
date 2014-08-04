@@ -4,6 +4,7 @@
 #include "filename.H"
 #include "parsers.H"
 #include "jobname.H"
+#include "storageconfig.H"
 #include "streamname.H"
 #include "streamstatus.H"
 #include "tcpsocket.H"
@@ -115,24 +116,20 @@ storageslave::statusiface::getstatus(wireproto::tx_message *msg) const {
 
 orerror<storageslave *>
 storageslave::build(clientio io,
-                    const registrationsecret &rs,
-                    const filename &dir,
+                    const storageconfig &config,
                     controlserver *cs) {
-    auto name(
-        (dir + "slavename").parse(parsers::slavename())
-        .fatal("parsing slave name from " + fields::mk(dir)));
-    auto br(beaconclient(io, beaconclientconfig(rs)));
+    auto br(beaconclient(io, config.beacon));
     if (br.isfailure()) return br.failure();
     auto server(rpcserver::listen<storageslave>(
                     peername::tcpany(),
                     br.success().secret,
-                    dir,
+                    config.poolpath,
                     cs));
     if (server.isfailure()) return server.failure();
     auto mc(rpcconn::connectmaster<storageslaveconn>(
                 io,
                 br.success(),
-                name,
+                config.name,
                 server.success().unwrap()));
     if (mc.isfailure()) {
         server.success().destroy();
