@@ -24,8 +24,8 @@ public: operator double() const;
      * powers of two. */
 public: operator const char *() const;
     /* Generate a pathname component.  This consists of printable
-     * characters excluding /, is at most 255 characters long, and is
-     * never empty. */
+     * characters excluding /, is at most 255 characters long, is
+     * never empty, and is never . or .. . */
 public: const char *filename() const;
     /* Flush the quickcheck heap, releasing all strings (etc)
      * allocated by this thread. */

@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "tmpheap.H"
 
@@ -67,13 +68,16 @@ quickcheck::operator const char *() const {
 
 const char *
 quickcheck::filename() const {
-    int len = ((unsigned)random() % 255) + 1;
-    char *buf = (char *)tmpheap::_alloc(len + 1);
-    for (int x = 0; x < len - 1; x++) {
-        char c;
-        do {
-            c = (char)(random() % 255 + 1);
-        } while (c == '/' || !isprint(c));
-        buf[x] = c; }
-    buf[len] = 0;
+    char *buf;
+    do {
+        int len = ((unsigned)random() % 255) + 1;
+        buf = (char *)tmpheap::_alloc(len + 1);
+        for (int x = 0; x < len - 1; x++) {
+            char c;
+            do {
+                c = (char)(random() % 255 + 1);
+            } while (c == '/' || !isprint(c));
+            buf[x] = c; }
+        buf[len] = 0;
+    } while (!strcmp(buf, ".") || !strcmp(buf, ".."));
     return buf; }
