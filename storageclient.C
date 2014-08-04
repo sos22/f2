@@ -29,8 +29,7 @@ main(int argc, char *argv[]) {
         errx(1, "need at least three arguments: a secret, a peer, and a mode");}
     auto rs(parsers::_registrationsecret()
             .match(argv[1])
-            .fatal("parsing registration secret " +
-                   fields::mk(argv[1])));
+            .fatal("parsing registration secret " + fields::mk(argv[1])));
     auto peer(parsers::_peername()
               .match(argv[2])
               .fatal("parsing peername " + fields::mk(argv[2])));
