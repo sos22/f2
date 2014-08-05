@@ -333,6 +333,8 @@ tests::beacon() {
                                  registrationsecret::mk("rs").just(),
                                  cs));
             while (!done) sub.wait(clientio::CLIENTIO);
+            /* make sure race with shutdown goes the right way. */
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
             server->destroy(clientio::CLIENTIO); });
 
     testcaseCS(
