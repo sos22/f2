@@ -136,10 +136,10 @@ fields::mk(const peername &p) {
     case AF_INET: {
         auto addr((const struct sockaddr_in *)sa);
         return "ip://" +
-            fields::mk((addr->sin_addr.s_addr >> 24) & 0xff) + "." +
-            fields::mk((addr->sin_addr.s_addr >> 16) & 0xff) + "." +
+            fields::mk((addr->sin_addr.s_addr >> 0) & 0xff) + "." +
             fields::mk((addr->sin_addr.s_addr >> 8) & 0xff) + "." +
-            fields::mk((addr->sin_addr.s_addr >> 0) & 0xff) + ":" +
+            fields::mk((addr->sin_addr.s_addr >> 16) & 0xff) + "." +
+            fields::mk((addr->sin_addr.s_addr >> 24) & 0xff) + ":" +
             fields::mk(htons(addr->sin_port)).nosep() + "/"; }
     case AF_INET6: {
         auto addr((const struct sockaddr_in6 *)sa);
@@ -366,10 +366,10 @@ parsers::_peername() {
                         if (a > 255 || b > 255 || c > 255 || d > 255) {
                             return error::noparse; };
                         sin.sin_addr.s_addr =
-                            (a << 24) |
-                            (b << 16) |
-                            (c << 8) |
-                            d; }
+                            (d << 24) |
+                            (c << 16) |
+                            (b << 8) |
+                            a; }
                     if (x.second().isjust()) {
                         if (x.second().just() >= 65536) return error::noparse;
                         sin.sin_port = htons((uint16_t)x.second().just()); }
