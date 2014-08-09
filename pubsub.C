@@ -126,13 +126,7 @@ void
 iopollingthread::detach(iosubscription &sub) {
     auto token(mux.lock());
     if (!sub.registered) {
-        /* This can happen sometimes if the iosubscription destructor
-           races with the poll thread notification process.  Ignore it
-           (beyond spitting out a log message, because it should be
-           rare). */
         mux.unlock(&token);
-        logmsg(loglevel::debug,
-               fields::mk("double unregistered IO subscription"));
     } else {
         bool found = false;
         for (auto it(what.start()); !it.finished(); it.next()) {
