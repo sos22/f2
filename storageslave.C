@@ -422,11 +422,12 @@ storageslave::~storageslave() {
 storageslave::status_t
 storageslave::status() const {
     assert(masterconn);
+    auto s(rpcserver::status());
     auto token(mux.lock());
     list<rpcconn::status_t> cl(clients.map<rpcconn::status_t>(
                                    [&token] (storageslaveconn *const &conn) {
                                        return conn->status(token); }));
-    status_t res(masterconn->status(token), cl);
+    status_t res(s, masterconn->status(token), cl);
     mux.unlock(&token);
     cl.flush();
     return res; }
@@ -437,21 +438,24 @@ storageslave::status_t::addparam(
     wireproto::tx_message &tx_msg) const {
     tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
                     wireproto::tx_compoundparameter()
+                    .addparam(proto::storageslavestatus::server, server)
                     .addparam(proto::storageslavestatus::masterconn, masterconn)
                     .addparam(
                         proto::storageslavestatus::clientconns,
                         clientconns)); }
 maybe<storageslave::status_t>
 storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
+    auto s(msg.getparam(proto::storageslavestatus::server));
     auto masterconn(msg.getparam(proto::storageslavestatus::masterconn));
-    if (!masterconn) return Nothing;
+    if (!s || !masterconn) return Nothing;
     list<rpcconn::status_t> clientconns;
     auto r(msg.fetch(proto::storageslavestatus::clientconns, clientconns));
     if (r.isfailure()) return Nothing;
-    storageslave::status_t res(masterconn.just(), clientconns);
+    storageslave::status_t res(s.just(), masterconn.just(), clientconns);
     clientconns.flush();
     return res; }
 const fields::field &
 fields::mk(const storageslave::status_t &o) {
-    return "<storageslave: master=" + mk(o.masterconn) +
+    return "<storageslave: server=" + mk(o.server) +
+        " master=" + mk(o.masterconn) +
         " clients=" + mk(o.clientconns) + ">"; }

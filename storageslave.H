@@ -4,6 +4,7 @@
 #include "controlserver.H"
 #include "filename.H"
 #include "rpcconn.H"
+#include "rpcserver.H"
 
 class clientio;
 class controlserver;
@@ -15,11 +16,14 @@ class streamname;
 class jobname;
 
 class storageslavestatus {
+public:  rpcserver::status_t server;
 public:  rpcconn::status_t masterconn;
 public:  list<rpcconn::status_t> clientconns;
-public:  storageslavestatus(const rpcconn::status_t &_masterconn,
+public:  storageslavestatus(const rpcserver::status_t &_server,
+                            const rpcconn::status_t &_masterconn,
                             const list<rpcconn::status_t> &_clientconns)
-    : masterconn(_masterconn),
+    : server(_server),
+      masterconn(_masterconn),
       clientconns(_clientconns) {}
 public:  ~storageslavestatus() { clientconns.flush(); }
 WIREPROTO_TYPE(storageslavestatus);

@@ -13,6 +13,7 @@ class rpcserver;
 
 template <typename> class orerror;
 class rpcconn;
+class rpcserverstatus;
 
 /* New servers are initially paused, and must be unpaused before they
    will start accepting incoming connections.  Attempts by remote
@@ -64,12 +65,29 @@ private:   virtual orerror<rpcconn *> accept(socket_t) = 0;
      * it was a wildcard. */
 public:    peername localname() const { return sock.localname(); }
 
+    /* Get the current status of the server, for debugging
+     * purposes. */
+    typedef rpcserverstatus status_t;
+public:    status_t status() const;
+
     /* Stop accepting incoming connections, kill any outstanding ones,
      * and destroy the server. */
     /* Not a true destructor because it can wait for things. */
 public:    virtual void destroy(clientio);
 
 protected: virtual ~rpcserver() {}
+};
+
+namespace fields {
+class field;
+const field &mk(const rpcserver::status_t &);
+}
+
+class rpcserverstatus {
+    friend class rpcserver;
+    friend const fields::field &fields::mk(const rpcserverstatus &);
+private: listenfd::status_t fd;
+    WIREPROTO_WRAPPER_TYPE(rpcserverstatus, listenfd::status_t, private);
 };
 
 #endif /* !RPCSERVER_H__ */

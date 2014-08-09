@@ -1,15 +1,18 @@
 #ifndef LISTENFD_H__
 #define LISTENFD_H__
 
+#include "peername.H"
 #include "socket.H"
 
 struct pollfd;
 
 class listenfd;
+class listenfdstatus;
 
 namespace fields {
 class field;
 const field &mk(const listenfd &);
+const field &mk(const listenfdstatus &);
 };
 
 /* A file descriptor for listening on, rather than performing normal
@@ -33,6 +36,27 @@ public:
     bool polled(const struct pollfd &) const;
     /* Close the underlying fd */
     void close() const;
+    /* Debug status interface */
+    typedef listenfdstatus status_t;
+    status_t status() const;
+};
+
+class listenfdstatus {
+    friend class listenfd;
+    friend const fields::field &fields::mk(const listenfdstatus &);
+private: maybe<peername> listenon;
+private: int fd;
+private: maybe<int> domain;
+private: maybe<int> protocol;
+private: maybe<int> flags;
+private: maybe<int> revents;
+private: listenfdstatus(const maybe<peername> &,
+                        int,
+                        maybe<int>,
+                        maybe<int>,
+                        maybe<int>,
+                        maybe<int>);
+WIREPROTO_TYPE(listenfdstatus);
 };
 
 #endif /* !LISTENFD_H__ */

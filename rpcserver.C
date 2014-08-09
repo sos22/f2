@@ -4,6 +4,7 @@
 #include "rpcconn.H"
 
 #include "list.tmpl"
+#include "wireproto.tmpl"
 
 void
 rpcserver::run(clientio io) {
@@ -60,9 +61,21 @@ rpcserver::rpcserver(constoken t, listenfd fd)
       shutdown(),
       sock(fd) {}
 
+rpcserver::status_t
+rpcserver::status() const {
+    return status_t(sock.status()); }
+
+wireproto_simple_wrapper_type(rpcserverstatus,
+                              listenfd::status_t,
+                              fd)
+
 void
 rpcserver::destroy(clientio io) {
     shutdown.set(true);
     auto s(sock);
     join(io);
     s.close(); }
+
+const fields::field &
+fields::mk(const rpcserverstatus &s) {
+    return "<rpcserverstatus: " + mk(s.fd) + ">"; }

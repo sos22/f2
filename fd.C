@@ -118,6 +118,7 @@ fields::mk(const fd_t &fd)
 
 fd_t::status_t
 fd_t::status() const {
+    /* XXX collect TCP_INFO as well? */
 #define doparam(name) maybe<int> name(Nothing);
     fd_tstatus_params(doparam);
 #undef doparam

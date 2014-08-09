@@ -12,12 +12,14 @@ class digest;
 class fd_tstatus;
 class frequency;
 class jobname;
+class listenfdstatus;
 class masternonce;
 class memlog_idx;
 class memlog_entry;
 class nonce;
 class peername;
 class rpcconnstatus;
+class rpcserverstatus;
 class shutdowncode;
 class slavename;
 class storageslavestatus;
@@ -59,6 +61,14 @@ namespace proto {
         static const parameter<int> revents(8);
         static const parameter<int> flags(9);
     };
+    namespace listenfdstatus {
+        static const parameter< ::peername> listenon(1);
+        static const parameter<int> fd(2);
+        static const parameter<int> domain(3);
+        static const parameter<int> protocol(4);
+        static const parameter<int> flags(5);
+        static const parameter<int> revents(6);
+    };
     namespace memlog_entry {
         static const parameter<const char *> msg(1);
         static const parameter<memlog_idx> idx(2);
@@ -87,8 +97,9 @@ namespace proto {
         static const parameter<struct ::timeval> lastcontact(6);
     };
     namespace storageslavestatus {
-        static const parameter<class ::rpcconnstatus> masterconn(1);
-        static const parameter<list< ::rpcconnstatus> > clientconns(2);
+        static const parameter<class ::rpcserverstatus> server(1);
+        static const parameter<class ::rpcconnstatus> masterconn(2);
+        static const parameter<list< ::rpcconnstatus> > clientconns(3);
     };
     namespace streamstatus {
         static const parameter<class ::streamname> name(1);
