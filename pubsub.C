@@ -5,12 +5,14 @@
 #include "buffer.H"
 #include "fields.H"
 #include "logging.H"
+#include "pair.H"
 #include "spark.H"
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "spark.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 #include "timedelta.tmpl"
@@ -647,6 +649,29 @@ tests::pubsub() {
             shutdown = true;
             watcher.get();
             deinitpubsub(clientio::CLIENTIO); });
+
+    testcaseV("pubsub", "listenclosed", [] {
+            initpubsub();
+            initlogging("test");
+            auto pipe(fd_t::pipe().fatal("pipe()"));
+            spark<pair<timestamp, timestamp> > listen([&pipe] {
+                    subscriber sub;
+                    iosubscription ios(sub, pipe.read.poll(POLLIN));
+                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    auto subtime(timestamp::now());
+                    sub.wait(clientio::CLIENTIO);
+                    return mkpair(subtime, timestamp::now()); });
+            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            auto closeread(timestamp::now());
+            pipe.read.close();
+            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            auto closewrite(timestamp::now());
+            pipe.write.close();
+            auto t(listen.get());
+            assert(t.first() < closeread);
+            assert(closewrite < t.second());
+            deinitpubsub(clientio::CLIENTIO);
+            deinitlogging(); });
 }
 
 tests::event<void> tests::iosubdetachrace;
