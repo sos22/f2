@@ -1,3 +1,5 @@
+/* XXX A bunch of static const constants in a header file isn't a
+ * great sign. */
 #ifndef PROTO_H__
 #define PROTO_H__
 
@@ -156,6 +158,22 @@ namespace proto {
             static const parameter< ::slavename> myname(453);
         };
     };
+
+    /* Find all of the ports we're listening on.  The same information
+       is also exposed throughthe STATUS interface, but that interface
+       is intended for debugging, so should be easy to change and
+       shouldn't be used for ``real'' work, whereas this one is
+       intended to be consumed by other programs, and will therefore
+       remain stable. */
+    namespace LISTENING {
+        static const msgtag tag(5);
+        /* no request parameters */
+        namespace resp {
+            static const parameter< ::peername> coordinator(550);
+            static const parameter< ::peername> storageslave(551);
+            static const parameter< ::peername> control(552);
+        }
+    }
 
     /* Beacon interface */
     namespace HAIL {

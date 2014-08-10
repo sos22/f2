@@ -122,10 +122,25 @@ main(int argc, const char *const argv[])
             .addparam(proto::QUIT::req::reason, code.success()))
             .fatal(fields::mk("sending QUIT message"));
         c.success()->drain(clientio::CLIENTIO);
-    } else {
+    } else if (!strcmp(mode, "LISTENING")) {
+        using namespace proto::LISTENING;
+        if (nrargs) errx(1, "LISTENING mode takes no arguments");
+        auto m(c.success()->call(
+                   clientio::CLIENTIO,
+                   wireproto::req_message(tag,
+                                          c.success()->allocsequencenr()))
+               .fatal("sending LISTENING message"));
+        fields::print(
+            "coordinator: " +
+                fields::mk(m->getparam(resp::coordinator)) + "\n" +
+            "storageslave: " +
+                fields::mk(m->getparam(resp::storageslave)) + "\n"
+            "control:" +
+                fields::mk(m->getparam(resp::control)) + "\n");
+        delete m; }
+    else {
         printf("Unknown command %s.  Known: PING, LOGS\n", mode);
-        r = 1;
-    }
+        r = 1; }
     c.success()->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();

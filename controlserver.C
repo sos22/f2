@@ -140,8 +140,13 @@ controlconn::message(const wireproto::rx_message &rxm) {
         assert(ll.prev == &ll);
         return res;
     } else if (rxm.tag() == proto::GETLOGS::tag) {
-        return getlogs(rxm);
-    } else {
+        return getlogs(rxm); }
+    else if (rxm.tag() == proto::LISTENING::tag) {
+        auto res(new wireproto::resp_message(rxm));
+        res->addparam(proto::LISTENING::resp::control, owner->localname());
+        /* XXX and the rest of them */
+        return res; }
+    else {
         return rpcconn::message(rxm); } }
 
 controlserver::controlserver(constoken token,

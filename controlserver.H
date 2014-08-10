@@ -3,6 +3,7 @@
 
 #include "rpcconn.H"
 #include "rpcserver.H"
+#include "wireproto.H"
 
 template <typename> class orerror;
 class peername;
