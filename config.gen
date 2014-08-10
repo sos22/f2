@@ -5,7 +5,7 @@ CPPFLAGS="${CPPFLAGS}"
 CPPFLAGS+="-I. -Wundef -std=gnu++0x"
 CXXFLAGS="${CXXFLAGS}"
 CXXFLAGS+=" \${CPPFLAGS}"
-CXXFLAGS+=" -O0 -g -fno-operator-names -fno-exceptions"
+CXXFLAGS+=" -O0 -g -fno-operator-names -fno-exceptions -fno-strict-aliasing"
 CXXFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
 CXXFLAGS+=" -Winit-self -Wswitch-enum"
 EOF
