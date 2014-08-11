@@ -6,7 +6,7 @@
 
 #include "parsers.tmpl"
 
-masterconfig::masterconfig(const string &__controlsock,
+masterconfig::masterconfig(const peername &__controlsock,
                            const registrationsecret &__rs,
                            const peername &__listenon,
                            const peername::port &__beaconport,
@@ -18,14 +18,14 @@ masterconfig::masterconfig(const string &__controlsock,
       beaconlimit(__beaconlimit) {}
 
 masterconfig::masterconfig(const registrationsecret &__rs)
-    : controlsock("mastersock"),
+    : controlsock(peername::local("mastersock")),
       rs(__rs),
       listenon(peername::tcpany()),
       beaconport(9009),
       beaconlimit(frequency::hz(10)) {}
 
 masterconfig::masterconfig(const quickcheck &q)
-    : controlsock(q.filename()),
+    : controlsock(q),
       rs(q),
       listenon(q),
       beaconport(q),
@@ -37,7 +37,7 @@ masterconfig::masterconfig(const quickcheck &q)
         masterconfig res(*this);                        \
         res.name = s;                                   \
         return res; }
-mksetter(string, controlsock)
+mksetter(peername, controlsock)
 mksetter(registrationsecret, rs)
 mksetter(peername, listenon)
 mksetter(peername::port, beaconport)
@@ -55,20 +55,21 @@ masterconfig::operator==(const masterconfig &o) const {
 const parser<masterconfig> &
 parsers::_masterconfig() {
     return ("<masterconfig:" +
-            ~(" controlsock:" + strparser) +
+            ~(" controlsock:" + _peername()) +
             (" rs:" + _registrationsecret()) +
             ~(" listenon:" + _peername()) +
             ~(" beaconport:" + _peernameport()) +
             ~(" beaconlimit:" + _frequency()) +
             ">")
         .map<masterconfig>(
-            [] (const pair<pair<pair<pair<maybe<const char *>,
+            [] (const pair<pair<pair<pair<maybe<peername>,
                                           registrationsecret>,
                                      maybe<peername> >,
                                 maybe<peername::port> >,
                            maybe<frequency> > &x) {
                 return masterconfig(
-                    x.first().first().first().first().dflt("mastersock"),
+                    x.first().first().first().first().dflt(
+                        peername::local("mastersock")),
                     x.first().first().first().second(),
                     x.first().first().second().dflt(peername::tcpany()),
                     x.first().second().dflt(peername::port(9009)),
@@ -76,8 +77,7 @@ parsers::_masterconfig() {
 
 const fields::field &
 fields::mk(const masterconfig &config) {
-    return "<masterconfig: controlsock:" +
-            fields::mk(config.controlsock).escape() +
+    return "<masterconfig: controlsock:" + fields::mk(config.controlsock) +
         " rs:" + fields::mk(config.rs) +
         " listenon:" + fields::mk(config.listenon) +
         " beaconport:" + fields::mk(config.beaconport) +
@@ -90,7 +90,8 @@ tests::_masterconfig() {
     testcaseV("masterconfig", "fields", [] {
             masterconfig ms(registrationsecret::mk("foo")
                             .fatal(fields::mk("foo")));
-            assert(ms._controlsock("x").controlsock == "x");
+            assert(ms._controlsock(peername::local("x")).controlsock ==
+                   peername::local("x"));
             auto r(registrationsecret::mk("bar")
                    .fatal(fields::mk("bar")));
             assert(ms._rs(r).rs == r);

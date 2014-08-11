@@ -304,6 +304,14 @@ unsigned
 peername::sockaddrsize() const {
     return sockaddrsize_; }
 
+void
+peername::evict() const {
+    if (sockaddrsize_ != sizeof(struct sockaddr_un)) return;
+    auto sun = (const struct sockaddr_un *)sockaddr_;
+    if (sun->sun_family != AF_UNIX) return;
+    if (sun->sun_path[0] == '\0') return;
+    (void)::unlink(sun->sun_path); }
+
 class _ip6litparser : public parser<struct in6_addr> {
 private: orerror<result> parse(const char *what) const;
 };

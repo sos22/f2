@@ -55,6 +55,11 @@ public:
     /* And the sockaddr size */
     unsigned sockaddrsize() const;
 
+    /* Try to kick off whoever's currently listening on a given
+       peername.  Never guaranteed to succeed, and guranteed not to
+       for most address families. */
+    void evict() const;
+
     /* peernames are their own status representation */
 public: typedef peername status_t;
 public: status_t status() const { return *this; }
