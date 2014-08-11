@@ -20,9 +20,9 @@
     })
 
 statusinterface::statusinterface(controlserver *cs)
-    : active(),
-      started(false),
-      running(false),
+    : started(false),
+      invoking(),
+      active(0),
       idle(),
       owner(cs) {}
 
@@ -30,6 +30,8 @@ void
 statusinterface::start() {
     auto token(owner->statuslock.lock());
     assert(!started);
+    assert(active == 0);
+    assert(invoking.empty());
     started = true;
     owner->statusifaces.pushtail(this);
     owner->statuslock.unlock(&token); }
@@ -38,26 +40,29 @@ void
 statusinterface::stop() {
     auto token(owner->statuslock.lock());
     assert(started);
-    /* Clearing started prevents the interface from being added to the
-     * active list. */
+    /* Prevent anyone else from taking out another reference. */
     started = false;
     for (auto it(owner->statusifaces.start()); !it.finished(); it.next()) {
         if (*it == this) {
             it.remove();
             break; } }
-    /* Removing the interface from the active list prevents running
-     * from being set. */
-    assert(!!active.next == !!active.prev);
-    if (active.next) {
-        active.next->prev = active.prev;
-        active.prev->next = active.next;
-        active.next = NULL;
-        active.prev = NULL; }
-    /* Wait for running to go clear. */
-    if (running) {
+    /* Interrupt any conns who are about to start invoking us. */
+    while (!invoking.empty()) {
+        auto conn(invoking.pophead());
+        bool found = false;
+        for (auto it2(conn->invoking.start());
+             !it2.finished() && !found;
+             it2.next()) {
+            if (*it2 == this) {
+                it2.remove();
+                found = true; } }
+        assert(found); }
+    /* Wait for any conns which have already started invoking us to
+     * finish. */
+    if (active != 0) {
         subscriber sub;
         subscription ss(sub, idle);
-        while (running) {
+        while (active != 0) {
             owner->statuslock.unlock(&token);
             /* running will be cleared when the getstatus() invocation
                finishes.  getstatus() does not receive a clientio
@@ -65,13 +70,13 @@ statusinterface::stop() {
                token for the wait here. */
             sub.wait(clientio::CLIENTIO);
             token = owner->statuslock.lock(); } }
+    assert(invoking.empty());
     owner->statuslock.unlock(&token); }
 
 statusinterface::~statusinterface() {
     assert(!started);
-    assert(!running);
-    assert(!active.next);
-    assert(!active.prev); }
+    assert(invoking.empty());
+    assert(active == 0); }
 
 controlconn::controlconn(thread::constoken tok,
                          socket_t _sock,
@@ -79,6 +84,7 @@ controlconn::controlconn(thread::constoken tok,
                          const peername &_peer,
                          controlserver *_owner)
     : rpcconn(tok, _sock, __auth, _peer),
+      invoking(),
       owner(_owner) {}
 
 messageresult
@@ -98,48 +104,41 @@ controlconn::message(const wireproto::rx_message &rxm) {
         return messageresult::noreply;
     } else if (rxm.tag() == proto::STATUS::tag) {
         auto res(new wireproto::resp_message(rxm));
-        statusinterface::list ll;
-        ll.next = &ll;
-        ll.prev = &ll;
+        /* Complicatd two-step lookup so that you can alwasy
+           unregister interface A without having to wait for
+           operations on interface B to complete. */
         auto token(owner->statuslock.lock());
-        for (auto it(owner->statusifaces.start());
-             !it.finished();
-             it.next()) {
+        assert(invoking.empty());
+        for (auto it(owner->statusifaces.start()); !it.finished(); it.next()) {
             auto iface(*it);
-            if (!iface->started) continue;
-            iface->active.next = &ll;
-            iface->active.prev = ll.prev;
-            iface->active.prev->next = &iface->active;
-            iface->active.next->prev = &iface->active; }
-        owner->statuslock.unlock(&token);
-        for (auto cursor = ll.next; cursor != &ll; cursor = ll.next) {
-            auto iface = containerof(ll.next, statusinterface, active);
-            token = owner->statuslock.lock();
-            /* Remove from active list.  Either it's stopped, in which
-               case we need to ignore it, or it's not, and we'll rely
-               on setting the running flag to stop it from going
-               away. */
-            iface->active.next->prev = iface->active.prev;
-            iface->active.prev->next = iface->active.next;
-            iface->active.next = NULL;
-            iface->active.prev = NULL;
-            if (!iface->started) {
-                /* Interface has been stopped -> we can't mark it as
-                 * running. */
-                owner->statuslock.unlock(&token);
-                continue; }
-            /* Tell anyone trying to unregister the interface that
-               they're going to have to wait. */
-            iface->running = true;
+            if (iface->started) {
+                iface->invoking.pushtail(this);
+                invoking.pushtail(iface); } }
+
+        while (!invoking.empty()) {
+            auto iface(invoking.pophead());
+            assert(iface->started);
+            iface->active++;
+            assert(iface->active != 0);
+            bool found = false;
+            for (auto it(iface->invoking.start()); !it.finished(); it.next()) {
+                if (*it == this) {
+                    it.remove();
+                    found = true;
+                    break; } }
+            assert(found);
+            /* We've bumped active, so can drop the lock without risk
+               of the interface disappearing underneath us. */
             owner->statuslock.unlock(&token);
             iface->getstatus(res);
             token = owner->statuslock.lock();
-            iface->running = false;
-            iface->idle.publish();
-            owner->statuslock.unlock(&token); }
-        assert(ll.prev == &ll);
-        return res;
-    } else if (rxm.tag() == proto::GETLOGS::tag) {
+            assert(iface->active > 0);
+            iface->active--;
+            if (iface->active == 0 && iface->invoking.empty()) {
+                iface->idle.publish(); } }
+        owner->statuslock.unlock(&token);
+        return res; }
+    else if (rxm.tag() == proto::GETLOGS::tag) {
         return getlogs(rxm); }
     else if (rxm.tag() == proto::LISTENING::tag) {
         auto res(new wireproto::resp_message(rxm));

@@ -91,6 +91,7 @@ testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 # Things which would benefit from unit tests:
 #
+# controlserver
 # logging
 # mastersecret
 # nonce

@@ -14,20 +14,17 @@ class controlconn;
 class controlserver;
 
 class statusinterface {
+    /* All fields are protected by owner->statuslock. */
     friend class controlconn;
-    /* The active list contains interfaces which we're about collect
-     * status for. */
-private: struct list {
-    list *next;
-    list *prev;
-    list()
-        : next(NULL),
-          prev(NULL) {}
-};
-private: list active;
-private: bool started; /* True if we're started() and not stopped() */
-private: bool running; /* True if the interface is currently being invoked */
-private: publisher idle; /* signalled whenever running goes true->false */
+private: bool started; /* True if we're started() and not
+                        * stopped(). */
+private: list<controlconn *> invoking; /* Inverse index for the
+                                        * controlconn @invoking
+                                        * list. */
+private: unsigned active; /* Count of control conns which are invoking
+                             us right now. */
+private: publisher idle; /* signalled whenever we enter a state where
+                            @invoking is empty and active is zero. */
 private: controlserver *const owner;
 
     /* Construct a new status interface and register it with the
@@ -51,6 +48,14 @@ public:    virtual ~statusinterface();
 
 class controlconn : public rpcconn {
     friend class pausedthread<controlconn>;
+    friend class statusinterface;
+private: list<statusinterface *> invoking; /* All the interfaces we're
+                                              about to invoke.
+                                              interfaces can only be
+                                              added to this list if
+                                              their started field is
+                                              true.  Protected by
+                                              owner->statuslock.*/
 private: controlserver *const owner;
 public:  controlconn(thread::constoken tok,
                      socket_t _sock,
@@ -66,8 +71,10 @@ class controlserver : public rpcserver {
     friend class pausedthread<controlserver>;
     friend class thread;
     friend class statusinterface;
-private: list<statusinterface *> statusifaces;
-private: mutex_t statuslock;
+private: list<statusinterface *> statusifaces; /* Protected by
+                                                * @statuslock */
+private: mutex_t statuslock; /* Ordering: before ::controlconn @lock
+                              * and ::statusinterface @lock. */
 private: waitbox<shutdowncode> &shutdown;
 private: controlserver(constoken,
                        listenfd,
