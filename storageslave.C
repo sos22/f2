@@ -111,11 +111,11 @@ storageslaveconn::endconn(clientio) {
     owner->mux.unlock(&token); }
 
 void
-storageslave::statusiface::getstatus(wireproto::tx_message *msg) const {
+storageslave::controliface::getstatus(wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::storageslave, owner->status()); }
 
 void
-storageslave::statusiface::getlistening(wireproto::resp_message *msg) const {
+storageslave::controliface::getlistening(wireproto::resp_message *msg) const {
     msg->addparam(proto::LISTENING::resp::storageslave, owner->localname()); }
 
 orerror<storageslave *>
@@ -147,13 +147,13 @@ storageslave::storageslave(constoken token,
                            const filename &_pool,
                            controlserver *cs)
     : rpcserver(token, fd),
-      status_(this, cs),
+      control_(this, cs),
       rs(_rs),
       masterconn(NULL),
       clients(),
       pool(_pool),
       mux() {
-    status_.start(); }
+    control_.start(); }
 
 orerror<rpcconn *>
 storageslave::accept(socket_t s) {
@@ -404,7 +404,7 @@ storageslave::removestream(const jobname &jn,
 
 void
 storageslave::destroy(clientio io) {
-    status_.stop();
+    control_.stop();
     /* Stop the master connection now, but don't release it until
        we've finished tearing down our clients.  Not clear whether the
        two-step is actually necessary, but it's a lot easier to think

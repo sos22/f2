@@ -39,17 +39,17 @@ private: mastersecret ms;
 private: registrationsecret rs;
 
     /* Control server interface */
-private: class statusinterface : public ::statusinterface {
+private: class controlinterface : public ::controlinterface {
     private: coordinator *const owner;
-    public:  statusinterface(
+    public:  controlinterface(
         coordinator *_owner,
         controlserver *cs)
-        : ::statusinterface(cs),
+        : ::controlinterface(cs),
           owner(_owner) {}
     private: void getstatus(wireproto::tx_message *) const;
     private: void getlistening(wireproto::resp_message *) const;
     };
-private: statusinterface statusiface;
+private: controlinterface controliface;
 
 private: mutable mutex_t mux;
 private: list<coordinatorconn *> connections;

@@ -13,7 +13,7 @@ template <typename> class waitbox;
 class controlconn;
 class controlserver;
 
-class statusinterface {
+class controlinterface {
     /* All fields are protected by owner->ifacelock. */
     friend class controlconn;
 private: bool started; /* True if we're started() and not
@@ -28,37 +28,37 @@ private: publisher idle; /* signalled whenever we enter a state where
                             @invoking is empty and active is zero. */
 private: controlserver *const owner;
 
-    /* Construct a new status interface and register it with the
+    /* Construct a new control interface and register it with the
        control server.  The interface is initially stopped and will
        not start accepting requests until ::start() is called. */
-protected: statusinterface(controlserver *);
+protected: controlinterface(controlserver *);
     /* Start accepting new requests on this interface.  Once this is
-       called, new requests can come in to ::getstatus() at any time
-       until ::stop() is called. */
+       called, new requests can come in to ::getstatus() and
+       ::getlistening() at any time until ::stop() is called. */
 public:    void start();
     /* Add parameters to a STATUS query. */
 public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
     /* Add parameters to a LISTENING query. */
 public:    virtual void getlistening(wireproto::resp_message *msg) const = 0;
-    /* Stop calling ::getstatus() on this interface, waiting for any
-       extant invocations to finish before returning.  The interface
-       will remain stopped until start() is called. */
+    /* Stop calling ::getstatus()/::getlistening() on this interface,
+       waiting for any extant invocations to finish before returning.
+       The interface will remain stopped until start() is called. */
 public:    void stop();
     /* Destruct the interface.  The interface must be stopped before
      * this is called. */
-public:    virtual ~statusinterface();
+public:    virtual ~controlinterface();
 };
 
 class controlconn : public rpcconn {
     friend class pausedthread<controlconn>;
-    friend class statusinterface;
-private: list<statusinterface *> invoking; /* All the interfaces we're
-                                              about to invoke.
-                                              interfaces can only be
-                                              added to this list if
-                                              their started field is
-                                              true.  Protected by
-                                              owner->statuslock.*/
+    friend class controlinterface;
+private: list<controlinterface *> invoking; /* All the interfaces
+                                               we're about to invoke.
+                                               interfaces can only be
+                                               added to this list if
+                                               their started field is
+                                               true.  Protected by
+                                               owner->ifacelock.*/
 private: controlserver *const owner;
 public:  controlconn(thread::constoken tok,
                      socket_t _sock,
@@ -66,8 +66,8 @@ public:  controlconn(thread::constoken tok,
                      const peername &_peer,
                      controlserver *_owner);
 public:  virtual messageresult message(const wireproto::rx_message &);
-    /* Invoke a method on the status interfaces. */
-private: void invoke(const std::function<void (statusinterface *)> &);
+    /* Invoke a method on the control interfaces. */
+private: void invoke(const std::function<void (controlinterface *)> &);
 public:  virtual ~controlconn() {}
 };
 
@@ -75,8 +75,8 @@ class controlserver : public rpcserver {
     friend class controlconn;
     friend class pausedthread<controlserver>;
     friend class thread;
-    friend class statusinterface;
-private: list<statusinterface *> ifaces; /* Protected by @ifacelock */
+    friend class controlinterface;
+private: list<controlinterface *> ifaces; /* Protected by @ifacelock */
 private: mutex_t ifacelock;
 private: waitbox<shutdowncode> &shutdown;
 private: controlserver(constoken,

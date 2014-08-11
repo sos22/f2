@@ -40,16 +40,16 @@ class storageslave : rpcserver {
     friend class storageslaveconn;
     friend class pausedthread<storageslave>;
     friend class thread;
-private: class statusiface : public statusinterface {
+private: class controliface : public controlinterface {
     private: storageslave *const owner;
-    public:  statusiface(storageslave *_owner,
+    public:  controliface(storageslave *_owner,
                          controlserver *cs)
-        : statusinterface(cs),
+        : controlinterface(cs),
           owner(_owner) {}
     private: void getstatus(wireproto::tx_message *msg) const;
     private: void getlistening(wireproto::resp_message *) const;
     };
-private: statusiface status_;
+private: controliface control_;
 private: registrationsecret const rs;
 private: storageslaveconn *masterconn;
 private: list<storageslaveconn *> clients;

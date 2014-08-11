@@ -74,7 +74,7 @@ beaconserver::beaconserver(thread::constoken tok,
                            controlserver *cs,
                            udpsocket _listenfd)
     : thread(tok),
-      statusiface_(this, cs),
+      controliface_(this, cs),
       secret(config.rs_),
       mastername(config.coordinator_),
       mastersecret_(config.ms_),
@@ -83,11 +83,11 @@ beaconserver::beaconserver(thread::constoken tok,
       shutdown(),
       errors(0),
       rx(0) {
-    statusiface_.start(); }
+    controliface_.start(); }
 
-beaconserver::statusiface::statusiface(beaconserver *server,
-                                       controlserver *cs)
-    : ::statusinterface(cs),
+beaconserver::controliface::controliface(beaconserver *server,
+                                         controlserver *cs)
+    : ::controlinterface(cs),
       owner(server) {}
 
 beaconserver::status_t
@@ -95,12 +95,12 @@ beaconserver::status() const {
     return status_t(secret, limiter.status(), errors, rx); }
 
 void
-beaconserver::statusiface::getstatus(
+beaconserver::controliface::getstatus(
     wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
 void
-beaconserver::statusiface::getlistening(
+beaconserver::controliface::getlistening(
     wireproto::resp_message *msg) const {
     msg->addparam(proto::LISTENING::resp::beacon,
                   owner->listenfd.localname()); }
@@ -205,7 +205,7 @@ beaconserver::run(clientio io)
 void
 beaconserver::destroy(clientio io)
 {
-    statusiface_.stop();
+    controliface_.stop();
     shutdown.set(true);
     auto l(listenfd);
     join(io);

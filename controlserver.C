@@ -19,7 +19,7 @@
         __res;                                                          \
     })
 
-statusinterface::statusinterface(controlserver *cs)
+controlinterface::controlinterface(controlserver *cs)
     : started(false),
       invoking(),
       active(0),
@@ -27,7 +27,7 @@ statusinterface::statusinterface(controlserver *cs)
       owner(cs) {}
 
 void
-statusinterface::start() {
+controlinterface::start() {
     auto token(owner->ifacelock.lock());
     assert(!started);
     assert(active == 0);
@@ -37,7 +37,7 @@ statusinterface::start() {
     owner->ifacelock.unlock(&token); }
 
 void
-statusinterface::stop() {
+controlinterface::stop() {
     auto token(owner->ifacelock.lock());
     assert(started);
     /* Prevent anyone else from taking out another reference. */
@@ -73,7 +73,7 @@ statusinterface::stop() {
     assert(invoking.empty());
     owner->ifacelock.unlock(&token); }
 
-statusinterface::~statusinterface() {
+controlinterface::~controlinterface() {
     assert(!started);
     assert(invoking.empty());
     assert(active == 0); }
@@ -88,7 +88,7 @@ controlconn::controlconn(thread::constoken tok,
       owner(_owner) {}
 
 void
-controlconn::invoke(const std::function<void (statusinterface *)> &f) {
+controlconn::invoke(const std::function<void (controlinterface *)> &f) {
     /* Complicated two-step lookup so that you can always unregister
        interface A without having to wait for operations on interface
        B to complete. */
@@ -142,14 +142,14 @@ controlconn::message(const wireproto::rx_message &rxm) {
         return messageresult::noreply;
     } else if (rxm.tag() == proto::STATUS::tag) {
         auto res(new wireproto::resp_message(rxm));
-        invoke([res] (statusinterface *si) { si->getstatus(res); });
+        invoke([res] (controlinterface *si) { si->getstatus(res); });
         return res; }
     else if (rxm.tag() == proto::GETLOGS::tag) {
         return getlogs(rxm); }
     else if (rxm.tag() == proto::LISTENING::tag) {
         auto res(new wireproto::resp_message(rxm));
         res->addparam(proto::LISTENING::resp::control, owner->localname());
-        invoke([res] (statusinterface *si) { si->getlistening(res); });
+        invoke([res] (controlinterface *si) { si->getlistening(res); });
         return res; }
     else {
         return rpcconn::message(rxm); } }

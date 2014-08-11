@@ -77,14 +77,14 @@ class beaconserver : private thread {
     friend class pausedthread<beaconserver>;
     friend class statusiface;
 
-    class statusiface : public statusinterface {
+    class controliface : public controlinterface {
     private: beaconserver *owner;
-    public:  statusiface(beaconserver *_owner, controlserver *cs);
+    public:  controliface(beaconserver *_owner, controlserver *cs);
     public:  void getstatus(wireproto::tx_message *) const;
     public:  void getlistening(wireproto::resp_message *) const;
     };
 
-public:  statusiface statusiface_;
+public:  controliface controliface_;
     registrationsecret secret;
     peername mastername;
     mastersecret mastersecret_;

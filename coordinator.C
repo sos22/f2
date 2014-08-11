@@ -80,11 +80,12 @@ coordinatorconn::endconn(clientio) {
     owner->mux.unlock(&token); }
 
 void
-coordinator::statusinterface::getstatus(wireproto::tx_message *msg) const {
+coordinator::controlinterface::getstatus(wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::coordinator, owner->status()); }
 
 void
-coordinator::statusinterface::getlistening(wireproto::resp_message *msg) const {
+coordinator::controlinterface::getlistening(
+    wireproto::resp_message *msg) const {
     msg->addparam(proto::LISTENING::resp::coordinator, owner->localname()); }
 
 coordinator::status_t
@@ -107,8 +108,8 @@ coordinator::coordinator(
     : rpcserver(token, fd),
       ms(_ms),
       rs(_rs),
-      statusiface(this, cs) {
-    statusiface.start(); }
+      controliface(this, cs) {
+    controliface.start(); }
 
 orerror<rpcconn *>
 coordinator::accept(socket_t s) {
@@ -119,7 +120,7 @@ coordinator::accept(socket_t s) {
 
 void
 coordinator::destroy(clientio io) {
-    statusiface.stop();
+    controliface.stop();
     rpcserver::destroy(io); }
 
 orerror<coordinator *>
