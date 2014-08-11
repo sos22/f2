@@ -28,21 +28,21 @@ statusinterface::statusinterface(controlserver *cs)
 
 void
 statusinterface::start() {
-    auto token(owner->statuslock.lock());
+    auto token(owner->ifacelock.lock());
     assert(!started);
     assert(active == 0);
     assert(invoking.empty());
     started = true;
-    owner->statusifaces.pushtail(this);
-    owner->statuslock.unlock(&token); }
+    owner->ifaces.pushtail(this);
+    owner->ifacelock.unlock(&token); }
 
 void
 statusinterface::stop() {
-    auto token(owner->statuslock.lock());
+    auto token(owner->ifacelock.lock());
     assert(started);
     /* Prevent anyone else from taking out another reference. */
     started = false;
-    for (auto it(owner->statusifaces.start()); !it.finished(); it.next()) {
+    for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
         if (*it == this) {
             it.remove();
             break; } }
@@ -63,15 +63,15 @@ statusinterface::stop() {
         subscriber sub;
         subscription ss(sub, idle);
         while (active != 0) {
-            owner->statuslock.unlock(&token);
+            owner->ifacelock.unlock(&token);
             /* running will be cleared when the getstatus() invocation
                finishes.  getstatus() does not receive a clientio
                token, so will complete quickly, and we do not need a
                token for the wait here. */
             sub.wait(clientio::CLIENTIO);
-            token = owner->statuslock.lock(); } }
+            token = owner->ifacelock.lock(); } }
     assert(invoking.empty());
-    owner->statuslock.unlock(&token); }
+    owner->ifacelock.unlock(&token); }
 
 statusinterface::~statusinterface() {
     assert(!started);
@@ -86,6 +86,44 @@ controlconn::controlconn(thread::constoken tok,
     : rpcconn(tok, _sock, __auth, _peer),
       invoking(),
       owner(_owner) {}
+
+void
+controlconn::invoke(const std::function<void (statusinterface *)> &f) {
+    /* Complicated two-step lookup so that you can always unregister
+       interface A without having to wait for operations on interface
+       B to complete. */
+    auto token(owner->ifacelock.lock());
+    assert(invoking.empty());
+    for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
+        auto iface(*it);
+        if (iface->started) {
+            iface->invoking.pushtail(this);
+            invoking.pushtail(iface); } }
+    while (!invoking.empty()) {
+        auto iface(invoking.pophead());
+        assert(iface->started);
+        iface->active++;
+        assert(iface->active != 0);
+        bool found = false;
+        for (auto it(iface->invoking.start()); !it.finished(); it.next()) {
+            if (*it == this) {
+                it.remove();
+                found = true;
+                break; } }
+        assert(found);
+        /* We've bumped active, so can drop the lock without risk of
+           the interface disappearing underneath us. */
+        owner->ifacelock.unlock(&token);
+
+        /* Actually invoke the desired callback. */
+        f(iface);
+
+        token = owner->ifacelock.lock();
+        assert(iface->active > 0);
+        iface->active--;
+        if (iface->active == 0 && iface->invoking.empty()) {
+            iface->idle.publish(); } }
+    owner->ifacelock.unlock(&token); }
 
 messageresult
 controlconn::message(const wireproto::rx_message &rxm) {
@@ -104,39 +142,7 @@ controlconn::message(const wireproto::rx_message &rxm) {
         return messageresult::noreply;
     } else if (rxm.tag() == proto::STATUS::tag) {
         auto res(new wireproto::resp_message(rxm));
-        /* Complicatd two-step lookup so that you can alwasy
-           unregister interface A without having to wait for
-           operations on interface B to complete. */
-        auto token(owner->statuslock.lock());
-        assert(invoking.empty());
-        for (auto it(owner->statusifaces.start()); !it.finished(); it.next()) {
-            auto iface(*it);
-            if (iface->started) {
-                iface->invoking.pushtail(this);
-                invoking.pushtail(iface); } }
-
-        while (!invoking.empty()) {
-            auto iface(invoking.pophead());
-            assert(iface->started);
-            iface->active++;
-            assert(iface->active != 0);
-            bool found = false;
-            for (auto it(iface->invoking.start()); !it.finished(); it.next()) {
-                if (*it == this) {
-                    it.remove();
-                    found = true;
-                    break; } }
-            assert(found);
-            /* We've bumped active, so can drop the lock without risk
-               of the interface disappearing underneath us. */
-            owner->statuslock.unlock(&token);
-            iface->getstatus(res);
-            token = owner->statuslock.lock();
-            assert(iface->active > 0);
-            iface->active--;
-            if (iface->active == 0 && iface->invoking.empty()) {
-                iface->idle.publish(); } }
-        owner->statuslock.unlock(&token);
+        invoke([res] (statusinterface *si) { si->getstatus(res); });
         return res; }
     else if (rxm.tag() == proto::GETLOGS::tag) {
         return getlogs(rxm); }

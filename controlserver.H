@@ -14,7 +14,7 @@ class controlconn;
 class controlserver;
 
 class statusinterface {
-    /* All fields are protected by owner->statuslock. */
+    /* All fields are protected by owner->ifacelock. */
     friend class controlconn;
 private: bool started; /* True if we're started() and not
                         * stopped(). */
@@ -22,7 +22,8 @@ private: list<controlconn *> invoking; /* Inverse index for the
                                         * controlconn @invoking
                                         * list. */
 private: unsigned active; /* Count of control conns which are invoking
-                             us right now. */
+                             us right now (which aren't in the
+                             @invoking list). */
 private: publisher idle; /* signalled whenever we enter a state where
                             @invoking is empty and active is zero. */
 private: controlserver *const owner;
@@ -35,7 +36,7 @@ protected: statusinterface(controlserver *);
        called, new requests can come in to ::getstatus() at any time
        until ::stop() is called. */
 public:    void start();
-    /* Add status parameters to a TX message. */
+    /* Add parameters to a STATUS query. */
 public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
     /* Stop calling ::getstatus() on this interface, waiting for any
        extant invocations to finish before returning.  The interface
@@ -63,6 +64,8 @@ public:  controlconn(thread::constoken tok,
                      const peername &_peer,
                      controlserver *_owner);
 public:  virtual messageresult message(const wireproto::rx_message &);
+    /* Invoke a method on the status interfaces. */
+private: void invoke(const std::function<void (statusinterface *)> &);
 public:  virtual ~controlconn() {}
 };
 
@@ -71,10 +74,8 @@ class controlserver : public rpcserver {
     friend class pausedthread<controlserver>;
     friend class thread;
     friend class statusinterface;
-private: list<statusinterface *> statusifaces; /* Protected by
-                                                * @statuslock */
-private: mutex_t statuslock; /* Ordering: before ::controlconn @lock
-                              * and ::statusinterface @lock. */
+private: list<statusinterface *> ifaces; /* Protected by @ifacelock */
+private: mutex_t ifacelock;
 private: waitbox<shutdowncode> &shutdown;
 private: controlserver(constoken,
                        listenfd,
