@@ -38,6 +38,8 @@ protected: statusinterface(controlserver *);
 public:    void start();
     /* Add parameters to a STATUS query. */
 public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
+    /* Add parameters to a LISTENING query. */
+public:    virtual void getlistening(wireproto::resp_message *msg) const = 0;
     /* Stop calling ::getstatus() on this interface, waiting for any
        extant invocations to finish before returning.  The interface
        will remain stopped until start() is called. */

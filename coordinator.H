@@ -47,6 +47,7 @@ private: class statusinterface : public ::statusinterface {
         : ::statusinterface(cs),
           owner(_owner) {}
     private: void getstatus(wireproto::tx_message *) const;
+    private: void getlistening(wireproto::resp_message *) const;
     };
 private: statusinterface statusiface;
 

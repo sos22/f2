@@ -83,6 +83,10 @@ void
 coordinator::statusinterface::getstatus(wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::coordinator, owner->status()); }
 
+void
+coordinator::statusinterface::getlistening(wireproto::resp_message *msg) const {
+    msg->addparam(proto::LISTENING::resp::coordinator, owner->localname()); }
+
 coordinator::status_t
 coordinator::status() const {
     list<coordinatorconnstatus> c;

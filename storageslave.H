@@ -47,6 +47,7 @@ private: class statusiface : public statusinterface {
         : statusinterface(cs),
           owner(_owner) {}
     private: void getstatus(wireproto::tx_message *msg) const;
+    private: void getlistening(wireproto::resp_message *) const;
     };
 private: statusiface status_;
 private: registrationsecret const rs;

@@ -114,6 +114,10 @@ void
 storageslave::statusiface::getstatus(wireproto::tx_message *msg) const {
     msg->addparam(proto::STATUS::resp::storageslave, owner->status()); }
 
+void
+storageslave::statusiface::getlistening(wireproto::resp_message *msg) const {
+    msg->addparam(proto::LISTENING::resp::storageslave, owner->localname()); }
+
 orerror<storageslave *>
 storageslave::build(clientio io,
                     const storageconfig &config,

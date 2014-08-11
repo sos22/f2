@@ -100,6 +100,12 @@ beaconserver::statusiface::getstatus(
     msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
 void
+beaconserver::statusiface::getlistening(
+    wireproto::resp_message *msg) const {
+    msg->addparam(proto::LISTENING::resp::beacon,
+                  owner->listenfd.localname()); }
+
+void
 beaconserver::run(clientio io)
 {
     subscriber sub;

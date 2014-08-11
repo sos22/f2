@@ -149,7 +149,7 @@ controlconn::message(const wireproto::rx_message &rxm) {
     else if (rxm.tag() == proto::LISTENING::tag) {
         auto res(new wireproto::resp_message(rxm));
         res->addparam(proto::LISTENING::resp::control, owner->localname());
-        /* XXX and the rest of them */
+        invoke([res] (statusinterface *si) { si->getlistening(res); });
         return res; }
     else {
         return rpcconn::message(rxm); } }

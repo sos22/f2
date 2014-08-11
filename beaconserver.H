@@ -81,6 +81,7 @@ class beaconserver : private thread {
     private: beaconserver *owner;
     public:  statusiface(beaconserver *_owner, controlserver *cs);
     public:  void getstatus(wireproto::tx_message *) const;
+    public:  void getlistening(wireproto::resp_message *) const;
     };
 
 public:  statusiface statusiface_;
