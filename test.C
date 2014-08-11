@@ -8,6 +8,7 @@
 #include <functional>
 
 #include "controlserver.H"
+#include "filename.H"
 #include "list.H"
 #include "peername.H"
 #include "shutdown.H"
@@ -93,7 +94,7 @@ testcaseCS(const char *c_name,
                   unlink("testcontroller");
                   initpubsub();
                   auto cs(controlserver::build(
-                              peername::local("testcontroller"),
+                              peername::local(filename("testcontroller")),
                               s));
                   assert(cs.issuccess());
                   doit(cs.success());

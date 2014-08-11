@@ -265,12 +265,13 @@ peername::tcpany()
 }
 
 peername
-peername::local(const char *path) {
+peername::local(const filename &path) {
+    const auto &a(path.str());
     struct sockaddr_un sun;
     memset(&sun, 0, sizeof(sun));
     sun.sun_family = AF_UNIX;
-    assert(strlen(path) < sizeof(sun.sun_path));
-    strcpy(sun.sun_path, path);
+    assert(a.len() < sizeof(sun.sun_path));
+    strcpy(sun.sun_path, a.c_str());
     return peername((const struct sockaddr *)&sun, sizeof(sun)); }
 
 bool
@@ -441,7 +442,7 @@ tests::_peername() {
                 assert(p1.samehost(p1)); }});
     testcaseV("peername", "=", [] {
             peername p(peername::tcpany());
-            peername q(peername::local("foo"));
+            peername q(peername::local(filename("foo")));
             assert(!(p == q));
             p = q;
             assert(p == q); });

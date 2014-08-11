@@ -5,6 +5,7 @@
 
 #include "wireproto.H"
 
+class filename;
 class quickcheck;
 struct sockaddr;
 
@@ -44,7 +45,7 @@ public:
     static peername tcpany();
 
     /* Get a peername for a local UNIX domain socket. */
-    static peername local(const char *path);
+    static peername local(const filename &path);
 
     /* Check whether two peernames refer to the same address and
        address family. */

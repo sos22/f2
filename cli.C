@@ -35,7 +35,7 @@ main(int argc, const char *const argv[])
                clientio::CLIENTIO,
                /* Unix domain connections need no authentication */
                rpcconnauth::mkdone(),
-               peername::local(sock)));
+               peername::local(filename(sock))));
     int r;
 
     if (c.isfailure())

@@ -33,9 +33,8 @@ main(int argc, char *argv[])
     signal(SIGPIPE, SIG_IGN);
 
     waitbox<shutdowncode> s;
-    (void)unlink(config.controlsock.c_str());
-    auto c(controlserver::build(
-               peername::local(config.controlsock.c_str()), s)
+    config.controlsock.evict();
+    auto c(controlserver::build(config.controlsock, s)
            .fatal("build control interface"));
     auto slave(storageslave::build(
                    clientio::CLIENTIO,

@@ -9,11 +9,11 @@
 class quickcheck;
 
 class storageconfig {
-public: string controlsock;
+public: peername controlsock;
 public: filename poolpath;
 public: beaconclientconfig beacon;
 public: slavename name;
-public: storageconfig(const string &_controlsock,
+public: storageconfig(const peername &_controlsock,
                       const filename &_poolpath,
                       const beaconclientconfig &_beacon,
                       const slavename &_name);

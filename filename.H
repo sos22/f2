@@ -81,6 +81,9 @@ public:  orerror<void> rmdir() const;
     /* Delete a file.  Returns error::already if it doesn't exist, not
      * error::notfound. */
 public:  orerror<void> unlink() const;
+
+    /* Convert to a simple string. */
+public:  const string &str() const { return content; }
 };
 
 template <typename> class parser;

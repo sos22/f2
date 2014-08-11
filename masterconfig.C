@@ -18,7 +18,7 @@ masterconfig::masterconfig(const peername &__controlsock,
       beaconlimit(__beaconlimit) {}
 
 masterconfig::masterconfig(const registrationsecret &__rs)
-    : controlsock(peername::local("mastersock")),
+    : controlsock(peername::local(filename("mastersock"))),
       rs(__rs),
       listenon(peername::tcpany()),
       beaconport(9009),
@@ -69,7 +69,7 @@ parsers::_masterconfig() {
                            maybe<frequency> > &x) {
                 return masterconfig(
                     x.first().first().first().first().dflt(
-                        peername::local("mastersock")),
+                        peername::local(filename("mastersock"))),
                     x.first().first().first().second(),
                     x.first().first().second().dflt(peername::tcpany()),
                     x.first().second().dflt(peername::port(9009)),
@@ -90,13 +90,14 @@ tests::_masterconfig() {
     testcaseV("masterconfig", "fields", [] {
             masterconfig ms(registrationsecret::mk("foo")
                             .fatal(fields::mk("foo")));
-            assert(ms._controlsock(peername::local("x")).controlsock ==
-                   peername::local("x"));
+            assert(ms._controlsock(peername::local(filename("x")))
+                   .controlsock ==
+                   peername::local(filename("x")));
             auto r(registrationsecret::mk("bar")
                    .fatal(fields::mk("bar")));
             assert(ms._rs(r).rs == r);
-            assert(ms._listenon(peername::local("hello")).listenon ==
-                   peername::local("hello"));
+            assert(ms._listenon(peername::local(filename("hello"))).listenon ==
+                   peername::local(filename("hello")));
             assert(ms._beaconport(peername::port(99)).beaconport ==
                    peername::port(99));
             assert(ms._beaconlimit(frequency::hz(2.5)).beaconlimit ==

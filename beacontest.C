@@ -20,7 +20,7 @@
 
 void
 tests::beacon() {
-    auto mastername(peername::local("testname"));
+    auto mastername(peername::local(filename("testname")));
     auto port(peername::port((unsigned short)(random() % 32768 + 32768)));
     auto mkbeacon([mastername, port] (
                       const mastersecret &ms,
