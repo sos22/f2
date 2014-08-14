@@ -5,6 +5,7 @@ all: realall
 include cli.mk
 include lib.mk
 include master.mk
+include spawnservice.mk
 include storage.mk
 include storageclient.mk
 include test.mk

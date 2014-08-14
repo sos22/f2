@@ -61,6 +61,25 @@ clean::
 	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
 EOF
 	    ;;
+	c)
+	    local obj=${src%.c}.o
+	    local dep=${src%.c}.d
+	    cat <<EOF
+-include $dep
+$obj: $src config
+	ccache gcc -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
+${obj/.o/-t.o}: $src config
+	ccache gcc -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
+${obj/.o/-c.o}: $src config
+	ccache gcc -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+$dep: $src config
+	gcc ${CFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp $src \$< && mv ${dep}.tmp ${dep}
+clean::
+	rm -f $dep $obj ${obj}.tmp
+	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
+	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
+EOF
+	    ;;
 	*)
 	    echo "Unknown language extension \`\`$extension'' (for $src)" >&2
 	    exit 1

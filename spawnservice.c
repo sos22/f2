@@ -1,0 +1,187 @@
+/* fork()/exec()/wait() from a multi-threaded program causes lots of
+ * issues and is just generally confusing.  Avoid them by having a
+ * wrapper program which we can exec to deal with the hard parts for
+ * us. */
+#define _GNU_SOURCE
+#include <sys/fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <assert.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+/* FDs for communicating with the parent. */
+/* FD for us to send responses to our parent process. */
+#define RESPFD 3
+/* FD on which the parent will send us requests */
+#define REQFD 4
+
+struct message {
+    enum {
+        msgexecfailed = 9,
+        msgexecgood,
+        msgsendsignal,
+        msgsentsignal,
+        msgchilddied,
+    } tag;
+    union {
+        struct {
+            int err;
+        } execfailed;
+        struct {
+        } execgood;
+        struct {
+            int signr;
+        } sendsignal;
+        struct {
+            int err;
+        } sentsignal;
+        struct {
+            int status;
+        } childdied;
+    };
+};
+
+/* We use the self pipe trick to select() on signals.  This is the
+ * write end. */
+static int
+selfpipewrite;
+
+static void
+sigchldhandler(int signr, siginfo_t *info, void *ignore) {
+    int status;
+    int e = errno;
+    assert(signr == SIGCHLD);
+    if (info->si_code != CLD_EXITED &&
+        info->si_code != CLD_KILLED &&
+        info->si_code != CLD_DUMPED) return;
+    (void)ignore;
+    assert(wait(&status) != -1);
+    assert(write(selfpipewrite, &status, sizeof(status)) ==
+           sizeof(status));
+    errno = e; }
+
+static void
+execfailed(void) {
+    struct message msg;
+    msg.tag = msgexecfailed;
+    msg.execfailed.err = errno;
+    (void)write(RESPFD, &msg, sizeof(msg));
+    _exit(1); }
+
+static bool
+execsucceeded(void) {
+    struct message msg;
+    msg.tag = msgexecgood;
+    return write(RESPFD, &msg, sizeof(msg)) == sizeof(msg); }
+
+static void
+childdied(int status) {
+    struct message msg;
+    msg.tag = msgchilddied;
+    msg.childdied.status = status;
+    if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) _exit(1); }
+
+int
+main(int argc, char *argv[]) {
+    int p[2];
+    pid_t child;
+    int e;
+    fd_set fds;
+    struct sigaction sa;
+    int selfpiperead;
+    struct message msg;
+    int i;
+    int status;
+    ssize_t r;
+
+    assert(argc >= 2);
+
+    if (pipe2(p, O_CLOEXEC) < 0) execfailed();
+    selfpipewrite = p[1];
+    selfpiperead = p[0];
+
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = sigchldhandler;
+    sa.sa_flags = SA_SIGINFO | SA_RESTART;
+    if (sigaction(SIGCHLD, &sa, NULL) < 0) execfailed();
+    if (pipe2(p, O_CLOEXEC) < 0) execfailed();
+    child = fork();
+    if (child < 0) execfailed();
+    if (child == 0) {
+        /* We are the child. */
+        close(p[0]);
+        close(RESPFD);
+        close(REQFD);
+        execv(argv[1], argv + 1);
+        write(p[1], &errno, sizeof(errno));
+        _exit(1); }
+    /* We are the parent. */
+    close(p[1]);
+    /* stdio should only be used from child now. */
+    for (i = 0; i <= 2; i++) {
+        if (i != selfpiperead && i != selfpipewrite && i != p[0]) {
+            close(i); } }
+    /* Wait for the child to either exec or report an error. */
+    switch (read(p[0], &e, sizeof(e))) {
+    case sizeof(e):
+        /* execv() failed, tell parent. */
+        errno = e;
+        execfailed();
+        abort();
+    case 0:
+        /* execv() succeeded, continue on our way. */
+        if (execsucceeded())
+            break;
+        /* Fall through */
+    default:
+        /* Some other error communicating with child -> shoot it in
+           the head and report an error. */
+        kill(child, SIGKILL);
+        execfailed();
+        abort(); }
+
+    while (1) {
+        FD_ZERO(&fds);
+        FD_SET(selfpiperead, &fds);
+        FD_SET(REQFD, &fds);
+        if (select(selfpiperead > REQFD
+                       ? selfpiperead + 1
+                       : REQFD + 1,
+                   &fds,
+                   NULL,
+                   NULL,
+                   NULL) < 0 &&
+            errno != EINTR) {
+            _exit(3);
+            break; }
+        if (FD_ISSET(selfpiperead, &fds)) {
+            assert(read(selfpiperead, &status, sizeof(status)) ==
+                   sizeof(status));
+            childdied(status);
+            _exit(0); }
+        if (FD_ISSET(REQFD, &fds)) {
+            r = read(REQFD, &msg, sizeof(msg));
+            if (r < 0) {
+                /* Whoops, failed to talk to parent.  We're dead. */
+                break; }
+            if (r == 0) {
+                /* Parent closed the pipe -> kill child and get
+                 * out. */
+                break; }
+            if (msg.tag != msgsendsignal) {
+                /* Only one message permissible from parent. */
+                break; }
+            if (kill(child, msg.sendsignal.signr) < 0) {
+                msg.sentsignal.err = errno; }
+            else {
+                msg.sentsignal.err = 0; }
+            msg.tag = msgsentsignal;
+            if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) {
+                break; } } }
+    kill(child, SIGKILL);
+    _exit(1); }
