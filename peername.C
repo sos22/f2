@@ -1,15 +1,14 @@
 #include "peername.H"
 
-#include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <sys/un.h>
 #include <arpa/inet.h>
-#include <netinet/in.h>
-#include <stdlib.h>
-#include <string.h>
+#include <net/if.h>
 
 #include "either.H"
 #include "error.H"
 #include "fields.H"
+#include "logging.H"
 #include "parsers.H"
 #include "proto.H"
 #include "test.H"
@@ -415,6 +414,56 @@ parsers::_peernameport() {
     return ("<port:" + intparser<unsigned short>() + ">")
         .map<peername::port>([] (const unsigned short x) {
                 return peername::port(x); }); }
+
+peername
+peername::canonicalise() const {
+    /* Little tiny bit of a hack: if we only have the 0.0.0.0 address,
+       find some plausible-looking interface and return that
+       instead. */
+    const struct sockaddr_in *sin = (const struct sockaddr_in *)sockaddr_;
+    if (sockaddrsize_ != sizeof(*sin) ||
+        sin->sin_family != AF_INET ||
+        sin->sin_addr.s_addr != INADDR_ANY) return *this;
+
+    int s = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) error::from_errno().fatal("opening name query socket");
+    struct ifreq reqs[128];
+    struct ifconf arg;
+    arg.ifc_len = sizeof(reqs);
+    arg.ifc_req = reqs;
+    if (ioctl(s, SIOCGIFCONF, &arg) < 0) {
+        error::from_errno().fatal("getting interface list"); }
+    for (unsigned x = 0;
+         x < arg.ifc_len / sizeof(arg.ifc_req[0]);
+         x++) {
+        if (reqs[x].ifr_addr.sa_family != AF_INET) continue;
+        const struct sockaddr_in *candidate =
+            (const struct sockaddr_in *)&reqs[x].ifr_addr;
+        if (candidate->sin_addr.s_addr == 0) continue;
+        struct ifreq req;
+        memcpy(req.ifr_name, reqs[x].ifr_name, sizeof(req.ifr_name));
+        if (ioctl(s, SIOCGIFFLAGS, &req) < 0) {
+            error::from_errno().fatal("getting flags for interface "+
+                                      fields::mk(reqs[x].ifr_name)); }
+        if (!(req.ifr_flags & IFF_UP)) continue;
+        if (!(req.ifr_flags & IFF_RUNNING)) continue;
+        if (req.ifr_flags & IFF_LOOPBACK) continue;
+        if (req.ifr_flags & IFF_POINTOPOINT) continue;
+        logmsg(loglevel::debug,
+               "using " +
+               fields::mk(candidate->sin_addr.s_addr).base(16)
+               .sep(fields::period, 2) +
+               " for anonymous socket");
+        ::close(s);
+        struct sockaddr_in merged;
+        merged.sin_family = AF_INET;
+        merged.sin_addr = candidate->sin_addr;
+        merged.sin_port = sin->sin_port;
+        return peername((struct sockaddr *)&merged, sizeof(merged));
+    }
+    logmsg(loglevel::emergency,
+           fields::mk("cannot find any usable IP interfaces?"));
+    _exit(1); }
 
 void
 tests::_peername() {

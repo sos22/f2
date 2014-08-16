@@ -114,7 +114,6 @@ beaconclient(clientio io, const beaconclientconfig &config)
                    "Received a good HAIL response from " +
                    fields::mk(respmastername.just()));
             
-            auto slavename(sock.localname());
             sock.close();
             return beaconresult(respnonce.just(),
                                 respslavename.just(),

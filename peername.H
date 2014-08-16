@@ -50,6 +50,12 @@ public:
     /* Get a peername for a local UNIX domain socket. */
     static peername local(const filename &path);
 
+    /* If this happens to be an all() address, pick one of the
+       interfaces and return an address with the same port on that
+       interface.  If the peername's address already refers to a
+       specific interface then stick with that. */
+    peername canonicalise() const;
+
     /* Check whether two peernames refer to the same address and
        address family. */
     bool samehost(const peername &p) const;
