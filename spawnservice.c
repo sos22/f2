@@ -2,6 +2,10 @@
  * issues and is just generally confusing.  Avoid them by having a
  * wrapper program which we can exec to deal with the hard parts for
  * us. */
+/* Note that this isn't included in the coverage testing, because gcov
+ * doesn't really work with things which always exec() or _exit() or
+ * get SIGKILL'd.  Just trust that the spawn.C coverage checks are
+ * sufficient. */
 #define _GNU_SOURCE
 #include <sys/fcntl.h>
 #include <sys/types.h>
@@ -14,37 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/* FDs for communicating with the parent. */
-/* FD for us to send responses to our parent process. */
-#define RESPFD 3
-/* FD on which the parent will send us requests */
-#define REQFD 4
-
-struct message {
-    enum {
-        msgexecfailed = 9,
-        msgexecgood,
-        msgsendsignal,
-        msgsentsignal,
-        msgchilddied,
-    } tag;
-    union {
-        struct {
-            int err;
-        } execfailed;
-        struct {
-        } execgood;
-        struct {
-            int signr;
-        } sendsignal;
-        struct {
-            int err;
-        } sentsignal;
-        struct {
-            int status;
-        } childdied;
-    };
-};
+#include "spawnservice.h"
 
 /* We use the self pipe trick to select() on signals.  This is the
  * write end. */
@@ -84,7 +58,8 @@ childdied(int status) {
     struct message msg;
     msg.tag = msgchilddied;
     msg.childdied.status = status;
-    if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) _exit(1); }
+    if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) _exit(1);
+    else _exit(0); }
 
 int
 main(int argc, char *argv[]) {
@@ -155,15 +130,13 @@ main(int argc, char *argv[]) {
                    &fds,
                    NULL,
                    NULL,
-                   NULL) < 0 &&
-            errno != EINTR) {
-            _exit(3);
-            break; }
+                   NULL) < 0) {
+            if (errno == EINTR) continue;
+            else _exit(3); }
         if (FD_ISSET(selfpiperead, &fds)) {
             assert(read(selfpiperead, &status, sizeof(status)) ==
                    sizeof(status));
-            childdied(status);
-            _exit(0); }
+            childdied(status); }
         if (FD_ISSET(REQFD, &fds)) {
             r = read(REQFD, &msg, sizeof(msg));
             if (r < 0) {

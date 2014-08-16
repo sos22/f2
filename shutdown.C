@@ -36,3 +36,7 @@ fields::mk(const shutdowncode &code)
 
 const shutdowncode
 shutdowncode::ok(0);
+
+bool
+shutdowncode::operator==(shutdowncode o) const {
+    return code == o.code; }

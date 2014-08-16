@@ -29,6 +29,9 @@ const fields::field &
 fields::mk(const filename &f) {
     return "<filename:" + mk(f.content).escape() + ">"; }
 
+filename::filename(const char *s)
+    : content(s) {}
+
 filename::filename(const quickcheck &q)
     : content(q.filename()) {}
 

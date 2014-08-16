@@ -29,9 +29,12 @@ public:
     static timedelta nanoseconds(long nr) __attribute__((const));
     timestamp operator+(timestamp) const;
     timedelta operator+(timedelta) const;
+    timedelta operator-(timedelta) const;
     double operator*(frequency) const;
     double operator/(timedelta) const;
+    bool operator>=(timedelta) const;
     bool operator==(timedelta) const;
+    bool operator<=(timedelta) const;
 
     long as_milliseconds() const;
     bool operator<(const timedelta &o) const;

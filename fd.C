@@ -62,6 +62,10 @@ fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
         return s; } }
 
 orerror<size_t>
+fd_t::readpoll(void *buf, size_t sz) const {
+    return read(clientio::CLIENTIO, buf, sz, timestamp::now()); }
+
+orerror<size_t>
 fd_t::write(clientio,
             const void *buf,
             size_t sz,

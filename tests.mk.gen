@@ -2,6 +2,9 @@
 
 . shutil
 
+cc tests/abort/abort.c
+ld tests/abort/abort tests/abort/abort.o
+
 cc tests/pingserver/server.C
 ld tests/pingserver/server tests/pingserver/server.o lib.a
 target tests/pingserver/server

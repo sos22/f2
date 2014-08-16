@@ -23,6 +23,10 @@ timedelta
 timedelta::operator+(timedelta d) const {
     return timedelta(v + d.v); }
 
+timedelta
+timedelta::operator-(timedelta d) const {
+    return timedelta(v - d.v); }
+
 double
 timedelta::operator *(frequency f) const
 {
@@ -34,8 +38,16 @@ timedelta::operator /(timedelta o) const {
     return (double)v / (double)o.v; }
 
 bool
+timedelta::operator <=(timedelta o) const {
+    return v <= o.v; }
+
+bool
 timedelta::operator ==(timedelta o) const {
     return v == o.v; }
+
+bool
+timedelta::operator >=(timedelta o) const {
+    return v >= o.v; }
 
 timedelta
 timedelta::seconds(long nr) {

@@ -11,6 +11,10 @@
 struct pollfd;
 class buffer;
 
+namespace spawn {
+class process;
+}
+
 template <typename __fd_t>
 struct __piperes {
     __piperes() : read(), write() {}
@@ -74,6 +78,7 @@ class fd_t {
     friend class udpsocket;
     friend class tcpsocket;
     friend class socket_t;
+    friend class spawn::process;
     friend void tests::fd();
     int fd;
 protected:
@@ -103,6 +108,8 @@ public:
                          void *buf,
                          size_t bufsz,
                          maybe<timestamp> deadline = Nothing) const;
+    /* Like read(), but never blocks if there is no data available. */
+    orerror<size_t> readpoll(void *buf, size_t bufsz) const;
     /* Set the O_NONBLOCK flag on this FD. */
     orerror<void> nonblock(bool) const;
     /* Use ::dup2() to create a duplicate of this file descriptor over

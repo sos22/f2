@@ -19,6 +19,7 @@ const field &mk(const filename &f);
 class filename {
     friend const fields::field &fields::mk(const filename &);
 private: string content;
+public:  filename(const char *s);
     /* Quickcheck filenames are single component i.e. no / character. */
 public:  filename(const quickcheck &q);
     /* Add another component to the end of the path, with a separating
