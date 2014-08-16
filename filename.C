@@ -17,6 +17,9 @@
 #include "list.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
+#include "wireproto.tmpl"
+
+wireproto_simple_wrapper_type(filename, string, content)
 
 static tests::event<ssize_t *> readasstringloop;
 static tests::event<ssize_t *> createfileloop;
@@ -25,9 +28,6 @@ static tests::event<struct dirent **> diriterevt;
 const fields::field &
 fields::mk(const filename &f) {
     return "<filename:" + mk(f.content).escape() + ">"; }
-
-filename::filename(const string &s)
-    : content(s) {}
 
 filename::filename(const quickcheck &q)
     : content(q.filename()) {}
@@ -371,4 +371,6 @@ tests::_filename() {
                 assert(it.isfailure());
                 assert(it.failure() == error::from_errno(ETXTBSY)); } } );
 #endif
+    testcaseV("filename", "wire", [] {
+            wireproto::roundtrip<filename>(); });
 }

@@ -4,6 +4,7 @@
 #define FILE_H__
 
 #include "string.H"
+#include "wireproto.H"
 
 class fd_t;
 class filename;
@@ -18,7 +19,6 @@ const field &mk(const filename &f);
 class filename {
     friend const fields::field &fields::mk(const filename &);
 private: string content;
-public:  filename(const string &s);
     /* Quickcheck filenames are single component i.e. no / character. */
 public:  filename(const quickcheck &q);
     /* Add another component to the end of the path, with a separating
@@ -84,6 +84,8 @@ public:  orerror<void> unlink() const;
 
     /* Convert to a simple string. */
 public:  const string &str() const { return content; }
+
+    WIREPROTO_WRAPPER_TYPE(filename, string, public);
 };
 
 template <typename> class parser;
