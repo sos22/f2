@@ -8,9 +8,13 @@
 #include "either.H"
 #include "error.H"
 #include "fields.H"
+#include "listenfd.H"
 #include "logging.H"
 #include "parsers.H"
 #include "proto.H"
+#include "socket.H"
+#include "spark.H"
+#include "tcpsocket.H"
 #include "test.H"
 #include "util.H"
 #include "wireproto.H"
@@ -239,7 +243,7 @@ peername::fromcompound(const wireproto::rx_message &msg)
 peername::port::port(const quickcheck &q) {
     do {
         p = (unsigned short)q;
-    } while (p == 0); }
+    } while (p <= 1024); }
 
 peername::port::port(int _p)
     : p((uint16_t)_p) {
@@ -443,7 +447,10 @@ peername::canonicalise() const {
     arg.ifc_len = sizeof(reqs);
     arg.ifc_req = reqs;
     if (ioctl(s, SIOCGIFCONF, &arg) < 0) {
-        error::from_errno().fatal("getting interface list"); }
+#ifndef COVERAGESKIP
+        error::from_errno().fatal("getting interface list");
+#endif
+    }
     for (unsigned x = 0;
          x < arg.ifc_len / sizeof(arg.ifc_req[0]);
          x++) {
@@ -454,8 +461,11 @@ peername::canonicalise() const {
         struct ifreq req;
         memcpy(req.ifr_name, reqs[x].ifr_name, sizeof(req.ifr_name));
         if (ioctl(s, SIOCGIFFLAGS, &req) < 0) {
+#ifndef COVERAGESKIP
             error::from_errno().fatal("getting flags for interface "+
-                                      fields::mk(reqs[x].ifr_name)); }
+                                      fields::mk(reqs[x].ifr_name));
+#endif
+        }
         if (!(req.ifr_flags & IFF_UP)) continue;
         if (!(req.ifr_flags & IFF_RUNNING)) continue;
         if (req.ifr_flags & IFF_LOOPBACK) continue;
@@ -472,9 +482,12 @@ peername::canonicalise() const {
         merged.sin_port = sin->sin_port;
         return peername((struct sockaddr *)&merged, sizeof(merged));
     }
+#ifndef COVERAGESKIP
     logmsg(loglevel::emergency,
            fields::mk("cannot find any usable IP interfaces?"));
-    _exit(1); }
+    _exit(1);
+#endif
+}
 
 void
 tests::_peername() {
@@ -501,6 +514,36 @@ tests::_peername() {
             assert(p.sockaddrsize() == sizeof(*sin));
             assert(sin->sin_port == 0);
             assert(sin->sin_addr.s_addr == 0); });
+    testcaseV("peername", "loopback", [] {
+            auto p(peername::loopback(peername::port::any));
+            auto sin = (const struct sockaddr_in *)p.sockaddr();
+            assert(p.sockaddrsize() == sizeof(*sin));
+            assert(sin->sin_port == 0);
+            assert(sin->sin_addr.s_addr == htonl(INADDR_LOOPBACK)); });
+    testcaseV("peername", "evict", [] {
+            auto p(peername::local(filename(quickcheck())));
+            p.evict();
+            auto ll(socket_t::listen(p).fatal("listening on "+fields::mk(p)));
+            auto ll2(socket_t::listen(p));
+            assert(ll2 == error::from_errno(EADDRINUSE));
+            p.evict();
+            auto ll3(socket_t::listen(p).fatal("evict failed"));
+            ll3.close();
+            ll.close();
+            p.evict(); });
+    testcaseV("peername", "canonicalise", [] {
+            auto p(peername::all(peername::port(quickcheck())).canonicalise());
+            assert(!p.samehost(peername::loopback(peername::port::any)));
+            assert(!p.samehost(peername::all(peername::port::any)));
+            assert(p == p.canonicalise());
+            auto l(socket_t::listen(p).fatal("listening on " + fields::mk(p)));
+            spark<void> acc([l] {
+                    l.accept().fatal("accepting").close(); });
+            auto c(tcpsocket::connect(clientio::CLIENTIO, p)
+                   .fatal("connecting to " + fields::mk(p)));
+            acc.get();
+            l.close();
+            c.close(); });
     testcaseV("peername", "samehost", [] {
             for (unsigned x = 0; x < 100; x++) {
                 peername p1((quickcheck()));
