@@ -22,6 +22,9 @@
 
 #include "fieldfinal.H"
 
+const peername::port
+peername::port::any(0);
+
 peername::peername(const quickcheck &q) {
     switch (random() % 3) {
     case 0: {
@@ -240,27 +243,29 @@ peername::port::port(const quickcheck &q) {
     } while (p == 0); }
 
 peername::port::port(int _p)
-    : p(_p) {
-    assert(_p > 0 && _p < 65536); }
+    : p((uint16_t)_p) {
+    assert(_p >= 0 && _p < 65536); }
 
 peername
 peername::udpbroadcast(peername::port p)
 {
     struct sockaddr_in sin;
-    assert(p.p > 0 && p.p < 65536);
+    assert(p.p != 0);
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
-    sin.sin_port = htons((uint16_t)p.p);
-    memset(&sin.sin_addr, 0xff, sizeof(sin.sin_addr));
+    sin.sin_port = htons(p.p);
+    sin.sin_addr.s_addr = INADDR_BROADCAST;
     return peername((const struct sockaddr *)&sin, sizeof(sin));
 }
 
 peername
-peername::tcpany()
+peername::all(port p)
 {
     struct sockaddr_in sin;
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = INADDR_ANY;
+    sin.sin_port = htons(p.p);
     return peername((const struct sockaddr *)&sin, sizeof(sin));
 }
 
@@ -430,8 +435,8 @@ tests::_peername() {
             assert(p.sockaddrsize() == sizeof(*sin));
             assert(sin->sin_port == htons(97));
             assert(sin->sin_addr.s_addr == 0xffffffff); });
-    testcaseV("peername", "tcpany", [] {
-            auto p(peername::tcpany());
+    testcaseV("peername", "all", [] {
+            auto p(peername::all(peername::port::any));
             auto sin = (const struct sockaddr_in *)p.sockaddr();
             assert(p.sockaddrsize() == sizeof(*sin));
             assert(sin->sin_port == 0);
@@ -441,7 +446,7 @@ tests::_peername() {
                 peername p1((quickcheck()));
                 assert(p1.samehost(p1)); }});
     testcaseV("peername", "=", [] {
-            peername p(peername::tcpany());
+            peername p(peername::all(peername::port::any));
             peername q(peername::local(filename("foo")));
             assert(!(p == q));
             p = q;

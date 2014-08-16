@@ -28,21 +28,24 @@ public:
     class port {
         friend class peername;
         friend class udpsocket;
-        int p;
+        unsigned short p; /* host byte order */
     public:
         port(const quickcheck &q);
         explicit port(int);
         int unwrap() const { return p; }
         bool operator==(const port &o) const { return p == o.p; }
+        /* Special port which can be used to get the OS to allocate an
+           arbitrary port for you. */
+        const static port any;
     };
 
     /* Get a peername which can be used to send a UDP broadcast on a
        particular port. */
     static peername udpbroadcast(port p);
 
-    /* Get the peername which we should listen on if we want the OS to
-       allocate us a port number. */
-    static peername tcpany();
+    /* Special peername used to listen on all interfaces on a
+     * particular port. */
+    static peername all(port);
 
     /* Get a peername for a local UNIX domain socket. */
     static peername local(const filename &path);

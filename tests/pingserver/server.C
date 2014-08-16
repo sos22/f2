@@ -64,7 +64,7 @@ main()
 {
     initlogging("pingableserver");
     initpubsub();
-    auto server(pingableserver::listen(peername::tcpany())
+    auto server(pingableserver::listen(peername::all(peername::port::any))
                 .fatal("listening"));
     fields::print("listening on " + fields::mk(server->localname())
                   + "\n");

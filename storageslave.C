@@ -125,7 +125,7 @@ storageslave::build(clientio io,
     auto br(beaconclient(io, config.beacon));
     if (br.isfailure()) return br.failure();
     auto server(rpcserver::listen<storageslave>(
-                    peername::tcpany(),
+                    peername::all(peername::port::any),
                     br.success().secret,
                     config.poolpath,
                     cs));

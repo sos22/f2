@@ -20,7 +20,7 @@ masterconfig::masterconfig(const peername &__controlsock,
 masterconfig::masterconfig(const registrationsecret &__rs)
     : controlsock(peername::local(filename("mastersock"))),
       rs(__rs),
-      listenon(peername::tcpany()),
+      listenon(peername::all(peername::port::any)),
       beaconport(9009),
       beaconlimit(frequency::hz(10)) {}
 
@@ -71,7 +71,7 @@ parsers::_masterconfig() {
                     x.first().first().first().first().dflt(
                         peername::local(filename("mastersock"))),
                     x.first().first().first().second(),
-                    x.first().first().second().dflt(peername::tcpany()),
+                    x.first().first().second().dflt(peername::all(peername::port::any)),
                     x.first().second().dflt(peername::port(9009)),
                     x.second().dflt(frequency::hz(10))); }); }
 
