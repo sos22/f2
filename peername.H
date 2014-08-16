@@ -47,6 +47,9 @@ public:
      * particular port. */
     static peername all(port);
 
+    /* Loopback IP address */
+    static peername loopback(port);
+
     /* Get a peername for a local UNIX domain socket. */
     static peername local(const filename &path);
 

@@ -269,6 +269,17 @@ peername::all(port p)
 }
 
 peername
+peername::loopback(port p)
+{
+    struct sockaddr_in sin;
+    memset(&sin, 0, sizeof(sin));
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sin.sin_port = htons(p.p);
+    return peername((const struct sockaddr *)&sin, sizeof(sin));
+}
+
+peername
 peername::local(const filename &path) {
     const auto &a(path.str());
     struct sockaddr_un sun;

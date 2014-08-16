@@ -34,21 +34,21 @@ public: beaconclientconfig name(const type &what) const {               \
     mkparam(registrationsecret, rs);
     mkparam(timedelta, retryinterval);
     mkparam(maybe<int>, retrylimit);
-    mkparam(peername::port, port);
+    mkparam(peername, connectto);
 #undef mkparam
 public: beaconclientconfig(const registrationsecret &_rs,
                            const timedelta &_retryinterval,
                            const maybe<int> &_retrylimit,
-                           const peername::port &_port)
+                           const peername &_connectto)
     : rs_(_rs),
       retryinterval_(_retryinterval),
       retrylimit_(_retrylimit),
-      port_(_port) {}
+      connectto_(_connectto) {}
 public: explicit beaconclientconfig(const registrationsecret &_rs)
     : rs_(_rs),
       retryinterval_(timedelta::seconds(1)),
       retrylimit_(Nothing),
-      port_(9009) {}
+      connectto_(peername::udpbroadcast(peername::port(9009))) {}
 public: explicit beaconclientconfig(const quickcheck &q);
 
 public: bool operator==(const beaconclientconfig &o) const; };

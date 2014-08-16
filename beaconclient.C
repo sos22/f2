@@ -56,7 +56,7 @@ beaconclient(clientio io, const beaconclientconfig &config)
             pair<fd_t, buffer *>(sock.asfd(), &outbuf));
         {   auto sendres(sock.send(
                     outbuf,
-                    peername::udpbroadcast(config.port_)));
+                    config.connectto_));
             if (!outbuf.empty()) {
                 logmsg(loglevel::failure, fields::mk("HAIL message truncated"));
                 sock.close();
@@ -133,38 +133,39 @@ fields::mk(const beaconclientconfig &bc) {
     return "<beaconclientconfig: rs=" + mk(bc.rs_) +
         " retryinterval=" + mk(bc.retryinterval_) +
         " retrylimit=" + mk(bc.retrylimit_) +
-        " port=" + mk(bc.port_) + ">"; }
+        " connectto=" + mk(bc.connectto_) + ">"; }
 
 beaconclientconfig::beaconclientconfig(const quickcheck &q)
     : rs_(q),
       retryinterval_(q),
       retrylimit_(q),
-      port_(q) {}
+      connectto_(q) {}
 
 bool
 beaconclientconfig::operator==(const beaconclientconfig &o) const {
     return rs_ == o.rs_ &&
         retryinterval_ == o.retryinterval_ &&
         retrylimit_ == o.retrylimit_ &&
-        port_ == o.port_; }
+        connectto_ == o.connectto_; }
 
 const parser<beaconclientconfig> &
 parsers::_beaconclientconfig() {
     return ("<beaconclientconfig: rs=" + _registrationsecret() +
             ~(" retryinterval=" + _timedelta()) +
             ~(" retrylimit=" + _maybe(intparser<int>())) +
-            ~(" port=" + _peernameport()) +
+            ~(" connectto=" + _peername()) +
             ">")
         .map<beaconclientconfig>(
             [] (const pair<pair<pair<registrationsecret,
                                      maybe<timedelta> >,
                                 maybe<maybe<int> > >,
-                           maybe<peername::port> > &x) {
+                           maybe<peername> > &x) {
                 return beaconclientconfig(
                     x.first().first().first(),
                     x.first().first().second().dflt(timedelta::seconds(1)),
                     x.first().second().dflt(Nothing),
-                    x.second().dflt(peername::port(9009))); }); }
+                    x.second().dflt(
+                        peername::udpbroadcast(peername::port(9009)))); }); }
 
 namespace tests {
 event< ::pair< ::fd_t, ::buffer *> > beaconclientreadytosend;
