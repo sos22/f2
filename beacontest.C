@@ -15,6 +15,7 @@
 #include "test.H"
 
 #include "parsers.tmpl"
+#include "rpcconn.tmpl"
 #include "test.tmpl"
 #include "wireproto.tmpl"
 
@@ -416,4 +417,32 @@ tests::beacon() {
                    .match("<beaconclientconfig: rs=<registrationsecret:\"foo\">>"));
             assert(r
                    == beaconclientconfig(registrationsecret::mk("foo")
-                                         .fatal(fields::mk("foo")))); }); }
+                                         .fatal(fields::mk("foo")))); });
+    testcaseCS(
+        "beacon", "listening", [mkbeacon, port] (controlserver *cs) {
+            auto rs(registrationsecret::mk("foo").just());
+            auto server(mkbeacon(mastersecret::mk(),
+                                 rs,
+                                 cs));
+            auto conn(rpcconn::connect<rpcconn>(
+                          clientio::CLIENTIO,
+                          rpcconnauth::mkdone(),
+                          cs->localname())
+                      .fatal("connecting to our own control server"));
+            auto m(conn->call(
+                       clientio::CLIENTIO,
+                       wireproto::req_message(proto::LISTENING::tag,
+                                              conn->allocsequencenr()))
+                   .fatal("calling LISTENING on our own control server"));
+            auto l(m->getparam(proto::LISTENING::resp::beacon).just());
+            assert(!l.samehost(peername::all(peername::port::any)));
+            assert(!l.samehost(peername::udpbroadcast(peername::port(1))));
+            assert(!l.samehost(peername::loopback(peername::port::any)));
+            delete m;
+            conn->destroy(clientio::CLIENTIO);
+            auto t(beaconclient(
+                       clientio::CLIENTIO,
+                       beaconclientconfig(rs)
+                       .connectto(l))
+                   .fatal("beacon failure"));
+            server->destroy(clientio::CLIENTIO); }); }
