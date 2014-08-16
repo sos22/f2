@@ -82,6 +82,8 @@ buildconfig.C:
 	else\\
 	   mv buildconfig.C.tmp buildconfig.C;\\
 	fi
+clean::
+	rm -f buildconfig.C
 EOF
 
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
