@@ -250,9 +250,9 @@ tests::beacon() {
                 (pair<udpsocket,nonce> args) {
                     assert(iter == 0 || iter == 1 || iter == 2);
                     peername mastername2(peername::local(
-                                             iter == 2
-                                             ? "GOOD1"
-                                             : "BAD"));
+                                             filename(iter == 2
+                                                      ? "GOOD1"
+                                                      : "BAD")));
                     sendfdmessage(
                         args.first(),
                         wireproto::tx_message(proto::HAIL::tag)
@@ -260,9 +260,10 @@ tests::beacon() {
                                   iter == 0 ? 2u : 1u)
                         .addparam(proto::HAIL::resp::mastername, mastername2)
                         .addparam(proto::HAIL::resp::slavename,
-                                  iter == 2
-                                  ? peername::local("GOOD2")
-                                  : peername::local("BAD"))
+                                  peername::local(
+                                      filename(iter == 2
+                                               ? "GOOD2"
+                                               : "BAD")))
                         .addparam(proto::HAIL::resp::nonce,
                                   iter == 2
                                   ? mnonce
@@ -285,8 +286,10 @@ tests::beacon() {
             assert(r.issuccess());
             assert(iter == 3);
             assert(r.success().nonce == mnonce);
-            assert(r.success().connectingname == peername::local("GOOD2"));
-            assert(r.success().mastername == peername::local("GOOD1"));
+            assert(r.success().connectingname ==
+                   peername::local(filename("GOOD2")));
+            assert(r.success().mastername ==
+                   peername::local(filename("GOOD1")));
             assert(r.success().secret == rs); });
 
     testcaseCS(
@@ -388,7 +391,7 @@ tests::beacon() {
                                  cs));
             while (cntr < 5) sub.wait(clientio::CLIENTIO);
             wireproto::tx_message txm(wireproto::msgtag(5));
-            server->statusiface_.getstatus(&txm);
+            server->controliface_.getstatus(&txm);
             server->destroy(clientio::CLIENTIO); });
 #endif /* TESTING */
 
