@@ -14,5 +14,6 @@ CXXFLAGS+=" -fno-operator-names -fno-exceptions"
 CFLAGS="${CFLAGS} -std=gnu99"
 CFLAGS+=" \${CPPFLAGS}"
 CFLAGS+=" \${CYYFLAGS}"
+PREFIX="$(pwd)"
 EOF
 

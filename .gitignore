@@ -10,6 +10,7 @@
 *-t
 *-c
 *.log
+buildconfig.C
 cli
 config
 master

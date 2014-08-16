@@ -1,5 +1,6 @@
 #include "controlserver.H"
 
+#include "buildconfig.H"
 #include "fields.H"
 #include "logging.H"
 #include "proto.H"
@@ -146,6 +147,10 @@ controlconn::message(const wireproto::rx_message &rxm) {
         return res; }
     else if (rxm.tag() == proto::GETLOGS::tag) {
         return getlogs(rxm); }
+    else if (rxm.tag() == proto::BUILDCONFIG::tag) {
+        auto res(new wireproto::resp_message(rxm));
+        res->addparam(proto::BUILDCONFIG::resp::config, buildconfig::us);
+        return res; }
     else if (rxm.tag() == proto::LISTENING::tag) {
         auto res(new wireproto::resp_message(rxm));
         res->addparam(proto::LISTENING::resp::control, owner->localname());

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "beaconserver.H"
+#include "buildconfig.H"
 #include "coordinator.H"
 #include "fields.H"
 #include "logging.H"
@@ -122,6 +123,17 @@ main(int argc, const char *const argv[])
             .addparam(proto::QUIT::req::reason, code.success()))
             .fatal(fields::mk("sending QUIT message"));
         c.success()->drain(clientio::CLIENTIO);
+    } else if (!strcmp(mode, "BUILDCONFIG")) {
+        using namespace proto::BUILDCONFIG;
+        if (nrargs) errx(1, "BUILDCONFIG mode takes no arguments");
+        auto m(c.success()->call(
+                   clientio::CLIENTIO,
+                   wireproto::req_message(tag,
+                                          c.success()->allocsequencenr()))
+               .fatal("sending BUILDCONFIG message"));
+        fields::print(
+            fields::mk(m->getparam(resp::config)) + "\n");
+        delete m;
     } else if (!strcmp(mode, "LISTENING")) {
         using namespace proto::LISTENING;
         if (nrargs) errx(1, "LISTENING mode takes no arguments");

@@ -8,6 +8,7 @@
 class beaconstatus;
 class buffer;
 class bufferstatus;
+class buildconfig;
 class coordinatorstatus;
 class coordinatorconnstatus;
 class digest;
@@ -159,6 +160,14 @@ namespace proto {
         };
     };
 
+    namespace BUILDCONFIG {
+        static const msgtag tag(5);
+        /* no request parameters */
+        namespace resp {
+            static const parameter< ::buildconfig> config(550);
+        };
+    };
+
     /* Find all of the ports we're listening on.  The same information
        is also exposed throughthe STATUS interface, but that interface
        is intended for debugging, so should be easy to change and
@@ -166,29 +175,29 @@ namespace proto {
        intended to be consumed by other programs, and will therefore
        remain stable. */
     namespace LISTENING {
-        static const msgtag tag(5);
+        static const msgtag tag(6);
         /* no request parameters */
         namespace resp {
-            static const parameter< ::peername> beacon(550);
-            static const parameter< ::peername> control(551);
-            static const parameter< ::peername> coordinator(552);
-            static const parameter< ::peername> storageslave(553);
+            static const parameter< ::peername> beacon(650);
+            static const parameter< ::peername> control(651);
+            static const parameter< ::peername> coordinator(652);
+            static const parameter< ::peername> storageslave(653);
         }
     }
 
     /* Beacon interface */
     namespace HAIL {
-        static const msgtag tag(6);
+        static const msgtag tag(7);
         namespace req {
-            static const parameter<unsigned> version(600);
-            static const parameter<class nonce> nonce(601);
+            static const parameter<unsigned> version(700);
+            static const parameter<class nonce> nonce(701);
         }
         namespace resp {
-            static const parameter<unsigned> version(650);
-            static const parameter<class peername> mastername(651);
-            static const parameter<class peername> slavename(652);
-            static const parameter<class masternonce> nonce(653);
-            static const parameter<class digest> digest(654);
+            static const parameter<unsigned> version(750);
+            static const parameter<class peername> mastername(751);
+            static const parameter<class peername> slavename(752);
+            static const parameter<class masternonce> nonce(753);
+            static const parameter<class digest> digest(754);
         }
     }
 

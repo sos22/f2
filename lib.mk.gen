@@ -10,6 +10,8 @@ function bits() {
     _ beaconclient
     _ beaconserver
     _ buffer
+    _ buildconfig
+    _ buildconfigimpl
     _ cond
     _ controlserver
     _ coordinator
@@ -66,6 +68,20 @@ do
 done
 
 ar lib.a $(bits .o)
+
+cat << EOF
+buildconfig.d:
+	true
+.PHONY: buildconfig.C
+buildconfig.C:
+	./buildconfig.sh > buildconfig.C.tmp;\\
+	if diff -q buildconfig.C.tmp buildconfig.C 2>/dev/null;\\
+	then\\
+	   rm buildconfig.C.tmp;\\
+	else\\
+	   mv buildconfig.C.tmp buildconfig.C;\\
+	fi
+EOF
 
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
