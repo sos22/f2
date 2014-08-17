@@ -178,7 +178,8 @@ process::process(int _pid, fd_t _fromchild, fd_t _tochild)
       tochild(_tochild),
       nrsubs(0),
       mux(),
-      res(Nothing) {}
+      res(Nothing),
+      paused(false) {}
 
 void
 process::signal(signalnr snr) {
