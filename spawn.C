@@ -320,7 +320,14 @@ process::join(clientio io) {
             ss.wait(io);
             sub.rearm();
             t = hasdied(); } }
-    return join(t.just()); } }
+    return join(t.just()); }
+
+void
+process::kill() {
+    signal(signalnr::kill);
+    /* killing the child guarantees that it'll end soon, so no need
+       for a clientio token. */
+    join(clientio::CLIENTIO); } }
 
 void
 tests::_spawn() {
@@ -499,4 +506,12 @@ tests::_spawn() {
             auto tok(p->pause());
             p->unpause(tok);
             assert(p->join(p->hasdied().just()).right() == signalnr::abort); });
+    testcaseV("spawn", "kill", [] {
+            auto p(process::spawn(program("/bin/sleep")
+                                  .addarg("3600"))
+                   .fatal("spawning sleep"));
+            auto start(timestamp::now());
+            p->kill();
+            auto end(timestamp::now());
+            assert(end - start < timedelta::milliseconds(50)); });
 }

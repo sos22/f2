@@ -74,6 +74,8 @@ public:  class token {
 public:  maybe<token> hasdied() const;
 public:  either<shutdowncode, signalnr> join(token);
 public:  either<shutdowncode, signalnr> join(clientio);
+    /* Equivalent to signal(signalnr::kill) followed by join() */
+public:  void kill();
 private: ~process() {}
 };
 
