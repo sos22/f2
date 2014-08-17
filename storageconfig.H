@@ -13,10 +13,12 @@ public: peername controlsock;
 public: filename poolpath;
 public: beaconclientconfig beacon;
 public: slavename name;
+public: peername listenon;
 public: storageconfig(const peername &_controlsock,
                       const filename &_poolpath,
                       const beaconclientconfig &_beacon,
-                      const slavename &_name);
+                      const slavename &_name,
+                      const peername &_listenon);
 public: storageconfig(const quickcheck &q);
 public: bool operator==(const storageconfig &o) const; };
 
