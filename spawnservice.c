@@ -54,12 +54,16 @@ execsucceeded(void) {
     return write(RESPFD, &msg, sizeof(msg)) == sizeof(msg); }
 
 static void
-childdied(int status) {
+childstopped(int status) {
     struct message msg;
-    msg.tag = msgchilddied;
-    msg.childdied.status = status;
-    if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) _exit(1);
-    else _exit(0); }
+    msg.tag = msgchildstopped;
+    msg.childstopped.status = status;
+    if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) _exit(1); }
+
+static void
+childdied(int status) {
+    childstopped(status);
+    _exit(0); }
 
 int
 main(int argc, char *argv[]) {
@@ -73,6 +77,7 @@ main(int argc, char *argv[]) {
     int i;
     int status;
     ssize_t r;
+    bool paused;
 
     assert(argc >= 2);
 
@@ -120,6 +125,7 @@ main(int argc, char *argv[]) {
         execfailed();
         abort(); }
 
+    paused = false;
     while (1) {
         FD_ZERO(&fds);
         FD_SET(selfpiperead, &fds);
@@ -146,15 +152,24 @@ main(int argc, char *argv[]) {
                 /* Parent closed the pipe -> kill child and get
                  * out. */
                 break; }
-            if (msg.tag != msgsendsignal) {
-                /* Only one message permissible from parent. */
-                break; }
-            if (kill(child, msg.sendsignal.signr) < 0) {
-                msg.sentsignal.err = errno; }
-            else {
-                msg.sentsignal.err = 0; }
-            msg.tag = msgsentsignal;
-            if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) {
-                break; } } }
+            if (msg.tag == msgsendsignal) {
+                if (kill(child, msg.sendsignal.signr) < 0) {
+                    msg.sentsignal.err = errno; }
+                else {
+                    msg.sentsignal.err = 0; }
+                msg.tag = msgsentsignal;
+                if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) {
+                    break; } }
+            else if (msg.tag == msgpause) {
+                if (paused) break;
+                if (kill(child, SIGSTOP) < 0) break;
+                if (waitpid(child, &status, WUNTRACED) < 0) break;
+                childstopped(status);
+                paused = true; }
+            else if (msg.tag == msgunpause) {
+                if (!paused) break;
+                if (kill(child, SIGCONT) < 0) break;
+                paused = false; }
+            else break; } }
     kill(child, SIGKILL);
     _exit(1); }

@@ -57,9 +57,16 @@ private: fd_t tochild;
 private: mutable int nrsubs;
 private: mutable mutex_t mux;
 private: mutable maybe<either<shutdowncode, signalnr> > res;
+private: mutable bool paused;
 public:  static orerror<process *> spawn(const program &);
 private: process(int pid, fd_t tochild, fd_t fromchild);
 public:  void signal(signalnr);
+public:  class pausetoken {
+        friend class process;
+    private: pausetoken() {}
+    };
+public:  pausetoken pause();
+public:  void unpause(pausetoken);
 public:  class token {
         friend class process;
     private: token() {}

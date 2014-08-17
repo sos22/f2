@@ -17,7 +17,9 @@ struct message {
         msgexecgood,
         msgsendsignal,
         msgsentsignal,
-        msgchilddied,
+        msgchildstopped,
+        msgpause,
+        msgunpause,
     } tag;
     union {
         struct {
@@ -33,7 +35,11 @@ struct message {
         } sentsignal;
         struct {
             int status;
-        } childdied;
+        } childstopped;
+        struct {
+        } pause;
+        struct {
+        } unpause;
     };
 };
 

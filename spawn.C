@@ -212,14 +212,66 @@ process::signal(signalnr snr) {
     else {
         /* Child died before we could send the signal. */
         assert(sendres == sizeof(msg) || sendres.isfailure());
-        assert(msg.tag == message::msgchilddied);
-        if (WIFEXITED(msg.childdied.status)) {
+        assert(msg.tag == message::msgchildstopped);
+        if (WIFEXITED(msg.childstopped.status)) {
             res = either<shutdowncode, signalnr>::left(
-                shutdowncode(WEXITSTATUS(msg.childdied.status))); }
+                shutdowncode(WEXITSTATUS(msg.childstopped.status))); }
         else {
-            assert(WIFSIGNALED(msg.childdied.status));
+            assert(WIFSIGNALED(msg.childstopped.status));
             res = either<shutdowncode, signalnr>::right(
-                signalnr(WTERMSIG(msg.childdied.status))); } }
+                signalnr(WTERMSIG(msg.childstopped.status))); } }
+    mux.unlock(&t); }
+
+process::pausetoken
+process::pause() {
+    auto t(mux.lock());
+    assert(!paused);
+    if (res != Nothing) {
+        mux.unlock(&t);
+        return pausetoken(); }
+    struct message msg;
+    msg.tag = message::msgpause;
+    auto sendres(tochild.write(
+                     clientio::CLIENTIO,
+                     &msg,
+                     sizeof(msg)));
+    if (sendres.isfailure()) {
+        sendres.failure().warn("sending signal message to spawn coordinator"); }
+    else assert(sendres.success() == sizeof(msg));
+    assert(fromchild.read(
+               clientio::CLIENTIO,
+               &msg,
+               sizeof(msg))
+           .fatal("reading from spawn coordinator") ==
+           sizeof(msg));
+    assert(msg.tag == message::msgchildstopped);
+    if (WIFEXITED(msg.childstopped.status)) {
+        res = either<shutdowncode, signalnr>::left(
+            shutdowncode(WEXITSTATUS(msg.childstopped.status))); }
+    else if (WIFSIGNALED(msg.childstopped.status)) {
+        res = either<shutdowncode, signalnr>::right(
+            signalnr(WTERMSIG(msg.childstopped.status))); }
+    else {
+        assert(WIFSTOPPED(msg.childstopped.status));
+        paused = true; }
+    mux.unlock(&t);
+    return pausetoken(); }
+
+void
+process::unpause(pausetoken) {
+    auto t(mux.lock());
+    if (res != Nothing) {
+        mux.unlock(&t);
+        return; }
+    assert(paused);
+    struct message msg;
+    msg.tag = message::msgunpause;
+    tochild.write(
+        clientio::CLIENTIO,
+        &msg,
+        sizeof(msg))
+        .fatal("unpausing child");
+    paused = false;
     mux.unlock(&t); }
 
 maybe<process::token>
@@ -232,14 +284,14 @@ process::hasdied() const {
     auto r(fromchild.readpoll(&msg, sizeof(msg)));
     if (r.issuccess()) {
         assert(r == sizeof(msg));
-        assert(msg.tag == message::msgchilddied);
-        if (WIFEXITED(msg.childdied.status)) {
+        assert(msg.tag == message::msgchildstopped);
+        if (WIFEXITED(msg.childstopped.status)) {
             res = either<shutdowncode, signalnr>::left(
-                shutdowncode(WEXITSTATUS(msg.childdied.status))); }
+                shutdowncode(WEXITSTATUS(msg.childstopped.status))); }
         else {
-            assert(WIFSIGNALED(msg.childdied.status));
+            assert(WIFSIGNALED(msg.childstopped.status));
             res = either<shutdowncode, signalnr>::right(
-                signalnr(WTERMSIG(msg.childdied.status))); }
+                signalnr(WTERMSIG(msg.childstopped.status))); }
         mux.unlock(&t);
         return token(); }
     mux.unlock(&t);
@@ -410,4 +462,41 @@ tests::_spawn() {
             (timestamp::now() + timedelta::milliseconds(50)).sleep();
             p->signal(signalnr::kill);
             assert(p->join(clientio::CLIENTIO).right() == signalnr::abort);
-            deinitpubsub(clientio::CLIENTIO); } ); }
+            deinitpubsub(clientio::CLIENTIO); } );
+    testcaseV("spawn", "pause", [] {
+            auto p(process::spawn(program("/bin/sleep")
+                                  .addarg(".11"))
+                   .fatal("spawning sleep"));
+            auto tok(p->pause());
+            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            assert(p->hasdied() == Nothing);
+            p->unpause(tok);
+            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); });
+    testcaseV("spawn", "pause2", [] {
+            auto p(process::spawn(program("/bin/sleep")
+                                  .addarg(".2"))
+                   .fatal("spawning sleep"));
+            (timestamp::now() + timedelta::milliseconds(500)).sleep();
+            auto tok(p->pause());
+            assert(p->hasdied() != Nothing);
+            p->unpause(tok);
+            assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); });
+    testcaseV("spawn", "pause3", [] {
+            auto p(process::spawn(program("/bin/sleep")
+                                  .addarg(".2"))
+                   .fatal("spawning sleep"));
+            (timestamp::now() + timedelta::milliseconds(500)).sleep();
+            assert(p->hasdied() != Nothing);
+            auto tok(p->pause());
+            assert(p->hasdied() != Nothing);
+            p->unpause(tok);
+            assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); });
+    testcaseV("spawn", "pause4", [] {
+            auto p(process::spawn(program("./tests/abort/abort"))
+                   .fatal("spawning abort"));
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            auto tok(p->pause());
+            p->unpause(tok);
+            assert(p->join(p->hasdied().just()).right() == signalnr::abort); });
+}
