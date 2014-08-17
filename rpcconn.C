@@ -442,25 +442,14 @@ rpcconn::run(clientio io) {
                             outarmed = true; } }
                     continue; }
                 if (msg.success().isreply()) {
-                    if (msg.success().tag() == proto::PING::tag) {
-                        if (pingsequence.isjust() &&
-                            msg.success().sequence() ==
-                                pingsequence.just().reply()) {
-                            logmsg(loglevel::debug,
-                                   "ping response from " + fields::mk(peer_));
-                            pingsequence = Nothing;
-                            pingtime = timestamp::now() + timedelta::seconds(1);
-                        } else {
-                            /* This can sometimes happen if we happen
-                               to get a non-ping message after sending
-                               a ping and before getting the ping
-                               response, because any incoming message
-                               resets the ping state machine.  Just
-                               drop the message. */
-                            logmsg(loglevel::debug,
-                                   "unexpected ping reply " +
-                                   fields::mk(msg.success().status()) +
-                                   " from " + fields::mk(peer_)); }
+                    if (msg.success().tag() == proto::PING::tag &&
+                        pingsequence.isjust() &&
+                        msg.success().sequence() ==
+                        pingsequence.just().reply()) {
+                        logmsg(loglevel::debug,
+                               "ping response from " + fields::mk(peer_));
+                        pingsequence = Nothing;
+                        pingtime = timestamp::now() + timedelta::seconds(1);
                     } else {
                         /* XXX This will leak, with no visible
                          * warning, if we receive a reply we weren't
