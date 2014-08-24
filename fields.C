@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <time.h>
 
 #include "list.H"
 #include "test.H"
@@ -466,45 +465,6 @@ mk_double(double d)
     return doublefield::n(d);
 }
 
-timefield::timefield(const struct timeval &_v, bool _asdate)
-    : v(_v), asdate_(_asdate)
-{}
-const timefield &
-timefield::n(const struct timeval &v, bool asdate)
-{
-    return *new timefield(v, asdate);
-}
-const timefield &
-timefield::asdate() const
-{
-    return n(v, true);
-}
-const timefield &
-mk(const struct timeval &v)
-{
-    return timefield::n(v, false);
-}
-void
-timefield::fmt(fieldbuf &buf) const
-{
-    if (asdate_) {
-        struct tm v_tm;
-        gmtime_r(&v.tv_sec, &v_tm);
-        char time[128];
-        auto r = strftime(time,
-                     sizeof(time),
-                     "%F %T",
-                     &v_tm);
-        assert(r > 0);
-        assert(r < sizeof(time));
-        buf.push(time);
-    } else {
-        mk(v.tv_sec).fmt(buf);
-    }
-    buf.push(".");
-    padleft(mk(v.tv_usec).nosep(), 6, mk("0")).fmt(buf);
-}
-
 void
 print(const field &f)
 {
@@ -722,24 +682,6 @@ tests::fields()
             delete buf2;
             delete buf1;
             delete buf3;});
-
-    testcaseV("fields", "ts1", [] () {
-            fieldbuf buf;
-            struct timeval tv = {72, 99};
-            mk(tv).fmt(buf);
-            assert(!strcmp(buf.c_str(), "72.000099"));});
-
-    testcaseV("fields", "ts2", [] () {
-            fieldbuf buf;
-            struct timeval tv = {72, 99};
-            mk(tv).asdate().fmt(buf);
-            assert(!strcmp(buf.c_str(), "1970-01-01 00:01:12.000099"));});
-
-    testcaseV("fields", "ts3", [] () {
-            fieldbuf buf;
-            struct timeval tv = {1404546593, 123456};
-            mk(tv).asdate().fmt(buf);
-            assert(!strcmp(buf.c_str(), "2014-07-05 07:49:53.123456"));});
 
     testcaseV("fields", "maybe", [] () {
             fieldbuf buf;

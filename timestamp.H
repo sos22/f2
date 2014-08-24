@@ -1,3 +1,8 @@
+/* Timestamps defined against a monotonic, system-local clock.  These
+   always advance at once second per second, or as accurately as we
+   can get it, and will not be altered if e.g. the user changes the
+   system clock.  That makes them useful for most process-local time
+   operations but almost meaningless outside of a single process. */
 #ifndef TIMESTAMP_H__
 #define TIMESTAMP_H__
 
@@ -5,6 +10,7 @@ class timedelta;
 struct timespec;
 class timestamp;
 struct timeval;
+class walltime;
 
 namespace fields {
 class field;
@@ -21,18 +27,14 @@ public:
     bool operator<(timestamp o) const { return v < o.v; }
     bool operator>=(timestamp o) const { return v >= o.v; }
     bool operator==(timestamp o) const { return v == o.v; }
-    /* Why do we expose both timespec and timeval versions of this?
-       Because timespecs are measured relative to CLOCK_MONOTONIC, and
-       are hence process-specific, whereas timevals are measured
-       relative to CLOCK_REALTIME, and are hence globally valid. */
     timespec as_timespec() const;
-    timeval as_timeval() const;
+    walltime aswalltime() const;
 
     /* Sleep until the represented time has passed. */
     void sleep() const;
 
     static timestamp now();
-    static timestamp fromtimeval(timeval);
+    static timestamp fromtimespec(timespec);
 };
 
 #endif /* TIMESTAMP_H__ */

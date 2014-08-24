@@ -60,6 +60,7 @@ function bits() {
     _ udpsocket
     _ util
     _ waitbox
+    _ walltime
     _ wireproto
 }
 
@@ -107,6 +108,7 @@ testmodule spawn spawn.C spawn.H
 testmodule storageconfig storageconfig.C storageconfig.H
 testmodule thread thread.C thread.tmpl thread.H
 testmodule timedelta timedelta.C timedelta.H
+testmodule walltime walltime.C walltime.H
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 cat <<EOF

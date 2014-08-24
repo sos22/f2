@@ -16,6 +16,7 @@
 #include "thread.H"
 #include "util.H"
 #include "waitbox.H"
+#include "walltime.H"
 #include "wireproto.H"
 
 class beaconresult;
@@ -136,13 +137,13 @@ public: fd_t::status_t fd;
 public: wireproto::sequencer::status_t sequencer;
 public: list<wireproto::rx_message::status_t> pendingrx;
 public: peername::status_t peername_;
-public: timestamp lastcontact;
+public: walltime lastcontact;
 public: rpcconnstatus(const buffer::status_t &_outgoing,
                       const fd_t::status_t &_fd,
                       const wireproto::sequencer::status_t &_sequencer,
                       const list<wireproto::rx_message::status_t> &_pendingrx,
                       const peername::status_t &_peername,
-                      const timestamp &_lastcontact)
+                      const walltime &_lastcontact)
     : outgoing(_outgoing),
       fd(_fd),
       sequencer(_sequencer),
@@ -209,7 +210,8 @@ private: publisher pendingrxextended;
     /* When was the last time we had contact with the other side?
        Used to drive periodic pings and dead connection detection. */
 private: mutex_t contactlock;
-private: timestamp lastcontact;
+private: timestamp lastcontact_monotone;
+private: walltime lastcontact_wall;
 
 private: const peername peer_;
 

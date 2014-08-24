@@ -24,6 +24,7 @@
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
+#include "walltime.H"
 
 int
 main(int argc, char *argv[])
@@ -50,6 +51,7 @@ main(int argc, char *argv[])
     tests::_storageconfig();
     tests::thread();
     tests::_timedelta();
+    tests::_walltime();
     tests::wireproto();
 
     signal(SIGPIPE, SIG_IGN);

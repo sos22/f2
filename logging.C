@@ -19,6 +19,7 @@
 #include "proto.H"
 #include "rpcconn.H"
 #include "test.H"
+#include "walltime.H"
 
 #include "list.tmpl"
 #include "test.tmpl"
@@ -247,11 +248,8 @@ logpolicy::logmsg(loglevel level, const fields::field &fld)
     if (sink.empty())
         return;
 
-    struct timeval now;
-    gettimeofday(&now, NULL);
-
     fields::fieldbuf buf;
-    (fields::mk(now).asdate() +
+    (fields::mk(walltime::now()) +
      " pid=" + fields::mk(getpid()).nosep() +
      " tid=" + fields::mk(tid::me()) +
      " level=" + fields::padright(fields::mk(level), 7) +

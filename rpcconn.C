@@ -5,6 +5,7 @@
 #include "proto.H"
 #include "slavename.H"
 #include "timedelta.H"
+#include "walltime.H"
 #include "wireproto.H"
 
 #include "either.tmpl"
@@ -24,8 +25,7 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
                  .addparam(proto::rpcconnstatus::sequencer, sequencer)
                  .addparam(proto::rpcconnstatus::pendingrx, pendingrx)
                  .addparam(proto::rpcconnstatus::peername, peername_)
-                 .addparam(proto::rpcconnstatus::lastcontact,
-                           lastcontact.as_timeval())); }
+                 .addparam(proto::rpcconnstatus::lastcontact, lastcontact)); }
 maybe<rpcconn::status_t>
 rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
 #define doparam(name)                                   \
@@ -45,7 +45,7 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
                           sequencer.just(),
                           pendingrx,
                           peername.just(),
-                          timestamp::fromtimeval(lastcontact.just()));
+                          lastcontact.just());
     pendingrx.flush();
     return res; }
 
@@ -55,8 +55,7 @@ fields::mk(const rpcconn::status_t &o) {
                          " fd:" + mk(o.fd) +
                          " sequencer:" + mk(o.sequencer) +
                          " peername:" + mk(o.peername_) +
-                         " lastcontact:" +
-                         mk(o.lastcontact.as_timeval()).asdate() +
+                         " lastcontact:" + mk(o.lastcontact) +
                          " pendingrx:{");
     bool first = true;
     for (auto it(o.pendingrx.start()); !it.finished(); it.next()) {
@@ -410,12 +409,13 @@ rpcconn::run(clientio io) {
                 goto done; }
             insub.rearm();
             auto contacttoken(contactlock.lock());
-            lastcontact = timestamp::now();
+            lastcontact_monotone = timestamp::now();
+            lastcontact_wall = walltime::now();
             contactlock.unlock(&contacttoken);
             if (pingsequence.isjust()) {
-                pingtime = lastcontact + timedelta::seconds(60);
+                pingtime = lastcontact_monotone + timedelta::seconds(60);
             } else {
-                pingtime = lastcontact + timedelta::seconds(1); }
+                pingtime = lastcontact_monotone + timedelta::seconds(1); }
             while (!shutdown.ready()) {
                 auto msg(wireproto::rx_message::fetch(inbuffer));
                 if (msg.isfailure()) {
@@ -519,7 +519,8 @@ rpcconn::rpcconn(
       pendingrx(),
       pendingrxextended(),
       contactlock(),
-      lastcontact(timestamp::now()),
+      lastcontact_monotone(timestamp::now()),
+      lastcontact_wall(walltime::now()),
       peer_(_peer),
       _auth(__auth) {}
 
@@ -664,7 +665,7 @@ rpcconn::status(maybe<mutex_t::token>) const {
                     sequencer.status(),
                     prx,
                     peer_,
-                    lastcontact);
+                    lastcontact_wall);
 }
 
 const messageresult

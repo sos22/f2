@@ -80,35 +80,3 @@ ratelimiter_status::fromcompound(const wireproto::rx_message &msg)
 }
 
 wireproto_wrapper_type(peername)
-
-namespace wireproto {
-template <> tx_message &
-tx_message::addparam(
-    parameter<timeval> tmpl,
-    const timeval &tv) {
-    return addparam(parameter<tx_compoundparameter>(tmpl),
-                    tx_compoundparameter()
-                    .addparam(proto::timeval::tv_sec, tv.tv_sec)
-                    .addparam(proto::timeval::tv_usec, tv.tv_usec)); }
-template <> maybe<timeval>
-rx_message::getparam(parameter<timeval> tmpl) const {
-    auto packed(getparam(parameter<rx_message>(tmpl)));
-    if (!packed) return Nothing;
-    auto tv_sec(packed.just().getparam(proto::timeval::tv_sec));
-    auto tv_usec(packed.just().getparam(proto::timeval::tv_usec));
-    if (!tv_sec || !tv_usec) return Nothing;
-    timeval res;
-    res.tv_sec = tv_sec.just();
-    res.tv_usec = tv_usec.just();
-    return res; }
-template <> maybe<timeval>
-deserialise(bufslice &slice) {
-    auto packed(deserialise<rx_message>(slice));
-    if (!packed) return Nothing;
-    auto tv_sec(packed.just().getparam(proto::timeval::tv_sec));
-    auto tv_usec(packed.just().getparam(proto::timeval::tv_usec));
-    if (!tv_sec || !tv_usec) return Nothing;
-    timeval res;
-    res.tv_sec = tv_sec.just();
-    res.tv_usec = tv_usec.just();
-    return res; } }

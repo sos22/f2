@@ -104,20 +104,6 @@ public:
 };
 const doublefield &mk_double(double);
 
-class timefield : public field {
-    struct timeval v;
-    bool asdate_;
-    timefield(const struct timeval &_v,
-              bool _asdate);
-    timefield(const timefield &o) = delete;
-public:
-    static const timefield &n(const struct timeval &,
-                              bool asdate);
-    const timefield &asdate() const;
-    void fmt(fieldbuf &) const;
-};
-const timefield &mk(const struct timeval &);
-
 void print(const field &f);
 
 template <typename t> const field &mk(const ::maybe<t> &m);

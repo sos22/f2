@@ -28,9 +28,9 @@ class slavename;
 class storageslavestatus;
 class streamname;
 class streamstatus;
-struct timeval;
 class ratelimiter_status;
 class registrationsecret;
+class walltime;
 
 namespace proto {
     using namespace wireproto;
@@ -97,7 +97,7 @@ namespace proto {
         static const parameter<list<wireproto::rx_messagestatus> >
             pendingrx(4);
         static const parameter<class ::peername> peername(5);
-        static const parameter<struct ::timeval> lastcontact(6);
+        static const parameter<class ::walltime> lastcontact(6);
     };
     namespace storageslavestatus {
         static const parameter<class ::rpcserverstatus> server(1);
@@ -108,10 +108,6 @@ namespace proto {
         static const parameter<class ::streamname> name(1);
         static const parameter<bool> finished(2);
         static const parameter<uint64_t> size(3);
-    };
-    namespace timeval {
-        static const parameter<long> tv_sec(1);
-        static const parameter<long> tv_usec(1);
     };
 
     /* Control interface */
