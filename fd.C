@@ -358,4 +358,14 @@ tests::fd() {
     testcaseV("fd", "badstatus", [] {
             auto r(fd_t::pipe().fatal("pipe"));
             r.close();
-            fields::print(fields::mk(r.read.status()) + "\n"); }); }
+            fields::print(fields::mk(r.read.status()) + "\n"); });
+    testcaseV("fd", "readpoll", [] {
+            auto r(fd_t::pipe().fatal("pipe"));
+            char buf[10];
+            assert(r.read.readpoll(buf, sizeof(buf)) == error::timeout);
+            r.write.write(clientio::CLIENTIO, "HELLO", 6)
+                .fatal("pipe write");
+            assert(r.read.readpoll(buf, sizeof(buf)) == 6);
+            assert(!strcmp(buf, "HELLO"));
+            r.close(); });
+}
