@@ -74,17 +74,6 @@ ar lib.a $(bits .o)
 cat << EOF
 buildconfig.d:
 	true
-.PHONY: buildconfig.C
-buildconfig.C:
-	./buildconfig.sh > buildconfig.C.tmp;\\
-	if diff -q buildconfig.C.tmp buildconfig.C 2>/dev/null;\\
-	then\\
-	   rm buildconfig.C.tmp;\\
-	else\\
-	   mv buildconfig.C.tmp buildconfig.C;\\
-	fi
-clean::
-	rm -f buildconfig.C
 EOF
 
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C

@@ -1,25 +1,14 @@
-all: realall
+.PHONY: buildconfig.C
 
-.SUFFIXES:
+# Forward most targets to the real makefile, once we've built the config file.
+%: buildconfig.C
+	$(MAKE) -f Makefile2 $@
 
-include cli.mk
-include lib.mk
-include master.mk
-include spawnservice.mk
-include storage.mk
-include storageclient.mk
-include test.mk
-include tests.mk
-
-# The all target only builds things which most people would want.  The
-# coverage check and test suite are under a different target.
-everything: realall covall testall
-
-config: config.gen
-	./$< $@ > $@.tmp && mv -f $@.tmp $@
-clean::
-	rm -f config *.log *~ *.gcov *-c.gcda *-c.gcno
-
-%: %.gen config
-	./$< $@ > $@.tmp && mv -f $@.tmp $@
-
+buildconfig.C:
+	@./buildconfig.sh > buildconfig.C.tmp;\
+	if diff -q buildconfig.C.tmp buildconfig.C 2>/dev/null;\
+	then\
+	   rm buildconfig.C.tmp;\
+	else\
+	   mv buildconfig.C.tmp buildconfig.C;\
+	fi
