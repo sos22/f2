@@ -21,6 +21,7 @@ class memlog_idx;
 class memlog_entry;
 class nonce;
 class peername;
+class rpcconnconfig;
 class rpcconnstatus;
 class rpcserverstatus;
 class shutdowncode;
@@ -98,6 +99,7 @@ namespace proto {
             pendingrx(4);
         static const parameter<class ::peername> peername(5);
         static const parameter<class ::walltime> lastcontact(6);
+        static const parameter<class ::rpcconnconfig> config(7);
     };
     namespace storageslavestatus {
         static const parameter<class ::rpcserverstatus> server(1);

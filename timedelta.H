@@ -3,6 +3,8 @@
 
 #include <functional>
 
+#include "wireproto.H"
+
 class quickcheck;
 class timedelta;
 class timestamp;
@@ -20,7 +22,6 @@ class timedelta {
     friend class timestamp;
     friend timedelta operator/(double, frequency);
     long v;
-    explicit timedelta(long _v) : v(_v) {}
 public:
     timedelta(const quickcheck &);
     static timedelta seconds(long nr) __attribute__((const));
@@ -40,6 +41,7 @@ public:
     bool operator<(const timedelta &o) const;
 
     template <typename t> static timeres<t> time(std::function<t ()>);
+    WIREPROTO_WRAPPER_TYPE(timedelta, long, private);
 };
 
 template <typename t> struct timeres {

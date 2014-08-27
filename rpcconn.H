@@ -14,6 +14,7 @@
 #include "slavename.H"
 #include "socket.H"
 #include "thread.H"
+#include "timedelta.H"
 #include "util.H"
 #include "waitbox.H"
 #include "walltime.H"
@@ -23,6 +24,28 @@ class beaconresult;
 class clientio;
 class messageresult;
 class slavename;
+
+class rpcconnconfig {
+    /* Maximum size of the per-connection outgoing queue before we
+       start to apply back pressure. */
+public: const unsigned maxoutgoingbytes;
+    /* Maximum connection idle time before we send a PING */
+public: const timedelta pinginterval;
+    /* Once we send a ping, how long does the peer have to respond
+       before we declare them to be dead? */
+public: const timedelta pingdeadline;
+    /* Default configuration */
+public: static const rpcconnconfig dflt;
+public: rpcconnconfig(unsigned _maxoutgoingbytes,
+                      timedelta _pinginterval,
+                      timedelta _pingdeadline);
+WIREPROTO_TYPE(rpcconnconfig);
+};
+
+namespace fields {
+class field;
+const field &mk(const rpcconnconfig &);
+}
 
 class rpcconnauth {
     friend class rpcconn;
@@ -138,18 +161,21 @@ public: wireproto::sequencer::status_t sequencer;
 public: list<wireproto::rx_message::status_t> pendingrx;
 public: peername::status_t peername_;
 public: walltime lastcontact;
+public: rpcconnconfig config;
 public: rpcconnstatus(const buffer::status_t &_outgoing,
                       const fd_t::status_t &_fd,
                       const wireproto::sequencer::status_t &_sequencer,
                       const list<wireproto::rx_message::status_t> &_pendingrx,
                       const peername::status_t &_peername,
-                      const walltime &_lastcontact)
+                      const walltime &_lastcontact,
+                      const rpcconnconfig &_config)
     : outgoing(_outgoing),
       fd(_fd),
       sequencer(_sequencer),
       pendingrx(_pendingrx),
       peername_(_peername),
-      lastcontact(_lastcontact) {}
+      lastcontact(_lastcontact),
+      config(_config) {}
 public: ~rpcconnstatus() { pendingrx.flush(); }
 WIREPROTO_TYPE(rpcconnstatus);
 };
@@ -183,13 +209,16 @@ private: void run(clientio);
     /* The raw socket.  Accessible only to the connection thread. */
 private: socket_t sock;
 
+    /* Configuration parameters for the connection. */
+private: const rpcconnconfig config;
+
     /* Outgoing buffers.  Any thread can add stuff to this queue but
      * only the connection thread drains it.  The amount of stuff in
-     * the queue is bounded, so as to give sensible back-pressure on
-     * message producers.  @outgoingshrunk gets notified whenever more
-     * space becomes available.  @outgoinggrew gets notified whenever
-     * more stuff gets added to the queue. */
-private: static const unsigned MAX_OUTGOING_BYTES = 16384;
+     * the queue is bounded by config.max_outgoing_bytes, so as to
+     * give sensible back-pressure on message producers.
+     * @outgoingshrunk gets notified whenever more space becomes
+     * available.  @outgoinggrew gets notified whenever more stuff
+     * gets added to the queue. */
 private: mutex_t txlock;
 private: buffer outgoing;
 private: publisher outgoingshrunk;
@@ -263,7 +292,8 @@ public: template<typename t, typename... args> static orerror<t *> fromsocket(
 protected: rpcconn(thread::constoken,
                    socket_t _sock,
                    const rpcconnauth &_auth,
-                   const peername &_peer);
+                   const peername &_peer,
+                   const rpcconnconfig &_config = rpcconnconfig::dflt);
 
 private: messageresult hellomessage(const wireproto::rx_message &);
 

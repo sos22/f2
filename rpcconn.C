@@ -14,6 +14,49 @@
 #include "waitbox.tmpl"
 #include "wireproto.tmpl"
 
+namespace proto {
+namespace rpcconnconfig {
+static const wireproto::parameter<unsigned> maxoutgoingbytes(1);
+static const wireproto::parameter<timedelta> pinginterval(2);
+static const wireproto::parameter<timedelta> pingdeadline(3); } }
+
+rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes,
+                             timedelta _pinginterval,
+                             timedelta _pingdeadline)
+    : maxoutgoingbytes(_maxoutgoingbytes),
+      pinginterval(_pinginterval),
+      pingdeadline(_pingdeadline) {}
+wireproto_wrapper_type(rpcconnconfig)
+void
+rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
+                        wireproto::tx_message &txm) const {
+    txm.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                 wireproto::tx_compoundparameter()
+                 .addparam(proto::rpcconnconfig::maxoutgoingbytes,
+                           maxoutgoingbytes)
+                 .addparam(proto::rpcconnconfig::pinginterval, pinginterval)
+                 .addparam(proto::rpcconnconfig::pingdeadline, pingdeadline)); }
+maybe<rpcconnconfig>
+rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
+#define doparam(name)                                   \
+    auto name(p.getparam(proto::rpcconnconfig::name));  \
+    if (!name) return Nothing;
+    doparam(maxoutgoingbytes);
+    doparam(pinginterval);
+    doparam(pingdeadline);
+#undef doparam
+    return rpcconnconfig(maxoutgoingbytes.just(),
+                         pinginterval.just(),
+                         pingdeadline.just()); }
+
+const fields::field &
+fields::mk(const rpcconnconfig &c) {
+    return "<rpcconnconfig: "
+        "maxoutgoingbytes:" + fields::mk(c.maxoutgoingbytes) +
+        "pinginterval:" + fields::mk(c.pinginterval) +
+        "pingdeadline:" + fields::mk(c.pingdeadline) +
+        ">"; }
+
 wireproto_wrapper_type(rpcconn::status_t)
 void
 rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
@@ -25,7 +68,8 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
                  .addparam(proto::rpcconnstatus::sequencer, sequencer)
                  .addparam(proto::rpcconnstatus::pendingrx, pendingrx)
                  .addparam(proto::rpcconnstatus::peername, peername_)
-                 .addparam(proto::rpcconnstatus::lastcontact, lastcontact)); }
+                 .addparam(proto::rpcconnstatus::lastcontact, lastcontact)
+                 .addparam(proto::rpcconnstatus::config, config)); }
 maybe<rpcconn::status_t>
 rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
 #define doparam(name)                                   \
@@ -36,6 +80,7 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
     doparam(sequencer);
     doparam(peername);
     doparam(lastcontact);
+    doparam(config);
 #undef doparam
     list<wireproto::rx_messagestatus> pendingrx;
     auto r(p.fetch(proto::rpcconnstatus::pendingrx, pendingrx));
@@ -45,7 +90,8 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
                           sequencer.just(),
                           pendingrx,
                           peername.just(),
-                          lastcontact.just());
+                          lastcontact.just(),
+                          config.just());
     pendingrx.flush();
     return res; }
 
@@ -56,6 +102,7 @@ fields::mk(const rpcconn::status_t &o) {
                          " sequencer:" + mk(o.sequencer) +
                          " peername:" + mk(o.peername_) +
                          " lastcontact:" + mk(o.lastcontact) +
+                         " config:" + mk(o.config) +
                          " pendingrx:{");
     bool first = true;
     for (auto it(o.pendingrx.start()); !it.finished(); it.next()) {
@@ -327,13 +374,13 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
        backpressure.  We don't want to block other TX, though, to
        avoid silly deadlocks. */
     size_t msgsz(msg.serialised_size());
-    assert(msgsz <= MAX_OUTGOING_BYTES);
+    assert(msgsz <= config.maxoutgoingbytes);
     auto txtoken(txlock.lock());
-    if (outgoing.avail() + msgsz > MAX_OUTGOING_BYTES) {
+    if (outgoing.avail() + msgsz > config.maxoutgoingbytes) {
         subscriber reducedsub;
         subscription soss(reducedsub, shutdown.pub);
         while (!shutdown.ready() &&
-               outgoing.avail() + msgsz > MAX_OUTGOING_BYTES) {
+               outgoing.avail() + msgsz > config.maxoutgoingbytes) {
             auto txres(outgoing.send(io, sock, reducedsub));
             outgoingshrunk.publish();
             if (shutdown.ready()) break;
@@ -366,7 +413,7 @@ rpcconn::run(clientio io) {
     maybe<wireproto::sequencenr> pingsequence(Nothing);
     /* Either the time to send the next ping, if pingsequence == Nothing, or
        the deadline for receiving it, otherwise. */
-    timestamp pingtime(timestamp::now() + timedelta::seconds(1));
+    timestamp pingtime(timestamp::now() + config.pinginterval);
 
     auto authtok(authlock.lock());
     auth(authtok).start(outgoing);
@@ -392,7 +439,7 @@ rpcconn::run(clientio io) {
                    is, and we're only ever over by a small, fixed
                    amount. */
                 pingsequence = allocsequencenr();
-                pingtime = timestamp::now() + timedelta::seconds(60);
+                pingtime = timestamp::now() + config.pingdeadline;
                 auto token(txlock.lock());
                 wireproto::req_message(proto::PING::tag, pingsequence.just())
                     .serialise(outgoing);
@@ -505,10 +552,12 @@ rpcconn::rpcconn(
     thread::constoken tok,
     socket_t _sock,
     const rpcconnauth &__auth,
-    const peername &_peer)
+    const peername &_peer,
+    const rpcconnconfig &_config)
     : thread(tok),
       shutdown(),
       sock(_sock),
+      config(_config),
       txlock(),
       outgoing(),
       outgoingshrunk(),
@@ -557,9 +606,9 @@ rpcconn::send(
     subscriber &sub,
     maybe<timestamp> deadline) {
     auto txtoken(txlock.lock());
-    if (outgoing.avail() >= MAX_OUTGOING_BYTES) {
+    if (outgoing.avail() >= config.maxoutgoingbytes) {
         subscription moretx(sub, outgoingshrunk);
-        while (outgoing.avail() >= MAX_OUTGOING_BYTES) {
+        while (outgoing.avail() >= config.maxoutgoingbytes) {
             txlock.unlock(&txtoken);
             auto res = sub.wait(io, deadline);
             if (res == NULL) return error::timeout;
@@ -609,7 +658,6 @@ rpcconn::call(
         auto res(sub.wait(io, deadline));
         if (res == NULL) return error::timeout;
         if (res != &morerx) return res; } }
-
 
 orerror<const wireproto::rx_message *>
 rpcconn::call(
@@ -665,8 +713,12 @@ rpcconn::status(maybe<mutex_t::token>) const {
                     sequencer.status(),
                     prx,
                     peer_,
-                    lastcontact_wall);
+                    lastcontact_wall,
+                    config);
 }
 
 const messageresult
 messageresult::noreply;
+
+const rpcconnconfig
+rpcconnconfig::dflt(16384, timedelta::seconds(1), timedelta::seconds(60));

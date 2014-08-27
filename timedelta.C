@@ -9,6 +9,7 @@
 
 #include "parsers.tmpl"
 #include "timedelta.tmpl"
+#include "wireproto.tmpl"
 
 timedelta::timedelta(const quickcheck &q)
     : v(q) {}
@@ -81,6 +82,8 @@ const parser<timedelta> &
 parsers::_timedelta() {
     return ("<timedelta:" + intparser<long>() + "ns>")
         .map<timedelta>([] (long l) { return timedelta::nanoseconds(l); }); }
+
+wireproto_simple_wrapper_type(timedelta, long, v)
 
 void
 tests::_timedelta() {
