@@ -3,6 +3,7 @@
 
 #include "frequency.H"
 #include "peername.H"
+#include "ratelimiter.H"
 #include "registrationsecret.H"
 #include "string.H"
 
@@ -15,19 +16,19 @@ public:  peername controlsock;
 public:  registrationsecret rs;
 public:  peername listenon;
 public:  peername::port beaconport;
-public:  frequency beaconlimit;
+public:  ratelimiterconfig beaconlimit;
 public:  masterconfig(const peername &,
                       const registrationsecret &,
                       const peername &,
                       const peername::port &,
-                      const frequency &);
+                      const ratelimiterconfig &);
 public:  masterconfig(const registrationsecret &rs);
 public:  masterconfig(const quickcheck &q);
 public:  masterconfig _controlsock(const peername &s) const;
 public:  masterconfig _rs(const registrationsecret &rs) const;
 public:  masterconfig _listenon(const peername &) const;
 public:  masterconfig _beaconport(const peername::port &) const;
-public:  masterconfig _beaconlimit(const frequency &) const;
+public:  masterconfig _beaconlimit(const ratelimiterconfig &) const;
 public:  bool operator==(const masterconfig &o) const;
 };
 

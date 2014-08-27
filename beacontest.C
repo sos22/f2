@@ -30,7 +30,9 @@ tests::beacon() {
             auto server(beaconserver::build(
                             beaconserverconfig(rs,
                                                mastername,
-                                               frequency::hz(10),
+                                               ratelimiterconfig(
+                                                   frequency::hz(10),
+                                                   10),
                                                ms,
                                                port),
                             cs));
@@ -72,7 +74,9 @@ tests::beacon() {
             auto server(beaconserver::build(
                             beaconserverconfig(rs,
                                                mastername,
-                                               frequency::hz(10),
+                                               ratelimiterconfig(
+                                                   frequency::hz(10),
+                                                   10),
                                                ms,
                                                peername::port(1)),
                             cs));
@@ -84,7 +88,9 @@ tests::beacon() {
             auto server(beaconserver::build(
                             beaconserverconfig(rs,
                                                mastername,
-                                               frequency::hz(100),
+                                               ratelimiterconfig(
+                                                   frequency::hz(100),
+                                                   100),
                                                ms,
                                                port),
                             cs));

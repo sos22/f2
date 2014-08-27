@@ -2,15 +2,18 @@
 
 #include "fields.H"
 #include "logging.H"
+#include "parsers.H"
 #include "test.H"
 #include "timedelta.H"
 
-ratelimiter::ratelimiter(const frequency &f, unsigned _bucket_size)
+#include "parsers.tmpl"
+#include "wireproto.tmpl"
+
+ratelimiter::ratelimiter(const ratelimiterconfig &_config)
     : last_refill(timestamp::now()),
-      max_rate(f),
-      bucket_size(_bucket_size),
-      bucket_content(_bucket_size),
+      bucket_content(_config.bucketsize),
       mux(),
+      config(_config),
       dropped(0)
 {}
 
@@ -19,14 +22,14 @@ ratelimiter::refill(mutex_t::token tok) const
 {
     tok.formux(mux);
     auto now(timestamp::now());
-    double nr_tokens = (now - last_refill) * max_rate;
+    double nr_tokens = (now - last_refill) * config.maxrate;
     unsigned whole_tokens = (unsigned)nr_tokens;
-    if (whole_tokens + bucket_content > bucket_size) {
-        bucket_content = bucket_size;
+    if (whole_tokens + bucket_content > config.bucketsize) {
+        bucket_content = config.bucketsize;
         last_refill = now;
         return;
     }
-    last_refill = last_refill + whole_tokens / max_rate;
+    last_refill = last_refill + whole_tokens / config.maxrate;
     bucket_content += whole_tokens;
 }
 
@@ -55,19 +58,87 @@ ratelimiter::status() const
 {
     auto token(mux.lock());
     refill(token);
-    ratelimiter_status res(max_rate, bucket_size, bucket_content, dropped);
+    ratelimiter_status res(config, bucket_content, dropped);
     mux.unlock(&token);
     return res;
 }
 
 const fields::field &
+fields::mk(const ratelimiterconfig &rc) {
+    return "<ratelimiterconfig: maxrate=" + fields::mk(rc.maxrate) +
+        " bucketsize=" + fields::mk(rc.bucketsize) +
+        ">"; }
+const parser<ratelimiterconfig> &
+parsers::_ratelimiterconfig() {
+    return ("<ratelimiterconfig: maxrate=" + _frequency() +
+            " bucketsize=" + intparser<unsigned>() +
+            ">")
+        .map<ratelimiterconfig>([] (pair<frequency, unsigned> x) {
+                return ratelimiterconfig(x.first(), x.second()); }); }
+
+const fields::field &
 fields::mk(const ratelimiter_status &rs)
 {
-    return "<ratelimiterstatus max_rate=" + fields::mk(rs.max_rate)
-        + " bucket_size=" + fields::mk(rs.bucket_size)
+    return "<ratelimiterstatus config=" + fields::mk(rs.config)
         + " bucket_content=" + fields::mk(rs.bucket_content)
         + " dropped=" + fields::mk(rs.dropped)
         + ">";
+}
+
+namespace proto {
+    namespace ratelimiterconfig {
+        static const wireproto::parameter<frequency> maxrate(1);
+        static const wireproto::parameter<unsigned> bucketsize(2);
+    }
+    namespace ratelimiter_status {
+        static const wireproto::parameter< ::ratelimiterconfig> config(1);
+        static const wireproto::parameter<unsigned> bucket_content(2);
+        static const wireproto::parameter<unsigned> dropped(3);
+    }
+}
+
+wireproto_wrapper_type(ratelimiterconfig)
+void
+ratelimiterconfig::addparam(wireproto::parameter<ratelimiterconfig> tmpl,
+                            wireproto::tx_message &tx_msg) const
+{
+    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                    wireproto::tx_compoundparameter()
+                    .addparam(proto::ratelimiterconfig::maxrate, maxrate)
+                    .addparam(proto::ratelimiterconfig::bucketsize,
+                              bucketsize)); }
+maybe<ratelimiterconfig>
+ratelimiterconfig::fromcompound(const wireproto::rx_message &msg)
+{
+    auto maxrate(msg.getparam(proto::ratelimiterconfig::maxrate));
+    auto bucketsize(msg.getparam(proto::ratelimiterconfig::bucketsize));
+    if (!maxrate || !bucketsize) return Nothing;
+    return ratelimiterconfig(maxrate.just(), bucketsize.just()); }
+
+wireproto_wrapper_type(ratelimiter_status)
+void
+ratelimiter_status::addparam(wireproto::parameter<ratelimiter_status> tmpl,
+                             wireproto::tx_message &tx_msg) const
+{
+    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                    wireproto::tx_compoundparameter()
+                    .addparam(proto::ratelimiter_status::config, config)
+                    .addparam(proto::ratelimiter_status::bucket_content,
+                              bucket_content)
+                    .addparam(proto::ratelimiter_status::dropped,
+                              dropped));
+}
+maybe<ratelimiter_status>
+ratelimiter_status::fromcompound(const wireproto::rx_message &msg)
+{
+    auto config(msg.getparam(proto::ratelimiter_status::config));
+    auto bucket_content(
+        msg.getparam(proto::ratelimiter_status::bucket_content));
+    auto dropped(msg.getparam(proto::ratelimiter_status::dropped));
+    if (!config || !bucket_content || !dropped) return Nothing;
+    return ratelimiter_status(config.just(),
+                              bucket_content.just(),
+                              dropped.just());
 }
 
 void
@@ -76,7 +147,7 @@ tests::ratelimiter() {
             /* Set bucket size to one and hit it as hard as
              * possible. */
             auto freq(frequency::hz(2000));
-            ::ratelimiter r(freq, 1);
+            ::ratelimiter r(ratelimiterconfig(freq, 1));
             int count(0);
             timestamp start(timestamp::now());
             timestamp lastsuccess(timestamp::now());
@@ -116,9 +187,10 @@ tests::ratelimiter() {
                                              (burstduration + burstinterval))) *
                     ratio);
                 ::ratelimiter r(
-                    freq,
-                    (unsigned)((burstduration * (burstrate - baserate)) *
-                               ratio) + 1);
+                    ratelimiterconfig(
+                        freq,
+                        (unsigned)((burstduration * (burstrate - baserate)) *
+                                   ratio) + 1));
                 auto starttime(timestamp::now());
                 unsigned allowed = 0;
                 unsigned blocked = 0;
@@ -168,10 +240,17 @@ tests::ratelimiter() {
               [&bursty] () { bursty(true); });
 
     testcaseV("ratelimiter", "eq", [] () {
-            ::ratelimiter r(frequency::hz(10), 5);
+            ::ratelimiter r(ratelimiterconfig(frequency::hz(10), 5));
             assert(r.status() == r.status());
             ratelimiter_status copy(r.status());
             assert(copy == r.status());
             ratelimiter_status copy2(copy);
             assert(copy2 == r.status());
-            assert(!(r.status() == ratelimiter_status(quickcheck()))); }); }
+            assert(!(r.status() == ratelimiter_status(quickcheck()))); });
+
+    testcaseV("ratelimiter", "wireproto", [] {
+            wireproto::roundtrip<ratelimiter_status>();
+            wireproto::roundtrip<ratelimiterconfig>(); });
+
+    testcaseV("ratelimiter", "parsers", [] {
+            parsers::roundtrip(parsers::_ratelimiterconfig()); }); }

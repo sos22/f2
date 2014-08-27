@@ -48,35 +48,4 @@ memlog_entry::fromcompound(const wireproto::rx_message &p)
     return memlog_entry(idx.just(), msg_.just());
 }
 
-wireproto_wrapper_type(ratelimiter_status)
-void
-ratelimiter_status::addparam(wireproto::parameter<ratelimiter_status> tmpl,
-                             wireproto::tx_message &tx_msg) const
-{
-    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
-                    wireproto::tx_compoundparameter()
-                    .addparam(proto::ratelimiter_status::max_rate, max_rate)
-                    .addparam(proto::ratelimiter_status::bucket_size,
-                              bucket_size)
-                    .addparam(proto::ratelimiter_status::bucket_content,
-                              bucket_content)
-                    .addparam(proto::ratelimiter_status::dropped,
-                              dropped));
-}
-maybe<ratelimiter_status>
-ratelimiter_status::fromcompound(const wireproto::rx_message &msg)
-{
-    auto max_rate(msg.getparam(proto::ratelimiter_status::max_rate));
-    auto bucket_size(msg.getparam(proto::ratelimiter_status::bucket_size));
-    auto bucket_content(
-        msg.getparam(proto::ratelimiter_status::bucket_content));
-    auto dropped(msg.getparam(proto::ratelimiter_status::dropped));
-    if (!max_rate || !bucket_size || !bucket_content || !dropped)
-        return Nothing;
-    return ratelimiter_status(max_rate.just(),
-                              bucket_size.just(),
-                              bucket_content.just(),
-                              dropped.just());
-}
-
 wireproto_wrapper_type(peername)

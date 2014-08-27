@@ -7,36 +7,48 @@
 #include "timestamp.H"
 #include "wireproto.H"
 
+class ratelimiterconfig {
+public: frequency maxrate;
+public: unsigned bucketsize;
+public: ratelimiterconfig(frequency _maxrate,
+                          unsigned _bucketsize)
+    : maxrate(_maxrate),
+      bucketsize(_bucketsize) {}
+public: ratelimiterconfig(quickcheck q)
+    : maxrate(q),
+      bucketsize(q) {}
+public: bool operator==(const ratelimiterconfig &o) const {
+    return maxrate == o.maxrate &&
+        bucketsize == o.bucketsize; }
+    WIREPROTO_TYPE(ratelimiterconfig);
+};
+
 struct ratelimiter_status {
     WIREPROTO_TYPE(ratelimiter_status);
 
 private: ratelimiter_status() = delete;
 private: void operator=(const ratelimiter_status &) = delete;
 public:
-    const frequency max_rate;
-    const unsigned bucket_size;
+    const ratelimiterconfig config;
     const unsigned bucket_content;
     const unsigned dropped;
     ratelimiter_status(const ratelimiter_status &o)
-        : max_rate(o.max_rate),
-          bucket_size(o.bucket_size),
+        : config(o.config),
           bucket_content(o.bucket_content),
           dropped(o.dropped) {}
-    ratelimiter_status(const frequency &_max_rate,
-                       const unsigned _bucket_size,
+    ratelimiter_status(const ratelimiterconfig &_config,
                        const unsigned _bucket_content,
                        const unsigned _dropped)
-        : max_rate(_max_rate), bucket_size(_bucket_size),
-          bucket_content(_bucket_content), dropped(_dropped)
+        : config(_config),
+          bucket_content(_bucket_content),
+          dropped(_dropped)
         {}
     ratelimiter_status(const quickcheck &q)
-        : max_rate(q),
-          bucket_size(q),
+        : config(q),
           bucket_content(q),
           dropped(q) {}
     bool operator==(const ratelimiter_status &o) const {
-        return max_rate == o.max_rate &&
-            bucket_size == o.bucket_size &&
+        return config == o.config &&
             bucket_content == o.bucket_content &&
             dropped == o.dropped; }
     ~ratelimiter_status() {}
@@ -49,24 +61,30 @@ class ratelimiter {
     /* Lots of mutables because refilling the bucket changes our
        internal state without changing the visible state. */
     mutable timestamp last_refill;
-    frequency const max_rate;
-    unsigned const bucket_size;
     mutable unsigned bucket_content;
     mutable mutex_t mux;
+    const ratelimiterconfig config;
     unsigned dropped;
     void refill(mutex_t::token) const;
 public:
-    ratelimiter(const frequency &, unsigned bucket_size);
+    ratelimiter(const ratelimiterconfig &);
     /* If there are tokens available, consume one and return true.
        Otherwise, return false. */
     bool probe() __attribute__((warn_unused_result));
-
+    /* Wait for a token to become available and consume one. */
+    void wait();
     ratelimiter_status status() const;
 };
 
 namespace fields {
 class field;
+const field &mk(const ratelimiterconfig &);
 const field &mk(const ratelimiter_status &);
+}
+
+template <typename> class parser;
+namespace parsers {
+const parser<ratelimiterconfig> &_ratelimiterconfig();
 }
 
 namespace tests {

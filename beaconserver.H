@@ -56,18 +56,18 @@ public:  beaconserverconfig name(const type &_ ## name) {       \
     res.name ##_ = _ ## name;                                   \
     return res; }
     mkfield(peername, coordinator)
-    mkfield(frequency, maxresponses)
+    mkfield(ratelimiterconfig, limiter)
     mkfield(mastersecret, ms)
     mkfield(peername::port, port)
     mkfield(registrationsecret, rs)
 #undef mkfield
 public: beaconserverconfig(const registrationsecret &_rs,
                            const peername &_coordinator,
-                           frequency _maxresponses,
+                           const ratelimiterconfig &_limiter,
                            const mastersecret &_ms,
                            peername::port _port)
     : coordinator_(_coordinator),
-      maxresponses_(_maxresponses),
+      limiter_(_limiter),
       ms_(_ms),
       port_(_port),
       rs_(_rs) {} };

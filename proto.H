@@ -29,6 +29,7 @@ class slavename;
 class storageslavestatus;
 class streamname;
 class streamstatus;
+class ratelimiterconfig;
 class ratelimiter_status;
 class registrationsecret;
 class walltime;
@@ -84,12 +85,6 @@ namespace proto {
         static const parameter<uint64_t> ipv6a(4);
         static const parameter<uint64_t> ipv6b(5);
         static const parameter<bool> wildcardlocal(6);
-    };
-    namespace ratelimiter_status {
-        static const parameter<frequency> max_rate(1);
-        static const parameter<unsigned> bucket_size(2);
-        static const parameter<unsigned> bucket_content(3);
-        static const parameter<unsigned> dropped(4);
     };
     namespace rpcconnstatus {
         static const parameter<class ::bufferstatus> outgoing(1);
