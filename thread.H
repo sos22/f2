@@ -69,7 +69,7 @@ protected: thread(constoken);
 public:    template <typename t, typename ... args>
     static pausedthread<t> spawn(
     const fields::field &name,
-    args &...params);
+    args &&...params);
 private:   void go();
 private:   static void *pthreadstart(void *);
     /* The main thread run method.  Derived classes should override

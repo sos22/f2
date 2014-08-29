@@ -47,7 +47,7 @@ protected: rpcserver(constoken, listenfd);
 public:    template <typename t, typename ... args>
     static orerror<pausedrpcserver<t> > listen(
         const peername &,
-        args &...);
+        args &&...);
 
     /* We just accepted a new client and have a socket_t for them.
      * Turn that into a full rpcconn.  This runs in the main server

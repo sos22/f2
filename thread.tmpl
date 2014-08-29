@@ -30,7 +30,7 @@ pausedthread<t>::destroy() {
 
 template <typename t, typename ... args> pausedthread<t> thread::spawn(
     const fields::field &name,
-    args &...params) {
+    args &&...params) {
     auto res = new t(constoken(name), params...);
     /* Check it derives from thread. */
     thread *rr = res;

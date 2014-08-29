@@ -70,9 +70,8 @@ tests::mutex() {
                         _muxes[i].unlock(&token); } } };
             thr *thrs[nr_threads];
             for (unsigned x = 0; x < nr_threads; x++) {
-                unsigned y(x+1);
                 thrs[x] = thread::spawn<thr>(fields::mk(x), muxes, holders,
-                                              y, shutdown).go(); }
+                                             x+1, shutdown).go(); }
             (timestamp::now() + timedelta::seconds(5)).sleep();
             shutdown = true;
             for (unsigned x = 0; x < nr_threads; x++) {

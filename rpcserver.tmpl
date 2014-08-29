@@ -2,7 +2,7 @@
 #define RPCSERVER_TMPL__
 
 template <typename t, typename ... args> orerror<pausedrpcserver<t> >
-rpcserver::listen(const peername &p, args &... params) {
+rpcserver::listen(const peername &p, args &&... params) {
     auto s(socket_t::listen(p));
     if (s.isfailure()) return s.failure();
     else return pausedrpcserver<t>(
