@@ -460,9 +460,9 @@ rpcconn::run(clientio io) {
             lastcontact_wall = walltime::now();
             contactlock.unlock(&contacttoken);
             if (pingsequence.isjust()) {
-                pingtime = lastcontact_monotone + timedelta::seconds(60);
+                pingtime = lastcontact_monotone + config.pingdeadline;
             } else {
-                pingtime = lastcontact_monotone + timedelta::seconds(1); }
+                pingtime = lastcontact_monotone + config.pinginterval; }
             while (!shutdown.ready()) {
                 auto msg(wireproto::rx_message::fetch(inbuffer));
                 if (msg.isfailure()) {
@@ -496,7 +496,7 @@ rpcconn::run(clientio io) {
                         logmsg(loglevel::debug,
                                "ping response from " + fields::mk(peer_));
                         pingsequence = Nothing;
-                        pingtime = timestamp::now() + timedelta::seconds(1);
+                        pingtime = timestamp::now() + config.pinginterval;
                     } else {
                         /* XXX This will leak, with no visible
                          * warning, if we receive a reply we weren't
