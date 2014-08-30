@@ -1,3 +1,5 @@
+realall: all
+
 .PHONY: buildconfig.C
 
 # Forward most targets to the real makefile, once we've built the config file.
