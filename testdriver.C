@@ -1,3 +1,4 @@
+#include <sys/time.h>
 #include <err.h>
 #include <signal.h>
 
@@ -29,6 +30,11 @@
 int
 main(int argc, char *argv[])
 {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    printf("Seed: %lx\n", now.tv_usec);
+    srandom((int)now.tv_usec);
+
     tests::beacon();
     tests::buffer();
     tests::cond();
