@@ -60,10 +60,7 @@ private: list<controlinterface *> invoking; /* All the interfaces
                                                true.  Protected by
                                                owner->ifacelock.*/
 private: controlserver *const owner;
-public:  controlconn(thread::constoken tok,
-                     socket_t _sock,
-                     const rpcconnauth &_auth,
-                     const peername &_peer,
+public:  controlconn(const rpcconn::rpcconntoken &tok,
                      controlserver *_owner);
 public:  virtual messageresult message(const wireproto::rx_message &);
     /* Invoke a method on the control interfaces. */

@@ -16,15 +16,15 @@
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::fromsocket(socket_t sock,
                     const rpcconnauth &auth,
-                    args... parameters) {
+                    const rpcconnconfig &config,
+                    args &&... parameters) {
     auto peer(sock.peer());
     if (peer.isfailure()) return peer.failure();
-    else return thread::spawn<conn_t>(
+    else return thread::_spawn<conn_t, rpcconntoken, args...>(
         "IO:"+fields::mk(peer.success()),
-        sock,
-        auth,
-        peer.success(),
-        parameters...)
+        [sock, &auth, &config, &peer] (const thread::constoken &inner) {
+            return rpcconntoken(inner, sock, auth, config, peer.success()); },
+        std::forward<args>(parameters)...)
              .go(); }
 
 template <typename conn_t, typename... args> orerror<conn_t *>
@@ -84,12 +84,14 @@ template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connect(clientio io,
                  const rpcconnauth &auth,
                  const peername &p,
+                 const rpcconnconfig &config,
                  args ... parameters) {
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
     auto r(fromsocket<conn_t>(
                s.success(),
                auth,
+               config,
                parameters...));
     if (r.isfailure()) s.success().close();
     return r; }

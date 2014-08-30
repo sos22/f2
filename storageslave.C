@@ -22,22 +22,16 @@ class storageslaveconn : public rpcconn {
     friend class thread;
     friend class pausedthread<storageslaveconn>;
 private: storageslave *const owner;
-private: storageslaveconn(thread::constoken,
-                          socket_t &_socket,
-                          const rpcconnauth &_auth,
-                          const peername &_peer,
+private: storageslaveconn(const rpcconn::rpcconntoken &tok,
                           storageslave *_owner);
 private: messageresult message(const wireproto::rx_message &);
 private: void endconn(clientio);
 };
 
 storageslaveconn::storageslaveconn(
-    thread::constoken tok,
-    socket_t &_socket,
-    const rpcconnauth &__auth,
-    const peername &_peer,
+    const rpcconn::rpcconntoken &tok,
     storageslave *_owner)
-    : rpcconn(tok, _socket, __auth, _peer),
+    : rpcconn(tok),
       owner(_owner) {
     auto token(owner->mux.lock());
     owner->clients.pushtail(this);
@@ -134,6 +128,7 @@ storageslave::build(clientio io,
                 io,
                 br.success(),
                 config.name,
+                rpcconnconfig::dflt,
                 server.success().unwrap()));
     if (mc.isfailure()) {
         server.success().destroy();
@@ -160,6 +155,7 @@ storageslave::accept(socket_t s) {
     return rpcconn::fromsocket<storageslaveconn>(
         s,
         rpcconnauth::mksendhelloslavea(rs),
+        rpcconnconfig::dflt,
         this); }
 
 /* XXX this can sometimes leave stuff behind after a partial

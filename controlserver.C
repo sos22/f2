@@ -79,12 +79,9 @@ controlinterface::~controlinterface() {
     assert(invoking.empty());
     assert(active == 0); }
 
-controlconn::controlconn(thread::constoken tok,
-                         socket_t _sock,
-                         const rpcconnauth &__auth,
-                         const peername &_peer,
+controlconn::controlconn(const rpcconn::rpcconntoken &tok,
                          controlserver *_owner)
-    : rpcconn(tok, _sock, __auth, _peer),
+    : rpcconn(tok),
       invoking(),
       owner(_owner) {}
 
@@ -173,6 +170,7 @@ controlserver::accept(socket_t s) {
            sockets, which are implicitly authenticated by the socket
            access flags. */
         rpcconnauth::mkdone(),
+        rpcconnconfig::dflt,
         this); }
 
 orerror<controlserver *>

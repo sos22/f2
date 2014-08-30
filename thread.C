@@ -16,7 +16,7 @@
 static mutex_t
 detachlock;
 
-thread::thread(thread::constoken token)
+thread::thread(const thread::constoken &token)
     : thr(),
       started(false),
       tid_(),

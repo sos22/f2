@@ -44,10 +44,7 @@ coordinatorconnstatus::fromcompound(const wireproto::rx_message &rxm) {
 class coordinatorconn : public rpcconn {
     friend class pausedthread<coordinatorconn>;
 public:  coordinator *const owner;
-public:  coordinatorconn(thread::constoken,
-                         socket_t _socket,
-                         const rpcconnauth &_auth,
-                         const peername &_peer,
+public:  coordinatorconn(const rpcconn::rpcconntoken &token,
                          coordinator *_owner);
 private: void endconn(clientio);
 
@@ -56,12 +53,9 @@ public:  status_t status(maybe<mutex_t::token> tok /* coordinator lock */) {
     return status_t( rpcconn::status(tok), slavename() ); }
 };
 
-coordinatorconn::coordinatorconn(thread::constoken tok,
-                                 socket_t _socket,
-                                 const rpcconnauth &__auth,
-                                 const peername &_peer,
+coordinatorconn::coordinatorconn(const rpcconn::rpcconntoken &tok,
                                  coordinator *_owner)
-    : rpcconn(tok, _socket, __auth, _peer),
+    : rpcconn(tok),
       owner(_owner) {
     auto token(owner->mux.lock());
     owner->connections.pushtail(this);
@@ -116,6 +110,7 @@ coordinator::accept(socket_t s) {
     return rpcconn::fromsocket<coordinatorconn>(
         s,
         rpcconnauth::mkwaithello(ms, rs),
+        rpcconnconfig::dflt,
         this); }
 
 void

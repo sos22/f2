@@ -279,6 +279,7 @@ public: template<typename t, typename ... args> static orerror<t *> connect(
     clientio,
     const rpcconnauth &,
     const peername &,
+    const rpcconnconfig &,
     args...);
 
     /* Establish a connection around an existing socket, without
@@ -287,13 +288,22 @@ public: template<typename t, typename ... args> static orerror<t *> connect(
 public: template<typename t, typename... args> static orerror<t *> fromsocket(
     socket_t,
     const rpcconnauth &auth,
-    args...);
+    const rpcconnconfig &config,
+    args &&...);
 
-protected: rpcconn(thread::constoken,
-                   socket_t _sock,
-                   const rpcconnauth &_auth,
-                   const peername &_peer,
-                   const rpcconnconfig &_config = rpcconnconfig::dflt);
+protected: class rpcconntoken {
+        friend class rpcconn;
+    private: thread::constoken thr;
+    private: socket_t sock;
+    public:  rpcconnauth auth;
+    public:  rpcconnconfig config;
+    public:  peername peer;
+    private: rpcconntoken(const thread::constoken &,
+                          socket_t,
+                          const rpcconnauth &,
+                          const rpcconnconfig &,
+                          const peername &); };
+protected: rpcconn(const rpcconntoken &token);
 
 private: messageresult hellomessage(const wireproto::rx_message &);
 

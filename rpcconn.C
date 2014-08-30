@@ -548,16 +548,22 @@ rpcconn::run(clientio io) {
   done:
     endconn(io); }
 
-rpcconn::rpcconn(
-    thread::constoken tok,
-    socket_t _sock,
-    const rpcconnauth &__auth,
-    const peername &_peer,
-    const rpcconnconfig &_config)
-    : thread(tok),
-      shutdown(),
+rpcconn::rpcconntoken::rpcconntoken(const thread::constoken &_thr,
+                                    socket_t _sock,
+                                    const rpcconnauth &_auth,
+                                    const rpcconnconfig &_config,
+                                    const peername &_peer)
+    : thr(_thr),
       sock(_sock),
+      auth(_auth),
       config(_config),
+      peer(_peer) {}
+
+rpcconn::rpcconn(const rpcconntoken &tok)
+    : thread(tok.thr),
+      shutdown(),
+      sock(tok.sock),
+      config(tok.config),
       txlock(),
       outgoing(),
       outgoingshrunk(),
@@ -570,8 +576,8 @@ rpcconn::rpcconn(
       contactlock(),
       lastcontact_monotone(timestamp::now()),
       lastcontact_wall(walltime::now()),
-      peer_(_peer),
-      _auth(__auth) {}
+      peer_(tok.peer),
+      _auth(tok.auth) {}
 
 messageresult
 rpcconn::message(const wireproto::rx_message &msg) {

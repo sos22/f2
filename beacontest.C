@@ -433,7 +433,8 @@ tests::beacon() {
             auto conn(rpcconn::connect<rpcconn>(
                           clientio::CLIENTIO,
                           rpcconnauth::mkdone(),
-                          cs->localname())
+                          cs->localname(),
+                          rpcconnconfig::dflt)
                       .fatal("connecting to our own control server"));
             auto m(conn->call(
                        clientio::CLIENTIO,
