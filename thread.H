@@ -70,6 +70,14 @@ public:    template <typename t, typename ... args>
     static pausedthread<t> spawn(
     const fields::field &name,
     args &&...params);
+    /* Slightly more intricate version of spawn() which allows callers
+       to specify their own token type and a mechanism for lifting
+       thread constructor tokens into their token type. */
+public:    template <typename t, typename token, typename ... args>
+    static pausedthread<t> _spawn(
+        const fields::field &name,
+        const std::function<token (const constoken &)> &wraptoken,
+        args &&... params);
 private:   void go();
 private:   static void *pthreadstart(void *);
     /* The main thread run method.  Derived classes should override

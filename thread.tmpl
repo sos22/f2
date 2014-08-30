@@ -28,10 +28,23 @@ pausedthread<t>::destroy() {
     inner_->join(clientio::CLIENTIO);
     inner_ = NULL; }
 
-template <typename t, typename ... args> pausedthread<t> thread::spawn(
+template <typename t, typename ... args> pausedthread<t>
+thread::spawn(
     const fields::field &name,
     args &&...params) {
-    auto res = new t(constoken(name), params...);
+    std::function<constoken (const constoken &)> wrap(
+        [] (const constoken &tt) { return tt; });
+    const std::function<constoken (const constoken &)> &www(wrap);
+    return _spawn<t, constoken, args...>(name,
+                                         www,
+                                         std::forward<args>(params)... ); }
+
+template <typename t, typename tokenT, typename ... args> pausedthread<t>
+thread::_spawn(
+    const fields::field &name,
+    const std::function<tokenT (const constoken &)> &wrapper,
+    args &&...params) {
+    auto res = new t(wrapper(constoken(name)), std::forward<args>(params)...);
     /* Check it derives from thread. */
     thread *rr = res;
     (void)rr;
