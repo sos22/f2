@@ -754,7 +754,8 @@ tests::buffer(void)
                 assert(r.issuccess());
                 assert(r.success().getparam(param).isjust());
                 assert(r.success().getparam(param).just().cons == s.cons);
-                assert(r.success().getparam(param).just().prod == s.prod); }});
+                assert(r.success().getparam(param).just().prod == s.prod); }
+            wireproto::roundtrip<buffer::status_t>();});
 
     testcaseV("buffer", "pushbackempty", [] () {
             ::buffer buf;
