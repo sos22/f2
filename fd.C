@@ -174,7 +174,7 @@ fd_tstatus::fd_tstatus(const quickcheck &q)
       revents(q) {}
 
 bool
-fd_tstatus::operator==(const fd_tstatus &o) {
+fd_tstatus::operator==(const fd_tstatus &o) const {
     if (fd != o.fd) return false;
 #define iter(x) if (x != o.x) return false;
     fd_tstatus_params(iter);

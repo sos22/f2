@@ -6,6 +6,7 @@
 #include "mutex.H"
 #include "peername.H"
 #include "pubsub.H"
+#include "rpctest.H"
 #include "thread.H"
 #include "waitbox.H"
 
@@ -28,6 +29,7 @@ public:  void destroy() { inner_.destroy(); }
 public:  t *unwrap() const { return inner_.unwrap(); } };
 
 class rpcserver : protected thread {
+    friend void tests::_rpc();
     /* Each rpcserver has a dedicated thread which listens for
        incoming connections, spawns new connection threads, and teards
        down connection threads when they die. */
@@ -87,7 +89,15 @@ class rpcserverstatus {
     friend class rpcserver;
     friend const fields::field &fields::mk(const rpcserverstatus &);
 private: listenfd::status_t fd;
+public:  rpcserverstatus(quickcheck);
+public:  bool operator==(const rpcserverstatus &o) const;
     WIREPROTO_WRAPPER_TYPE(rpcserverstatus, listenfd::status_t, private);
 };
+
+namespace tests {
+namespace rpcserver {
+extern event<listenfd> accepting;
+}
+}
 
 #endif /* !RPCSERVER_H__ */

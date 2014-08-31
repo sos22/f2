@@ -129,10 +129,11 @@ namespace wireproto {
     public: index(uint16_t _id, uint16_t _offset)
         : id(_id), offset(_offset) {}
     };
-    /* Arbitrary limit on size of individual messages, just to avoid
-       stupid overflow bugs and DoS attacks. */
-    static const unsigned MAXMSGSIZE = 10000000;
-    /* Similar limit on number of parameters per message. */
+    /* Limit on size of individual messages so that we can use 16 bit
+       offsets in index. */
+    static const unsigned MAXMSGSIZE = 65536;
+    /* Limit on number of parameters per message to avoid silly DOS
+     * bugs. */
     static const unsigned MAXMSGPARAMS = 1000;
     struct wireheader {
     public: uint32_t sz; /* bytes, limited to MAXMSGSIZE, includes header */

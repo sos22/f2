@@ -17,6 +17,22 @@ ratelimiter::ratelimiter(const ratelimiterconfig &_config)
       dropped(0)
 {}
 
+ratelimiter::ratelimiter(const ratelimiter &o)
+    : last_refill(o.last_refill), /* Will clobber this with correctly
+                                   * synchronised load later. */
+      mux(),
+      config(o.config) {
+    /* Not entirely happy about taking this lock from a constructor,
+       but it's a short leaf lock, so we should be okay. */
+    auto token(o.mux.lock());
+    /* Might as well do it now to save having to refill both limiters
+     * later. */
+    o.refill(token);
+    last_refill = o.last_refill;
+    bucket_content = o.bucket_content;
+    dropped = o.dropped;
+    o.mux.unlock(&token); }
+
 void
 ratelimiter::refill(mutex_t::token tok) const
 {
@@ -52,6 +68,26 @@ ratelimiter::probe()
     mux.unlock(&tok);
     return false;
 }
+
+void
+ratelimiter::wait() {
+    mutex_t::token tok(mux.lock());
+    if (bucket_content != 0) {
+        bucket_content--;
+        mux.unlock(&tok);
+        return; }
+    while (true) {
+        refill(tok);
+        if (bucket_content != 0) {
+            bucket_content--;
+            mux.unlock(&tok);
+            return; }
+        /* Drop lock for the actual sleep so that probe() doesn't have
+           to wait for the bucket to refill. */
+        auto sleepto(last_refill + (1.0 / config.maxrate));
+        mux.unlock(&tok);
+        sleepto.sleep();
+        tok = mux.lock(); } }
 
 ratelimiter_status
 ratelimiter::status() const

@@ -1,6 +1,8 @@
 #ifndef RPCSERVER_TMPL__
 #define RPCSERVER_TMPL__
 
+#include "fields.H"
+
 template <typename t, typename ... args> orerror<pausedrpcserver<t> >
 rpcserver::listen(const peername &p, args &&... params) {
     auto s(socket_t::listen(p));

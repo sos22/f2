@@ -38,6 +38,14 @@ fields::mk(const buffer::status_t &o) {
     return "<prod:" + mk(o.prod) +
         " cons:" + mk(o.cons) +
         ">"; }
+bufferstatus::bufferstatus(quickcheck q) {
+    do {
+        prod = q;
+        cons = q;
+    } while (prod > cons); }
+bool
+bufferstatus::operator==(const bufferstatus &o) const {
+    return prod == o.prod && cons == o.cons; }
 
 buffer::subbuf *
 buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)

@@ -38,6 +38,15 @@ list<t>::list(list<t> &&o)
     o.head = NULL;
     o.tail = NULL; }
 
+template <typename t> list<t>
+list<t>::steal() {
+    list res;
+    res.head = head;
+    res.tail = tail;
+    head = NULL;
+    tail = NULL;
+    return res; }
+
 template <typename t>
 list<t>::~list()
 {
@@ -379,5 +388,16 @@ sort(list<t> &what) {
             else what.tail = cursor1;
             cursor2->next = cursor1; }
         cursor1 = next; } }
+
+template <typename t> bool
+list<t>::eq(const list<t> &o) const {
+    auto c1(start());
+    auto c2(o.start());
+    while (true) {
+        if (c1.finished() != c2.finished()) return false;
+        if (c1.finished()) return true;
+        if (!(*c1 == *c2)) return false;
+        c1.next();
+        c2.next(); } }
 
 #endif /* !LIST_TMPL__ */

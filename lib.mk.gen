@@ -93,6 +93,7 @@ testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
 testmodule ratelimiter ratelimiter.C ratelimiter.H
 testmodule registrationsecret registrationsecret.C registrationsecret.H
+testmodule rpc rpcserver.C rpcserver.H rpcserver.tmpl rpcconn.C rpcconn.H rpcconn.tmpl
 testmodule spawn spawn.C spawn.H
 testmodule storageconfig storageconfig.C storageconfig.H
 testmodule thread thread.C thread.tmpl thread.H
@@ -104,6 +105,7 @@ cat <<EOF
 spawn-cov-report: tests/abort/abort
 spawn-cov-report: spawnservice-c
 EOF
+
 # Things which would benefit from unit tests:
 #
 # controlserver
@@ -112,8 +114,6 @@ EOF
 # nonce
 # orerror
 # pair
-# rpcconn
-# rpcserver
 # slavename
 # socket
 # spark

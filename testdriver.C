@@ -20,6 +20,7 @@
 #include "pubsub.H"
 #include "ratelimiter.H"
 #include "registrationsecret.H"
+#include "rpctest.H"
 #include "spawn.H"
 #include "storageconfig.H"
 #include "test.H"
@@ -53,6 +54,7 @@ main(int argc, char *argv[])
     tests::pubsub();
     tests::ratelimiter();
     tests::_registrationsecret();
+    tests::_rpc();
     tests::_spawn();
     tests::_storageconfig();
     tests::thread();

@@ -6,6 +6,7 @@
 #ifndef TIMESTAMP_H__
 #define TIMESTAMP_H__
 
+class quickcheck;
 class timedelta;
 struct timespec;
 class timestamp;
@@ -22,6 +23,7 @@ class timestamp {
     unsigned long v; /* nanoseconds since epoch */
     timestamp(unsigned long _v) : v(_v) {}
 public:
+    timestamp(quickcheck);
     timedelta operator-(timestamp) const;
     timestamp operator+(timedelta) const;
     bool operator<(timestamp o) const { return v < o.v; }

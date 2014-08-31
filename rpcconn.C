@@ -4,6 +4,7 @@
 #include "logging.H"
 #include "proto.H"
 #include "slavename.H"
+#include "test.H"
 #include "timedelta.H"
 #include "walltime.H"
 #include "wireproto.H"
@@ -11,21 +12,36 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "rpcconn.tmpl"
+#include "test.tmpl"
 #include "waitbox.tmpl"
 #include "wireproto.tmpl"
+
+tests::event<void> tests::__rpcconn::calldonetx;
+tests::event<void> tests::__rpcconn::receivedreply;
+tests::event<wireproto::tx_message **> tests::__rpcconn::sendinghelloslavec;
+tests::event<rpcconn *> tests::__rpcconn::threadawoken;
+tests::event<void> tests::__rpcconn::replystopped;
 
 namespace proto {
 namespace rpcconnconfig {
 static const wireproto::parameter<unsigned> maxoutgoingbytes(1);
 static const wireproto::parameter<timedelta> pinginterval(2);
-static const wireproto::parameter<timedelta> pingdeadline(3); } }
+static const wireproto::parameter<timedelta> pingdeadline(3);
+static const wireproto::parameter<ratelimiterconfig> pinglimit(4); } }
 
 rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes,
                              timedelta _pinginterval,
-                             timedelta _pingdeadline)
+                             timedelta _pingdeadline,
+                             const ratelimiterconfig &_pinglimiter)
     : maxoutgoingbytes(_maxoutgoingbytes),
       pinginterval(_pinginterval),
-      pingdeadline(_pingdeadline) {}
+      pingdeadline(_pingdeadline),
+      pinglimit(_pinglimiter) {}
+rpcconnconfig::rpcconnconfig(quickcheck q)
+    : maxoutgoingbytes(q),
+      pinginterval(q),
+      pingdeadline(q),
+      pinglimit(q) {}
 wireproto_wrapper_type(rpcconnconfig)
 void
 rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
@@ -35,7 +51,8 @@ rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
                  .addparam(proto::rpcconnconfig::maxoutgoingbytes,
                            maxoutgoingbytes)
                  .addparam(proto::rpcconnconfig::pinginterval, pinginterval)
-                 .addparam(proto::rpcconnconfig::pingdeadline, pingdeadline)); }
+                 .addparam(proto::rpcconnconfig::pingdeadline, pingdeadline)
+                 .addparam(proto::rpcconnconfig::pinglimit, pinglimit)); }
 maybe<rpcconnconfig>
 rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
 #define doparam(name)                                   \
@@ -44,17 +61,20 @@ rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
     doparam(maxoutgoingbytes);
     doparam(pinginterval);
     doparam(pingdeadline);
+    doparam(pinglimit);
 #undef doparam
     return rpcconnconfig(maxoutgoingbytes.just(),
                          pinginterval.just(),
-                         pingdeadline.just()); }
+                         pingdeadline.just(),
+                         pinglimit.just()); }
 
 const fields::field &
 fields::mk(const rpcconnconfig &c) {
-    return "<rpcconnconfig: "
-        "maxoutgoingbytes:" + fields::mk(c.maxoutgoingbytes) +
-        "pinginterval:" + fields::mk(c.pinginterval) +
-        "pingdeadline:" + fields::mk(c.pingdeadline) +
+    return "<rpcconnconfig:"
+        " maxoutgoingbytes:" + fields::mk(c.maxoutgoingbytes) +
+        " pinginterval:" + fields::mk(c.pinginterval) +
+        " pingdeadline:" + fields::mk(c.pingdeadline) +
+        " pinglimit:" + fields::mk(c.pinglimit) +
         ">"; }
 
 wireproto_wrapper_type(rpcconn::status_t)
@@ -82,18 +102,15 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
     doparam(lastcontact);
     doparam(config);
 #undef doparam
-    list<wireproto::rx_messagestatus> pendingrx;
-    auto r(p.fetch(proto::rpcconnstatus::pendingrx, pendingrx));
-    if (r.isfailure()) return Nothing;
     rpcconn::status_t res(outgoing.just(),
                           fd.just(),
                           sequencer.just(),
-                          pendingrx,
                           peername.just(),
                           lastcontact.just(),
                           config.just());
-    pendingrx.flush();
-    return res; }
+    auto r(p.fetch(proto::rpcconnstatus::pendingrx, res.pendingrx));
+    if (r.isfailure()) return Nothing;
+    else return res; }
 
 const fields::field &
 fields::mk(const rpcconn::status_t &o) {
@@ -117,8 +134,8 @@ rpcconnauth::slavename() const {
     else return Nothing; }
 
 rpcconnauth
-rpcconnauth::mkdone() {
-    rpcconnauth r;
+rpcconnauth::mkdone(const rpcconnconfig &c) {
+    rpcconnauth r(c);
     r.state = s_done;
     new (r.buf) done(Nothing);
     return r; }
@@ -126,8 +143,9 @@ rpcconnauth::mkdone() {
 rpcconnauth
 rpcconnauth::mkwaithello(
     const mastersecret &ms,
-    const registrationsecret &rs) {
-    rpcconnauth r;
+    const registrationsecret &rs,
+    const rpcconnconfig &c) {
+    rpcconnauth r(c);
     r.state = s_waithello;
     new (r.buf) waithello(ms, rs);
     return r; }
@@ -140,8 +158,9 @@ rpcconnauth::waithello::waithello(
 
 rpcconnauth
 rpcconnauth::mksendhelloslavea(
-    const registrationsecret &rs) {
-    rpcconnauth r;
+    const registrationsecret &rs,
+    const rpcconnconfig &c) {
+    rpcconnauth r(c);
     r.state = s_sendhelloslavea;
     new (r.buf) sendhelloslavea(rs);
     return r; }
@@ -153,8 +172,9 @@ rpcconnauth::sendhelloslavea::sendhelloslavea(
 rpcconnauth
 rpcconnauth::mkwaithelloslavea(
     const registrationsecret &rs,
-    waitbox<orerror<void> > *wb) {
-    rpcconnauth r;
+    waitbox<orerror<void> > *wb,
+    const rpcconnconfig &c) {
+    rpcconnauth r(c);
     r.state = s_waithelloslavea;
     new (r.buf) waithelloslavea(rs, wb);
     return r; }
@@ -172,9 +192,13 @@ rpcconnauth::waithelloslaveb::waithelloslaveb(
       n(_n) {}
 
 rpcconnauth::rpcconnauth(const rpcconnauth &o)
-    : state(o.state) {
+    : state(o.state),
+      pinglimiter(o.pinglimiter) {
     switch (state) {
+        /* Not currently used */
     case s_preinit:
+    case s_waithelloslaveb:
+    case s_waithelloslavec:
         abort();
     case s_done:
         new (buf) done(*(done *)o.buf);
@@ -187,14 +211,8 @@ rpcconnauth::rpcconnauth(const rpcconnauth &o)
         return;
     case s_waithelloslavea:
         new (buf) waithelloslavea(*(waithelloslavea *)o.buf);
-        return;
-    case s_waithelloslaveb:
-        new (buf) waithelloslaveb(*(waithelloslaveb *)o.buf);
-        return;
-    case s_waithelloslavec:
-        new (buf) waithelloslavec(*(waithelloslavec *)o.buf);
         return; }
-    if (!COVERAGE) abort(); }
+    abort(); }
 
 rpcconnauth::~rpcconnauth() {
     switch (state) {
@@ -218,16 +236,18 @@ rpcconnauth::~rpcconnauth() {
     case s_waithelloslavec:
         ((waithelloslavec *)buf)->~waithelloslavec();
         return; }
-    if (!COVERAGE) abort(); }
+    abort(); }
 
-rpcconnauth::rpcconnauth()
-    : state(s_preinit) {}
+rpcconnauth::rpcconnauth(const rpcconnconfig &c)
+    : state(s_preinit),
+      pinglimiter(c.pinglimit) {}
 
 rpcconnauth::done::done(const maybe<class slavename> &o)
     : slave(o) {}
 
 void
 rpcconnauth::start(buffer &b) {
+    logmsg(loglevel::info, "start connection in auth state " + fields::mk(state));
     if (state != s_sendhelloslavea) return;
     auto n(nonce::mk());
     wireproto::tx_message(proto::HELLOSLAVE::A::tag)
@@ -241,6 +261,11 @@ rpcconnauth::start(buffer &b) {
 maybe<messageresult>
 rpcconnauth::message(const wireproto::rx_message &rxm,
                      const peername &peer) {
+    if (rxm.tag() == proto::PING::tag) {
+        /* PING is valid in any authentication state, but rate limited
+         * for general sanity. */
+        pinglimiter.wait();
+        return Nothing; }
     switch (state) {
     case s_preinit: abort();
     case s_done: return Nothing;
@@ -340,13 +365,13 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         state = s_done;
         s->~waithelloslaveb();
         new (buf) done(Nothing);
-        return messageresult(
-            new wireproto::tx_message(proto::HELLOSLAVE::C::tag)); }
+        wireproto::tx_message *nextmsg =
+            new wireproto::tx_message(proto::HELLOSLAVE::C::tag);
+        tests::__rpcconn::sendinghelloslavec.trigger(&nextmsg);
+        return messageresult(nextmsg); }
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
         auto wb(s->wb);
-        if (rxm.tag() == proto::PING::tag) {
-            return messageresult::noreply; }
         if (rxm.tag() != proto::HELLOSLAVE::C::tag) {
             logmsg(loglevel::failure,
                    "received message " +
@@ -364,33 +389,40 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         state = s_done;
         new (buf) done(Nothing);
         return messageresult::noreply; } }
-    if (!COVERAGE) abort();
-    return Nothing; }
+    abort(); }
 
+/* Only ever called from the connection thread.  Returns true if it's
+ * time for the connection to exit and false otherwise. */
 bool
 rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
     /* Sending a response has to wait for buffer space, blocking RX
        while it's doing so, because otherwise we don't get the right
-       backpressure.  We don't want to block other TX, though, to
-       avoid silly deadlocks. */
-    size_t msgsz(msg.serialised_size());
-    assert(msgsz <= config.maxoutgoingbytes);
+       backpressure. .*/
     auto txtoken(txlock.lock());
-    if (outgoing.avail() + msgsz > config.maxoutgoingbytes) {
-        subscriber reducedsub;
-        subscription soss(reducedsub, shutdown.pub);
-        while (!shutdown.ready() &&
-               outgoing.avail() + msgsz > config.maxoutgoingbytes) {
-            auto txres(outgoing.send(io, sock, reducedsub));
-            outgoingshrunk.publish();
-            if (shutdown.ready()) break;
-            txlock.unlock(&txtoken);
-            if (txres.isfailure()) {
-                txres.failure().warn(
-                    "clearing space for a reply to " + fields::mk(peer_));
-                return true; }
-            reducedsub.wait(io);
-            txtoken = txlock.lock(); } }
+    if (outgoing.avail() > config.maxoutgoingbytes) {
+        tests::__rpcconn::replystopped.trigger();
+        subscriber sub;
+        subscription ss(sub, shutdown.pub);
+        iosubscription ios(sub, sock.poll(POLLOUT));
+        while (!shutdown.ready()) {
+            /* Note that we hold the lock while we're waiting.  That's
+               fine: the only other people who ever acquire it are
+               sending messages, and they'll have to wait for buffer
+               space the same as us. */
+            auto r = sub.wait(io);
+            if (r == &ios) {
+                auto txres(outgoing.send(io, sock, sub));
+                if (txres.isfailure()) {
+                    txlock.unlock(&txtoken);
+                    txres.failure().warn("clearing space for a reply to " +
+                                         fields::mk(peer_));
+                    return true; }
+                outgoingshrunk.publish();
+                if (outgoing.avail() <= config.maxoutgoingbytes) break;
+                ios.rearm(); }
+            else {
+                assert(r == &ss);
+                /* Just re-test shutdown.ready() at top of loop */ } } }
     if (shutdown.ready()) {
         txlock.unlock(&txtoken);
         return true; }
@@ -407,6 +439,7 @@ rpcconn::run(clientio io) {
     iosubscription outsub(sub, sock.poll(POLLOUT));
     buffer inbuffer;
     bool outarmed;
+    unsigned long history = 0;
 
     /* Either Nothing if we're waiting to send a ping or the sequence
        of the last ping sent if there's one outstanding. */
@@ -415,16 +448,20 @@ rpcconn::run(clientio io) {
        the deadline for receiving it, otherwise. */
     timestamp pingtime(timestamp::now() + config.pinginterval);
 
-    auto authtok(authlock.lock());
-    auth(authtok).start(outgoing);
-    authlock.unlock(&authtok);
+    {   auto authtok(authlock.lock());
+        auth(authtok).start(outgoing);
+        authlock.unlock(&authtok); }
 
+    /* Out subscription starts armed to avoid silly races with someone
+       queueing something before we start. */
     outarmed = true;
-    subscriptionbase *ss;
+
     while (!shutdown.ready()) {
-        ss = sub.wait(io, pingtime);
+        subscriptionbase *ss = sub.wait(io, pingtime);
+        tests::__rpcconn::threadawoken.trigger(this);
       gotss:
         if (ss == NULL) {
+            history = (history << 4) | 1;
             /* Run the ping machine. */
             if (pingsequence.isjust()) {
                 /* Failed to receive a ping in time.  This connection
@@ -444,12 +481,17 @@ rpcconn::run(clientio io) {
                 wireproto::req_message(proto::PING::tag, pingsequence.just())
                     .serialise(outgoing);
                 if (!outarmed) outsub.rearm();
+                outarmed = true;
                 txlock.unlock(&token); }
         } else if (ss == &shutdownsub) {
+            history = (history << 4) | 2;
             continue;
         } else if (ss == &grewsub) {
+            history = (history << 4) | 3;
             if (!outarmed) outsub.rearm();
+            outarmed = true;
         } else if (ss == &insub) {
+            history = (history << 4) | 4;
             auto rxres(inbuffer.receive(io, sock));
             if (rxres.isfailure()) {
                 rxres.warn("receiving from " + fields::mk(peer_));
@@ -472,7 +514,7 @@ rpcconn::run(clientio io) {
                         msg.failure().warn(
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
-                authtok = authlock.lock();
+                auto authtok(authlock.lock());
                 auto authres(auth(authtok).message(msg.success(), peer_));
                 authlock.unlock(&authtok);
                 if (authres != Nothing) {
@@ -504,10 +546,12 @@ rpcconn::run(clientio io) {
                         auto token(rxlock.lock());
                         pendingrx.pushtail(msg.success().steal());
                         pendingrxextended.publish();
-                        rxlock.unlock(&token); }
+                        rxlock.unlock(&token);
+                        tests::__rpcconn::receivedreply.trigger(); }
                     continue;
                 }
 
+                history = (history << 4) | 5;
                 auto res(message(msg.success()));
                 if (!res.isreply() && !res.isfailure()) {
                     /* No response to this message */
@@ -525,6 +569,7 @@ rpcconn::run(clientio io) {
                     outsub.rearm();
                     outarmed = true; } }
         } else {
+            history = (history << 4) | 6;
             assert(ss == &outsub);
             outarmed = false;
             auto token(txlock.lock());
@@ -540,11 +585,14 @@ rpcconn::run(clientio io) {
                     goto done; }
                 if (txres.success() != NULL) {
                     ss = txres.success();
+                    history = (history << 4) | 7;
                     goto gotss; }
             } else {
                 /* Don't rearm: the outgoing queue is empty, so we
                  * don't need to. */
+                history = (history << 4) | 8;
                 txlock.unlock(&token); } } }
+    history = (history << 4) | 9;
   done:
     endconn(io); }
 
@@ -612,13 +660,18 @@ rpcconn::send(
     subscriber &sub,
     maybe<timestamp> deadline) {
     auto txtoken(txlock.lock());
-    if (outgoing.avail() >= config.maxoutgoingbytes) {
+    if (outgoing.avail() > config.maxoutgoingbytes) {
         subscription moretx(sub, outgoingshrunk);
-        while (outgoing.avail() >= config.maxoutgoingbytes) {
+        deathsubscription died(sub, this);
+        while (outgoing.avail() > config.maxoutgoingbytes) {
+            /* Need to drop the TX lock while we're waiting, because
+               otherwise the conn thread can't pick it up to actually
+               do the send. */
             txlock.unlock(&txtoken);
+            if (hasdied() != Nothing) return error::disconnected;
             auto res = sub.wait(io, deadline);
             if (res == NULL) return error::timeout;
-            if (res != &moretx) return res;
+            if (res != &moretx && res != &died) return res;
             txtoken = txlock.lock(); } }
     msg.serialise(outgoing);
     outgoinggrew.publish();
@@ -646,7 +699,9 @@ rpcconn::call(
         if (txres.isfailure()) return txres.failure();
         if (txres.isnotified()) return txres.notified();
         assert(txres.issuccess()); }
+    tests::__rpcconn::calldonetx.trigger();
     subscription morerx(sub, pendingrxextended);
+    deathsubscription died(sub, this);
     while (1) {
         {   auto rxtoken(rxlock.lock());
             for (auto it(pendingrx.start()); !it.finished(); it.next()) {
@@ -661,9 +716,10 @@ rpcconn::call(
                     } else {
                         return res; } } }
             rxlock.unlock(&rxtoken); }
+        if (hasdied() != Nothing) return error::disconnected;
         auto res(sub.wait(io, deadline));
         if (res == NULL) return error::timeout;
-        if (res != &morerx) return res; } }
+        if (res != &morerx && res != &died) return res; } }
 
 orerror<const wireproto::rx_message *>
 rpcconn::call(
@@ -687,18 +743,41 @@ rpcconn::hasdied() const {
                 return deathtoken(t); }); }
 
 rpcconn::~rpcconn() {
-    sock.close(); }
+    sock.close();
+    if (!pendingrx.empty()) {
+        logmsg(loglevel::failure,
+               "shutdown connection to " +
+               fields::mk(peer()) +
+               " with " +
+               fields::mk(pendingrx.length()) +
+               " rx pending"); }
+    pendingrx.flush(); }
 
 void
 rpcconn::drain(clientio io) {
+    /* Need to be able to drain the TX buffer even when the main
+       connection thread is busy. */
     subscriber sub;
-    subscription ss(sub, outgoingshrunk);
+    iosubscription ios(sub, sock.poll(POLLOUT));
+    subscription ss(sub, shutdown.pub);
     auto token(txlock.lock());
-    while (!outgoing.empty()) {
+    auto target(outgoing.offset() + outgoing.avail());
+    while (target > outgoing.offset() && !shutdown.ready()) {
+        /* Don't want to stop anyone else from queueing more TX while
+           we're working -> drop the lock */
         txlock.unlock(&token);
         auto r(sub.wait(io));
-        assert(r == &ss);
-        token = txlock.lock(); }
+        if (r == &ss && shutdown.ready()) return;
+        token = txlock.lock();
+        if (r == &ios && target > outgoing.offset()) {
+            /* Send under the lock, but that's fine because the
+               iosubscription fired and we shouldn't ever block. */
+            auto txres(outgoing.send(io, sock, sub));
+            if (txres.isfailure()) {
+                txres.failure().warn("while draining " + fields::mk(peer_));
+                break; }
+            assert(txres == NULL || txres == &ss);
+            ios.rearm(); } }
     txlock.unlock(&token); }
 
 void
@@ -709,22 +788,50 @@ rpcconn::destroy(clientio io) {
 
 rpcconn::status_t
 rpcconn::status(maybe<mutex_t::token>) const {
-    list<wireproto::rx_message::status_t> prx;
+    status_t res(outgoing.status(),
+                 sock.status(),
+                 sequencer.status(),
+                 peer_,
+                 lastcontact_wall,
+                 config);
     auto tok(rxlock.lock());
     for (auto it(pendingrx.start()); !it.finished(); it.next()) {
-        prx.pushtail((*it)->status()); }
+        res.pendingrx.pushtail((*it)->status()); }
     rxlock.unlock(&tok);
-    return status_t(outgoing.status(),
-                    sock.status(),
-                    sequencer.status(),
-                    prx,
-                    peer_,
-                    lastcontact_wall,
-                    config);
-}
+    return res; }
+
+rpcconnstatus::rpcconnstatus(quickcheck q)
+    : outgoing(q),
+      fd(q),
+      sequencer(q),
+      pendingrx(),
+      peername_(q),
+      lastcontact(q),
+      config(q) {}
+
+bool
+rpcconnstatus::operator == (const rpcconnstatus &o) const {
+    return outgoing == o.outgoing &&
+        fd == o.fd &&
+        sequencer == o.sequencer &&
+        pendingrx.eq(o.pendingrx) &&
+        peername_ == o.peername_ &&
+        lastcontact == o.lastcontact; }
 
 const messageresult
 messageresult::noreply;
 
 const rpcconnconfig
-rpcconnconfig::dflt(16384, timedelta::seconds(1), timedelta::seconds(60));
+rpcconnconfig::dflt(
+    /* Max outgoing bytes */
+    16384,
+    /* Ping interval */
+    timedelta::seconds(1),
+    /* Ping deadline */
+    timedelta::seconds(60),
+    /* Ping limiter */
+    ratelimiterconfig(
+        /* Rate */
+        frequency::hz(2),
+        /* Bucket size */
+        10));

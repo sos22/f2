@@ -10,7 +10,9 @@
 #include "peername.H"
 #include "pubsub.H"
 #include "mutex.H"
+#include "ratelimiter.H"
 #include "registrationsecret.H"
+#include "rpctest.H"
 #include "slavename.H"
 #include "socket.H"
 #include "thread.H"
@@ -27,18 +29,27 @@ class slavename;
 
 class rpcconnconfig {
     /* Maximum size of the per-connection outgoing queue before we
-       start to apply back pressure. */
+       start to apply back pressure.  Note that this is the limit at
+       which we prevent further things being added to the queue; it is
+       not a bound on the queue size.  i.e. if we're below the limit
+       then we allow any sends to add to the queue immediately, even
+       if they would take us far above the limit. */
 public: const unsigned maxoutgoingbytes;
     /* Maximum connection idle time before we send a PING */
 public: const timedelta pinginterval;
     /* Once we send a ping, how long does the peer have to respond
        before we declare them to be dead? */
 public: const timedelta pingdeadline;
+    /* How often is the other side allowed to ping us before we start
+     * slowing things down? */
+public: const ratelimiterconfig pinglimit;
     /* Default configuration */
 public: static const rpcconnconfig dflt;
 public: rpcconnconfig(unsigned _maxoutgoingbytes,
                       timedelta _pinginterval,
-                      timedelta _pingdeadline);
+                      timedelta _pingdeadline,
+                      const ratelimiterconfig &_pinglimiter);
+public: rpcconnconfig(quickcheck);
 WIREPROTO_TYPE(rpcconnconfig);
 };
 
@@ -89,22 +100,30 @@ private: enum states {
     };
 private: enum states state;
 
+    /* Rate limiter for incoming pings, because we handle pings before
+       authenticating and it'd be a bit sad if a ping flood could
+       cause a DOS */
+private: ratelimiter pinglimiter;
+
 public:  maybe<class slavename> slavename() const;
 
-public:  static rpcconnauth mkdone();
+public:  static rpcconnauth mkdone(const rpcconnconfig &);
 public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
-    const registrationsecret &rs);
+    const registrationsecret &rs,
+    const rpcconnconfig &);
 public:  static rpcconnauth mksendhelloslavea(
-    const registrationsecret &rs);
+    const registrationsecret &rs,
+    const rpcconnconfig &);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
-    waitbox<orerror<void> > *);
+    waitbox<orerror<void> > *,
+    const rpcconnconfig &);
 
 public:  ~rpcconnauth();
 private: rpcconnauth(const rpcconnauth &o);
 private: void operator=(const rpcconnauth &o) = delete;
-private: rpcconnauth();
+private: explicit rpcconnauth(const rpcconnconfig &);
 
     /* Interface to rpcconn.  Returning Nothing indicates that the
      * message should go to normal processing.  Returning an error
@@ -155,28 +174,30 @@ private: unsigned char buf[
 };
 
 class rpcconnstatus {
-public: buffer::status_t outgoing;
-public: fd_t::status_t fd;
-public: wireproto::sequencer::status_t sequencer;
-public: list<wireproto::rx_message::status_t> pendingrx;
-public: peername::status_t peername_;
-public: walltime lastcontact;
+    friend class rpcconn;
+public:  buffer::status_t outgoing;
+public:  fd_t::status_t fd;
+public:  wireproto::sequencer::status_t sequencer;
+public:  list<wireproto::rx_message::status_t> pendingrx;
+public:  peername::status_t peername_;
+public:  walltime lastcontact;
 public: rpcconnconfig config;
-public: rpcconnstatus(const buffer::status_t &_outgoing,
+
+private: rpcconnstatus(const buffer::status_t &_outgoing,
                       const fd_t::status_t &_fd,
                       const wireproto::sequencer::status_t &_sequencer,
-                      const list<wireproto::rx_message::status_t> &_pendingrx,
                       const peername::status_t &_peername,
                       const walltime &_lastcontact,
                       const rpcconnconfig &_config)
     : outgoing(_outgoing),
       fd(_fd),
       sequencer(_sequencer),
-      pendingrx(_pendingrx),
       peername_(_peername),
       lastcontact(_lastcontact),
       config(_config) {}
-public: ~rpcconnstatus() { pendingrx.flush(); }
+public:  rpcconnstatus(quickcheck);
+public:  ~rpcconnstatus() { pendingrx.flush(); }
+public:  bool operator==(const rpcconnstatus &o) const;
 WIREPROTO_TYPE(rpcconnstatus);
 };
 namespace fields {
@@ -202,6 +223,7 @@ public:  wireproto::tx_message *reply() const {
 class rpcconn : protected thread {
     friend class thread;
     friend class pausedthread<rpcconn>;
+    friend void tests::_rpc();
     /* Each rpcconn has an associated thread which does IO for it. */
 private: waitbox<bool> shutdown; /* To shut down the thread */
 private: void run(clientio);
@@ -264,6 +286,7 @@ public: template<typename t, typename...args> static orerror<t *> connectmaster(
     clientio,
     const beaconresult &,
     const slavename &,
+    const rpcconnconfig &,
     args...);
 
     /* Connect to a remote slave server, using a given registration
@@ -272,6 +295,7 @@ public: template<typename t, typename...args> static orerror<t *> connectslave(
     clientio,
     const peername &,
     const registrationsecret &,
+    const rpcconnconfig &,
     args...);
 
     /* Raw connect, without sending a HELLO. */
@@ -455,5 +479,16 @@ public: typedef rpcconnstatus status_t;
 public: status_t status(
     maybe<mutex_t::token> coordinatorlock) const;
 };
+
+namespace tests {
+template <typename> class event;
+namespace __rpcconn {
+extern event<void> calldonetx;
+extern event<void> receivedreply;
+extern event<wireproto::tx_message **> sendinghelloslavec;
+extern event<rpcconn *> threadawoken;
+extern event<void> replystopped;
+}
+}
 
 #endif

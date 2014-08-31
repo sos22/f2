@@ -65,7 +65,7 @@ public: fd_tstatus(
 #undef doparam1
         {}
 public: fd_tstatus(const quickcheck &);
-public: bool operator==(const fd_tstatus &o);
+public: bool operator==(const fd_tstatus &o) const;
 WIREPROTO_TYPE(fd_tstatus);
 };
 namespace fields {

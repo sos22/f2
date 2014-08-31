@@ -19,6 +19,7 @@ class list {
 public:
     list(const list &o);
     list(list &&o);
+    list steal();
 
     class iter {
         friend class list;
@@ -102,6 +103,10 @@ public:
        function over this list. */
     template <typename other_t> list<other_t> map(
         std::function<other_t (const t&)> what) const;
+
+    /* Equality comparison.  Not an operator because it can be quite
+       expensive. */
+    bool eq(const list &o) const;
 };
 
 #endif /* !LIST_H__ */

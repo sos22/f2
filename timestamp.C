@@ -5,6 +5,7 @@
 
 #include "fields.H"
 #include "mutex.H"
+#include "quickcheck.H"
 #include "timedelta.H"
 #include "util.H"
 
@@ -15,6 +16,9 @@ timestamp::now()
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return timestamp(ts.tv_sec * 1000000000ul + ts.tv_nsec);
 }
+
+timestamp::timestamp(quickcheck q)
+    : v(q) {}
 
 timestamp
 timestamp::operator+(timedelta td) const

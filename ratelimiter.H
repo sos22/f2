@@ -56,7 +56,6 @@ public:
 
 class ratelimiter {
     ratelimiter() = delete;
-    ratelimiter(const ratelimiter &) = delete;
     void operator = (const ratelimiter &) = delete;
     /* Lots of mutables because refilling the bucket changes our
        internal state without changing the visible state. */
@@ -67,6 +66,7 @@ class ratelimiter {
     unsigned dropped;
     void refill(mutex_t::token) const;
 public:
+    ratelimiter(const ratelimiter &);
     ratelimiter(const ratelimiterconfig &);
     /* If there are tokens available, consume one and return true.
        Otherwise, return false. */

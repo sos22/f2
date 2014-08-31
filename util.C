@@ -86,5 +86,6 @@ storerelease(t *where, t what) {
     default:
         abort(); } }
 
+template int loadacquire(const int &);
 template bool loadacquire(const bool &);
 template void storerelease(bool *, bool);

@@ -3,7 +3,8 @@
 . shutil
 
 cc beacontest.C
+cc rpctest.C
 cc testdriver.C
-ld test beacontest.o testdriver.o lib.a
+ld test beacontest.o rpctest.o testdriver.o lib.a
 
 target test

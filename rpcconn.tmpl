@@ -31,14 +31,16 @@ template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,
                        const beaconresult &br,
                        const class slavename &slavename,
+                       const rpcconnconfig &config,
                        args ... parameters) {
     /* No need to authenticate: we assume that the caller has already
        done enough to check that the peername is correct (that is the
        point of beacon protocol, after all) and the crypto isn't
        strong enough to do more than that anyway. */
     auto res(connect<conn_t>(io,
-                             rpcconnauth::mkdone(),
+                             rpcconnauth::mkdone(config),
                              br.mastername,
+                             config,
                              parameters...));
     if (res.isfailure()) return res.failure();
     auto conn(res.success());
@@ -67,11 +69,13 @@ template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connectslave(clientio io,
                       const peername &peer,
                       const registrationsecret &rs,
+                      const rpcconnconfig &config,
                       args ... parameters) {
     waitbox<orerror<void> > wb;
     auto res(connect<conn_t>(io,
-                             rpcconnauth::mkwaithelloslavea(rs, &wb),
+                             rpcconnauth::mkwaithelloslavea(rs, &wb, config),
                              peer,
+                             config,
                              parameters...));
     if (res.isfailure()) return res.failure();
     auto r(wb.get(io));

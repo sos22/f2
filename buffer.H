@@ -25,6 +25,8 @@ public: bufferstatus(
     unsigned long _cons)
     : prod(_prod),
       cons(_cons) {}
+public: bufferstatus(quickcheck);
+public: bool operator==(const bufferstatus &) const;
 WIREPROTO_TYPE(bufferstatus);
 };
 

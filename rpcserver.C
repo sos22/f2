@@ -2,8 +2,11 @@
 
 #include "fields.H"
 #include "rpcconn.H"
+#include "test.H"
+#include "timedelta.H"
 
 #include "list.tmpl"
+#include "test.tmpl"
 #include "wireproto.tmpl"
 
 void
@@ -21,15 +24,16 @@ rpcserver::run(clientio io) {
                 (*it)->conn->teardown(); }
         } else if (s == &ios) {
             /* Accept a new incoming connection */
+            tests::rpcserver::accepting.trigger(sock);
             auto newsock(sock.accept());
             ios.rearm();
             if (newsock.isfailure()) {
                 newsock.failure().warn("accepting incoming connection");
-                continue; }
-            if (shutdown.ready()) {
-                newsock.success().close();
-                /* Don't rearm, so we don't try and accept any more
-                 * connections. */
+                /* Back off a little so that networking problems don't
+                   completely screw us.  We're probably still dead,
+                   but at least this way we die in a way which doesn't
+                   spam the logs with crap. */
+                (timestamp::now() + timedelta::seconds(1)).sleep();
                 continue; }
             auto conn(accept(newsock.success()));
             if (conn.isfailure()) {
@@ -65,13 +69,21 @@ rpcserver::status_t
 rpcserver::status() const {
     return status_t(sock.status()); }
 
+rpcserverstatus::rpcserverstatus(quickcheck q)
+    : fd(q) {}
+
+bool
+rpcserverstatus::operator==(const rpcserverstatus &o) const {
+    return o.fd == fd; }
+
 wireproto_simple_wrapper_type(rpcserverstatus,
                               listenfd::status_t,
                               fd)
 
 void
 rpcserver::destroy(clientio io) {
-    shutdown.set(true);
+    /* Test harness can set this early, so don't double-set it here. */
+    if (!shutdown.ready()) shutdown.set(true);
     auto s(sock);
     join(io);
     s.close(); }
@@ -79,3 +91,5 @@ rpcserver::destroy(clientio io) {
 const fields::field &
 fields::mk(const rpcserverstatus &s) {
     return "<rpcserverstatus: " + mk(s.fd) + ">"; }
+
+tests::event<listenfd> tests::rpcserver::accepting;

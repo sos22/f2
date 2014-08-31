@@ -109,7 +109,7 @@ orerror<rpcconn *>
 coordinator::accept(socket_t s) {
     return rpcconn::fromsocket<coordinatorconn>(
         s,
-        rpcconnauth::mkwaithello(ms, rs),
+        rpcconnauth::mkwaithello(ms, rs, rpcconnconfig::dflt),
         rpcconnconfig::dflt,
         this); }
 

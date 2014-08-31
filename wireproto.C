@@ -82,7 +82,7 @@ tx_message::serialise(buffer &buffer, sequencenr snr) const
                "drop oversized message size " + fields::mk(sz) +
                " tag " + fields::mk(t));
         return; }
-    if (sz >= 0x8000) {
+    if (sz >= 0x4000) {
         logmsg(loglevel::info,
                "sending large message size " + fields::mk(sz) +
                " tag " + fields::mk(t)); }
@@ -409,7 +409,8 @@ rx_message::fetch(buffer &buffer) {
     if (buffer.avail() + sizeof(sz) < sz) {
         buffer.pushback(&sz, sizeof(sz));
         return error::underflowed; }
-    if (sz >= MAXMSGSIZE) return error::invalidmessage;
+    if (sz >= MAXMSGSIZE || sz < sizeof(wireheader)) {
+        return error::invalidmessage; }
     wireheader *msg = (wireheader *)malloc(sz);
     msg->sz = sz;
     buffer.fetch((void *)((unsigned long)msg + sizeof(sz)),

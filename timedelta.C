@@ -34,6 +34,12 @@ timedelta::operator *(frequency f) const
     return (double)v * f.hz_ / 1e9;
 }
 
+timedelta
+timedelta::operator *(double d) const
+{
+    return timedelta((long)((double)v * d));
+}
+
 double
 timedelta::operator /(timedelta o) const {
     return (double)v / (double)o.v; }

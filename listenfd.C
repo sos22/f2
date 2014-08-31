@@ -12,6 +12,7 @@
 #include "socket.H"
 #include "wireproto.H"
 
+#include "maybe.tmpl"
 #include "wireproto.tmpl"
 
 orerror<socket_t>
@@ -113,6 +114,23 @@ listenfdstatus::listenfdstatus(const maybe<peername> &_listenon,
       protocol(_protocol),
       flags(_flags),
       revents(_revents) {}
+
+listenfdstatus::listenfdstatus(quickcheck q)
+    : listenon(q),
+      fd(q),
+      domain(q),
+      protocol(q),
+      flags(q),
+      revents(q) {}
+
+bool
+listenfdstatus::operator==(const listenfdstatus &o) const {
+    return listenon == o.listenon &&
+        fd == o.fd &&
+        domain == o.domain &&
+        protocol == o.protocol &&
+        flags == o.flags &&
+        revents == o.revents; }
 
 void
 listenfd::status_t::addparam(
