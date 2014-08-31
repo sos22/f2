@@ -231,8 +231,10 @@ tests::fd() {
             ::close(p[1]);
             fd_t fd(p[0]);
             assert(fd.poll(POLLIN).revents == 0);
-            assert(fd.poll(POLLIN).events == POLLIN);
-            assert(fd.poll(POLLOUT).events == POLLOUT);
+            assert((fd.poll(POLLIN).events & POLLIN) != 0);
+            assert((fd.poll(POLLIN).events & POLLOUT) == 0);
+            assert((fd.poll(POLLOUT).events & POLLIN) == 0);
+            assert((fd.poll(POLLOUT).events & POLLOUT) != 0);
             assert(fd.poll(POLLIN).fd == p[0]);
             assert(fd.polled(fd.poll(POLLIN)));
             fd.close();
