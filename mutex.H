@@ -31,6 +31,9 @@ public:
            particular mutex.  Doesn't actually do anything in this
            implementation. */
         void formux(mutex_t &) {}
+        ~token() {};
+        token(const token &) {}
+        void operator=(const token &) {}
     };
     mutex_t();
     ~mutex_t();
