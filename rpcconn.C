@@ -419,7 +419,8 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
                     return true; }
                 outgoingshrunk.publish();
                 if (outgoing.avail() <= config.maxoutgoingbytes) break;
-                ios.rearm(); }
+                ios.rearm();
+            }
             else {
                 assert(r == &ss);
                 /* Just re-test shutdown.ready() at top of loop */ } } }
