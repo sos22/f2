@@ -535,7 +535,7 @@ tests::_peername() {
             assert(p == p.canonicalise());
             auto l(socket_t::listen(p).fatal("listening on " + fields::mk(p)));
             spark<void> acc([l] {
-                    l.accept().fatal("accepting").close(); });
+                    l.accept(clientio::CLIENTIO).fatal("accepting").close(); });
             auto c(tcpsocket::connect(clientio::CLIENTIO, p)
                    .fatal("connecting to " + fields::mk(p)));
             acc.get();

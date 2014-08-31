@@ -25,7 +25,8 @@ rpcserver::run(clientio io) {
         } else if (s == &ios) {
             /* Accept a new incoming connection */
             tests::rpcserver::accepting.trigger(sock);
-            auto newsock(sock.accept());
+            /* Should be quick because ios was notified. */
+            auto newsock(sock.accept(io));
             ios.rearm();
             if (newsock.isfailure()) {
                 newsock.failure().warn("accepting incoming connection");

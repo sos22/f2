@@ -16,7 +16,7 @@
 #include "wireproto.tmpl"
 
 orerror<socket_t>
-listenfd::accept() const
+listenfd::accept(clientio) const
 {
     union {
         struct sockaddr s;
