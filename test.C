@@ -94,7 +94,8 @@ testcaseCS(const char *c_name,
                   unlink("testcontroller");
                   initpubsub();
                   auto cs(controlserver::build(
-                              peername::local(filename("testcontroller")),
+                              peername::local(filename("testcontroller"))
+                              .fatal("peername testcontroller"),
                               s));
                   assert(cs.issuccess());
                   doit(cs.success());

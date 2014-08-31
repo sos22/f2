@@ -36,7 +36,8 @@ main(int argc, const char *const argv[])
                clientio::CLIENTIO,
                /* Unix domain connections need no authentication */
                rpcconnauth::mkdone(),
-               peername::local(filename(sock)),
+               peername::local(filename(sock))
+               .fatal("turning " + fields::mk(sock) + " into a peername"),
                rpcconnconfig::dflt));
     int r;
 

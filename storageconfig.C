@@ -57,7 +57,8 @@ parsers::_storageconfig() {
                                            maybe<peername> > &x) {
             return storageconfig(
                 x.first().first().first().first().dflt(
-                    peername::local(filename("storageslave"))),
+                    peername::local(filename("storageslave"))
+                    .fatal("peername storageslave")),
                 x.first().first().first().second().dflt(
                     filename("storagepool")),
                 x.first().first().second(),

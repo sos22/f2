@@ -121,10 +121,10 @@ function testmodule()
     reports=$(echo $@ | sed "s/\(\$\| \)/.gcov\1/g;s,\(^\| \),\1${newprefix}/,g" )
     cat <<EOF
 ${targ}-cov-report: test-c
-	rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.c ../*.gcno ../*.H ../*.tmpl . ; gcov *.gcda) > /dev/null && cat ${reports} > \$@
+	rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.c ../*.gcno ../*.H ../*.tmpl . ; gcov *.gcda) > /dev/null && cat ${reports} | sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/s/#####/@@@@@/'> \$@
 .PHONY: ${targ}-cov
 ${targ}-cov: ${targ}-cov-report
-	@if sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/d' ${targ}-cov-report | grep -q '#####' ; then echo "${targ} FAILED"; false; else echo "${targ} passed"; true; fi
+	@if grep -q '#####' ${targ}-cov-report; then echo "${targ} FAILED"; false; else echo "${targ} passed"; true; fi
 coverage:: ${targ}-cov
 clean::
 	rm -rf ${targ}-cov.d

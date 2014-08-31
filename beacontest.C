@@ -21,7 +21,8 @@
 
 void
 tests::beacon() {
-    auto mastername(peername::local(filename("testname")));
+    auto mastername(peername::local(filename("testname"))
+                    .fatal("peername testname"));
     auto port(peername::port((unsigned short)(random() % 32768 + 32768)));
     auto mkbeacon([mastername, port] (
                       const mastersecret &ms,
@@ -267,7 +268,8 @@ tests::beacon() {
                     peername mastername2(peername::local(
                                              filename(iter == 2
                                                       ? "GOOD1"
-                                                      : "BAD")));
+                                                      : "BAD"))
+                                         .fatal("peername"));
                     sendfdmessage(
                         args.first(),
                         wireproto::tx_message(proto::HAIL::tag)
@@ -278,7 +280,8 @@ tests::beacon() {
                                   peername::local(
                                       filename(iter == 2
                                                ? "GOOD2"
-                                               : "BAD")))
+                                               : "BAD"))
+                                  .fatal("peername"))
                         .addparam(proto::HAIL::resp::nonce,
                                   iter == 2
                                   ? mnonce
@@ -304,9 +307,11 @@ tests::beacon() {
             assert(iter == 3);
             assert(r.success().nonce == mnonce);
             assert(r.success().connectingname ==
-                   peername::local(filename("GOOD2")));
+                   peername::local(filename("GOOD2"))
+                   .fatal("peername"));
             assert(r.success().mastername ==
-                   peername::local(filename("GOOD1")));
+                   peername::local(filename("GOOD1"))
+                   .fatal("peername"));
             assert(r.success().secret == rs); });
 
     testcaseCS(

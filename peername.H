@@ -51,7 +51,7 @@ public:
     static peername loopback(port);
 
     /* Get a peername for a local UNIX domain socket. */
-    static peername local(const filename &path);
+    static orerror<peername> local(const filename &path);
 
     /* If this happens to be an all() address, pick one of the
        interfaces and return an address with the same port on that

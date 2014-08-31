@@ -283,13 +283,13 @@ peername::loopback(port p)
     return peername((const struct sockaddr *)&sin, sizeof(sin));
 }
 
-peername
+orerror<peername>
 peername::local(const filename &path) {
-    const auto &a(path.str());
     struct sockaddr_un sun;
+    const auto &a(path.str());
+    if (a.len() >= sizeof(sun.sun_path)) return error::overflowed;
     memset(&sun, 0, sizeof(sun));
     sun.sun_family = AF_UNIX;
-    assert(a.len() < sizeof(sun.sun_path));
     strcpy(sun.sun_path, a.c_str());
     return peername((const struct sockaddr *)&sun, sizeof(sun)); }
 
@@ -521,8 +521,9 @@ tests::_peername() {
             assert(sin->sin_port == 0);
             assert(sin->sin_addr.s_addr == htonl(INADDR_LOOPBACK)); });
     testcaseV("peername", "evict", [] {
-            auto p(peername::local(filename(quickcheck())));
-            p.evict();
+            auto pp(peername::local(filename(quickcheck())));
+            while (pp.isfailure()) pp = peername::local(filename(quickcheck()));
+            auto p(pp.success());
             auto ll(socket_t::listen(p).fatal("listening on "+fields::mk(p)));
             auto ll2(socket_t::listen(p));
             assert(ll2 == error::from_errno(EADDRINUSE));
@@ -550,7 +551,8 @@ tests::_peername() {
                 assert(p1.samehost(p1)); }});
     testcaseV("peername", "=", [] {
             peername p(peername::all(peername::port::any));
-            peername q(peername::local(filename("foo")));
+            peername q(peername::local(filename("foo"))
+                       .fatal("local peername foo"));
             assert(!(p == q));
             p = q;
             assert(p == q); });
