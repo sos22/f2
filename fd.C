@@ -110,7 +110,7 @@ orerror<fd_t::piperes>
 fd_t::pipe()
 {
     int fds[2];
-    if (::pipe(fds) < 0) return error::from_errno();
+    if (::pipe2(fds, O_CLOEXEC) < 0) return error::from_errno();
     piperes r;
     r.read = fd_t(fds[0]);
     r.write = fd_t(fds[1]);
