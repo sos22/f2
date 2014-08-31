@@ -27,6 +27,7 @@ public:
     timedelta operator-(timestamp) const;
     timestamp operator+(timedelta) const;
     bool operator<(timestamp o) const { return v < o.v; }
+    bool operator>(timestamp o) const { return v > o.v; }
     bool operator>=(timestamp o) const { return v >= o.v; }
     bool operator==(timestamp o) const { return v == o.v; }
     timespec as_timespec() const;
