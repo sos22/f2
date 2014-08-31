@@ -39,6 +39,11 @@ private:   waitbox<bool> shutdown;
     /* What socket are we listening on? */
 private:   listenfd sock;
 
+    /* publish whenever the main server thread has to run its
+     * housekeeping callback.  Do not publish this unless the
+     * housekeeping callback is defined. */
+protected: publisher keephouse;
+
 private:   rpcserver(const rpcserver &) = delete;
 private:   void operator=(const rpcserver &) = delete;
 
@@ -67,9 +72,18 @@ private:   virtual orerror<rpcconn *> accept(socket_t) = 0;
      * it was a wildcard. */
 public:    peername localname() const { return sock.localname(); }
 
+    /* Callback from the RPC server thread to derived classes.  This
+     * will be invoked shortly after keephouse is published.  Default
+     * implementation will abort with an error, so derived classes
+     * must ensure that this is overridden if keephouse is ever
+     * published. */
+    /* Note that the RPC server cannot accept new connections while
+     * this is running, so it should probably be fairly quick. */
+private:   virtual void housekeeping(clientio);
+
     /* Get the current status of the server, for debugging
      * purposes. */
-    typedef rpcserverstatus status_t;
+public:    typedef rpcserverstatus status_t;
 public:    status_t status() const;
 
     /* Stop accepting incoming connections, kill any outstanding ones,

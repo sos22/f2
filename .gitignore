@@ -13,7 +13,7 @@
 buildconfig.C
 cli
 config
-master
+/master
 spawnservice
 storage
 storageclient

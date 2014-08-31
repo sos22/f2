@@ -16,3 +16,7 @@ target tests/pingclient/client
 cc tests/quitclient/client.C
 ld tests/quitclient/client tests/quitclient/client.o lib.a
 target tests/quitclient/client
+
+cc tests/master/testmaster.C
+ld tests/master/testmaster tests/master/testmaster.o lib.a
+target tests/master/testmaster

@@ -22,17 +22,21 @@ class storageslaveconn : public rpcconn {
     friend class thread;
     friend class pausedthread<storageslaveconn>;
 private: storageslave *const owner;
+private: bool const ismaster;
 private: storageslaveconn(const rpcconn::rpcconntoken &tok,
-                          storageslave *_owner);
+                          storageslave *_owner,
+                          bool _ismaster);
 private: messageresult message(const wireproto::rx_message &);
 private: void endconn(clientio);
 };
 
 storageslaveconn::storageslaveconn(
     const rpcconn::rpcconntoken &tok,
-    storageslave *_owner)
+    storageslave *_owner,
+    bool _ismaster)
     : rpcconn(tok),
-      owner(_owner) {
+      owner(_owner),
+      ismaster(_ismaster) {
     auto token(owner->mux.lock());
     owner->clients.pushtail(this);
     owner->mux.unlock(&token); }
@@ -97,6 +101,9 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
 
 void
 storageslaveconn::endconn(clientio) {
+    if (ismaster) {
+        logmsg(loglevel::failure, fields::mk("lost connection to master"));
+        owner->keephouse.publish(); }
     auto token(owner->mux.lock());
     for (auto it(owner->clients.start()); true; it.next()) {
         if (*it == this) {
@@ -129,11 +136,12 @@ storageslave::build(clientio io,
                 br.success(),
                 config.name,
                 config.connconfig,
-                server.success().unwrap()));
+                server.success().unwrap(),
+                true));
     if (mc.isfailure()) {
         server.success().destroy();
         return mc.failure(); }
-    server.success().unwrap()->masterconn = mc.success();
+    server.success().unwrap()->master.conn = mc.success();
     return server.success().go(); }
 
 storageslave::storageslave(constoken token,
@@ -144,7 +152,7 @@ storageslave::storageslave(constoken token,
     : rpcserver(token, fd),
       control_(this, cs),
       rs(_rs),
-      masterconn(NULL),
+      master(),
       clients(),
       config(_config),
       mux() {
@@ -156,7 +164,77 @@ storageslave::accept(socket_t s) {
         s,
         rpcconnauth::mksendhelloslavea(rs, config.connconfig),
         config.connconfig,
-        this); }
+        this,
+        false); }
+
+/* Invoked from the RPC server thread when we lose the connection to
+ * the master.  The server won't accept any additional connections
+ * while this is running, despite the @io token, which isn't ideal but
+ * is probably good enough for now. */
+void
+storageslave::housekeeping(clientio io) {
+    logmsg(loglevel::error,
+           fields::mk("This might go a very long time without checking for shutdown"));
+
+    /* Start a teardown sequence.  Probably not actually necessary,
+       because we're already pretty confident that it's dead, but
+       might as well do it anyway. */
+    master.conn->teardown();
+    /* Prevent any more calls starting against it. */
+    auto token(master.lock.lock());
+    auto oldconn(master.conn);
+    master.conn = NULL;
+    bool d = master.dying;
+    master.lock.unlock(&token);
+
+    if (d) {
+        /* slave is dying -> don't try to reconnect. */
+        return; }
+
+  retry:
+    /* Re-run the beacon protocol, in case the master's moved. */
+    auto br(beaconclient(io, config.beacon));
+    while (br.isfailure()) {
+        br.failure().warn("re-locating master following disconnection");
+        br = beaconclient(io, config.beacon); }
+
+    /* Wait for references to the old connection to drop away. */
+    token = master.lock.lock();
+    if (master.refcount != 0) {
+        subscriber sub;
+        subscription ss(sub, master.idle);
+        while (master.refcount != 0) {
+            master.lock.unlock(&token);
+            sub.wait(io);
+            token = master.lock.lock(); } }
+    master.lock.unlock(&token);
+
+    /* Finish tearing down the old connection. */
+    oldconn->join(io);
+
+    /* Reconnect */
+    auto mc(rpcconn::connectmaster<storageslaveconn>(
+                io,
+                br.success(),
+                config.name,
+                config.connconfig,
+                this,
+                true));
+    if (mc.isfailure()) {
+        mc.failure().warn("reconnecting to master at " +
+                          fields::mk(br.success().mastername) +
+                          "; retrying");
+        goto retry; }
+
+    token = master.lock.lock();
+    if (master.dying) {
+        /* The slave is dying -> shouldn't re-establish master
+           connection.  Tear it all back down. */
+        master.lock.unlock(&token);
+        mc.success()->destroy(io); }
+    else {
+        master.conn = mc.success();
+        master.lock.unlock(&token); } }
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */
@@ -402,34 +480,54 @@ storageslave::removestream(const jobname &jn,
 void
 storageslave::destroy(clientio io) {
     control_.stop();
-    /* Stop the master connection now, but don't release it until
-       we've finished tearing down our clients.  Not clear whether the
-       two-step is actually necessary, but it's a lot easier to think
-       about than the synchronisation around a one-step. */
-    masterconn->teardown();
-    subscriber sub;
-    rpcconn::deathsubscription ss(sub, masterconn);
-    while (!masterconn->hasdied()) sub.wait(io);
+    /* Shut down the master connection. */
+    auto token(master.lock.lock());
+    /* Stop anyone reconnecting. */
+    master.dying = true;
+
+    /* Stop anyone using the existing connection */
+    auto mc(master.conn);
+    master.conn = NULL;
+
+    if (mc) {
+        /* Start shutdown */
+        mc->teardown();
+        /* Wait for existing users of the connection to drop away. */
+        if (master.refcount != 0) {
+            subscriber sub;
+            subscription ss(sub, master.idle);
+            while (master.refcount != 0) {
+                master.lock.unlock(&token);
+                sub.wait(io);
+                token = master.lock.lock(); } } }
+    master.lock.unlock(&token);
+
+    /* No more users of masterconn -> release it. */
+    if (mc) mc->destroy(io);
+
+    /* Now shut down the server */
     rpcserver::destroy(io); }
 
 storageslave::~storageslave() {
-    if (masterconn != NULL) {
-        auto dt(masterconn->hasdied());
-        /* Wait for master death before calling rpcconn::destroy(), so
-           it should still be dead when we get here. */
-        assert(dt != Nothing);
-        masterconn->join(dt.just()); } }
+    assert(master.conn == NULL); }
 
 storageslave::status_t
 storageslave::status() const {
-    assert(masterconn);
     auto s(rpcserver::status());
     auto token(mux.lock());
     list<rpcconn::status_t> cl(clients.map<rpcconn::status_t>(
                                    [&token] (storageslaveconn *const &conn) {
                                        return conn->status(); }));
-    status_t res(s, masterconn->status(), cl);
     mux.unlock(&token);
+
+    auto token2(master.lock.lock());
+    status_t res(s,
+                 master.conn
+                 ? maybe<rpcconn::status_t>(master.conn->status())
+                 : Nothing,
+                 cl);
+    master.lock.unlock(&token2);
+
     cl.flush();
     return res; }
 
@@ -440,19 +538,22 @@ storageslave::status_t::addparam(
     tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
                     wireproto::tx_compoundparameter()
                     .addparam(proto::storageslavestatus::server, server)
-                    .addparam(proto::storageslavestatus::masterconn, masterconn)
                     .addparam(
                         proto::storageslavestatus::clientconns,
-                        clientconns)); }
+                        clientconns));
+    if (masterconn != Nothing) {
+        tx_msg.addparam(proto::storageslavestatus::masterconn,
+                        masterconn.just()); } }
+
 maybe<storageslave::status_t>
 storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
     auto s(msg.getparam(proto::storageslavestatus::server));
     auto masterconn(msg.getparam(proto::storageslavestatus::masterconn));
-    if (!s || !masterconn) return Nothing;
+    if (!s) return Nothing;
     list<rpcconn::status_t> clientconns;
     auto r(msg.fetch(proto::storageslavestatus::clientconns, clientconns));
     if (r.isfailure()) return Nothing;
-    storageslave::status_t res(s.just(), masterconn.just(), clientconns);
+    storageslave::status_t res(s.just(), masterconn, clientconns);
     clientconns.flush();
     return res; }
 const fields::field &

@@ -17,10 +17,10 @@ class jobname;
 
 class storageslavestatus {
 public:  rpcserver::status_t server;
-public:  rpcconn::status_t masterconn;
+public:  maybe<rpcconn::status_t> masterconn;
 public:  list<rpcconn::status_t> clientconns;
 public:  storageslavestatus(const rpcserver::status_t &_server,
-                            const rpcconn::status_t &_masterconn,
+                            const maybe<rpcconn::status_t> &_masterconn,
                             const list<rpcconn::status_t> &_clientconns)
     : server(_server),
       masterconn(_masterconn),
@@ -51,7 +51,18 @@ private: class controliface : public controlinterface {
     };
 private: controliface control_;
 private: registrationsecret const rs;
-private: storageslaveconn *masterconn;
+private: struct _masterconn {
+    mutable mutex_t lock;
+    storageslaveconn *conn;
+    int refcount;
+    bool dying;
+    publisher idle;
+    _masterconn()
+        : lock(),
+          conn(NULL),
+          refcount(0),
+          dying(false),
+          idle() {} } master;
 private: list<storageslaveconn *> clients;
 private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
@@ -66,6 +77,7 @@ private: storageslave(constoken,
                       controlserver *cs,
                       const storageconfig &config);
 private: orerror<rpcconn *> accept(socket_t);
+private: void housekeeping(clientio);
 public:  orerror<void> createempty(
     const jobname &t,
     const streamname &sn) const;
