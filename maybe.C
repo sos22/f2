@@ -11,9 +11,7 @@ void
 tests::_maybe()
 {
     class nodestruct {
-#ifndef COVERAGESKIP
     public: ~nodestruct() { abort(); }
-#endif
     };
     class countcopies {
     public: int counter;

@@ -195,9 +195,7 @@ peername::addparam(wireproto::parameter<peername> tmpl,
                     ((const struct sockaddr_in6 *)sa)->sin6_port);
         break;
     default:
-#ifndef COVERAGESKIP
         abort();
-#endif
     }
     tx_msg.addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl), tx);
@@ -311,9 +309,7 @@ peername::samehost(const peername &o) const {
                        in6_them->sin6_addr.s6_addr,
                        sizeof(in6_us->sin6_addr.s6_addr)); }
     default:
-#ifndef COVERAGESKIP
         abort();
-#endif
     } }
 
 const struct sockaddr *
