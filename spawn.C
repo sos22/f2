@@ -508,11 +508,13 @@ tests::_spawn() {
             p->unpause(tok);
             assert(p->join(p->hasdied().just()).right() == signalnr::abort); });
     testcaseV("spawn", "kill", [] {
+            initpubsub();
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg("3600"))
                    .fatal("spawning sleep"));
             auto start(timestamp::now());
             p->kill();
             auto end(timestamp::now());
-            assert(end - start < timedelta::milliseconds(50)); });
+            assert(end - start < timedelta::milliseconds(50));
+            deinitpubsub(clientio::CLIENTIO); });
 }
