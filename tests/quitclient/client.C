@@ -20,7 +20,8 @@ main(int argc, char *argv[]) {
     auto conn(rpcconn::connect<rpcconn>(
                   clientio::CLIENTIO,
                   rpcconnauth::mkdone(),
-                  peer)
+                  peer,
+                  rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
     conn->send(
         clientio::CLIENTIO,

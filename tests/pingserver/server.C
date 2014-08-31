@@ -13,12 +13,9 @@ class pingableconn : public rpcconn {
     friend class thread;
     friend class pausedthread<pingableconn>;
 public:  waitbox<shutdowncode> &shutdown;
-private: pingableconn(constoken tok,
-                      socket_t _sock,
-                      const rpcconnauth &__auth,
-                      const peername &_peer,
+private: pingableconn(rpcconntoken token,
                       waitbox<shutdowncode> &_shutdown)
-    : rpcconn(tok, _sock, __auth, _peer),
+    : rpcconn(token),
       shutdown(_shutdown) {}
 public:  messageresult message(const wireproto::rx_message &);
 public:  ~pingableconn() {}
@@ -57,6 +54,7 @@ pingableserver::accept(socket_t s) {
     return rpcconn::fromsocket<pingableconn>(
         s,
         rpcconnauth::mkdone(),
+        rpcconnconfig::dflt,
         shutdown); }
 
 int

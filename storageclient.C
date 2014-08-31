@@ -36,7 +36,8 @@ main(int argc, char *argv[]) {
     auto conn(rpcconn::connectslave<rpcconn>(
                   clientio::CLIENTIO,
                   peer,
-                  rs)
+                  rs,
+                  rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
     if (!strcmp(argv[3], "STALL")) {
         if (argc != 4) errx(1, "STALL takes no additional arguments");
