@@ -13,15 +13,6 @@
 
 wireproto_wrapper_type(coordinatorstatus);
 
-class coordinatorconnstatus {
-    WIREPROTO_TYPE(coordinatorconnstatus);
-public:  rpcconn::status_t connstatus;
-public:  maybe<slavename> name;
-public:  coordinatorconnstatus(const rpcconn::status_t &b,
-                               const maybe<slavename> &s)
-    : connstatus(b),
-      name(s) {}
-};
 wireproto_wrapper_type(coordinatorconnstatus);
 void
 coordinatorconnstatus::addparam(

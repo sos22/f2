@@ -19,6 +19,16 @@ class registrationsecret;
 class coordinatorconn;
 class coordinatorconnstatus;
 
+class coordinatorconnstatus {
+    WIREPROTO_TYPE(coordinatorconnstatus);
+public:  rpcconn::status_t connstatus;
+public:  maybe<slavename> name;
+public:  coordinatorconnstatus(const rpcconn::status_t &b,
+                               const maybe<slavename> &s)
+    : connstatus(b),
+      name(s) {}
+};
+
 class coordinatorstatus {
 public: list<coordinatorconnstatus> conns;
 public: coordinatorstatus(
