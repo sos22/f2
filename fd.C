@@ -28,7 +28,10 @@ fd_t::poll(unsigned short mode) const
 {
     struct pollfd pfd;
     pfd.fd = fd;
-    pfd.events = mode;
+    /* Always poll for NVAL, ERR, and HUP, regardless of what the
+       caller might want, because that makes the iosubscription thread
+       quite a bit easier. */
+    pfd.events = mode | POLLNVAL | POLLERR | POLLHUP;
     pfd.revents = 0;
     return pfd;
 }

@@ -6,6 +6,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "pair.H"
+#include "socket.H"
 #include "spark.H"
 #include "test.H"
 #include "thread.H"
@@ -73,7 +74,8 @@ iopollingthread::run(clientio io) {
             bool found = false;
             for (auto it(what.start()); !it.finished(); it.next()) {
                 auto reg(*it);
-                if (reg->pfd.fd == pfds[i].fd) {
+                if (reg->pfd.fd == pfds[i].fd &&
+                    (reg->pfd.events & pfds[i].revents) != 0) {
                     it.remove();
                     assert(reg->registered);
                     reg->registered = false;
@@ -672,6 +674,54 @@ tests::pubsub() {
             assert(closewrite < t.second());
             deinitpubsub(clientio::CLIENTIO);
             deinitlogging(); });
+
+    testcaseV("pubsub", "listenboth", [] {
+            /* Basic tests when we're listening for read and write on
+               the same FD in different subscriptions. */
+            initpubsub();
+            auto pipe(socket_t::socketpair().fatal("socketpair"));
+            /* Start by filling the socket's send buffer. */
+            while (1) {
+                char b[4096];
+                memset(b, 0, sizeof(b));
+                auto r(pipe.fd0.write(
+                           clientio::CLIENTIO,
+                           b,
+                           sizeof(b),
+                           timestamp::now() + timedelta::milliseconds(1)));
+                if (r == error::timeout) break;
+                r.fatal("filling sockbuf"); }
+            {   subscriber sub;
+                iosubscription reading(sub, pipe.fd0.poll(POLLIN));
+                iosubscription writing(sub, pipe.fd0.poll(POLLOUT));
+                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                assert(sub.poll() == NULL);
+                {   char b[4096];
+                    pipe.fd1.readpoll(b, sizeof(b))
+                        .fatal("readpoll"); }
+                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                assert(sub.poll() == &writing); }
+            while (1) {
+                char b[4096];
+                memset(b, 0, sizeof(b));
+                auto r(pipe.fd0.write(
+                           clientio::CLIENTIO,
+                           b,
+                           sizeof(b),
+                           timestamp::now() + timedelta::milliseconds(1)));
+                if (r == error::timeout) break;
+                r.fatal("filling sockbuf"); }
+            {   subscriber sub;
+                iosubscription writing(sub, pipe.fd0.poll(POLLOUT));
+                iosubscription reading(sub, pipe.fd0.poll(POLLIN));
+                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                assert(sub.poll() == NULL);
+                {   char b[4096];
+                    pipe.fd1.readpoll(b, sizeof(b))
+                        .fatal("readpoll"); }
+                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                assert(sub.poll() == &writing); }
+            deinitpubsub(clientio::CLIENTIO); });
 }
 
 tests::event<void> tests::iosubdetachrace;

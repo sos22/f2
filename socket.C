@@ -34,3 +34,15 @@ socket_t::listen(
         if (fd >= 0) ::close(fd);
         return error::from_errno(); }
     return listenfd(fd); }
+
+orerror<socketpairres>
+socket_t::socketpair() {
+    int scv[2];
+    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, scv) < 0) {
+        return error::from_errno(); }
+    return socketpairres(scv[0], scv[1]); }
+
+void
+socketpairres::close() {
+    fd0.close();
+    fd1.close(); }
