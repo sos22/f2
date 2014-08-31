@@ -21,7 +21,7 @@ namespace tests {
 void _error();
 }
 
-/* Wrapper around errno */
+/* Wrapper around errno.  Must be POD. */
 class error {
     friend class errorfield;
     friend void tests::_error();

@@ -28,6 +28,9 @@ public: buildconfig(
 #undef iter
     );
 public: static const buildconfig us;
+
+public: filename programname(string) const;
+
     WIREPROTO_TYPE(buildconfig);
 };
 

@@ -53,6 +53,10 @@ buildconfig::fromcompound(const wireproto::rx_message &rxm) {
 #undef iter
         ); }
 
+filename
+buildconfig::programname(string x) const {
+    return PREFIX + (x + string(coverage ? "-c" : "")); }
+
 const fields::field &
 fields::mk(const buildconfig &c) {
     const fields::field *acc(&fields::mk("<buildconfig:"));
