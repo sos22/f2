@@ -40,8 +40,8 @@ public:  coordinatorconn(const rpcconn::rpcconntoken &token,
 private: void endconn(clientio);
 
 public:  typedef coordinatorconnstatus status_t;
-public:  status_t status(maybe<mutex_t::token> tok /* coordinator lock */) {
-    return status_t( rpcconn::status(tok), slavename() ); }
+public:  status_t status() {
+    return status_t( rpcconn::status(), slavename() ); }
 };
 
 coordinatorconn::coordinatorconn(const rpcconn::rpcconntoken &tok,
@@ -78,7 +78,7 @@ coordinator::status() const {
     list<coordinatorconnstatus> c;
     auto token(mux.lock());
     for (auto it(connections.start()); !it.finished(); it.next()) {
-        c.pushtail((*it)->status(token)); }
+        c.pushtail((*it)->status()); }
     mux.unlock(&token);
     coordinator::status_t res(c);
     c.flush();

@@ -817,7 +817,7 @@ rpcconn::destroy(clientio io) {
     join(io); }
 
 rpcconn::status_t
-rpcconn::status(maybe<mutex_t::token>) const {
+rpcconn::status() const {
     status_t res(outgoing.status(),
                  sock.status(),
                  sequencer.status(),

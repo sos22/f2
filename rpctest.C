@@ -555,9 +555,9 @@ tests::_rpc() {
                        rs,
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
-            auto status1(c->status(Nothing));
+            auto status1(c->status());
             assert(!strcmp(fields::mk(status1).c_str(),
-                           fields::mk(c->status(Nothing)).c_str()));
+                           fields::mk(c->status()).c_str()));
             waitbox<void> donerx;
             waitbox<void> readyrx;
             tests::eventwaiter<void> evt1(
@@ -574,12 +574,12 @@ tests::_rpc() {
                                                c->allocsequencenr()))
                         .fatal("sending ping"); });
             donerx.get(clientio::CLIENTIO);
-            auto status2(c->status(Nothing));
+            auto status2(c->status());
             assert(strcmp(fields::mk(status1).c_str(),
                           fields::mk(status2).c_str()));
             readyrx.set();
             caller.get();
-            auto status3(c->status(Nothing));
+            auto status3(c->status());
             assert(strcmp(fields::mk(status3).c_str(),
                           fields::mk(status1).c_str()));
             assert(strcmp(fields::mk(status3).c_str(),
@@ -982,21 +982,21 @@ tests::_rpc() {
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
-            {   auto status(c->status(Nothing));
+            {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
             c->send(clientio::CLIENTIO,
                     wireproto::tx_message(nullarymsgtag))
                 .fatal("sending nullary message");
-            {   auto status(c->status(Nothing));
+            {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
             delete c->call(clientio::CLIENTIO,
                            wireproto::req_message(proto::PING::tag,
                                                   c->allocsequencenr()))
                 .fatal("sending PING");
-            {   auto status(c->status(Nothing));
+            {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
             (timestamp::now() + timedelta::milliseconds(300)).sleep();
-            {   auto status(c->status(Nothing));
+            {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
             c->destroy(clientio::CLIENTIO);
             s2->destroy(clientio::CLIENTIO);

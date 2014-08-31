@@ -500,8 +500,7 @@ public:    void destroy(clientio);
 
     /* Status interface */
 public: typedef rpcconnstatus status_t;
-public: status_t status(
-    maybe<mutex_t::token> coordinatorlock) const;
+public: status_t status() const;
 };
 
 namespace tests {

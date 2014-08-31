@@ -427,8 +427,8 @@ storageslave::status() const {
     auto token(mux.lock());
     list<rpcconn::status_t> cl(clients.map<rpcconn::status_t>(
                                    [&token] (storageslaveconn *const &conn) {
-                                       return conn->status(token); }));
-    status_t res(s, masterconn->status(token), cl);
+                                       return conn->status(); }));
+    status_t res(s, masterconn->status(), cl);
     mux.unlock(&token);
     cl.flush();
     return res; }
