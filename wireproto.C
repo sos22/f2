@@ -919,6 +919,13 @@ tests::wireproto() {
             auto rxm(rx_message::fetch(buf));
             assert(rxm.failure() == error::invalidmessage); });
 
+    testcaseV("wireproto", "badmessage2", [t] () {
+            ::buffer buf;
+            wireheader h(sizeof(h)-1, 1, msgtag(5), sequencenr::invalid);
+            buf.queue(&h, sizeof(h));
+            auto rxm(rx_message::fetch(buf));
+            assert(rxm.failure() == error::invalidmessage); });
+
     testcaseV("wireproto", "steal", [t] () {
             ::buffer buf;
             parameter<const char *> p(1);
