@@ -32,10 +32,8 @@ main(int argc, const char *const argv[])
     int nrargs = argc - 3;
     initlogging("cli");
     initpubsub();
-    auto c(rpcconn::connect<rpcconn>(
+    auto c(rpcconn::connectnoauth<rpcconn>(
                clientio::CLIENTIO,
-               /* Unix domain connections need no authentication */
-               rpcconnauth::mkdone(rpcconnconfig::dflt),
                peername::local(filename(sock))
                .fatal("turning " + fields::mk(sock) + " into a peername"),
                rpcconnconfig::dflt));

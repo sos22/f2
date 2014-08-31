@@ -164,12 +164,8 @@ controlserver::controlserver(constoken token,
 
 orerror<rpcconn *>
 controlserver::accept(socket_t s) {
-    return rpcconn::fromsocket<controlconn>(
+    return rpcconn::fromsocketnoauth<controlconn>(
         s,
-        /* We don't need a HELLO because we only listen on UNIX domain
-           sockets, which are implicitly authenticated by the socket
-           access flags. */
-        rpcconnauth::mkdone(rpcconnconfig::dflt),
         rpcconnconfig::dflt,
         this); }
 

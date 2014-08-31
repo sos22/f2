@@ -19,8 +19,7 @@ public: trivrpcserver(constoken t, listenfd fd, int x)
     : rpcserver(t, fd) {
     assert(x == 73); }
 public: orerror<rpcconn *> accept(socket_t s) {
-    return rpcconn::fromsocket<rpcconn>(
-        s, rpcconnauth::mkdone(rpcconnconfig::dflt), rpcconnconfig::dflt); }
+    return rpcconn::fromsocketnoauth<rpcconn>(s, rpcconnconfig::dflt); }
 };
 
 static const wireproto::msgtag callabletag(134);
@@ -59,8 +58,7 @@ public:  callablerpcserver(constoken t,
     : rpcserver(t, fd),
       config(_config) {}
 public:  orerror<rpcconn *> accept(socket_t s) {
-    return rpcconn::fromsocket<callablerpcconn>(
-        s, rpcconnauth::mkdone(config), config); } };
+    return rpcconn::fromsocketnoauth<callablerpcconn>(s, config); } };
 
 class smallqueueserver : public rpcserver {
     friend class pausedthread<smallqueueserver>;
@@ -77,8 +75,7 @@ public: orerror<rpcconn *> accept(socket_t s) {
         /* Generous ping limiter */
         ratelimiterconfig(frequency::hz(1000000000),
                           1000000000));
-    return rpcconn::fromsocket<rpcconn>(
-        s, rpcconnauth::mkdone(config), config); }
+    return rpcconn::fromsocketnoauth<rpcconn>(s, config); }
 };
 
 class authrpcserver : public rpcserver {
@@ -144,9 +141,7 @@ public:  sendonconnectserver(constoken t, listenfd fd, bool _sendbadhello)
     : rpcserver(t, fd),
       sendbadhello(_sendbadhello) {}
 public: orerror<rpcconn *> accept(socket_t s) {
-    auto res(
-        rpcconn::fromsocket<rpcconn>(
-            s, rpcconnauth::mkdone(rpcconnconfig::dflt), rpcconnconfig::dflt));
+    auto res(rpcconn::fromsocketnoauth<rpcconn>(s, rpcconnconfig::dflt));
     if (res.isfailure()) return res.failure();
     res.success()->send(clientio::CLIENTIO,
                         wireproto::tx_message(
@@ -181,9 +176,8 @@ tests::_rpc() {
                     .fatal("creating trivial server on " +
                            fields::mk(listenon)));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
@@ -249,9 +243,8 @@ tests::_rpc() {
             auto s2(s1.go());
             auto slavepeer(peername::loopback(peername::port(quickcheck())));
             /* Messages other than PING and HELLO without HELLO should fail */
-            {   auto c(rpcconn::connect<rpcconn>(
+            {   auto c(rpcconn::connectnoauth<rpcconn>(
                            clientio::CLIENTIO,
-                           rpcconnauth::mkdone(rpcconnconfig::dflt),
                            listenon,
                            rpcconnconfig::dflt)
                        .fatal("connecting to master"));
@@ -264,9 +257,8 @@ tests::_rpc() {
             auto ff(
                 [listenon]
                 (std::function <wireproto::req_message & (wireproto::req_message &)> setup) {
-                    auto c(rpcconn::connect<rpcconn>(
+                    auto c(rpcconn::connectnoauth<rpcconn>(
                                clientio::CLIENTIO,
-                               rpcconnauth::mkdone(rpcconnconfig::dflt),
                                listenon,
                                rpcconnconfig::dflt)
                            .fatal("connecting to master"));
@@ -353,9 +345,8 @@ tests::_rpc() {
             auto s2(s1.go());
             subscriber sub;
             subscription ss(sub, pub);
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
@@ -375,9 +366,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<unconnectableserver>(listenon)
                     .fatal("creating trivial server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
@@ -410,9 +400,8 @@ tests::_rpc() {
                     startedaccept.set(true);
                     assert(finishaccept.get(clientio::CLIENTIO) == true); });
             spark<orerror<rpcconn *> > connector([listenon] {
-                    return rpcconn::connect<rpcconn>(
+                    return rpcconn::connectnoauth<rpcconn>(
                         clientio::CLIENTIO,
-                        rpcconnauth::mkdone(rpcconnconfig::dflt),
                         listenon,
                         rpcconnconfig::dflt); });
             assert(startedaccept.get(clientio::CLIENTIO) == true);
@@ -457,9 +446,8 @@ tests::_rpc() {
 
             /* Anything other than HELLOSLAVE::B should fail the
              * authentication machine and prevent further connections. */
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
@@ -475,9 +463,8 @@ tests::_rpc() {
 
             /* HELLOSLAVE::B with no digest should fail the
              * connection. */
-            c = rpcconn::connect<rpcconn>(
+            c = rpcconn::connectnoauth<rpcconn>(
                 clientio::CLIENTIO,
-                rpcconnauth::mkdone(rpcconnconfig::dflt),
                 listenon,
                 rpcconnconfig::dflt)
                 .fatal("connecting with slave auth");
@@ -493,9 +480,8 @@ tests::_rpc() {
             c->destroy(clientio::CLIENTIO);
 
             /* Similarly a bad digest. */
-            c = rpcconn::connect<rpcconn>(
+            c = rpcconn::connectnoauth<rpcconn>(
                 clientio::CLIENTIO,
-                rpcconnauth::mkdone(rpcconnconfig::dflt),
                 listenon,
                 rpcconnconfig::dflt)
                 .fatal("connecting with slave auth");
@@ -671,9 +657,8 @@ tests::_rpc() {
                         /* Strict ping limiter */
                         ratelimiterconfig(frequency::hz(0.5),
                                           1));
-                    c = rpcconn::connect<rpcconn>(
+                    c = rpcconn::connectnoauth<rpcconn>(
                         clientio::CLIENTIO,
-                        rpcconnauth::mkdone(clientconfig),
                         listenon,
                         clientconfig)
                         .fatal("connecting large queue client");
@@ -746,9 +731,8 @@ tests::_rpc() {
                     private: int localcntr;
                     private: const peername &connectto;
                     private: void run(clientio io) {
-                        auto c(rpcconn::connect<rpcconn>(
+                        auto c(rpcconn::connectnoauth<rpcconn>(
                                    io,
-                                   rpcconnauth::mkdone(rpcconnconfig::dflt),
                                    connectto,
                                    rpcconnconfig::dflt)
                                .fatal("connecting to callable server"));
@@ -858,9 +842,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<callablerpcserver>(listenon, config)
                     .fatal("creating callable RPC server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(config),
                        listenon,
                        config)
                    .fatal("connect to ping server"));
@@ -900,9 +883,8 @@ tests::_rpc() {
                 releaseserver.set(); }
             /* Server unpaused -> connect again and try it the other
              * way around. */
-            c = rpcconn::connect<rpcconn>(
+            c = rpcconn::connectnoauth<rpcconn>(
                 clientio::CLIENTIO,
-                rpcconnauth::mkdone(config),
                 listenon,
                 config)
                 .fatal("connect to ping server");
@@ -945,9 +927,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to ping server"));
@@ -973,9 +954,8 @@ tests::_rpc() {
                    == error::disconnected);
             /* Disconnect and reconnect should fix it. */
             c->destroy(clientio::CLIENTIO);
-            c = rpcconn::connect<rpcconn>(
+            c = rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                 .fatal("reconnect to ping server");
@@ -993,9 +973,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating nullary server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
@@ -1026,9 +1005,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating nullary server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
@@ -1098,9 +1076,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating callable RPC server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));
@@ -1121,9 +1098,8 @@ tests::_rpc() {
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating callable RPC server"));
             auto s2(s1.go());
-            auto c(rpcconn::connect<rpcconn>(
+            auto c(rpcconn::connectnoauth<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));

@@ -298,20 +298,38 @@ public: template<typename t, typename...args> static orerror<t *> connectslave(
     const rpcconnconfig &,
     args...);
 
-    /* Raw connect, without sending a HELLO. */
+    /* Connect with no authentication at all.  Only really sensible
+     * for UNIX domain sockets. */
+public: template<typename t, typename ... args>static orerror<t *>connectnoauth(
+    clientio,
+    const peername &,
+    const rpcconnconfig &,
+    args &&...);
+
+    /* Raw connect.  Caller specifies the type of authentication explicitly. */
 public: template<typename t, typename ... args> static orerror<t *> connect(
     clientio,
     const rpcconnauth &,
     const peername &,
     const rpcconnconfig &,
-    args...);
+    args &&...);
+
 
     /* Establish a connection around an existing socket, without
      * sending any messages.  The connection can start receiving
      * messages as soon as its constructor returns. */
-public: template<typename t, typename... args> static orerror<t *> fromsocket(
+public: template<typename t, typename... args>
+    static orerror<t *> fromsocket(
     socket_t,
     const rpcconnauth &auth,
+    const rpcconnconfig &config,
+    args &&...);
+
+    /* Wrapper around fromsocket() for connections which require no
+     * further authentication. */
+public: template<typename t, typename... args>
+    static orerror<t *> fromsocketnoauth(
+    socket_t,
     const rpcconnconfig &config,
     args &&...);
 

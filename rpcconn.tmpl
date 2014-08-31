@@ -28,6 +28,16 @@ rpcconn::fromsocket(socket_t sock,
              .go(); }
 
 template <typename conn_t, typename... args> orerror<conn_t *>
+rpcconn::fromsocketnoauth(socket_t sock,
+                          const rpcconnconfig &config,
+                          args &&... parameters) {
+    return fromsocket<conn_t, args...>(
+        sock,
+        rpcconnauth::mkdone(config),
+        config,
+        std::forward<args>(parameters)...); }
+
+template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,
                        const beaconresult &br,
                        const class slavename &slavename,
@@ -37,11 +47,10 @@ rpcconn::connectmaster(clientio io,
        done enough to check that the peername is correct (that is the
        point of beacon protocol, after all) and the crypto isn't
        strong enough to do more than that anyway. */
-    auto res(connect<conn_t>(io,
-                             rpcconnauth::mkdone(config),
-                             br.mastername,
-                             config,
-                             parameters...));
+    auto res(connectnoauth<conn_t>(io,
+                                   br.mastername,
+                                   config,
+                                   parameters...));
     if (res.isfailure()) return res.failure();
     auto conn(res.success());
     auto hellores(conn->call(
@@ -89,15 +98,27 @@ rpcconn::connect(clientio io,
                  const rpcconnauth &auth,
                  const peername &p,
                  const rpcconnconfig &config,
-                 args ... parameters) {
+                 args &&... parameters) {
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
     auto r(fromsocket<conn_t>(
                s.success(),
                auth,
                config,
-               parameters...));
+               std::forward<args>(parameters)...));
     if (r.isfailure()) s.success().close();
     return r; }
+
+template <typename conn_t, typename ... args> orerror<conn_t *>
+rpcconn::connectnoauth(clientio io,
+                       const peername &p,
+                       const rpcconnconfig &config,
+                       args &&... parameters) {
+    return connect<conn_t, args...>(
+        io,
+        rpcconnauth::mkdone(config),
+        p,
+        config,
+        std::forward<args>(parameters)...); }
 
 #endif /* !RPCCONN_TMPL__ */

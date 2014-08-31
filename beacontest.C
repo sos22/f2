@@ -435,9 +435,8 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret::mk(),
                                  rs,
                                  cs));
-            auto conn(rpcconn::connect<rpcconn>(
+            auto conn(rpcconn::connectnoauth<rpcconn>(
                           clientio::CLIENTIO,
-                          rpcconnauth::mkdone(rpcconnconfig::dflt),
                           cs->localname(),
                           rpcconnconfig::dflt)
                       .fatal("connecting to our own control server"));
