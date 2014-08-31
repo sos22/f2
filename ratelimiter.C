@@ -289,4 +289,27 @@ tests::ratelimiter() {
             wireproto::roundtrip<ratelimiterconfig>(); });
 
     testcaseV("ratelimiter", "parsers", [] {
-            parsers::roundtrip(parsers::_ratelimiterconfig()); }); }
+            parsers::roundtrip(parsers::_ratelimiterconfig()); });
+
+    testcaseV("ratelimiter", "dupewait", [] {
+            ::ratelimiter r(ratelimiterconfig(frequency::hz(1000), 100));
+            int cntr = 0;
+            auto start(timestamp::now());
+            while (timestamp::now() < start + timedelta::milliseconds(100)) {
+                r.wait();
+                cntr++; }
+            assert(cntr >= 180);
+            assert(cntr <= 220);
+            ::ratelimiter r2(r);
+            while (timestamp::now() < start + timedelta::milliseconds(200)) {
+                r2.wait();
+                cntr++; }
+            assert(cntr >= 280);
+            assert(cntr <= 320);
+            ::ratelimiter r3(r);
+            while (timestamp::now() < start + timedelta::milliseconds(300)) {
+                r3.wait();
+                cntr++; }
+            assert(cntr >= 480);
+            assert(cntr <= 520); });
+}
