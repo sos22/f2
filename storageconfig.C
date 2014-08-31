@@ -10,19 +10,22 @@ storageconfig::storageconfig(const peername &_controlsock,
                              const filename &_poolpath,
                              const beaconclientconfig &_beacon,
                              const slavename &_name,
-                             const peername &_listenon)
+                             const peername &_listenon,
+                             const rpcconnconfig &_connconfig)
     : controlsock(_controlsock),
       poolpath(_poolpath),
       beacon(_beacon),
       name(_name),
-      listenon(_listenon) {}
+      listenon(_listenon),
+      connconfig(_connconfig) {}
 
 storageconfig::storageconfig(const quickcheck &q)
     : controlsock(q),
       poolpath(q.filename()),
       beacon(q),
       name(q),
-      listenon(q) {}
+      listenon(q),
+      connconfig(q) {}
 
 bool
 storageconfig::operator==(const storageconfig &o) const {
@@ -30,7 +33,8 @@ storageconfig::operator==(const storageconfig &o) const {
         poolpath == o.poolpath &&
         beacon == o.beacon &&
         name == o.name &&
-        listenon == o.listenon; }
+        listenon == o.listenon &&
+        connconfig == o.connconfig; }
 
 const fields::field &
 fields::mk(const storageconfig &sc) {
@@ -39,6 +43,7 @@ fields::mk(const storageconfig &sc) {
         " beacon=" + mk(sc.beacon) +
         " name=" + mk(sc.name) +
         " listenon=" + mk(sc.listenon) +
+        " connconfig=" + mk(sc.connconfig) +
         ">"; }
 
 const parser<storageconfig> &
@@ -49,21 +54,25 @@ parsers::_storageconfig() {
             " beacon=" + _beaconclientconfig() +
             " name=" + _slavename() +
             ~(" listenon=" + _peername()) +
+            ~(" connconfig=" + _rpcconnconfig()) +
             ">")
-        .map<storageconfig>([] (const pair<pair<pair<pair<maybe<peername>,
-                                                          maybe<filename> >,
-                                                     beaconclientconfig>,
-                                                slavename>,
-                                           maybe<peername> > &x) {
+        .map<storageconfig>([] (const pair<pair<pair<pair<pair<maybe<peername>,
+                                                               maybe<filename> >,
+                                                          beaconclientconfig>,
+                                                     slavename>,
+                                                maybe<peername> >,
+                                           maybe<rpcconnconfig> > &x) {
             return storageconfig(
-                x.first().first().first().first().dflt(
+                x.first().first().first().first().first().dflt(
                     peername::local(filename("storageslave"))
                     .fatal("peername storageslave")),
-                x.first().first().first().second().dflt(
+                x.first().first().first().first().second().dflt(
                     filename("storagepool")),
+                x.first().first().first().second(),
                 x.first().first().second(),
-                x.first().second(),
-                x.second().dflt(peername::all(peername::port::any))); }); }
+                x.first().second().dflt(
+                    peername::all(peername::port::any)),
+                x.second().dflt(rpcconnconfig::dflt)); }); }
 
 void
 tests::_storageconfig() {

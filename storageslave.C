@@ -121,14 +121,14 @@ storageslave::build(clientio io,
     auto server(rpcserver::listen<storageslave>(
                     config.listenon,
                     br.success().secret,
-                    config.poolpath,
-                    cs));
+                    cs,
+                    config));
     if (server.isfailure()) return server.failure();
     auto mc(rpcconn::connectmaster<storageslaveconn>(
                 io,
                 br.success(),
                 config.name,
-                rpcconnconfig::dflt,
+                config.connconfig,
                 server.success().unwrap()));
     if (mc.isfailure()) {
         server.success().destroy();
@@ -139,14 +139,14 @@ storageslave::build(clientio io,
 storageslave::storageslave(constoken token,
                            listenfd fd,
                            const registrationsecret &_rs,
-                           const filename &_pool,
-                           controlserver *cs)
+                           controlserver *cs,
+                           const storageconfig &_config)
     : rpcserver(token, fd),
       control_(this, cs),
       rs(_rs),
       masterconn(NULL),
       clients(),
-      pool(_pool),
+      config(_config),
       mux() {
     control_.start(); }
 
@@ -154,8 +154,8 @@ orerror<rpcconn *>
 storageslave::accept(socket_t s) {
     return rpcconn::fromsocket<storageslaveconn>(
         s,
-        rpcconnauth::mksendhelloslavea(rs, rpcconnconfig::dflt),
-        rpcconnconfig::dflt,
+        rpcconnauth::mksendhelloslavea(rs, config.connconfig),
+        config.connconfig,
         this); }
 
 /* XXX this can sometimes leave stuff behind after a partial
@@ -164,7 +164,7 @@ orerror<void>
 storageslave::createempty(const jobname &t, const streamname &sn) const {
     logmsg(loglevel::debug,
            "create empty output " + fields::mk(t) + " " + fields::mk(sn));
-    filename jobdir(pool + t.asfilename());
+    filename jobdir(config.poolpath + t.asfilename());
     {   auto r(jobdir.mkdir());
         if (r.isfailure() && r != error::already) return r.failure(); }
     filename streamdir(jobdir + sn.asfilename());
@@ -195,7 +195,7 @@ storageslave::append(
     const jobname &jn,
     const streamname &sn,
     buffer &b) const {
-    filename dirname(pool + jn.asfilename() + sn.asfilename());
+    filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     auto finished((dirname + "finished").exists());
     if (finished.isfailure()) return finished.failure();
     else if (finished == true) return error::toolate;
@@ -235,7 +235,7 @@ orerror<void>
 storageslave::finish(
     const jobname &jn,
     const streamname &sn) const {
-    filename dirname(pool + jn.asfilename() + sn.asfilename());
+    filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     {   auto content((dirname + "content").exists());
         if (content.isfailure()) return content.failure();
         else if (content == false) return error::notfound; }
@@ -253,7 +253,7 @@ storageslave::read(
     uint64_t start,
     uint64_t end) const {
     if (start > end) return error::invalidparameter;
-    filename dirname(pool + jn.asfilename() + sn.asfilename());
+    filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     {   auto finished((dirname + "finished").exists());
         if (finished.isfailure()) return finished.failure();
         else if (finished == false) return error::toosoon; }
@@ -282,7 +282,7 @@ storageslave::listjobs(
     if (limit == 0) return error::invalidparameter;
     auto &parser(parsers::_jobname());
     list<jobname> res;
-    {   filename::diriter it(pool);
+    {   filename::diriter it(config.poolpath);
         for (/**/;
                  !it.isfailure() && !it.finished();
                  it.next()) {
@@ -292,13 +292,14 @@ storageslave::listjobs(
             auto jn(parser.match(it.filename()));
             if (jn.isfailure()) {
                 jn.failure().warn(
-                    "cannot parse " + fields::mk(pool + it.filename()) +
+                    "cannot parse " +
+                    fields::mk(config.poolpath + it.filename()) +
                     " as job name");
                 continue; }
             if (cursor != Nothing && jn.success() < cursor.just()) continue;
             res.pushtail(jn.success()); }
         if (it.isfailure()) {
-            it.failure().warn("listing " + fields::mk(pool));
+            it.failure().warn("listing " + fields::mk(config.poolpath));
             res.flush();
             return it.failure(); } }
     sort(res);
@@ -323,7 +324,7 @@ storageslave::liststreams(
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit) const {
     if (limit == 0) return error::invalidparameter;
-    auto dir(pool + jn.asfilename());
+    auto dir(config.poolpath + jn.asfilename());
     const parser<streamname> &parser(parsers::_streamname());
     list<streamstatus> res;
     {   filename::diriter it(dir);
@@ -382,7 +383,7 @@ storageslave::liststreams(
 orerror<void>
 storageslave::removestream(const jobname &jn,
                            const streamname &sn) const {
-    auto jobdir(pool + jn.asfilename());
+    auto jobdir(config.poolpath + jn.asfilename());
     auto streamdir(jobdir + sn.asfilename());
     bool already;
     {   auto r((streamdir + "content").unlink());

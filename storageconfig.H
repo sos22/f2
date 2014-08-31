@@ -3,6 +3,7 @@
 
 #include "beaconclient.H"
 #include "filename.H"
+#include "rpcconn.H"
 #include "slavename.H"
 #include "string.H"
 
@@ -14,11 +15,13 @@ public: filename poolpath;
 public: beaconclientconfig beacon;
 public: slavename name;
 public: peername listenon;
+public: rpcconnconfig connconfig;
 public: storageconfig(const peername &_controlsock,
                       const filename &_poolpath,
                       const beaconclientconfig &_beacon,
                       const slavename &_name,
-                      const peername &_listenon);
+                      const peername &_listenon,
+                      const rpcconnconfig &_connconfig);
 public: storageconfig(const quickcheck &q);
 public: bool operator==(const storageconfig &o) const; };
 

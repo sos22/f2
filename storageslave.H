@@ -5,12 +5,12 @@
 #include "filename.H"
 #include "rpcconn.H"
 #include "rpcserver.H"
+#include "storageconfig.H"
 
 class clientio;
 class controlserver;
 template <typename> class orerror;
 class registrationsecret;
-class storageconfig;
 class storageslave;
 class streamname;
 class jobname;
@@ -53,7 +53,7 @@ private: controliface control_;
 private: registrationsecret const rs;
 private: storageslaveconn *masterconn;
 private: list<storageslaveconn *> clients;
-private: filename pool;
+private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
 public:  static orerror<storageslave *> build(
@@ -63,8 +63,8 @@ public:  static orerror<storageslave *> build(
 private: storageslave(constoken,
                       listenfd,
                       const registrationsecret &_rs,
-                      const filename &,
-                      controlserver *cs);
+                      controlserver *cs,
+                      const storageconfig &config);
 private: orerror<rpcconn *> accept(socket_t);
 public:  orerror<void> createempty(
     const jobname &t,
