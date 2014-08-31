@@ -19,7 +19,7 @@ main(int argc, char *argv[]) {
               .fatal("parsing " + fields::mk(argv[1])));
     auto conn(rpcconn::connect<rpcconn>(
                   clientio::CLIENTIO,
-                  rpcconnauth::mkdone(),
+                  rpcconnauth::mkdone(rpcconnconfig::dflt),
                   peer,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
