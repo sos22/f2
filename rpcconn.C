@@ -2,6 +2,7 @@
 
 #include "fields.H"
 #include "logging.H"
+#include "parsers.H"
 #include "proto.H"
 #include "slavename.H"
 #include "test.H"
@@ -11,6 +12,7 @@
 
 #include "either.tmpl"
 #include "list.tmpl"
+#include "parsers.tmpl"
 #include "rpcconn.tmpl"
 #include "test.tmpl"
 #include "waitbox.tmpl"
@@ -67,7 +69,12 @@ rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
                          pinginterval.just(),
                          pingdeadline.just(),
                          pinglimit.just()); }
-
+bool
+rpcconnconfig::operator==(const rpcconnconfig &o) const {
+    return maxoutgoingbytes == o.maxoutgoingbytes &&
+        pinginterval == o.pinginterval &&
+        pingdeadline == o.pingdeadline &&
+        pinglimit == o.pinglimit; }
 const fields::field &
 fields::mk(const rpcconnconfig &c) {
     return "<rpcconnconfig:"
@@ -76,6 +83,28 @@ fields::mk(const rpcconnconfig &c) {
         " pingdeadline:" + fields::mk(c.pingdeadline) +
         " pinglimit:" + fields::mk(c.pinglimit) +
         ">"; }
+const parser<rpcconnconfig> &
+parsers::_rpcconnconfig() {
+    return ("<rpcconnconfig:" +
+            ~(" maxoutgoingbytes:" + intparser<unsigned>()) +
+            ~(" pinginterval:" + _timedelta()) +
+            ~(" pingdeadline:" + _timedelta()) +
+            ~(" pinglimit:" + _ratelimiterconfig()) +
+            ">")
+        .map<rpcconnconfig>(
+            [] (const pair<pair<pair< maybe<unsigned>,
+                                      maybe<timedelta> >,
+                                maybe<timedelta> >,
+                           maybe<ratelimiterconfig> > &x) {
+                return rpcconnconfig(
+                    x.first().first().first().dflt(
+                        rpcconnconfig::dflt.maxoutgoingbytes),
+                    x.first().first().second().dflt(
+                        rpcconnconfig::dflt.pinginterval),
+                    x.first().second().dflt(
+                        rpcconnconfig::dflt.pingdeadline),
+                    x.second().dflt(
+                        rpcconnconfig::dflt.pinglimit)); }); }
 
 wireproto_wrapper_type(rpcconn::status_t)
 void

@@ -34,15 +34,15 @@ class rpcconnconfig {
        not a bound on the queue size.  i.e. if we're below the limit
        then we allow any sends to add to the queue immediately, even
        if they would take us far above the limit. */
-public: const unsigned maxoutgoingbytes;
+public: unsigned maxoutgoingbytes;
     /* Maximum connection idle time before we send a PING */
-public: const timedelta pinginterval;
+public: timedelta pinginterval;
     /* Once we send a ping, how long does the peer have to respond
        before we declare them to be dead? */
-public: const timedelta pingdeadline;
+public: timedelta pingdeadline;
     /* How often is the other side allowed to ping us before we start
      * slowing things down? */
-public: const ratelimiterconfig pinglimit;
+public: ratelimiterconfig pinglimit;
     /* Default configuration */
 public: static const rpcconnconfig dflt;
 public: rpcconnconfig(unsigned _maxoutgoingbytes,
@@ -50,12 +50,18 @@ public: rpcconnconfig(unsigned _maxoutgoingbytes,
                       timedelta _pingdeadline,
                       const ratelimiterconfig &_pinglimiter);
 public: rpcconnconfig(quickcheck);
+public: bool operator==(const rpcconnconfig &o) const;
 WIREPROTO_TYPE(rpcconnconfig);
 };
 
 namespace fields {
 class field;
 const field &mk(const rpcconnconfig &);
+}
+
+template <typename t> class parser;
+namespace parsers {
+const parser<rpcconnconfig> &_rpcconnconfig();
 }
 
 class rpcconnauth {

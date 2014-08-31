@@ -37,6 +37,7 @@ class coordinator : public rpcserver {
     friend class thread;
 private: mastersecret ms;
 private: registrationsecret rs;
+private: rpcconnconfig connconfig;
 
     /* Control server interface */
 private: class controlinterface : public ::controlinterface {
@@ -58,12 +59,14 @@ public:  static orerror<coordinator *> build(
     const mastersecret &,
     const registrationsecret &,
     const peername &,
-    controlserver *);
+    controlserver *,
+    const rpcconnconfig &);
 private: coordinator(constoken,
                      listenfd,
                      const mastersecret &,
                      const registrationsecret &,
-                     controlserver *);
+                     controlserver *,
+                     const rpcconnconfig &);
 private: orerror<rpcconn *> accept(socket_t);
 public:  void destroy(clientio);
 public:  typedef coordinatorstatus status_t;

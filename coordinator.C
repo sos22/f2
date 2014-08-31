@@ -98,10 +98,12 @@ coordinator::coordinator(
     listenfd fd,
     const mastersecret &_ms,
     const registrationsecret &_rs,
-    controlserver *cs)
+    controlserver *cs,
+    const rpcconnconfig &_config)
     : rpcserver(token, fd),
       ms(_ms),
       rs(_rs),
+      connconfig(_config),
       controliface(this, cs) {
     controliface.start(); }
 
@@ -109,8 +111,8 @@ orerror<rpcconn *>
 coordinator::accept(socket_t s) {
     return rpcconn::fromsocket<coordinatorconn>(
         s,
-        rpcconnauth::mkwaithello(ms, rs, rpcconnconfig::dflt),
-        rpcconnconfig::dflt,
+        rpcconnauth::mkwaithello(ms, rs, connconfig),
+        connconfig,
         this); }
 
 void
@@ -123,8 +125,9 @@ coordinator::build(
     const mastersecret &ms,
     const registrationsecret &rs,
     const peername &listenon,
-    controlserver *cs) {
-    return rpcserver::listen<coordinator>(listenon, ms, rs, cs)
+    controlserver *cs,
+    const rpcconnconfig &config) {
+    return rpcserver::listen<coordinator>(listenon, ms, rs, cs, config)
         .map<coordinator *>([] (pausedrpcserver<coordinator> c) {
                 return c.go(); }); }
 

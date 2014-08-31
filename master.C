@@ -34,7 +34,11 @@ main(int argc, char *argv[])
     auto c(controlserver::build(config.controlsock, s)
            .fatal("build control interface"));
     auto ms(mastersecret::mk());
-    auto coord(coordinator::build(ms, config.rs, config.listenon, c)
+    auto coord(coordinator::build(ms,
+                                  config.rs,
+                                  config.listenon,
+                                  c,
+                                  config.connconfig)
                .fatal("build worker coordinator"));
 
     auto beacon(

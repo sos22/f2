@@ -6,6 +6,7 @@
 #include "test.H"
 #include "thread.H"
 
+#include "parsers.tmpl"
 #include "rpcconn.tmpl"
 #include "rpcserver.tmpl"
 #include "spark.tmpl"
@@ -153,6 +154,9 @@ public: orerror<rpcconn *> accept(socket_t s) {
 
 void
 tests::_rpc() {
+    testcaseV("rpc", "connconfig", [] {
+            wireproto::roundtrip<rpcconnconfig>();
+            parsers::roundtrip(parsers::_rpcconnconfig()); });
     testcaseV("rpc", "trivserver", [] {
             /* Can we create and start an RPC server, without any clients? */
             initpubsub();
