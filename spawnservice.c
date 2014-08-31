@@ -8,6 +8,7 @@
  * sufficient. */
 #define _GNU_SOURCE
 #include <sys/fcntl.h>
+#include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -81,6 +82,8 @@ main(int argc, char *argv[]) {
 
     assert(argc >= 2);
 
+    prctl(PR_SET_PDEATHSIG, SIGKILL);
+
     if (pipe2(p, O_CLOEXEC) < 0) execfailed();
     selfpipewrite = p[1];
     selfpiperead = p[0];
@@ -97,6 +100,8 @@ main(int argc, char *argv[]) {
         close(p[0]);
         close(RESPFD);
         close(REQFD);
+        /* Don't outlive our parent. */
+        prctl(PR_SET_PDEATHSIG, SIGKILL);
         execv(argv[1], argv + 1);
         write(p[1], &errno, sizeof(errno));
         _exit(1); }
