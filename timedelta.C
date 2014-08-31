@@ -115,7 +115,10 @@ tests::_timedelta() {
             assert(!(timedelta::seconds(2) <= timedelta::seconds(1)));
             assert(timedelta::seconds(1) >= timedelta::seconds(1));
             assert(timedelta::seconds(2) >= timedelta::seconds(1));
-            assert(!(timedelta::seconds(1) >= timedelta::seconds(2))); });
+            assert(!(timedelta::seconds(1) >= timedelta::seconds(2)));
+            assert(timedelta::seconds(1) * 2 == timedelta::seconds(2));
+            assert(2 * timedelta::milliseconds(500) ==
+                   timedelta::seconds(1)); });
     testcaseV("timedelta", "time", [] {
             auto t(timedelta::time<int>([] {
                         (timestamp::now()+timedelta::milliseconds(100))
