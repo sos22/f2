@@ -82,12 +82,12 @@ public:
             lock.unlock(&t);
         }
     maybe<memlog_idx> fetch(memlog_idx start,
-                            int limit,
+                            unsigned limit,
                             list<memlog_entry> &out)
         {
             assert(out.empty());
             auto t(lock.lock());
-            int nr;
+            unsigned nr;
             nr = 0;
             for (auto it(outstanding.start());
                  !it.finished();

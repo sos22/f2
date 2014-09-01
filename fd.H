@@ -91,7 +91,7 @@ public:
     /* Construct a pollfd structure, suitable for passing off to
        poll().  events is one of 0, POLLIN, POLLOUT, or POLLIN|POLLOUT
        indicating what we should poll for. */
-    struct pollfd poll(unsigned short events) const;
+    struct pollfd poll(short events) const;
     /* Check whether this pollfd is for this fd. */
     bool polled(const struct pollfd &) const;
     /* Close the wrapped FD. */

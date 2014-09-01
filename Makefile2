@@ -1,5 +1,7 @@
 all: realall
 
+-include config
+
 .SUFFIXES:
 
 include cli.mk
@@ -16,10 +18,10 @@ include tests.mk
 everything: realall covall testall
 
 config: config.gen
-	./$< $@ > $@.tmp && mv -f $@.tmp $@
+	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 clean::
 	rm -f config *.log *~ *.gcov *-c.gcda *-c.gcno
 
 %: %.gen config
-	./$< $@ > $@.tmp && mv -f $@.tmp $@
+	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 

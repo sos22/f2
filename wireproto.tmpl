@@ -5,13 +5,15 @@
 #include "fields.H"
 #include "orerror.H"
 
+#include "orerror.tmpl"
+
 #include "fieldfinal.H"
 
 class quickcheck;
 
 namespace wireproto {
 
-struct bufslice {
+class bufslice {
 public: const void *content;
 public: const size_t sz;
 public: bufslice(const void *_content, size_t _sz)

@@ -146,7 +146,7 @@ public:
     /* Fetch a byte from the buffer.  @i is a count of the number of
      * bytes extracted from the buffer before the returned one i.e. it
      * is in the same coordinate system as offset() */
-    char idx(size_t i) const;
+    unsigned char idx(size_t i) const;
 
     /* Byte-by-byte comparison of two buffers.  Only considers the
      * content, and not the producer or consumer values. */

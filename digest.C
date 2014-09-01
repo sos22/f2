@@ -21,7 +21,7 @@ digest::digest(const fields::field &what)
     acc = 0;
     unsigned x;
     for (x = 0; str[x]; x++)
-        acc = acc * 73 + str[x];
+        acc = acc * 73 + (unsigned char)str[x];
     val = acc;
     logmsg(loglevel::verbose,
            "digest " + what + " -> " + fields::mk(val));
@@ -61,7 +61,7 @@ fields::mk(const digest &d)
 
 const parser<digest> &
 parsers::_digest() {
-    return (("<digest:" + intparser<typeof(digest::val)>() + ">") ||
-            intparser<typeof(digest::val)>())
-        .map<digest>([] (const unsigned long &what) {
+    return (("<digest:" + intparser<unsigned long>() + ">") ||
+            intparser<unsigned long>())
+        .map<digest>([] (unsigned long what) {
                 return digest(what); }); }

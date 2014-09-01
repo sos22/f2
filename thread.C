@@ -9,6 +9,11 @@
 #include "timedelta.H"
 #include "util.H"
 
+#ifndef COVERAGESKIP
+/* Not sure why llvm+gcov think that there's code to test on this
+ * line, but there isn't any, so COVERAGESKIP it. */
+#endif
+
 #include "list.tmpl"
 #include "thread.tmpl"
 #include "waitbox.tmpl"
@@ -193,36 +198,27 @@ tests::thread() {
 
     testcaseV("thread", "joinpaused", [] () {
             class testthr : public thread {
-            public: bool &_runran;
             public: bool &_destructed;
             public: testthr(constoken token,
                             bool &__constructed,
-                            bool &__runran,
                             bool &__destructed)
                 : thread(token),
-                  _runran(__runran),
                   _destructed(__destructed) {
                 __constructed = true; }
-#ifndef COVERAGESKIP
-            public: void run(clientio) {_runran = true;}
-#endif
+            public: void run(clientio) {abort();}
             public: ~testthr() { _destructed = true; } };
             bool constructed = false;
-            bool runran = false;
             bool destructed = false;
             /* We can join a thread before unpausing it */
             auto thr(thread::spawn<testthr>(fields::mk("bar"),
                                             constructed,
-                                            runran,
                                             destructed));
             assert(constructed);
-            assert(!runran);
             assert(!destructed);
-            assert(&thr.unwrap()->_runran == &runran);
+            assert(&thr.unwrap()->_destructed == &destructed);
             /* We can stop it again. */
             thr.destroy();
             assert(constructed);
-            assert(!runran);
             assert(destructed); });
 
     testcaseV("thread", "autonotify", [] () {
@@ -292,4 +288,28 @@ tests::thread() {
                 assert(strstr(n, "threadname"));
                 assert(strstr(n, "dead"));
                 assert(!strstr(n, "unstarted")); }
-            thr2->join(clientio::CLIENTIO); }); }
+            thr2->join(clientio::CLIENTIO); });
+
+    testcaseV("thread", "_spawn", [] {
+            class testthr : public thread {
+            public: class token {
+                public: thread::constoken inner;
+                public: int x;
+                public: token(const thread::constoken &_inner,
+                              int _x)
+                    : inner(_inner),
+                      x(_x) {} };
+            public: const int x;
+            public: testthr(const token &t, int y)
+                : thread(t.inner),
+                  x(t.x) { assert(y == 98); }
+            public: void run(clientio) {
+                assert(x == 77); } };
+            auto t(thread::_spawn<testthr, testthr::token>(
+                       fields::mk("_spawn"),
+                       [] (const thread::constoken &tt) {
+                           return testthr::token(tt, 77); },
+                       98));
+            auto t2(t.go());
+            t2->join(clientio::CLIENTIO); });
+}

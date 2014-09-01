@@ -48,10 +48,10 @@ template <typename t> const field &mk(const wireproto::parameter<t> &);
     WIREPROTO_TYPE(wrapper)
 
 namespace wireproto {
-    struct bufslice;
+    class bufslice;
 
     /* Must be POD or serialise/deserialise won't work. */
-    struct sequencenr {
+    class sequencenr {
         friend const fields::field &fields::mk(const wireproto::sequencenr &t);
         friend class sequencer;
     private:
@@ -140,7 +140,7 @@ namespace wireproto {
     public: uint16_t nrparams; /* count, limited to MAXMSGPARAMS */
     public: msgtag tag;
     public: sequencenr seq;
-    public: index idx[];
+    public: index idx[0];
     public: wireheader(uint32_t _sz,
                        uint16_t _nrparams,
                        msgtag _tag,
@@ -151,7 +151,7 @@ namespace wireproto {
     class tx_compoundparameter;
     class tx_message {
         friend class tx_compoundparameter;
-        tx_message() : t(-1), params()  {}
+        tx_message() : t((uint16_t)-1), params()  {}
         tx_message(const tx_message &o) = delete;
         tx_message &addparam(uint16_t, const void *, size_t);
     public:
@@ -168,14 +168,15 @@ namespace wireproto {
     public: size_t serialised_size() const;
     private:
         tx_message *clone() const;
-        struct pinstance {
-            uint16_t id;
-            enum {
+        class pinstance {
+            friend class tx_message;
+        private: uint16_t id;
+        private: enum {
                 p_internal = 91,
                 p_external,
                 p_compound,
             } flavour;
-            union {
+        private: union {
                 struct {
                     unsigned char sz;
                     char content[15];
@@ -189,12 +190,13 @@ namespace wireproto {
                 } external;
                 tx_compoundparameter *compound;
             };
-            ~pinstance();
-            pinstance(const pinstance &o);
-            pinstance();
-            size_t serialised_size() const;
-            void serialise(buffer &) const;
-            pinstance clone() const;
+            /* public so that the list class can use them. */
+        public:  ~pinstance();
+        public:  pinstance(const pinstance &o);
+        private: pinstance();
+        private: size_t serialised_size() const;
+        private: void serialise(buffer &) const;
+        private: pinstance clone() const;
         };
         list<pinstance> params;
     };

@@ -29,12 +29,12 @@ class walltime {
     friend const fields::field &fields::mk(walltime);
     friend void tests::_walltime();
     friend class walltimeparser;
-private: unsigned long v; /* nanoseconds since epoch */
+private: long v; /* nanoseconds since epoch */
 private: walltime() = delete;
 public:  walltime(quickcheck);
 public:  bool operator==(walltime) const;
 public:  static walltime now();
-WIREPROTO_WRAPPER_TYPE(walltime, unsigned long, private);
+WIREPROTO_WRAPPER_TYPE(walltime, long, private);
 };
 
 #endif /* !WALLTIME_H__ */

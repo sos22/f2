@@ -13,9 +13,10 @@
 #include "string.H"
 #include "test.H"
 
-#include "wireproto.tmpl"
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "test.tmpl"
+#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
@@ -403,7 +404,7 @@ rx_message::parse(const wireheader *msg,
 
 orerror<rx_message>
 rx_message::fetch(buffer &buffer) {
-    typeof ( ((wireheader *)0)->sz) sz;
+    uint32_t sz;
     if (buffer.avail() < sizeof(wireheader)) return error::underflowed;
     buffer.fetch(&sz, sizeof(sz));
     if (buffer.avail() + sizeof(sz) < sz) {
@@ -412,6 +413,8 @@ rx_message::fetch(buffer &buffer) {
     if (sz >= MAXMSGSIZE || sz < sizeof(wireheader)) {
         return error::invalidmessage; }
     wireheader *msg = (wireheader *)malloc(sz);
+    /* Type check */
+    (void)(&sz == &msg->sz);
     msg->sz = sz;
     buffer.fetch((void *)((unsigned long)msg + sizeof(sz)),
                  sz - sizeof(sz));

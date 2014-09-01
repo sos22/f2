@@ -1,14 +1,15 @@
 realall: all
 
 .PHONY: buildconfig.C clean
+.SUFFIXES:
 
 # Forward most targets to the real makefile, once we've built the config file.
 %: buildconfig.C
-	$(MAKE) -f Makefile2 $@
+	@$(MAKE) -r -R -f Makefile2 $@
 
 clean:
 	rm -f buildconfig.C
-	make -f Makefile2 clean
+	make -r -R -f Makefile2 clean
 
 buildconfig.C:
 	@./buildconfig.sh > buildconfig.C.tmp;\

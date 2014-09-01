@@ -5,6 +5,8 @@
 #include "pair.H"
 #include "parsers.H"
 
+#include "orerror.tmpl"
+
 template <typename rval>
 parser<rval>::result::result(const rval &a, const char *b)
     : res(a), left(b) {}

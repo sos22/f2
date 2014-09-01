@@ -44,11 +44,11 @@ public:   void set();
     /* Called by the subscriber when it's time to unhook from the
      * publisher.  This is made public in some subclasses. */
 private:   virtual void detach() = 0;
-protected: ~subscriptionbase();
+protected: virtual ~subscriptionbase();
 };
 
 /* A subscription acts to connect a subscriber to a publisher. */
-class subscription : public subscriptionbase {
+class subscription final : public subscriptionbase {
     friend class publisher;
 private:  const publisher *pub;
     /* Construct a new subscription connecting a given publisher to a
@@ -85,7 +85,7 @@ public:  iosubscription(subscriber &, struct pollfd);
      * only be called after the subscription has been returned from
      * subscriber::wait(). */
 public:  void rearm();
-private: void detach();
+private: void detach() final;
     /* Destruct the subscription, disconnecting the subscriber from
      * the FD. */
 public:  ~iosubscription();

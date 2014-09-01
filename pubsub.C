@@ -13,6 +13,7 @@
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
@@ -32,16 +33,22 @@ public:  void attach(iosubscription &);
 public:  void detach(iosubscription &);
 public:  void stop(clientio);
 };
+
+/* Not sure why llvm seems to think that there's code associated with
+ * this, but it does, and there doesn't really seem to be any way of
+ * running it, so COVERAGESKIP it. */
+#ifndef COVERAGESKIP
 static iopollingthread *pollthread;
+#endif
 
 void
 iopollingthread::run(clientio io) {
-    int nralloced = 8;
-    struct pollfd *pfds = (struct pollfd *)calloc(sizeof(*pfds), nralloced);
+    unsigned nralloced = 8;
+    struct pollfd *pfds = (struct pollfd *)calloc(nralloced, sizeof(*pfds));
     auto token(mux.lock());
     while (!shutdown) {
         pfds[0] = readcontrolfd.poll(POLLIN);
-        int nr = 1;
+        unsigned nr = 1;
         for (auto it(what.start()); !it.finished(); it.next()) {
             if (nr == nralloced) {
                 nralloced += 8;
@@ -54,7 +61,7 @@ iopollingthread::run(clientio io) {
         if (!COVERAGE && r < 0) {
             error::from_errno().fatal(
                 "poll()ing for IO with " + fields::mk(nr) + " fds"); }
-        int i = 0;
+        unsigned i = 0;
         while (r) {
             assert(i < nr);
             if (!pfds[i].revents) {

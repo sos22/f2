@@ -545,6 +545,9 @@ storageslave::status_t::addparam(
         tx_msg.addparam(proto::storageslavestatus::masterconn,
                         masterconn.just()); } }
 
+storageslavestatus::~storageslavestatus() {
+    clientconns.flush(); }
+
 maybe<storageslave::status_t>
 storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
     auto s(msg.getparam(proto::storageslavestatus::server));

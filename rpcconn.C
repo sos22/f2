@@ -628,12 +628,12 @@ rpcconn::run(clientio io) {
 
 rpcconn::rpcconntoken::rpcconntoken(const thread::constoken &_thr,
                                     socket_t _sock,
-                                    const rpcconnauth &_auth,
+                                    const rpcconnauth &__auth,
                                     const rpcconnconfig &_config,
                                     const peername &_peer)
     : thr(_thr),
       sock(_sock),
-      auth(_auth),
+      auth(__auth),
       config(_config),
       peer(_peer) {}
 
@@ -838,6 +838,9 @@ rpcconnstatus::rpcconnstatus(quickcheck q)
       peername_(q),
       lastcontact(q),
       config(q) {}
+
+rpcconnstatus::~rpcconnstatus() {
+    pendingrx.flush(); }
 
 bool
 rpcconnstatus::operator == (const rpcconnstatus &o) const {

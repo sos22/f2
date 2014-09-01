@@ -11,6 +11,7 @@
 #include "test.H"
 
 #include "either.tmpl"
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 
 orerror<void>
@@ -85,12 +86,13 @@ strmatcher(const char *what) {
 
 class strparser_ : public parser<const char *> {
 public: orerror<result> parse(const char *) const;
+public: strparser_() : parser() {}
 };
 orerror<parser<const char *>::result>
 strparser_::parse(const char *what) const {
     if (what[0] == '\"') {
-        int len = 0;
-        int cursor = 1;
+        unsigned len = 0;
+        unsigned cursor = 1;
         while (1) {
             if (what[cursor] == '\0') return error::noparse;
             if (what[cursor] == '\"') break;
@@ -116,7 +118,7 @@ strparser_::parse(const char *what) const {
             } else {
                 return error::noparse; } }
         char *res = (char *)tmpheap::_alloc(len + 1);
-        int i = 0;
+        unsigned i = 0;
         cursor = 1;
         while (1) {
             assert(i <= len);
@@ -126,7 +128,7 @@ strparser_::parse(const char *what) const {
                 break;
             } else if (what[cursor] == '\\') {
                 if (what[cursor+1] == 'x') {
-                    auto m([] (unsigned char c) {
+                    auto m([] (char c) {
                             if (c >= '0' && c <= '9') return c - '0';
                             else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
                             else {
@@ -149,7 +151,7 @@ strparser_::parse(const char *what) const {
                 res[i++] = what[cursor++]; } }
         return result(res, what + cursor);
     } else {
-        int len;
+        unsigned len;
         for (len = 0;
              isalnum(what[len])
                  || what[len] == ':'
@@ -222,10 +224,10 @@ intparser_<typ, signd>::parse(const char *_what) const {
             else break; }
         typ newacc;
         if (signd) {
-            newacc = (typ)(acc * nbase - slot);
+            newacc = (typ)(acc * (typ)nbase - (typ)slot);
             if (newacc > acc) return error::overflowed;
         } else {
-            newacc = (typ)(acc * nbase + slot);
+            newacc = (typ)(acc * (typ)nbase + (typ)slot);
             if (newacc < acc) return error::overflowed; }
         acc = newacc;
         what++; }
@@ -526,9 +528,12 @@ tests::parsers() {
         "parsers",
         "intedges",
         [] () {
+            /* Surprise! Clang does the wrong thing with integer
+               constants which are the most negative value for their
+               type. */
             assert(intparser<long>()
                    .match("{16}-8000,0000,0000,0000")
-                   == -0x8000000000000000l);
+                   == -0x7fffffffffffffffl - 1);
             assert(intparser<long>()
                    .match("{16}-8000,0000,0000,0001")
                    == error::overflowed);
@@ -540,7 +545,7 @@ tests::parsers() {
                    == 0x7fffffffffffffffl);
             assert(intparser<int>()
                    .match("{16}-8000,0000")
-                   == -0x80000000);
+                   == -0x7fffffff - 1);
             assert(intparser<int>()
                    .match("{16}-8000,0001")
                    == error::overflowed);

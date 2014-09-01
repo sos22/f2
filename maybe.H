@@ -15,6 +15,7 @@ template <typename> class maybe;
 class _Nothing {
 public: template <typename t> bool operator==(const maybe<t> &) const;
 public: template <typename t> bool operator!=(const maybe<t> &) const;
+public: _Nothing() {}
 };
 const class _Nothing Nothing;
 

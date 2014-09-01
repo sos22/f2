@@ -1,3 +1,9 @@
+/* byteswap.h uses a variable of storage class register, which isn't
+ * allowed under clang with the warnings turned up.  Just #define it
+ * away.  It's not like there are any good uses for the register
+ * keyword. */
+#define register
+
 #include "buffer.H"
 
 #include <string.h>
@@ -285,7 +291,7 @@ buffer::steal() {
     prod = cons;
     return res; }
 
-char
+unsigned char
 buffer::idx(size_t off) const
 {
     off -= cons;
@@ -543,20 +549,20 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
                             repeatbyte == ']' ||
                             repeatbyte == '{' ||
                             repeatbyte == '\\') {
-                            char b[] = {'\\', repeatbyte, 0};
-                            _buf.push(b); }
+                            char _b[] = {'\\', (char)repeatbyte, 0};
+                            _buf.push(_b); }
                         else if (isprint(repeatbyte)) {
-                            char b[] = {repeatbyte, 0};
-                            _buf.push(b); }
+                            char _b[] = {(char)repeatbyte, 0};
+                            _buf.push(_b); }
                         else {
-                            char b[5];
-                            sprintf(b, "\\x%02x", repeatbyte);
-                            _buf.push(b); }
+                            char _b[5];
+                            sprintf(_b, "\\x%02x", repeatbyte);
+                            _buf.push(_b); }
                         break;
                     case c_bytes: {
-                        char b[3];
-                        sprintf(b, "%s%02X", isfirst ? "" : ".", repeatbyte);
-                        _buf.push(b);
+                        char _b[3];
+                        sprintf(_b, "%s%02X", isfirst ? "" : ".", repeatbyte);
+                        _buf.push(_b);
                         isfirst = false;
                         break; }
                     case c_words: {
@@ -625,10 +631,10 @@ tests::buffer(void)
                 t.msg("iteration %d/%d", i, nr_iters);
                 auto b = new ::buffer();
 
-                char *content;
+                unsigned char *content;
                 size_t size;
-                long prod;
-                long cons;
+                unsigned long prod;
+                unsigned long cons;
 
                 int cntr;
 
@@ -647,7 +653,7 @@ tests::buffer(void)
                     case 0: {
                         size_t sz = random() % 65536;
                         t.detail(" queue %zd", sz);
-                        content = (char *)realloc(content, size + sz);
+                        content = (unsigned char *)realloc(content, size + sz);
                         for (unsigned k = 0; k < sz; k++)
                             content[k + size] = (unsigned char)cntr++;
                         b->queue(content + size, sz);
@@ -658,13 +664,13 @@ tests::buffer(void)
                     case 1: {
                         if (!size)
                             continue;
-                        size_t sz = random() % size;
+                        size_t sz = (unsigned long)random() % size;
                         t.detail(" fetch %zd", sz);
-                        void *buffer = malloc(sz);
+                        unsigned char *buffer = (unsigned char *)malloc(sz);
                         b->fetch(buffer, sz);
                         cons += sz;
                         for (unsigned k = 0; k < sz; k++)
-                            assert( ((char *)buffer)[k] == (char)content[k] );
+                            assert( buffer[k] == content[k] );
                         memmove(content, content + sz, size - sz);
                         size -= sz;
                         free(buffer);
@@ -673,9 +679,9 @@ tests::buffer(void)
                     case 2: {
                         if (!cons)
                             continue;
-                        size_t sz = random() % cons;
+                        size_t sz = (unsigned long)random() % cons;
                         t.detail(" pushback %zd", sz);
-                        content = (char *)realloc(content, size + sz);
+                        content = (unsigned char *)realloc(content, size + sz);
                         memmove(content + sz, content, size);
                         for (unsigned k = 0; k < sz; k++)
                             content[k] = (unsigned char)cntr++;
@@ -687,7 +693,7 @@ tests::buffer(void)
                     case 3: {
                         if (!size)
                             continue;
-                        size_t sz = random() % size;
+                        size_t sz = (unsigned long)random() % size;
                         t.detail(" discard %zd", sz);
                         b->discard(sz);
                         memmove(content, content + sz, size - sz);
@@ -698,19 +704,22 @@ tests::buffer(void)
                     case 4: {
                         if (size <= 1)
                             continue;
-                        size_t start = cons + (random() % (size - 1));
-                        size_t end = start + (random() % (prod - start));
+                        size_t start = cons +
+                            ((unsigned long)random() % (size - 1));
+                        size_t end = start +
+                            ((unsigned long)random() % (prod - start));
                         t.detail(" linearise %zd %zd", start, end);
-                        const void *buf = b->linearise(start, end);
+                        const unsigned char *buf =
+                            (const unsigned char *)b->linearise(start, end);
                         assert(buf);
                         for (unsigned k = 0; k < end - start; k++)
-                            assert( ((char *)buf)[k] == content[k+start-cons]);
+                            assert( buf[k] == content[k+start-cons]);
                         break;
                     }
                     case 5: {
                         if (!size)
                             continue;
-                        size_t off = cons + (random() % size);
+                        size_t off = cons + ((unsigned long)random() % size);
                         t.detail(" idx %zd", off);
                         assert(b->idx(off) == content[off - cons]);
                         break;
@@ -935,7 +944,7 @@ tests::buffer(void)
                         buf1.queue(b, sz); }
                     case 1: {
                         if (buf1.avail() == 0) continue;
-                        size_t sz(random() % buf1.avail());
+                        size_t sz((unsigned long)random() % buf1.avail());
                         unsigned char b[sz];
                         buf1.fetch(b, sz); } } }
                 ::buffer buf2(buf1);

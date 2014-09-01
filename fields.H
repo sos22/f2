@@ -73,7 +73,7 @@ class intfield : public field {
     friend const intfield &mk(long);
     friend const intfield &mk(unsigned long);
     const unsigned long val_;
-    const int base_;
+    const unsigned base_;
     const field &sep_;
     const unsigned sepwidth_;
     const bool uppercase_;
@@ -82,15 +82,15 @@ class intfield : public field {
     /* true if val_ is really a signed long */
     const bool signed_;
     intfield(const intfield &o) = delete;
-    intfield(long _val, int _base, const field &sep, unsigned sepwidth,
-             bool _uppercase, bool _alwayssign, bool _hidebase,
-             bool signed_);
-    static const intfield &n(long val, int base, const field &sep,
+    intfield(unsigned long _val, unsigned _base, const field &sep,
+             unsigned sepwidth, bool _uppercase, bool _alwayssign,
+             bool _hidebase, bool signed_);
+    static const intfield &n(unsigned long val, unsigned base, const field &sep,
                              unsigned sepwidth, bool uppercase,
                              bool alwayssign, bool hidebase,
                              bool signed_);
 public:
-    const intfield &base(int b) const;
+    const intfield &base(unsigned b) const;
     const intfield &nosep() const;
     const intfield &sep(const field & = comma, unsigned = 3) const;
     const intfield &uppercase() const;

@@ -99,7 +99,7 @@ udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
         recved = recvfrom(fd, rxbuf, sizeof(rxbuf), MSG_DONTWAIT,
                           (struct sockaddr *)sockaddr, &sockaddr_size); }
     if (recved < 0) return error::from_errno();
-    buf.queue(rxbuf, recved);
+    buf.queue(rxbuf, (size_t)recved);
     return peername((const struct sockaddr *)sockaddr,
                     sockaddr_size); }
 

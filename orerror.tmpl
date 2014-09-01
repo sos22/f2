@@ -1,0 +1,11 @@
+#ifndef ORERROR_TMPL__
+#define ORERROR_TMPL__
+
+#include "either.tmpl"
+
+template <typename t>
+orerror<t>::~orerror() {
+    if (errored) failure().~error();
+    else success().~t(); }
+
+#endif /* !ORERROR_TMPL__ */

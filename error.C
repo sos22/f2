@@ -13,6 +13,7 @@
 
 #include "list.tmpl"
 #include "parsers.tmpl"
+#include "test.tmpl"
 #include "wireproto.tmpl"
 
 static const int firsterror = 0;

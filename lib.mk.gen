@@ -73,7 +73,7 @@ ar lib.a $(bits .o)
 
 cat << EOF
 buildconfig.d:
-	true
+	@true
 EOF
 
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
@@ -98,7 +98,7 @@ testmodule spawn spawn.C spawn.H
 testmodule storageconfig storageconfig.C storageconfig.H
 testmodule thread thread.C thread.tmpl thread.H
 testmodule timedelta timedelta.C timedelta.H
-testmodule walltime walltime.C walltime.H
+testmodule walltime walltime.C
 testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 cat <<EOF

@@ -13,6 +13,7 @@
 
 #include "either.tmpl"
 #include "list.tmpl"
+#include "orerror.tmpl"
 
 namespace spawn {
 
@@ -77,14 +78,10 @@ subscription::~subscription() {
 
 orerror<process *>
 process::spawn(const program &p) {
-    int nrargs(p.args.length());
+    unsigned nrargs(p.args.length());
     const char *args[nrargs + 3];
     int i(0);
-    string servicename("spawnservice");
-#if COVERAGE
-    servicename = servicename + "-c";
-#endif
-    filename path(buildconfig::us.PREFIX + servicename);
+    auto path(buildconfig::us.programname("spawnservice"));
     args[i++] = path.str().c_str();
     args[i++] = p.exec.str().c_str();
     for (auto it(p.args.start()); !it.finished(); it.next()) {
@@ -403,7 +400,6 @@ tests::_spawn() {
             deinitpubsub(clientio::CLIENTIO); });
     testcaseV("spawn", "sleep4", [] {
             initpubsub();
-            auto start(timestamp::now());
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(std::move(string("1"))))
                    .fatal("spawning /bin/sleep"));

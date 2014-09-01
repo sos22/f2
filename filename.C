@@ -47,26 +47,28 @@ orerror<string>
 filename::readasstring() const {
     int fd(open(content.c_str(), O_RDONLY));
     if (fd < 0) return error::from_errno();
-    off_t sz(lseek(fd, 0, SEEK_END));
-    if (sz < 0 || lseek(fd, 0, SEEK_SET) < 0) {
+    off_t _sz(lseek(fd, 0, SEEK_END));
+    if (_sz < 0 || lseek(fd, 0, SEEK_SET) < 0) {
         close(fd);
         return error::from_errno(); }
+    size_t sz((size_t)_sz);
     /* Arbitrarily read whole-file readin to 10MB to prevent someone
        doing something stupid. */
-    if (sz > 10000000l) {
+    if (sz > 10000000) {
         close(fd);
         return error::overflowed; }
-    char *buf = (char *)calloc(1, sz + 1);
-    off_t off;
-    ssize_t thistime;
+    char *buf = (char *)calloc(sz + 1, 1);
+    unsigned long off;
+    size_t thistime;
     for (off = 0; off < sz; off += thistime) {
-        thistime = ::read(fd, buf + off, sz - off);
-        readasstringloop.trigger(&thistime);
-        if (thistime < 0) {
+        ssize_t _thistime(::read(fd, buf + off, sz - off));
+        readasstringloop.trigger(&_thistime);
+        if (_thistime < 0) {
             close(fd);
             free(buf);
             return error::from_errno(); }
-        if (thistime == 0) return error::pastend; }
+        if (_thistime == 0) return error::pastend;
+        thistime = (size_t)_thistime; }
     close(fd);
     if (memchr(buf, '\0', sz) != NULL) {
         free(buf);
@@ -78,15 +80,15 @@ filename::createfile(const fields::field &f) const {
     fields::fieldbuf buf;
     f.fmt(buf);
     auto c(buf.c_str());
-    auto s(strlen(c));
+    size_t s(strlen(c));
     if (s >= 1000000000) return error::overflowed;
     int fd(::open(content.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600));
     if (fd < 0) {
         if (errno == EEXIST) return error::already;
         else return error::from_errno(); }
-    off_t off;
+    size_t off;
     ssize_t this_time;
-    for (off = 0; off < (ssize_t)s; off += this_time) {
+    for (off = 0; off < s; off += (size_t)this_time) {
         this_time = write(fd, c + off, s - off);
         createfileloop.trigger(&this_time);
         if (this_time <= 0) {
@@ -140,14 +142,16 @@ orerror<uint64_t>
 filename::size() const {
     struct stat st;
     if (::stat(content.c_str(), &st) < 0) return error::from_errno();
-    else return st.st_size; }
+    assert(st.st_size >= 0);
+    return (uint64_t)st.st_size; }
 
 orerror<buffer>
 filename::read(uint64_t start, uint64_t end) const {
     auto _fd(::open(content.c_str(), O_RDONLY));
     if (_fd < 0) return error::from_errno();
     if (start != 0) {
-        auto r(::lseek(_fd, start, SEEK_SET));
+        assert(start <= INT64_MAX);
+        auto r(::lseek(_fd, (off_t)start, SEEK_SET));
         if (r < 0) return error::from_errno();
         else if ((uint64_t)r != start) return error::pastend; }
     fd_t fd(_fd);

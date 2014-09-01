@@ -202,7 +202,7 @@ private: rpcconnstatus(const buffer::status_t &_outgoing,
       lastcontact(_lastcontact),
       config(_config) {}
 public:  rpcconnstatus(quickcheck);
-public:  ~rpcconnstatus() { pendingrx.flush(); }
+public:  ~rpcconnstatus();
 public:  bool operator==(const rpcconnstatus &o) const;
 WIREPROTO_TYPE(rpcconnstatus);
 };

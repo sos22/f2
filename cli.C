@@ -16,6 +16,7 @@
 #include "storageslave.H"
 #include "wireproto.H"
 
+#include "list.tmpl"
 #include "rpcconn.tmpl"
 #include "wireproto.tmpl"
 

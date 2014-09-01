@@ -70,12 +70,14 @@ rpcserver::rpcserver(constoken t, listenfd fd)
       sock(fd),
       keephouse() {}
 
+#ifndef COVERAGESKIP
 void
 rpcserver::housekeeping(clientio) {
     logmsg(loglevel::emergency,
            "housekeeping callback was invoked without being defined (" +
            fields::mk(status()) + ")");
     abort(); }
+#endif
 
 rpcserver::status_t
 rpcserver::status() const {

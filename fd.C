@@ -24,14 +24,14 @@ fd_t::close(void) const
 }
 
 struct pollfd
-fd_t::poll(unsigned short mode) const
+fd_t::poll(short mode) const
 {
     struct pollfd pfd;
     pfd.fd = fd;
     /* Always poll for NVAL, ERR, and HUP, regardless of what the
        caller might want, because that makes the iosubscription thread
        quite a bit easier. */
-    pfd.events = mode | POLLNVAL | POLLERR | POLLHUP;
+    pfd.events = (short)(mode | POLLNVAL | POLLERR | POLLHUP);
     pfd.revents = 0;
     return pfd;
 }
@@ -62,7 +62,7 @@ fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
     else if (s == 0) {
         return error::disconnected; }
     else {
-        return s; } }
+        return (size_t)s; } }
 
 orerror<size_t>
 fd_t::readpoll(void *buf, size_t sz) const {
@@ -86,7 +86,7 @@ fd_t::write(clientio,
             assert(r == 0); } }
     auto s(::write(fd, buf, sz));
     assert(s != 0);
-    if (s > 0) return s;
+    if (s > 0) return (size_t)s;
     else if (errno == EAGAIN) return error::wouldblock;
     else return error::from_errno(); }
 

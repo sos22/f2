@@ -40,18 +40,18 @@ tests::mutex() {
             const unsigned nr_threads(32);
             const unsigned nr_muxes(32);
             mutex_t muxes[nr_muxes];
-            int holders[nr_muxes];
+            unsigned holders[nr_muxes];
             memset(holders, 0, sizeof(holders));
             volatile bool shutdown(false);
             struct thr : public thread {
                 mutex_t *const _muxes;
-                int *const _holders;
-                int const ident;
+                unsigned *const _holders;
+                unsigned const ident;
                 volatile bool &_shutdown;
                 thr(constoken token,
                     mutex_t *__muxes,
-                    int *__holders,
-                    int _ident,
+                    unsigned *__holders,
+                    unsigned _ident,
                     volatile bool &__shutdown)
                     : thread(token),
                       _muxes(__muxes),
@@ -60,7 +60,7 @@ tests::mutex() {
                       _shutdown(__shutdown) {}
                 void run(clientio) {
                     while (!_shutdown) {
-                        int i((int)random() % nr_muxes);
+                        unsigned i((unsigned long)random() % nr_muxes);
                         auto token(_muxes[i].lock());
                         assert(!_holders[i]);
                         _holders[i] = ident;

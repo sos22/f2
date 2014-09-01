@@ -3,6 +3,8 @@
 
 #include "fields.H"
 
+#include "orerror.tmpl"
+
 template <typename t, typename ... args> orerror<pausedrpcserver<t> >
 rpcserver::listen(const peername &p, args &&... params) {
     auto s(socket_t::listen(p));

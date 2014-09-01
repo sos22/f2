@@ -23,7 +23,7 @@ public: bool operator==(const ratelimiterconfig &o) const {
     WIREPROTO_TYPE(ratelimiterconfig);
 };
 
-struct ratelimiter_status {
+class ratelimiter_status {
     WIREPROTO_TYPE(ratelimiter_status);
 
 private: ratelimiter_status() = delete;

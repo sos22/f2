@@ -11,6 +11,8 @@
 #include "util.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
+#include "spark.tmpl"
 
 #include "fieldfinal.H"
 
@@ -311,16 +313,16 @@ operator+(const field &a, const char *what)
     return a + strfield::n(what);
 }
 
-intfield::intfield(long _val, int _base, const field &_sep, unsigned _sepwidth,
-                   bool _uppercase, bool _alwayssign, bool _hidebase,
-                   bool _signed)
+intfield::intfield(unsigned long _val, unsigned _base, const field &_sep,
+                   unsigned _sepwidth, bool _uppercase, bool _alwayssign,
+                   bool _hidebase, bool _signed)
     : val_(_val), base_(_base), sep_(_sep), sepwidth_(_sepwidth),
       uppercase_(_uppercase), alwayssign_(_alwayssign), hidebase_(_hidebase),
       signed_(_signed)
 {}
 const intfield &
-intfield::n(long val, int base, const field &sep, unsigned sepwidth,
-            bool uppercase, bool alwayssign, bool hidebase,
+intfield::n(unsigned long val, unsigned base, const field &sep,
+            unsigned sepwidth, bool uppercase, bool alwayssign, bool hidebase,
             bool _signed)
 {
     assert(base>1);
@@ -352,7 +354,7 @@ mk(unsigned long x)
     return intfield::n(x, 10, comma, 3, false, false, false, false);
 }
 const intfield &
-intfield::base(int b) const
+intfield::base(unsigned b) const
 {
     assert(b >= 2);
     assert(b <= 36);
@@ -460,7 +462,7 @@ intfield::fmt(fieldbuf &out) const
     if (val_ == 0) {
         buf[--nr_digits] = '0';
     } else if (signed_) {
-        long r = val_;
+        long r = (long)val_;
         unsigned cntr = 0;
         while (r) {
             int idx = (int)(r % base_);
@@ -522,9 +524,10 @@ void
 doublefield::fmt(fieldbuf &b) const
 {
     char buf[64];
-    unsigned r;
+    int r;
     r = snprintf(buf, sizeof(buf), "%f", val_);
-    assert(r < sizeof(buf));
+    assert(r > 0);
+    assert(r < (long)sizeof(buf));
     b.push(buf);
 }
 const doublefield &

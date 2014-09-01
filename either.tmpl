@@ -1,6 +1,8 @@
 #ifndef EITHER_TMPL__
 #define EITHER_TMPL__
 
+#include "either.H"
+
 template <typename a, typename b>
 either<a,b>::either(const either &o)
     : isleft_(o.isleft_) {

@@ -45,12 +45,7 @@ public:
                 new (&this->err) error(o.failure());
             } else {
                 success() = o.success(); } } }
-    ~orerror() {
-        if (errored)
-            failure().~error();
-        else
-            success().~t();
-    }
+    ~orerror();
     const t &success() const {
         assert(!errored);
         return *(const t *)buf;
@@ -99,7 +94,7 @@ public:
    more consistent one). */
 class _Success {
 };
-static const _Success Success;
+extern const _Success Success;
 template <> class orerror<void> {
 private: maybe<error> content;
 public:  orerror(_Success) : content(Nothing) {}

@@ -18,6 +18,7 @@
 #include "udpsocket.H"
 
 #include "either.tmpl"
+#include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
 

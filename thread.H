@@ -49,7 +49,7 @@ private:   waitbox<tid> tid_;
 private:   const char *name; /* nul-terminated malloc()ed owned */
 private:   bool dead; /* Access with loadacquire() and storerelease() */
 private:   list<deathsubscription *> subscribers;
-protected: class constoken {
+public:    class constoken {
     friend class thread;
     private: const fields::field &name;
     private: constoken(const fields::field &_name)

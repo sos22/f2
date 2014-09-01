@@ -21,6 +21,7 @@
 
 #include "either.tmpl"
 #include "parsers.tmpl"
+#include "spark.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -338,7 +339,7 @@ _ip6litparser::parse(const char *what) const {
     const char *end = strchr(what, ']');
     if (!end) return error::noparse;
     char buf[end - what];
-    memcpy(buf, what + 1, end - what - 1);
+    memcpy(buf, what + 1, (size_t)(end - what - 1));
     buf[end - what - 1] = '\0';
     struct in6_addr res;
     if (inet_pton(AF_INET6, buf, &res) != 1) return error::noparse;
@@ -447,8 +448,9 @@ peername::canonicalise() const {
         error::from_errno().fatal("getting interface list");
 #endif
     }
+    assert(arg.ifc_len >= 0);
     for (unsigned x = 0;
-         x < arg.ifc_len / sizeof(arg.ifc_req[0]);
+         x < (unsigned)arg.ifc_len / sizeof(arg.ifc_req[0]);
          x++) {
         if (reqs[x].ifr_addr.sa_family != AF_INET) continue;
         const struct sockaddr_in *candidate =
