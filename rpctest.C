@@ -1021,12 +1021,21 @@ tests::_rpc() {
                 (rpcconn *who) {
                     if (who != c) unpause.get(clientio::CLIENTIO); });
             /* Fill the client's outgoing queue. */
-            while (1) {
+            int cntr = 0;
+            while (cntr < 10) {
                 auto r(c->send(clientio::CLIENTIO,
                                wireproto::tx_message(nullarymsgtag),
                                timestamp::now() +timedelta::milliseconds(100)));
-                if (r == error::timeout) break;
-                r.fatal("sending nullary message"); }
+                if (r == error::timeout) {
+                    cntr++;
+                } else {
+                    cntr = 0;
+                    r.fatal("sending nullary message"); } }
+            assert(c->send(clientio::CLIENTIO,
+                           wireproto::tx_message(nullarymsgtag),
+                           timestamp::now() +timedelta::milliseconds(100))
+                   .failure() ==
+                   error::timeout);
             /* Interrupt a send with a publish. */
             publisher pub;
             spark<void> publisher([&pub] () {
