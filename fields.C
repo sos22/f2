@@ -312,13 +312,16 @@ operator+(const field &a, const char *what)
 }
 
 intfield::intfield(long _val, int _base, const field &_sep, unsigned _sepwidth,
-                   bool _uppercase, bool _alwayssign, bool _hidebase)
+                   bool _uppercase, bool _alwayssign, bool _hidebase,
+                   bool _signed)
     : val_(_val), base_(_base), sep_(_sep), sepwidth_(_sepwidth),
-      uppercase_(_uppercase), alwayssign_(_alwayssign), hidebase_(_hidebase)
+      uppercase_(_uppercase), alwayssign_(_alwayssign), hidebase_(_hidebase),
+      signed_(_signed)
 {}
 const intfield &
 intfield::n(long val, int base, const field &sep, unsigned sepwidth,
-            bool uppercase, bool alwayssign, bool hidebase)
+            bool uppercase, bool alwayssign, bool hidebase,
+            bool _signed)
 {
     assert(base>1);
     assert(base<37);
@@ -328,19 +331,39 @@ intfield::n(long val, int base, const field &sep, unsigned sepwidth,
                          sepwidth,
                          uppercase,
                          alwayssign,
-                         hidebase);
+                         hidebase,
+                         _signed);
 }
 const intfield &
 mk(long x)
 {
-    return intfield::n(x, 10, comma, 3, false, false, false);
+    return intfield::n((unsigned long)x,
+                       10,
+                       comma,
+                       3,
+                       false,
+                       false,
+                       false,
+                       true);
+}
+const intfield &
+mk(unsigned long x)
+{
+    return intfield::n(x, 10, comma, 3, false, false, false, false);
 }
 const intfield &
 intfield::base(int b) const
 {
     assert(b >= 2);
     assert(b <= 36);
-    return n(val_, b, sep_, sepwidth_, uppercase_, alwayssign_, hidebase_);
+    return n(val_,
+             b,
+             sep_,
+             sepwidth_,
+             uppercase_,
+             alwayssign_,
+             hidebase_,
+             signed_);
 }
 const intfield &
 intfield::nosep() const
@@ -355,30 +378,57 @@ intfield::sep(const field &newsep, unsigned sepwidth) const {
              sepwidth,
              uppercase_,
              alwayssign_,
-             hidebase_); }
+             hidebase_,
+             signed_); }
 const intfield &
 intfield::uppercase() const
 {
-    return n(val_, base_, sep_, sepwidth_, true, alwayssign_, hidebase_);
+    return n(val_,
+             base_,
+             sep_,
+             sepwidth_,
+             true,
+             alwayssign_,
+             hidebase_,
+             signed_);
 }
 const intfield &
 intfield::alwayssign() const
 {
-    return n(val_, base_, sep_, sepwidth_, uppercase_, true, hidebase_);
+    return n(val_,
+             base_,
+             sep_,
+             sepwidth_,
+             uppercase_,
+             true,
+             hidebase_,
+             signed_);
 }
 const intfield &
 intfield::hidebase() const {
-    return n(val_, base_, sep_, sepwidth_, uppercase_, alwayssign_, true); }
+    return n(val_,
+             base_,
+             sep_,
+             sepwidth_,
+             uppercase_,
+             alwayssign_,
+             true,
+             signed_); }
 void
 intfield::fmt(fieldbuf &out) const
 {
-    long r;
     size_t nr_digits;
-    r = val_;
     nr_digits = 0;
-    if (r == 0) {
+    if (val_ == 0) {
         nr_digits = 1;
+    } else if (signed_) {
+        long r = (long)val_;
+        while (r) {
+            nr_digits++;
+            r /= base_;
+        }
     } else {
+        unsigned long r = val_;
         while (r) {
             nr_digits++;
             r /= base_;
@@ -396,11 +446,11 @@ intfield::fmt(fieldbuf &out) const
     }
     /* base indicator */
     if (!hidebase_) {
-        if (base_ < 10)  nr_digits += 3;
+        if (base_ < 10) nr_digits += 3;
         else if (base_ > 10) nr_digits += 4; }
 
     /* Sign */
-    if (alwayssign_ || val_ < 0)
+    if (alwayssign_ || (signed_ && (long)val_ < 0))
         nr_digits++;
     /* nul terminator */
     nr_digits++;
@@ -409,8 +459,8 @@ intfield::fmt(fieldbuf &out) const
     buf[--nr_digits] = 0;
     if (val_ == 0) {
         buf[--nr_digits] = '0';
-    } else {
-        r = val_;
+    } else if (signed_) {
+        long r = val_;
         unsigned cntr = 0;
         while (r) {
             int idx = (int)(r % base_);
@@ -429,9 +479,27 @@ intfield::fmt(fieldbuf &out) const
                 cntr = 0;
             }
         }
+    } else {
+        unsigned long r = val_;
+        unsigned cntr = 0;
+        while (r) {
+            unsigned idx = (unsigned)(r % base_);
+            buf[--nr_digits] =
+                (uppercase_
+                 ? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                 : "0123456789abcdefghijklmnopqrstuvwxyz")
+                [idx];
+            r /= base_;
+            cntr++;
+            if (cntr == sepwidth_ && r != 0 && sepstr) {
+                memcpy(buf + nr_digits - seplen, sepstr, seplen);
+                nr_digits -= seplen;
+                cntr = 0;
+            }
+        }
     }
-    if (val_ < 0 || alwayssign_)
-        buf[--nr_digits] = (val_ < 0) ? '-' : '+';
+    if (alwayssign_ || (signed_ && (long)val_ < 0))
+        buf[--nr_digits] = (signed_ && (long)val_ < 0) ? '-' : '+';
     if (!hidebase_ && base_ != 10) {
         buf[--nr_digits] = '}';
         buf[--nr_digits] = "0123456789"[base_ % 10];
@@ -535,6 +603,20 @@ tests::fields()
             fieldbuf buf;
             mk(-5).fmt(buf);
             assert(!strcmp(buf.c_str(), "-5"));  });
+
+    testcaseV("fields", "bigint", [] {
+            assert(!strcmp(fields::mk(0x8000000000000052ul)
+                           .base(16)
+                           .c_str(),
+                           "{16}8,000,000,000,000,052"));
+            assert(!strcmp(fields::mk((long)-0x8000000000000000)
+                           .base(16)
+                           .c_str(),
+                           "{16}-8,000,000,000,000,000"));
+            assert(!strcmp(fields::mk(0xfffffffffffffffful)
+                           .base(16)
+                           .c_str(),
+                           "{16}f,fff,fff,fff,fff,fff")); });
 
     testcaseV("fields", "negbinint", [] () {
             fieldbuf buf;
