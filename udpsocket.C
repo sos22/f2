@@ -60,7 +60,7 @@ udpsocket::poll() const {
     struct pollfd pfd;
     memset(&pfd, 0, sizeof(pfd));
     pfd.fd = fd;
-    pfd.events = POLLIN;
+    pfd.events = POLLIN | POLLERR | POLLHUP | POLLNVAL;
     pfd.revents = 0;
     return pfd; }
 
