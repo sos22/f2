@@ -41,11 +41,11 @@ tests::beacon() {
     testcaseCS(
         "beacon", "basicconn",
         [mkbeacon, mastername, port]
-        (controlserver *cs) {
+        (controlserver *cs, clientio io) {
             auto rs(registrationsecret::mk("rs").just());
             auto ms(mastersecret::mk());
             auto server(mkbeacon(ms, rs, cs));
-            auto client(beaconclient(clientio::CLIENTIO,
+            auto client(beaconclient(io,
                                      beaconclientconfig(rs)
                                      .connectto(peername::loopback(port))
                                      .retrylimit(5)));
@@ -55,12 +55,12 @@ tests::beacon() {
             assert(ms.noncevalid(client.success().nonce,
                                  client.success().connectingname));
             server->status();
-            server->destroy(clientio::CLIENTIO); });
+            server->destroy(io); });
 
-    testcaseV("beacon", "noserver", [port] () {
+    testcaseIO("beacon", "noserver", [port] (clientio io) {
             auto rs(registrationsecret::mk("rs").just());
             auto client(beaconclient(
-                            clientio::CLIENTIO,
+                            io,
                             beaconclientconfig(rs)
                             .connectto(peername::loopback(port))
                             .retrylimit(5)
@@ -68,7 +68,8 @@ tests::beacon() {
             assert(client.isfailure());
             assert(client.failure() == error::timeout); });
 
-    testcaseCS("beacon", "badserver", [mastername, port] (controlserver *cs) {
+    testcaseCS("beacon", "badserver",
+               [mastername, port] (controlserver *cs, clientio) {
             auto rs(registrationsecret::mk("rs").just());
             auto ms(mastersecret::mk());
             auto server(beaconserver::build(
@@ -82,7 +83,8 @@ tests::beacon() {
                             cs));
             assert(server.isfailure());});
 
-    testcaseCS("beacon", "ratelimit", [mastername, port] (controlserver *cs) {
+    testcaseCS("beacon", "ratelimit",
+               [mastername, port] (controlserver *cs, clientio io) {
             auto rs(registrationsecret::mk("rs").just());
             auto ms(mastersecret::mk());
             auto server(beaconserver::build(
@@ -102,7 +104,7 @@ tests::beacon() {
             int cntr = 0;
             while (timestamp::now() < deadline) {
                 auto client(beaconclient(
-                                clientio::CLIENTIO,
+                                io,
                                 beaconclientconfig(rs)
                                 .connectto(peername::loopback(port))
                                 .retrylimit(2)
@@ -116,11 +118,11 @@ tests::beacon() {
             /* Allow a little bit of fuzz because of timing effects. */
             assert(cntr >= 290);
             assert(cntr <= 310);
-            server.success()->destroy(clientio::CLIENTIO); });
+            server.success()->destroy(io); });
 
 #if TESTING
-    testcaseV("beacon", "clientsendtrunc", [] () {
-            auto doit([] (bool send0) {
+    testcaseIO("beacon", "clientsendtrunc", [] (clientio io) {
+            auto doit([] (bool send0, clientio _io) {
                     bool generatedlog;
                     generatedlog = false;
                     eventwaiter<loglevel> logwait(
@@ -131,7 +133,7 @@ tests::beacon() {
                     fd_t piperead;
                     eventwaiter< ::pair< ::fd_t, ::buffer *> > wait(
                         tests::beaconclientreadytosend,
-                        [&piperead, send0]
+                        [&piperead, send0, _io]
                         (::pair< ::fd_t, ::buffer *> args) {
                             /* Replace the socket with a nearly-full pipe
                                O_NONBLOCK pipe to see what happens when the
@@ -142,18 +144,18 @@ tests::beacon() {
                             pipe.read.nonblock(true);
                             char b[4096];
                             memset(b, 'x', sizeof(b));
-                            while (pipe.write.write(clientio::CLIENTIO,
+                            while (pipe.write.write(_io,
                                                     b,
                                                     sizeof(b)).issuccess())
                                 ;
-                            while (pipe.write.write(clientio::CLIENTIO,
+                            while (pipe.write.write(_io,
                                                     b,
                                                     1).issuccess())
                                 ;
                             if (!send0) {
                                 /* Give it a little bit of space, but
                                    not enough to complete the send. */
-                                auto r(pipe.read.read(clientio::CLIENTIO,
+                                auto r(pipe.read.read(_io,
                                                       b,
                                                       10));
                                 assert(r.success() == 10); }
@@ -161,7 +163,7 @@ tests::beacon() {
                             pipe.write.close();
                             piperead = pipe.read; });
                     auto r(beaconclient(
-                               clientio::CLIENTIO,
+                               _io,
                                beaconclientconfig(registrationsecret::mk("rs").just())
                                .connectto(
                                    peername::loopback(
@@ -171,16 +173,16 @@ tests::beacon() {
                     assert(r.failure() == error::truncated);
                     assert(generatedlog);
                     piperead.close(); });
-            doit(true);
-            doit(false); });
+            doit(true, io);
+            doit(false, io); });
 
-    testcaseV("beacon", "clientreceivefailed", [] () {
+    testcaseIO("beacon", "clientreceivefailed", [] (clientio io) {
             eventwaiter<pair<udpsocket,nonce> > wait(
                 beaconclientreceiving,
                 [] (pair<udpsocket,nonce> args) {
                     args.first().asfd().close(); });
             auto r(beaconclient(
-                       clientio::CLIENTIO,
+                       io,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .connectto(
                            peername::loopback(
@@ -198,7 +200,7 @@ tests::beacon() {
             r.send(buf, fd.localname()).fatal("send");
             r.close(); });
 
-    testcaseV("beacon", "clientreceivenodecode", [spamfd] () {
+    testcaseIO("beacon", "clientreceivenodecode", [spamfd] (clientio io) {
             bool logged = false;
             eventwaiter<loglevel> l(
                 logmsg,
@@ -211,7 +213,7 @@ tests::beacon() {
                     if (cntr++ > 1) return;
                     spamfd(args.first()); });
             auto r(beaconclient(
-                       clientio::CLIENTIO,
+                       io,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .connectto(
                            peername::loopback(
@@ -230,7 +232,8 @@ tests::beacon() {
             auto r(udpsocket::client().fatal("udpclient"));
             r.send(buf, fd.localname()).fatal("send");
             r.close(); });
-    testcaseV("beacon", "clientreceivemissingparam", [sendfdmessage] () {
+    testcaseIO("beacon", "clientreceivemissingparam",
+               [sendfdmessage] (clientio io) {
             int cntr =0 ;
             eventwaiter<pair<udpsocket,nonce> > wait(
                 beaconclientreceiving,
@@ -240,7 +243,7 @@ tests::beacon() {
                         args.first(),
                         wireproto::tx_message(proto::HAIL::tag)); });
             auto r(beaconclient(
-                       clientio::CLIENTIO,
+                       io,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .connectto(
                            peername::loopback(
@@ -249,8 +252,8 @@ tests::beacon() {
                        .retrylimit(1)
                        .retryinterval(timedelta::milliseconds(10))));
             assert(r.isfailure()); });
-    testcaseV("beacon", "clientreceivebadparam",
-              [sendfdmessage] () {
+    testcaseIO("beacon", "clientreceivebadparam",
+               [sendfdmessage] (clientio io) {
             /* Arrange for first message received to have a bad
                version number, the second to have a bad digest, and
                the third to be valid, and make sure that the final
@@ -294,7 +297,7 @@ tests::beacon() {
                                            fields::mk(rs))));
                     iter++; });
             auto r(beaconclient(
-                       clientio::CLIENTIO,
+                       io,
                        beaconclientconfig(registrationsecret::mk("rs").just())
                        .connectto(
                            peername::loopback(
@@ -316,7 +319,7 @@ tests::beacon() {
     testcaseCS(
         "beacon", "serverreceiveerror",
         [spamfd, sendfdmessage, mkbeacon]
-        (controlserver *cs) {
+        (controlserver *cs, clientio io) {
             bool done = false;
             publisher pub;
             subscriber sub;
@@ -333,15 +336,15 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (!done) sub.wait(clientio::CLIENTIO);
+            while (!done) sub.wait(io);
             /* make sure race with shutdown goes the right way. */
             (timestamp::now() + timedelta::milliseconds(50)).sleep();
-            server->destroy(clientio::CLIENTIO); });
+            server->destroy(io); });
 
     testcaseCS(
         "beacon", "serverreceivenodecode",
         [spamfd, mkbeacon]
-        (controlserver *cs) {
+        (controlserver *cs, clientio io) {
             bool done = false;
             publisher pub;
             subscriber sub;
@@ -356,15 +359,15 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (!done) sub.wait(clientio::CLIENTIO);
+            while (!done) sub.wait(io);
             /* make sure race with shutdown goes the right way. */
             (timestamp::now() + timedelta::milliseconds(50)).sleep();
-            server->destroy(clientio::CLIENTIO); });
+            server->destroy(io); });
 
     testcaseCS(
         "beacon", "serverreceivebad",
         [sendfdmessage, mkbeacon]
-        (controlserver *cs) {
+        (controlserver *cs, clientio io) {
             int cntr = 0;
             publisher pub;
             subscriber sub;
@@ -418,10 +421,10 @@ tests::beacon() {
             auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (cntr < 6) sub.wait(clientio::CLIENTIO);
+            while (cntr < 6) sub.wait(io);
             wireproto::tx_message txm(wireproto::msgtag(5));
             server->controliface_.getstatus(&txm);
-            server->destroy(clientio::CLIENTIO); });
+            server->destroy(io); });
 #endif /* TESTING */
 
     testcaseV("beacon", "statusfuzz", [] () {
@@ -437,18 +440,19 @@ tests::beacon() {
                    == beaconclientconfig(registrationsecret::mk("foo")
                                          .fatal(fields::mk("foo")))); });
     testcaseCS(
-        "beacon", "listening", [mkbeacon, port] (controlserver *cs) {
+        "beacon", "listening",
+        [mkbeacon, port] (controlserver *cs, clientio io) {
             auto rs(registrationsecret::mk("foo").just());
             auto server(mkbeacon(mastersecret::mk(),
                                  rs,
                                  cs));
             auto conn(rpcconn::connectnoauth<rpcconn>(
-                          clientio::CLIENTIO,
+                          io,
                           cs->localname(),
                           rpcconnconfig::dflt)
                       .fatal("connecting to our own control server"));
             auto m(conn->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(proto::LISTENING::tag,
                                               conn->allocsequencenr()))
                    .fatal("calling LISTENING on our own control server"));
@@ -457,10 +461,10 @@ tests::beacon() {
             assert(!l.samehost(peername::udpbroadcast(peername::port(1))));
             assert(!l.samehost(peername::loopback(peername::port::any)));
             delete m;
-            conn->destroy(clientio::CLIENTIO);
+            conn->destroy(io);
             auto t(beaconclient(
-                       clientio::CLIENTIO,
+                       io,
                        beaconclientconfig(rs)
                        .connectto(l))
                    .fatal("beacon failure"));
-            server->destroy(clientio::CLIENTIO); }); }
+            server->destroy(io); }); }

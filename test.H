@@ -74,7 +74,7 @@ void testcaseS(
 void testcaseCS(
     const char *component,
     const char *test,
-    std::function<void (controlserver *)> doit);
+    std::function<void (controlserver *, clientio)> doit);
 
 void listcomponents();
 void listtests(const char *component);

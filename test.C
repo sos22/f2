@@ -87,7 +87,7 @@ testcaseS(const char *c_name,
 void
 testcaseCS(const char *c_name,
            const char *t_name,
-           std::function<void (controlserver *)> doit) {
+           std::function<void (controlserver *, clientio)> doit) {
     testcaseS(c_name,
               t_name,
               [doit] (support &) {
@@ -99,12 +99,7 @@ testcaseCS(const char *c_name,
                               .fatal("peername testcontroller"),
                               s));
                   assert(cs.issuccess());
-                  doit(cs.success());
-                  /* XXX it's possible that someone could have
-                     connected to the controller while we were running
-                     the test, in which case destroying it could take
-                     a while and the CLIENTIO is wrong.  Good enough
-                     for a test case, though. */
+                  doit(cs.success(), clientio::CLIENTIO);
                   cs.success()->destroy(clientio::CLIENTIO);
                   deinitpubsub(clientio::CLIENTIO); }); }
 
