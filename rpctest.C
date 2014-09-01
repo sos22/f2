@@ -42,7 +42,7 @@ public: messageresult message(const wireproto::rx_message &rxm) {
         memset(buf, 'X', 1024);
         buf[1023] = 0;
         string s(buf);
-        for (uint16_t i = 1; i < 50; i++) {
+        for (uint16_t i = 1; i < 50 + random() % 50; i++) {
             res->addparam(wireproto::parameter<string>(i), s); }
         free(buf);
         return res; }
@@ -1116,7 +1116,7 @@ tests::_rpc() {
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));
-            for (int i = 0; i < 100; i++) {
+            for (int i = 0; i < 10000; i++) {
                 c->send(clientio::CLIENTIO,
                         wireproto::tx_message(bigreplytag))
                     .fatal("call big reply method"); }
