@@ -17,6 +17,13 @@ waitbox<t>::get(clientio io) const {
     while (!ready()) sub.wait(io);
     return content.just(); }
 
+template <typename t> maybe<t>
+waitbox<t>::poll() const {
+    auto token(mux.lock());
+    auto res(content);
+    mux.unlock(&token);
+    return res; }
+
 template <typename t> void
 waitbox<t>::set(const t &v) {
     assert(!ready());

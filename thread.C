@@ -122,8 +122,9 @@ thread::~thread() {
 const fields::field &
 fields::mk(const thread &thr) {
     const field *acc(&fields::mk("<thread:"));
-    if (thr.tid_.ready()) {
-        acc = &(*acc + fields::mk(thr.tid_.get(clientio::CLIENTIO))); }
+    auto tid(thr.tid_.poll());
+    if (tid.isjust()) {
+        acc = &(*acc + fields::mk(tid.just())); }
     else {
         acc = &(*acc + fields::mk("{no tid yet}")); }
     acc = &(*acc + " " + fields::mk(thr.name));
@@ -133,7 +134,7 @@ fields::mk(const thread &thr) {
 
 void
 tests::thread() {
-    testcaseV("thread", "basic", [] () {
+    testcaseIO("thread", "basic", [] (clientio io) {
             class testthr : public thread {
             public: volatile int &a;
             public: volatile bool &shutdown;
@@ -179,13 +180,12 @@ tests::thread() {
             subscriber sub;
             thread::deathsubscription ds(sub, thr2);
             (timestamp::now() + timedelta::milliseconds(10)).sleep();
-            assert(sub.wait(clientio::CLIENTIO,
-                            timestamp::now()) == NULL);
+            assert(sub.wait(io, timestamp::now()) == NULL);
             assert(thr2->hasdied() == Nothing);
             /* Publisher does notify when it dies. */
             shutdown = true;
             assert(sub.wait(
-                       clientio::CLIENTIO,
+                       io,
                        timestamp::now() + timedelta::milliseconds(10)) == &ds);
             auto token(thr2->hasdied());
             assert(token != Nothing);
@@ -221,7 +221,7 @@ tests::thread() {
             assert(constructed);
             assert(destructed); });
 
-    testcaseV("thread", "autonotify", [] () {
+    testcaseIO("thread", "autonotify", [] (clientio io) {
             class testthr : public thread {
             public: testthr(constoken token)
                 : thread(token) {}
@@ -231,12 +231,12 @@ tests::thread() {
             auto thr(thread::spawn<testthr>(fields::mk("wibble")).go());
             while (thr->hasdied() == Nothing) pthread_yield();
             subscriber sub;
-            assert(sub.wait(clientio::CLIENTIO, timestamp::now()) == NULL);
+            assert(sub.wait(io, timestamp::now()) == NULL);
             thread::deathsubscription ds(sub, thr);
-            assert(sub.wait(clientio::CLIENTIO, timestamp::now()) == &ds);
+            assert(sub.wait(io, timestamp::now()) == &ds);
             thr->join(clientio::CLIENTIO); });
 
-    testcaseV("thread", "detach", [] () {
+    testcaseIO("thread", "detach", [] (clientio io) {
             class testthr : public thread {
             public: volatile bool &shutdown;
             public: testthr(constoken token,
@@ -256,10 +256,10 @@ tests::thread() {
             shutdown = true;
             while (thr->hasdied() == Nothing) pthread_yield();
             assert(sub.poll() == NULL);
-            thr->join(clientio::CLIENTIO);
+            thr->join(io);
             assert(sub.poll() == NULL); });
 
-    testcaseV("thread", "name", [] () {
+    testcaseIO("thread", "name", [] (clientio io) {
             class testthr : public thread {
             public: volatile bool &shutdown;
             public: testthr(constoken tok,
@@ -288,9 +288,9 @@ tests::thread() {
                 assert(strstr(n, "threadname"));
                 assert(strstr(n, "dead"));
                 assert(!strstr(n, "unstarted")); }
-            thr2->join(clientio::CLIENTIO); });
+            thr2->join(io); });
 
-    testcaseV("thread", "_spawn", [] {
+    testcaseIO("thread", "_spawn", [] (clientio io) {
             class testthr : public thread {
             public: class token {
                 public: thread::constoken inner;
@@ -311,5 +311,5 @@ tests::thread() {
                            return testthr::token(tt, 77); },
                        98));
             auto t2(t.go());
-            t2->join(clientio::CLIENTIO); });
+            t2->join(io); });
 }

@@ -108,6 +108,17 @@ testcaseCS(const char *c_name,
                   cs.success()->destroy(clientio::CLIENTIO);
                   deinitpubsub(clientio::CLIENTIO); }); }
 
+void
+testcaseIO(const char *component,
+           const char *test,
+           std::function<void (clientio)> doit) {
+    return testcaseV(component,
+                     test,
+                     [doit] {
+                         initpubsub();
+                         doit(clientio::CLIENTIO);
+                         deinitpubsub(clientio::CLIENTIO); }); }
+
 void listcomponents() {
     for (auto it(components.start()); !it.finished(); it.next()) {
         printf("%s\n", it->name); } }

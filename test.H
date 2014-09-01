@@ -63,6 +63,10 @@ void testcaseV(
     const char *component,
     const char *test,
     std::function<void ()> doit);
+void testcaseIO(
+    const char *component,
+    const char *test,
+    std::function<void (clientio)> doit);
 void testcaseS(
     const char *component,
     const char *test,

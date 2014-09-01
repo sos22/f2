@@ -22,6 +22,9 @@ public:  const publisher &pub;
     void set(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
     const t &get(clientio) const;
+    /* Return the contents of the waitbox if it's been set and Nothing
+     * otherwise. */
+    maybe<t> poll() const;
     /* Check whether the waitbox is set, returning true if it is and
        false otherwise. */
     bool ready() const;
