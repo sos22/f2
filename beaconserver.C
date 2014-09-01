@@ -159,8 +159,6 @@ beaconserver::run(clientio io)
                    fields::mk("HAIL was missing a mandatory parameter"));
             continue;
         }
-        logmsg(loglevel::debug, "version " + fields::mk(reqversion.just()));
-        logmsg(loglevel::debug, "nonce " + fields::mk(reqnonce.just()));
         rx++;
 
         if (reqversion.just() != 1) {

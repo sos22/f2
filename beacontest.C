@@ -28,17 +28,16 @@ tests::beacon() {
                       const mastersecret &ms,
                       const registrationsecret &rs,
                       controlserver *cs) {
-            auto server(beaconserver::build(
-                            beaconserverconfig(rs,
-                                               mastername,
-                                               ratelimiterconfig(
-                                                   frequency::hz(10),
-                                                   10),
-                                               ms,
-                                               port),
-                            cs));
-            assert(server.issuccess());
-            return server.success(); });
+            return beaconserver::build(
+                beaconserverconfig(rs,
+                                   mastername,
+                                   ratelimiterconfig(
+                                       frequency::hz(10),
+                                       10),
+                                   ms,
+                                   port),
+                cs)
+                .fatal("creating beacon server"); });
     testcaseCS(
         "beacon", "basicconn",
         [mkbeacon, mastername, port]
@@ -254,7 +253,7 @@ tests::beacon() {
               [sendfdmessage] () {
             /* Arrange for first message received to have a bad
                version number, the second to have a bad digest, and
-               the thir to be valid, and make sure that the final
+               the third to be valid, and make sure that the final
                result is valid. */
             int iter;
             iter = 0;
@@ -376,22 +375,26 @@ tests::beacon() {
                 (udpsocket sock) {
                     switch (cntr) {
                     case 0:
+                        ::logmsg(loglevel::debug, fields::mk("bad tag"));
                         sendfdmessage(
                             sock,
                             wireproto::tx_message(wireproto::msgtag(73)));
                         break;
                     case 1:
+                        ::logmsg(loglevel::debug, fields::mk("no params"));
                         sendfdmessage(
                             sock,
                             wireproto::tx_message(proto::HAIL::tag));
                         break;
                     case 2:
+                        ::logmsg(loglevel::debug, fields::mk("missing params"));
                         sendfdmessage(
                             sock,
                             wireproto::tx_message(proto::HAIL::tag)
                             .addparam(proto::HAIL::req::version, 1u));
                         break;
                     case 3:
+                        ::logmsg(loglevel::debug, fields::mk("valid"));
                         sendfdmessage(
                             sock,
                             wireproto::tx_message(proto::HAIL::tag)
@@ -399,19 +402,23 @@ tests::beacon() {
                             .addparam(proto::HAIL::req::nonce, nonce::mk()));
                         break;
                     case 4:
+                        ::logmsg(loglevel::debug, fields::mk("bad version"));
                         sendfdmessage(
                             sock,
                             wireproto::tx_message(proto::HAIL::tag)
                             .addparam(proto::HAIL::req::version, 2u)
                             .addparam(proto::HAIL::req::nonce, nonce::mk()));
                         break;
+                    case 5:
+                        ::logmsg(loglevel::debug, fields::mk("send nothing"));
+                        break;
                     }
                     cntr++;
-                    if (cntr == 5) pub.publish(); });
+                    if (cntr == 6) pub.publish(); });
             auto server(mkbeacon(mastersecret::mk(),
                                  registrationsecret::mk("rs").just(),
                                  cs));
-            while (cntr < 5) sub.wait(clientio::CLIENTIO);
+            while (cntr < 6) sub.wait(clientio::CLIENTIO);
             wireproto::tx_message txm(wireproto::msgtag(5));
             server->controliface_.getstatus(&txm);
             server->destroy(clientio::CLIENTIO); });
