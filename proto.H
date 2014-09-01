@@ -5,6 +5,7 @@
 
 #include "wireproto.H"
 
+class actortype;
 class beaconstatus;
 class buffer;
 class bufferstatus;
