@@ -191,12 +191,22 @@ tests::ratelimiter() {
                 auto res(r.probe());
                 count += res ? 1 : 0;
                 auto n(timestamp::now());
-                /* Should get a token every 10ms.  Pretend it's 20ms
-                   to allow for timer oddities. */
+                /* Should get a token every 500us.  Pretend it's 20ms
+                   to allow for timer oddities and getting preempted
+                   in a bad place. */
                 assert(n - lastsuccess < timedelta::milliseconds(20));
                 /* Should get roughly the right number of tokens. */
-                assert(count >= (int)((n - start) * freq) - 50);
-                assert(count <= (int)((n - start) * freq) + 50);
+                /* Small buckets won't track the target frequency
+                   particularly accurate (in particular, we'll go
+                   below target if we ever lose tokens to bucket
+                   overflow).  There should be a fairly tight bound on
+                   how far over we can go though (one for the initial
+                   bucket contents, plus a small number for the @n
+                   timestamp not quite matching the one used for
+                   bucket refill).  Reflect that in an asymmetric
+                   acceptable range. */
+                assert(count >= (int)((n - start) * freq) - 100);
+                assert(count <= (int)((n - start) * freq) + 5);
                 if (res) lastsuccess = n; } });
     auto bursty(
         [] (bool over) {
