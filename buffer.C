@@ -775,14 +775,13 @@ tests::buffer(void)
             buf.fetch(b2, 5);
             assert(!memcmp(b2, "Hello", 5)); });
 
-    testcaseV("buffer", "send", [] () {
-            initpubsub();
+    testcaseIO("buffer", "send", [] (clientio io) {
             auto pipe(fd_t::pipe());
             assert(pipe.issuccess());
             ::buffer buf;
             buf.queue("ABC", 3);
             {   subscriber sub;
-                auto res(buf.send(clientio::CLIENTIO,
+                auto res(buf.send(io,
                                   pipe.success().write,
                                   sub,
                                   Nothing));
@@ -791,7 +790,7 @@ tests::buffer(void)
             assert(buf.empty());
             buf.queue("D", 1);
             {   subscriber sub;
-                auto res(buf.send(clientio::CLIENTIO,
+                auto res(buf.send(io,
                                   pipe.success().write,
                                   sub,
                                   Nothing));
@@ -799,47 +798,46 @@ tests::buffer(void)
                 assert(res.success() == NULL); }
             assert(buf.empty());
             char bb[4];
-            auto res(pipe.success().read.read(clientio::CLIENTIO,
+            auto res(pipe.success().read.read(io,
                                               bb,
                                               4,
                                               Nothing));
             assert(res.issuccess());
             assert(res.success() == 4);
             assert(!memcmp(bb, "ABCD", 4));
-            pipe.success().close();
-            deinitpubsub(clientio::CLIENTIO); });
+            pipe.success().close(); });
 
-    testcaseV("buffer", "senderror", [] () {
+    testcaseIO("buffer", "senderror", [] (clientio io) {
             auto pipe(fd_t::pipe());
             pipe.success().close();
             ::buffer buf;
             buf.queue("HELLO", 5);
             subscriber sub;
-            auto r(buf.send(clientio::CLIENTIO, pipe.success().write, sub));
+            auto r(buf.send(io, pipe.success().write, sub));
             assert(r.isfailure());
             assert(r.failure() == error::from_errno(EBADF)); });
 
-    testcaseV("buffer", "receive", [] () {
+    testcaseIO("buffer", "receive", [] (clientio io) {
             auto pipe(fd_t::pipe());
             assert(pipe.issuccess());
-            {   auto res(pipe.success().write.write(clientio::CLIENTIO,
+            {   auto res(pipe.success().write.write(io,
                                                     "GHI",
                                                     3));
                 assert(res.issuccess());
                 assert(res.success() == 3); }
             ::buffer buf;
-            {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
+            {   auto res(buf.receive(io, pipe.success().read));
                 assert(res.issuccess());
                 assert(buf.avail() == 3);
                 char bb[2];
                 buf.fetch(bb, 2);
                 assert(!memcmp(bb, "GH", 2)); }
-            {   auto res(pipe.success().write.write(clientio::CLIENTIO,
+            {   auto res(pipe.success().write.write(io,
                                                     "JKLM",
                                                     4));
                 assert(res.issuccess());
                 assert(res.success() == 4); }
-            {   auto res(buf.receive(clientio::CLIENTIO, pipe.success().read));
+            {   auto res(buf.receive(io, pipe.success().read));
                 assert(res.issuccess());
                 assert(buf.avail() == 5);
                 char bb[5];
@@ -847,23 +845,23 @@ tests::buffer(void)
                 assert(!memcmp(bb, "IJKLM", 5)); }
             pipe.success().close(); });
 
-    testcaseV("buffer", "receivetimeout", [] () {
+    testcaseIO("buffer", "receivetimeout", [] (clientio io) {
             auto pipe(fd_t::pipe());
             assert(pipe.issuccess());
             ::buffer buf;
             {   auto res(buf.receive(
-                             clientio::CLIENTIO,
+                             io,
                              pipe.success().read,
                              timestamp::now() + timedelta::milliseconds(10)));
                 assert(res.isfailure());
                 assert(res.failure() == error::timeout); }
-            {   auto res(pipe.success().write.write(clientio::CLIENTIO,
+            {   auto res(pipe.success().write.write(io,
                                                     "JKLM",
                                                     4));
                 assert(res.issuccess());
                 assert(res.success() == 4); }
             {   subscriber sub;
-                auto res(buf.receive(clientio::CLIENTIO,
+                auto res(buf.receive(io,
                                      pipe.success().read,
                                      sub));
                 assert(res.issuccess());
@@ -892,8 +890,7 @@ tests::buffer(void)
             for (unsigned i = 0; i < sizeof(b) * 30; i++) {
                 assert(z[i] == 'Z'); } });
 
-    testcaseV("buffer", "receivenotify", [] () {
-            initpubsub();
+    testcaseIO("buffer", "receivenotify", [] (clientio io) {
             ::buffer buf;
             auto pipe(fd_t::pipe());
             subscriber sub;
@@ -903,20 +900,19 @@ tests::buffer(void)
                     sleep(1);
                     pub.publish();
                     return true;});
-            auto res(buf.receive(clientio::CLIENTIO,
+            auto res(buf.receive(io,
                                  pipe.success().read,
                                  sub));
             assert(res.issuccess());
             assert(res.success() == &scn);
             assert(worker.get() == true);
-            pipe.success().close();
-            deinitpubsub(clientio::CLIENTIO); });
+            pipe.success().close(); });
 
-    testcaseV("buffer", "receivefailure", [] () {
+    testcaseIO("buffer", "receivefailure", [] (clientio io) {
             ::buffer buf;
             auto pipe(fd_t::pipe());
             pipe.success().close();
-            auto t(buf.receive(clientio::CLIENTIO, pipe.success().read));
+            auto t(buf.receive(io, pipe.success().read));
             assert(t.isfailure());
             assert(t == error::from_errno(EBADF));
             assert(buf.empty()); });

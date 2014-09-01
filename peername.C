@@ -531,15 +531,14 @@ tests::_peername() {
             ll3.close();
             ll.close();
             p.evict(); });
-    testcaseV("peername", "canonicalise", [] {
+    testcaseIO("peername", "canonicalise", [] (clientio io) {
             auto p(peername::all(peername::port(quickcheck())).canonicalise());
             assert(!p.samehost(peername::loopback(peername::port::any)));
             assert(!p.samehost(peername::all(peername::port::any)));
             assert(p == p.canonicalise());
             auto l(socket_t::listen(p).fatal("listening on " + fields::mk(p)));
-            spark<void> acc([l] {
-                    l.accept(clientio::CLIENTIO).fatal("accepting").close(); });
-            auto c(tcpsocket::connect(clientio::CLIENTIO, p)
+            spark<void> acc([l,io] {l.accept(io).fatal("accepting").close();});
+            auto c(tcpsocket::connect(io, p)
                    .fatal("connecting to " + fields::mk(p)));
             acc.get();
             l.close();

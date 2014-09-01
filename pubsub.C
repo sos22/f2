@@ -318,145 +318,127 @@ deinitpubsub(clientio io) {
 
 void
 tests::pubsub() {
+    /* don't use testcaseIO from here: we need to be able to control
+       when initpubsub() and deinitpubsub get called. */
     auto epsilon(timedelta::milliseconds(10));
+    clientio io(clientio::CLIENTIO);
+
     testcaseV("pubsub", "pubcons", [] () {
             publisher p; });
     testcaseV("pubsub", "pubpub", [] () {
             publisher().publish(); });
     testcaseV("pubsub", "subcons", [] () {
             subscriber s; });
-    testcaseV("pubsub", "subemptytimeout", [epsilon] () {
+    testcaseV("pubsub", "subemptytimeout", [epsilon, io] () {
             assert(subscriber()
-                   .wait(clientio::CLIENTIO, timestamp::now()) == NULL);
+                   .wait(io, timestamp::now()) == NULL);
             assert(subscriber()
-                   .wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL);});
-
-    testcaseV("pubsub", "basic1", [epsilon] () {
+                   .wait(io, timestamp::now() + epsilon) == NULL);});
+    testcaseV("pubsub", "basic1", [epsilon, io] () {
             publisher p;
             subscriber s;
             subscription a(s, p);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL); });
-    testcaseV("pubsub", "nonconcurrentnotification", [epsilon] () {
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "nonconcurrentnotification", [epsilon, io] () {
             publisher p;
             subscriber s;
             subscription a(s, p);
             p.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL); });
-    testcaseV("pubsub", "multinonconcurrentnotification", [epsilon] () {
+            assert(s.wait(io, timestamp::now()) == &a);
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "multinonconcurrentnotification", [epsilon, io] () {
             publisher p;
             subscriber s;
             subscription a(s, p);
             p.publish();
             p.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL);
+            assert(s.wait(io, timestamp::now()) == &a);
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL);
             p.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL); });
-    testcaseV("pubsub", "notificationafterunsub", [epsilon] () {
+            assert(s.wait(io, timestamp::now()) == &a);
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "notificationafterunsub", [epsilon, io] () {
             publisher p;
             subscriber s;
             {   subscription a(s, p);
                 p.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a); }
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL);
+            assert(s.wait(io, timestamp::now()) == &a); }
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL);
             p.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL); });
-    testcaseV("pubsub", "1pub1subNsubS", [epsilon] () {
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "1pub1subNsubS", [epsilon, io] () {
             publisher p;
             subscriber s;
             {   subscription a(s, p);
                 {   subscription b(s, p);
                     p.publish();
-                    auto f(s.wait(clientio::CLIENTIO, timestamp::now()));
-                    auto g(s.wait(clientio::CLIENTIO, timestamp::now()));
-                    auto h(s.wait(clientio::CLIENTIO,
-                                  timestamp::now() + epsilon));
+                    auto f(s.wait(io, timestamp::now()));
+                    auto g(s.wait(io, timestamp::now()));
+                    auto h(s.wait(io, timestamp::now() + epsilon));
                     assert(f != g);
                     assert(f == &a || f == &b);
                     assert(g == &a || g == &b);
                     assert(h == NULL); }
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 p.publish();
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL); }
+                assert(s.wait(io, timestamp::now()) == &a);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL); }
             p.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL); });
-    testcaseV("pubsub", "unsubnotified", [epsilon] () {
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "unsubnotified", [epsilon, io] () {
             publisher p;
             subscriber s;
             {   subscription a(s, p);
                 {   subscription b(s, p);
                     p.publish(); }
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now()) == &a);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 p.publish();
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL); } });
-    testcaseV("pubsub", "1pub2sub", [epsilon] () {
+                assert(s.wait(io, timestamp::now()) == &a);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL); } });
+    testcaseV("pubsub", "1pub2sub", [epsilon, io] {
             publisher p;
             subscriber s1;
             subscription a(s1, p);
             {   subscriber s2;
                 subscription b(s2, p);
                 p.publish();
-                assert(s1.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-                assert(s1.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
-                assert(s2.wait(clientio::CLIENTIO, timestamp::now()) == &b);
-                assert(s2.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL); }
+                assert(s1.wait(io, timestamp::now()) == &a);
+                assert(s1.wait(io, timestamp::now() + epsilon) == NULL);
+                assert(s2.wait(io, timestamp::now()) == &b);
+                assert(s2.wait(io, timestamp::now() + epsilon) == NULL); }
             p.publish();
-            assert(s1.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-            assert(s1.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL); });
-    testcaseV("pubsub", "2pub1sub", [epsilon] () {
+            assert(s1.wait(io, timestamp::now()) == &a);
+            assert(s1.wait(io, timestamp::now() + epsilon) == NULL); });
+    testcaseV("pubsub", "2pub1sub", [epsilon, io] () {
             publisher p1;
             publisher p2;
             subscriber s;
             subscription a(s, p1);
             subscription b(s, p2);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL);
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL);
             p1.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &a);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL);
+            assert(s.wait(io, timestamp::now()) == &a);
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL);
             p2.publish();
-            assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &b);
-            assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                       == NULL);
+            assert(s.wait(io, timestamp::now()) == &b);
+            assert(s.wait(io, timestamp::now() + epsilon) == NULL);
             p1.publish();
             p2.publish();
-            auto f(s.wait(clientio::CLIENTIO, timestamp::now()));
-            auto g(s.wait(clientio::CLIENTIO, timestamp::now()));
-            auto h(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon));
+            auto f(s.wait(io, timestamp::now()));
+            auto g(s.wait(io, timestamp::now()));
+            auto h(s.wait(io, timestamp::now() + epsilon));
             assert(f != g);
             assert(f == &a || f == &b);
             assert(g == &a || g == &b);
             assert(h == NULL); } );
-    testcaseV("pubsub", "basicIO", [epsilon] () {
-            clientio io(clientio::CLIENTIO);
+    testcaseV("pubsub", "basicIO", [epsilon, io] () {
             initpubsub();
             {   subscriber s;
                 auto p(fd_t::pipe());
                 if (p.isfailure()) p.failure().fatal("creating pipe");
                 iosubscription sub(s, p.success().read.poll(POLLIN));
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 p.success().write.write(io, "foo", 3);
 
                 /* This should arguably be asserting that sub becomes
@@ -464,36 +446,29 @@ tests::pubsub() {
                  * ready after epsilon, because it is, but that's much
                  * harder to implement and won't matter for any real
                  * users of the interface. */
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == &sub);
+                assert(s.wait(io, timestamp::now() + epsilon) == &sub);
 
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 sub.rearm();
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &sub);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now()) == &sub);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 char buf[3];
                 sub.rearm();
                 p.success().read.read(io, buf, 1);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &sub);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                            == NULL);
+                assert(s.wait(io, timestamp::now()) == &sub);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 sub.rearm();
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &sub);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now()) == &sub);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 sub.rearm();
                 p.success().read.read(io, buf, 2);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now()) == &sub);
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL);
+                assert(s.wait(io, timestamp::now()) == &sub);
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL);
                 sub.rearm();
-                assert(s.wait(clientio::CLIENTIO, timestamp::now() + epsilon)
-                           == NULL); }
+                assert(s.wait(io, timestamp::now() + epsilon) == NULL); }
             deinitpubsub(io); } );
 
-    testcaseV("pubsub", "race pub+unsub", [] () {
+    testcaseV("pubsub", "race pub+unsub", [io] {
             /* One thread constantly publishes the condition in a
                tight loop, the other constantly subscribes and
                unsubscribes.  Doesn't really do a great deal beyond
@@ -506,12 +481,12 @@ tests::pubsub() {
                     while (timestamp::now() < deadline) {
                         pub.publish(); }
                     return true; });
-            spark<bool> t2([&pub,&cntr,deadline] () {
+            spark<bool> t2([&pub,&cntr,deadline, io] () {
                     subscriber sub;
                     while (timestamp::now() < deadline) {
                         subscription ss(sub, pub);
                         timestamp startwait(timestamp::now());
-                        sub.wait(clientio::CLIENTIO, deadline);
+                        sub.wait(io, deadline);
                         timestamp endwait(timestamp::now());
                         assert(endwait - startwait <
                                timedelta::milliseconds(10));
@@ -521,7 +496,7 @@ tests::pubsub() {
             t2.get();
             assert(cntr >= 10000); });
 
-    testcaseV("pubsub", "pingpong", [] () {
+    testcaseV("pubsub", "pingpong", [io] {
             /* Ping-pong back and forth between two threads for a
              * bit. */
             bool thread1;
@@ -533,14 +508,14 @@ tests::pubsub() {
             int cntr2;
             cntr1 = 0;
             cntr2 = 0;
-            spark<bool> t1([&thread1, &pub1, &pub2, deadline, &cntr1] () {
+            spark<bool> t1([&thread1, &pub1, &pub2, deadline, &cntr1, io] {
                     subscriber sub;
                     subscription ss(sub, pub1);
                     while (timestamp::now() < deadline) {
                         assert(timedelta::time<bool>([&thread1, &ss, &sub,
-                                                      deadline] () {
+                                                      deadline, io] () {
                                     while (!thread1) {
-                                        auto r(sub.wait(clientio::CLIENTIO, deadline));
+                                        auto r(sub.wait(io, deadline));
                                         assert(
                                             r == &ss ||
                                             timestamp::now() >= deadline); }
@@ -551,14 +526,14 @@ tests::pubsub() {
                         pub2.publish();
                         cntr1++; }
                     return true; });
-            spark<bool> t2([&thread1, &pub1, &pub2, &cntr2, deadline] () {
+            spark<bool> t2([&thread1, &pub1, &pub2, &cntr2, deadline, io] {
                     subscriber sub;
                     subscription ss(sub, pub2);
                     while (timestamp::now() < deadline) {
                         assert(timedelta::time<bool>([&thread1, &ss, &sub,
-                                                      deadline] () {
+                                                      deadline, io] () {
                                     while (thread1) {
-                                        auto r(sub.wait(clientio::CLIENTIO, deadline));
+                                        auto r(sub.wait(io, deadline));
                                         assert(
                                             r == &ss ||
                                             timestamp::now() >= deadline); }
@@ -574,7 +549,7 @@ tests::pubsub() {
             assert(cntr1 - cntr2 >= -1 && cntr1 - cntr2 <= 1);
             assert(cntr1 >= 10000); });
 
-    testcaseV("pubsub", "ioshutdownrace", [] () {
+    testcaseV("pubsub", "ioshutdownrace", [io] () {
             auto pipe(fd_t::pipe());
             subscriber sub;
             initpubsub();
@@ -582,10 +557,10 @@ tests::pubsub() {
                 (timestamp::now() + timedelta::milliseconds(10)).sleep(); }
             pipe.success().close();
             (timestamp::now() + timedelta::milliseconds(10)).sleep();
-            deinitpubsub(clientio::CLIENTIO); });
+            deinitpubsub(io); });
 
 #if TESTING
-    testcaseV("pubsub", "iounsubscriberace", [] {
+    testcaseV("pubsub", "iounsubscriberace", [io] {
             auto pipe(fd_t::pipe());
             timestamp deadline(timestamp::now() + timedelta::seconds(1));
             initpubsub();
@@ -594,19 +569,18 @@ tests::pubsub() {
                iosubdetachrace event.  Give it a quick once-over. */
             eventwaiter<void> evt1(
                 iosubdetachrace,
-                [fd = pipe.success().write] () {
-                    fd.write(clientio::CLIENTIO, "X", 1);
+                [fd = pipe.success().write, io] () {
+                    fd.write(io, "X", 1);
                     (timestamp::now() + timedelta::milliseconds(10)).sleep();});
             spark<bool> reader([fd = pipe.success().read, deadline] () {
                     subscriber sub;
-                    iosubscription ios(sub,
-                                       fd.poll(POLLIN));
+                    iosubscription ios(sub, fd.poll(POLLIN));
                     return true; });
             reader.get();
-            deinitpubsub(clientio::CLIENTIO); });
+            deinitpubsub(io); });
 #endif
 
-    testcaseV("pubsub", "iosublots", [] {
+    testcaseV("pubsub", "iosublots", [io] {
             fd_t::piperes pipes[32];
             initpubsub();
             subscriber ss;
@@ -616,11 +590,11 @@ tests::pubsub() {
                 subs.pushtail(new iosubscription(ss,
                                                  pipes[i].read.poll(POLLIN))); }
             for (int i = 0; i < 32; i++) {
-                pipes[i].write.write(clientio::CLIENTIO, "X", 1);
-                auto r(ss.wait(clientio::CLIENTIO));
+                pipes[i].write.write(io, "X", 1);
+                auto r(ss.wait(io));
                 assert(r == subs.pophead());
                 delete (iosubscription *)r; }
-            deinitpubsub(clientio::CLIENTIO); });
+            deinitpubsub(io); });
 
     testcaseV("pubsub", "lateunsub", [] {
             publisher pub;
@@ -629,19 +603,15 @@ tests::pubsub() {
                 ss = new subscription(sub, pub); }
             delete ss; });
 
-    testcaseV("pubsub", "detachnotifyrace", [] {
+    testcaseV("pubsub", "detachnotifyrace", [io] {
             initpubsub();
             auto pipe(fd_t::pipe().fatal("pipe()"));
             volatile bool shutdown(false);
-            spark<bool> bounce([&pipe, &shutdown] {
+            spark<bool> bounce([&pipe, &shutdown, io] {
                     while (!shutdown) {
-                        (void)pipe.write.write(clientio::CLIENTIO,
-                                               "X",
-                                               1);
+                        (void)pipe.write.write(io, "X", 1);
                         char buf;
-                        (void)pipe.read.read(clientio::CLIENTIO,
-                                             &buf,
-                                             1); }
+                        (void)pipe.read.read(io, &buf, 1); }
                     return true; });
             spark<bool> watcher([&pipe, &shutdown] {
                     while (!shutdown) {
@@ -657,18 +627,18 @@ tests::pubsub() {
             (timestamp::now() + timedelta::seconds(5)).sleep();
             shutdown = true;
             watcher.get();
-            deinitpubsub(clientio::CLIENTIO); });
+            deinitpubsub(io); });
 
-    testcaseV("pubsub", "listenclosed", [] {
+    testcaseV("pubsub", "listenclosed", [io] {
             initpubsub();
             initlogging("test");
             auto pipe(fd_t::pipe().fatal("pipe()"));
-            spark<pair<timestamp, timestamp> > listen([&pipe] {
+            spark<pair<timestamp, timestamp> > listen([&pipe, io] {
                     subscriber sub;
                     iosubscription ios(sub, pipe.read.poll(POLLIN));
                     (timestamp::now() + timedelta::milliseconds(100)).sleep();
                     auto subtime(timestamp::now());
-                    sub.wait(clientio::CLIENTIO);
+                    sub.wait(io);
                     return mkpair(subtime, timestamp::now()); });
             (timestamp::now() + timedelta::milliseconds(200)).sleep();
             auto closeread(timestamp::now());
@@ -679,10 +649,10 @@ tests::pubsub() {
             auto t(listen.get());
             assert(t.first() < closeread);
             assert(closewrite < t.second());
-            deinitpubsub(clientio::CLIENTIO);
+            deinitpubsub(io);
             deinitlogging(); });
 
-    testcaseV("pubsub", "listenboth", [] {
+    testcaseV("pubsub", "listenboth", [io] {
             /* Basic tests when we're listening for read and write on
                the same FD in different subscriptions. */
             initpubsub();
@@ -692,7 +662,7 @@ tests::pubsub() {
                 char b[4096];
                 memset(b, 0, sizeof(b));
                 auto r(pipe.fd0.write(
-                           clientio::CLIENTIO,
+                           io,
                            b,
                            sizeof(b),
                            timestamp::now() + timedelta::milliseconds(1)));
@@ -704,15 +674,14 @@ tests::pubsub() {
                 (timestamp::now() + timedelta::milliseconds(100)).sleep();
                 assert(sub.poll() == NULL);
                 {   char b[4096];
-                    pipe.fd1.readpoll(b, sizeof(b))
-                        .fatal("readpoll"); }
+                    pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
                 (timestamp::now() + timedelta::milliseconds(100)).sleep();
                 assert(sub.poll() == &writing); }
             while (1) {
                 char b[4096];
                 memset(b, 0, sizeof(b));
                 auto r(pipe.fd0.write(
-                           clientio::CLIENTIO,
+                           io,
                            b,
                            sizeof(b),
                            timestamp::now() + timedelta::milliseconds(1)));
@@ -724,11 +693,10 @@ tests::pubsub() {
                 (timestamp::now() + timedelta::milliseconds(100)).sleep();
                 assert(sub.poll() == NULL);
                 {   char b[4096];
-                    pipe.fd1.readpoll(b, sizeof(b))
-                        .fatal("readpoll"); }
+                    pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
                 (timestamp::now() + timedelta::milliseconds(100)).sleep();
                 assert(sub.poll() == &writing); }
-            deinitpubsub(clientio::CLIENTIO); });
+            deinitpubsub(io); });
 }
 
 tests::event<void> tests::iosubdetachrace;

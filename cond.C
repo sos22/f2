@@ -68,6 +68,8 @@ cond_t::wait(clientio io,
 
 void
 tests::cond() {
+    /* Not testcaseIO, even though we need a clientio token, because I
+       don't want to depend on pubsub from here. */
     testcaseV("cond", "wake", [] {
             mutex_t mux;
             cond_t cond(mux);
