@@ -157,9 +157,8 @@ tests::_rpc() {
     testcaseV("rpc", "connconfig", [] {
             wireproto::roundtrip<rpcconnconfig>();
             parsers::roundtrip(parsers::_rpcconnconfig()); });
-    testcaseV("rpc", "trivserver", [] {
+    testcaseIO("rpc", "trivserver", [] (clientio io) {
             /* Can we create and start an RPC server, without any clients? */
-            initpubsub();
             peername listenon(peername::loopback(peername::port(quickcheck())));
             int x(73);
             auto s(::rpcserver::listen<trivrpcserver>(listenon, x)
@@ -169,11 +168,9 @@ tests::_rpc() {
             auto sss(s.go());
             assert(ss == sss);
             assert(sss->localname() == listenon);
-            sss->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "trivclient", [] {
+            sss->destroy(io); });
+    testcaseIO("rpc", "trivclient", [] (clientio io) {
             /* Can clients connect to our trivial server? */
-            initpubsub();
             peername listenon(peername::loopback(peername::port(quickcheck())));
             int x(73);
             auto s1(::rpcserver::listen<trivrpcserver>(listenon, x)
@@ -181,25 +178,23 @@ tests::_rpc() {
                            fields::mk(listenon)));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(proto::PING::tag,
                                        c->allocsequencenr()))
                 .fatal("sending ping");
-            assert(c->call(clientio::CLIENTIO,
+            assert(c->call(io,
                            wireproto::req_message(proto::REMOVESTREAM::tag,
                                                   c->allocsequencenr()))
                    == error::unimplemented);
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "authclient", [] {
+            c->destroy(io);
+            s2->destroy(io); });
+    testcaseIO("rpc", "authclient", [] (clientio io) {
             /* Basic auth state machine. */
-            initpubsub();
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto ms(mastersecret::mk());
             registrationsecret rs((quickcheck()));
@@ -213,7 +208,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto slavepeer(peername::loopback(peername::port(quickcheck())));
             auto c(rpcconn::connectmaster<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        beaconresult(
                            ms.nonce(slavepeer),
                            slavepeer,
@@ -223,17 +218,15 @@ tests::_rpc() {
                        rpcconnconfig::dflt)
                    .fatal("connecting to master"));
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(proto::PING::tag,
                                        c->allocsequencenr()))
                 .fatal("sending ping");
             assert(s2->connected);
-            c->destroy(clientio::CLIENTIO);
+            c->destroy(io);
             assert(s2->connected->slavename() == slavename("HELLO"));
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "badauthclient", [] {
-            initpubsub();
+            s2->destroy(io); });
+    testcaseIO("rpc", "badauthclient", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto ms(mastersecret::mk());
             registrationsecret rs((quickcheck()));
@@ -248,34 +241,36 @@ tests::_rpc() {
             auto slavepeer(peername::loopback(peername::port(quickcheck())));
             /* Messages other than PING and HELLO without HELLO should fail */
             {   auto c(rpcconn::connectnoauth<rpcconn>(
-                           clientio::CLIENTIO,
+                           io,
                            listenon,
                            rpcconnconfig::dflt)
                        .fatal("connecting to master"));
                 assert(c->call(
-                           clientio::CLIENTIO,
+                           io,
                            wireproto::req_message(wireproto::msgtag(99),
                                                   c->allocsequencenr()))
                        == error::disconnected);
-                c->destroy(clientio::CLIENTIO); }
+                c->destroy(io); }
             auto ff(
                 [listenon]
-                (std::function <wireproto::req_message & (wireproto::req_message &)> setup) {
+                (std::function <wireproto::req_message & (wireproto::req_message &)> setup,
+                 clientio _io) {
                     auto c(rpcconn::connectnoauth<rpcconn>(
-                               clientio::CLIENTIO,
+                               _io,
                                listenon,
                                rpcconnconfig::dflt)
                            .fatal("connecting to master"));
                     wireproto::req_message msg(
                         proto::HELLO::tag,
                         c->allocsequencenr());
-                    assert(c->call(clientio::CLIENTIO, setup(msg))
+                    assert(c->call(_io, setup(msg))
                            == error::disconnected);
-                    c->destroy(clientio::CLIENTIO); });
+                    c->destroy(_io); });
             /* Bad HELLOs should fail */
             /* Missing parameters */
             ff([] (wireproto::req_message &t) -> wireproto::req_message & {
-                    return t; });
+                    return t; },
+                io);
             /* Bad version */
             ff([&ms, slavepeer]
                (wireproto::req_message &t) -> wireproto::req_message & {
@@ -287,7 +282,8 @@ tests::_rpc() {
                                   slavepeer)
                         .addparam(proto::HELLO::req::slavename,
                                   slavename("HELLO"))
-                        .addparam(proto::HELLO::req::version, 99u); });
+                        .addparam(proto::HELLO::req::version, 99u); },
+               io);
             /* Bad nonce */
             ff([slavepeer]
                (wireproto::req_message &t) -> wireproto::req_message & {
@@ -299,7 +295,8 @@ tests::_rpc() {
                                   slavepeer)
                         .addparam(proto::HELLO::req::slavename,
                                   slavename("HELLO"))
-                        .addparam(proto::HELLO::req::version, 1u); });
+                        .addparam(proto::HELLO::req::version, 1u); },
+               io);
             /* Bad peername */
             ff([&ms]
                (wireproto::req_message &t) -> wireproto::req_message & {
@@ -312,7 +309,8 @@ tests::_rpc() {
                                   slavepeer2)
                         .addparam(proto::HELLO::req::slavename,
                                   slavename("HELLO"))
-                        .addparam(proto::HELLO::req::version, 1u); });
+                        .addparam(proto::HELLO::req::version, 1u); },
+               io);
             /* Bad digest */
             ff([&ms, slavepeer]
                (wireproto::req_message &t) -> wireproto::req_message & {
@@ -324,15 +322,14 @@ tests::_rpc() {
                                   slavepeer)
                         .addparam(proto::HELLO::req::slavename,
                                   slavename("HELLO"))
-                        .addparam(proto::HELLO::req::version, 1u); });
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+                        .addparam(proto::HELLO::req::version, 1u); },
+                io);
+            s2->destroy(io); });
     testcaseV("rpc", "statusrt", [] {
             wireproto::roundtrip< ::rpcserver::status_t>();
             wireproto::roundtrip<rpcconn::status_t>(); });
 #if TESTING
-    testcaseV("rpc", "acceptfailed", [] {
-            initpubsub();
+    testcaseIO("rpc", "acceptfailed", [] (clientio io) {
             bool triggered = false;
             publisher pub;
             tests::eventwaiter<listenfd> w(
@@ -350,42 +347,38 @@ tests::_rpc() {
             subscriber sub;
             subscription ss(sub, pub);
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
             while (!triggered) sub.wait(clientio::CLIENTIO);
             assert(c->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(proto::PING::tag,
                                               c->allocsequencenr())) ==
                    error::disconnected);
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 #endif
-    testcaseV("rpc", "unconnectable", [] {
-            initpubsub();
+    testcaseIO("rpc", "unconnectable", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto s1(::rpcserver::listen<unconnectableserver>(listenon)
                     .fatal("creating trivial server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
             assert(c->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(proto::PING::tag,
                                               c->allocsequencenr())) ==
                    error::disconnected);
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 #if TESTING
-    testcaseV("rpc", "serverstatus", [] {
-            initpubsub();
+    testcaseIO("rpc", "serverstatus", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto s1(::rpcserver::listen<unconnectableserver>(listenon)
                     .fatal("creating trivial server"));
@@ -395,53 +388,49 @@ tests::_rpc() {
             assert(!strcmp(fields::mk(status1).c_str(),
                            fields::mk(s2->status()).c_str()));
             /* Make sure status changes when we have pending connections. */
-            waitbox<bool> startedaccept;
-            waitbox<bool> finishaccept;
+            waitbox<void> startedaccept;
+            waitbox<void> finishaccept;
             tests::eventwaiter<listenfd> w(
                 tests::rpcserver::accepting,
-                [&startedaccept, &finishaccept]
+                [&startedaccept, &finishaccept, io]
                 (listenfd) {
-                    startedaccept.set(true);
-                    assert(finishaccept.get(clientio::CLIENTIO) == true); });
-            spark<orerror<rpcconn *> > connector([listenon] {
+                    startedaccept.set();
+                    finishaccept.get(io); });
+            spark<orerror<rpcconn *> > connector([listenon, io] {
                     return rpcconn::connectnoauth<rpcconn>(
-                        clientio::CLIENTIO,
+                        io,
                         listenon,
                         rpcconnconfig::dflt); });
-            assert(startedaccept.get(clientio::CLIENTIO) == true);
+            startedaccept.get(io);
             assert(!(s2->status() == status1));
             assert(strcmp(fields::mk(status1).c_str(),
                           fields::mk(s2->status()).c_str()));
-            finishaccept.set(true);
-            connector.get().success()->destroy(clientio::CLIENTIO);
+            finishaccept.set();
+            connector.get().success()->destroy(io);
             /* And make sure it goes back afterwards. */
             assert(s2->status() == status1);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            s2->destroy(io); });
 #endif
-    testcaseV("rpc", "slaveauth", [] {
-            initpubsub();
+    testcaseIO("rpc", "slaveauth", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             registrationsecret rs((quickcheck()));
             auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
                     .fatal("creating trivial server"));
             auto s2(s1.go());
             auto c(rpcconn::connectslave<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rs,
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(proto::PING::tag,
                                        c->allocsequencenr()))
                 .fatal("sending ping");
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "slaveauthbad", [] {
-            initpubsub();
+            c->destroy(io);
+            s2->destroy(io); });
+    testcaseIO("rpc", "slaveauthbad", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             registrationsecret rs((quickcheck()));
             auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
@@ -451,62 +440,57 @@ tests::_rpc() {
             /* Anything other than HELLOSLAVE::B should fail the
              * authentication machine and prevent further connections. */
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
-            c->send(clientio::CLIENTIO,
-                    wireproto::tx_message(wireproto::msgtag(99)))
+            c->send(io, wireproto::tx_message(wireproto::msgtag(99)))
                 .fatal("sending tag 99");
             assert(c->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(proto::PING::tag,
                                               c->allocsequencenr()))
                    == error::disconnected);
-            c->destroy(clientio::CLIENTIO);
+            c->destroy(io);
 
             /* HELLOSLAVE::B with no digest should fail the
              * connection. */
             c = rpcconn::connectnoauth<rpcconn>(
-                clientio::CLIENTIO,
+                io,
                 listenon,
                 rpcconnconfig::dflt)
                 .fatal("connecting with slave auth");
-            c->send(clientio::CLIENTIO,
-                    wireproto::tx_message(
+            c->send(io, wireproto::tx_message(
                         wireproto::msgtag(proto::HELLOSLAVE::B::tag)))
                 .fatal("sending HELLOSLAVE::B with no digest");
             assert(c->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(proto::PING::tag,
                                               c->allocsequencenr()))
                    == error::disconnected);
-            c->destroy(clientio::CLIENTIO);
+            c->destroy(io);
 
             /* Similarly a bad digest. */
             c = rpcconn::connectnoauth<rpcconn>(
-                clientio::CLIENTIO,
+                io,
                 listenon,
                 rpcconnconfig::dflt)
                 .fatal("connecting with slave auth");
-            c->send(clientio::CLIENTIO,
+            c->send(io,
                     wireproto::tx_message(
                         wireproto::msgtag(proto::HELLOSLAVE::B::tag))
                     .addparam(proto::HELLOSLAVE::B::digest,
                               ::digest(fields::mk("invalid"))))
                 .fatal("sending HELLOSLAVE::B with no digest");
             assert(c->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(proto::PING::tag,
                                               c->allocsequencenr()))
                    == error::disconnected);
-            c->destroy(clientio::CLIENTIO);
-
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 #if TESTING
-    testcaseV("rpc", "slaveautherr", [] {
-            initpubsub();
+    testcaseIO("rpc", "slaveautherr", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             registrationsecret rs((quickcheck()));
             auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
@@ -522,7 +506,7 @@ tests::_rpc() {
                         *msg = new wireproto::tx_message(
                             wireproto::msgtag(99)); } );
                 assert(rpcconn::connectslave<rpcconn>(
-                           clientio::CLIENTIO,
+                           io,
                            listenon,
                            rs,
                            rpcconnconfig::dflt)
@@ -535,22 +519,20 @@ tests::_rpc() {
                         (*msg)->addparam(wireproto::err_parameter,
                                          error::pastend); });
                 assert(rpcconn::connectslave<rpcconn>(
-                           clientio::CLIENTIO,
+                           io,
                            listenon,
                            rs,
                            rpcconnconfig::dflt)
                        == error::pastend); }
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "pendingreply", [] {
-            initpubsub();
+            s2->destroy(io); });
+    testcaseIO("rpc", "pendingreply", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             registrationsecret rs((quickcheck()));
             auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
                     .fatal("creating trivial server"));
             auto s2(s1.go());
             auto c(rpcconn::connectslave<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rs,
                        rpcconnconfig::dflt)
@@ -562,18 +544,18 @@ tests::_rpc() {
             waitbox<void> readyrx;
             tests::eventwaiter<void> evt1(
                 tests::__rpcconn::calldonetx,
-                [&readyrx] { readyrx.get(clientio::CLIENTIO); });
+                [&readyrx, io] { readyrx.get(io); });
             tests::eventwaiter<void> evt2(
                 tests::__rpcconn::receivedreply,
                 [&donerx] { donerx.set(); });
             spark<void> caller(
-                [c] {
+                [c, io] {
                     delete c->call(
-                        clientio::CLIENTIO,
+                        io,
                         wireproto::req_message(proto::PING::tag,
                                                c->allocsequencenr()))
                         .fatal("sending ping"); });
-            donerx.get(clientio::CLIENTIO);
+            donerx.get(io);
             auto status2(c->status());
             assert(strcmp(fields::mk(status1).c_str(),
                           fields::mk(status2).c_str()));
@@ -584,13 +566,11 @@ tests::_rpc() {
                           fields::mk(status1).c_str()));
             assert(strcmp(fields::mk(status3).c_str(),
                           fields::mk(status2).c_str()));
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 #endif
-    testcaseV("rpc", "dodgyopen", [] {
-            initpubsub();
-            auto worker([] (bool sendbadhello) {
+    testcaseIO("rpc", "dodgyopen", [] (clientio _io) {
+            auto worker([] (bool sendbadhello, clientio io) {
                     peername listenon(peername::loopback(
                                           peername::port(quickcheck())));
                     auto s1(::rpcserver::listen<sendonconnectserver>(
@@ -599,20 +579,18 @@ tests::_rpc() {
                     auto s2(s1.go());
                     registrationsecret rs((quickcheck()));
                     assert(rpcconn::connectslave<rpcconn>(
-                               clientio::CLIENTIO,
+                               io,
                                listenon,
                                rs,
                                rpcconnconfig::dflt) ==
                            (sendbadhello
                             ? error::missingparameter
                             : error::unrecognisedmessage));
-                    s2->destroy(clientio::CLIENTIO); });
-            worker(true);
-            worker(false);
-            deinitpubsub(clientio::CLIENTIO); });
+                    s2->destroy(io); });
+            worker(true, _io);
+            worker(false, _io); });
 #if TESTING
-    testcaseV("rpc", "queuefull", [] {
-            initpubsub();
+    testcaseIO("rpc", "queuefull", [] (clientio _io) {
             /* Create a server with a small outgoing queue and a
                client with a large one.  Pause the server's thread.
                Have the client send a load of PING messages until its
@@ -620,7 +598,7 @@ tests::_rpc() {
                Pause the client, then unpause the server.  The server
                should hit the reply-queue-full path.  Shut down the
                server.  Unpause the client. */
-            auto work([] (bool cleanshutdown) {
+            auto work([] (bool cleanshutdown, clientio io) {
                     peername listenon(peername::loopback(
                                           peername::port(quickcheck())));
                     waitbox<void> serverpaused;
@@ -631,7 +609,7 @@ tests::_rpc() {
                     eventwaiter<rpcconn *> waiter(
                         tests::__rpcconn::threadawoken,
                         [&serverpaused, &unpauseserver, &unpauseclient,
-                         &phase, &c]
+                         &phase, &c, io]
                         (rpcconn *who)
                         {   if (who == c) {
                                 /* We are the client. */
@@ -639,12 +617,12 @@ tests::_rpc() {
                                     /* Let it run normally. */ }
                                 else {
                                     /* Pause it. */
-                                    unpauseclient.get(clientio::CLIENTIO); } }
+                                    unpauseclient.get(io); } }
                             else {
                                 /* We are the server. */
                                 if (phase == 0) {
                                     serverpaused.set();
-                                    unpauseserver.get(clientio::CLIENTIO); }
+                                    unpauseserver.get(io); }
                                 else {
                                     /* Running normally. */ } } });
                     auto s1(::rpcserver::listen<smallqueueserver>(listenon)
@@ -662,19 +640,19 @@ tests::_rpc() {
                         ratelimiterconfig(frequency::hz(0.5),
                                           1));
                     c = rpcconn::connectnoauth<rpcconn>(
-                        clientio::CLIENTIO,
+                        io,
                         listenon,
                         clientconfig)
                         .fatal("connecting large queue client");
 
                     /* Wait for server to pause. */
-                    serverpaused.get(clientio::CLIENTIO);
+                    serverpaused.get(io);
 
                     /* Send until the queue is full */
                     int cntr = 0;
                     while (1) {
                         auto r(c->send(
-                                   clientio::CLIENTIO,
+                                   io,
                                    wireproto::tx_message(proto::PING::tag),
                                    (timestamp::now() +
                                     timedelta::milliseconds(10))));
@@ -688,15 +666,15 @@ tests::_rpc() {
                         waitbox<void> replystopped;
                         eventwaiter<void> replystoppedwaiter(
                             tests::__rpcconn::replystopped,
-                            [&replystopped, &replyrestart] {
+                            [&replystopped, &replyrestart, io] {
                                 if (!replystopped.ready()) replystopped.set();
-                                replyrestart.get(clientio::CLIENTIO); });
+                                replyrestart.get(io); });
                         phase = 1;
                         unpauseserver.set();
                         if (!cleanshutdown) c->sock.close();
                         /* Wait for it to fill its queue generating
                          * replies. */
-                        replystopped.get(clientio::CLIENTIO);
+                        replystopped.get(io);
                         /* Unpause the server thread. */
                         replyrestart.set();
                         /* Give it a moment to do something. */
@@ -705,19 +683,16 @@ tests::_rpc() {
                         /* Start shutdown sequence on the server. */
                         s2->shutdown.set(true);
                         /* Tear down the server. */
-                        s2->destroy(clientio::CLIENTIO); }
+                        s2->destroy(io); }
                     /* Unpause the client and shut it down. */
                     unpauseclient.set();
-                    c->destroy(clientio::CLIENTIO); });
-            work(true);
-            work(false);
-            /* Done */
-            deinitpubsub(clientio::CLIENTIO); });
+                    c->destroy(io); });
+            work(true, _io);
+            work(false, _io);
+            /* Done */ });
 #endif
-    testcaseV("rpc", "shutdownbusy", [] {
-            initpubsub();
-
-            auto work([] (bool serverfirst) {
+    testcaseIO("rpc", "shutdownbusy", [] (clientio _io) {
+            auto work([] (bool serverfirst, clientio io) {
                     peername listenon(peername::loopback(
                                           peername::port(quickcheck())));
                     auto s1(::rpcserver::listen<callablerpcserver>(listenon)
@@ -734,16 +709,16 @@ tests::_rpc() {
                     private: int &cntr;
                     private: int localcntr;
                     private: const peername &connectto;
-                    private: void run(clientio io) {
+                    private: void run(clientio __io) {
                         auto c(rpcconn::connectnoauth<rpcconn>(
-                                   io,
+                                   __io,
                                    connectto,
                                    rpcconnconfig::dflt)
                                .fatal("connecting to callable server"));
                         subscriber sub;
                         subscription ss(sub, shutdown.pub);
                         while (!shutdown.ready()) {
-                            auto res(c->call(io,
+                            auto res(c->call(__io,
                                              wireproto::req_message(
                                                  callabletag,
                                                  c->allocsequencenr()),
@@ -765,7 +740,7 @@ tests::_rpc() {
                         /* Every thread client must make some amount
                          * of progress. */
                         assert(localcntr > 10);
-                        c->destroy(io); }
+                        c->destroy(__io); }
                     public:  workerthr(const constoken &token,
                                        const waitbox<void> &_shutdown,
                                        int &_cntr,
@@ -798,7 +773,7 @@ tests::_rpc() {
                     int cntrsnap;
                     if (serverfirst) {
                         /* Shut down the server. */
-                        s2->destroy(clientio::CLIENTIO);
+                        s2->destroy(io);
                         /* Don't really need acquire semantics here,
                            it just discourages the compiler from doing
                            anything stupid. */
@@ -809,7 +784,7 @@ tests::_rpc() {
                     /* Shut the clients down. */
                     shutdownclients.set();
                     for (unsigned i = 0; i < nr_workers; i++) {
-                        workers[i].inner->join(clientio::CLIENTIO); }
+                        workers[i].inner->join(io); }
                     if (serverfirst) {
                         /* shouldn't have completed too many calls
                            after server shutdown.  Might get a couple
@@ -818,18 +793,15 @@ tests::_rpc() {
                         assert(cntr >= cntrsnap);
                         assert(cntr <= cntrsnap + (int)nr_workers + 1); }
                     else {
-                        s2->destroy(clientio::CLIENTIO); }
+                        s2->destroy(io); }
                     ::logmsg(loglevel::info,
                              "managed " + fields::mk(cntr) + " round trips");
                     /* We're done. */ });
-            work(true);
-            work(false);
-            deinitpubsub(clientio::CLIENTIO); });
+            work(true, _io);
+            work(false, _io); });
 
 #if TESTING
-    testcaseV("rpc", "ping", [] {
-            initpubsub();
-
+    testcaseIO("rpc", "ping", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             /* Make the timeouts a bit more aggressive so that the
                test completes quickly. */
@@ -847,33 +819,33 @@ tests::_rpc() {
                     .fatal("creating callable RPC server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        config)
                    .fatal("connect to ping server"));
             /* Make sure we can make calls when things are running
              * normally. */
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(callabletag, c->allocsequencenr()))
                 .fatal("calling ping server");
             (timestamp::now() + config.pinginterval * 2).sleep();
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(callabletag, c->allocsequencenr()))
                 .fatal("calling ping server after stall");
             /* Stop the server from making further progress */
             waitbox<void> releaseserver;
             {   eventwaiter<rpcconn *> waiter(
                     tests::__rpcconn::threadawoken,
-                    [c, &releaseserver]
+                    [c, &releaseserver, io]
                     (rpcconn *who) {
                         if (c == who) return;
-                        releaseserver.get(clientio::CLIENTIO); });
+                        releaseserver.get(io); });
                 /* Next call should by killed by the ping machine. */
                 auto starttime(timestamp::now());
                 assert(c->call(
-                           clientio::CLIENTIO,
+                           io,
                            wireproto::req_message(callabletag,
                                                   c->allocsequencenr()))
                        == error::disconnected);
@@ -883,26 +855,26 @@ tests::_rpc() {
                        config.pinginterval +
                        config.pingdeadline +
                        timedelta::milliseconds(50));
-                c->destroy(clientio::CLIENTIO);
+                c->destroy(io);
                 releaseserver.set(); }
             /* Server unpaused -> connect again and try it the other
              * way around. */
             c = rpcconn::connectnoauth<rpcconn>(
-                clientio::CLIENTIO,
+                io,
                 listenon,
                 config)
                 .fatal("connect to ping server");
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(callabletag, c->allocsequencenr()))
                 .fatal("calling ping server after reconnect");
             waitbox<void> releaseclient;
             {   eventwaiter<rpcconn *> waiter(
                     tests::__rpcconn::threadawoken,
-                    [c, &releaseclient]
+                    [c, &releaseclient, io]
                     (rpcconn *who) {
                         if (c != who) return;
-                        releaseclient.get(clientio::CLIENTIO); });
+                        releaseclient.get(io); });
                 /* Wait for the ping machine to do its thing. */
                 (timestamp::now() +
                  config.pinginterval +
@@ -915,29 +887,27 @@ tests::_rpc() {
                 releaseclient.set();
                 auto starttime(timestamp::now());
                 assert(c->call(
-                           clientio::CLIENTIO,
+                           io,
                            wireproto::req_message(callabletag,
                                                   c->allocsequencenr()))
                        == error::disconnected);
                 auto endtime(timestamp::now());
                 assert((endtime - starttime) < timedelta::milliseconds(50));
-                c->destroy(clientio::CLIENTIO); }
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+                c->destroy(io); }
+            s2->destroy(io); });
 #endif
-    testcaseV("rpc", "sendbad", [] {
-            initpubsub();
+    testcaseIO("rpc", "sendbad", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to ping server"));
             delete c->call(
-                clientio::CLIENTIO,
+                io,
                 wireproto::req_message(callabletag,
                                        c->allocsequencenr()))
                 .fatal("call callable");
@@ -947,49 +917,47 @@ tests::_rpc() {
                 memset(buf, 0, sizeof(buf));
                 b.queue(buf, sizeof(buf));
                 subscriber sub;
-                b.send(clientio::CLIENTIO,
+                b.send(io,
                        c->sock,
                        sub).fatal("sending nonsense"); }
             /* call on the same connection should fail. */
             assert(c->call(
-                       clientio::CLIENTIO,
+                       io,
                        wireproto::req_message(callabletag,
                                               c->allocsequencenr()))
                    == error::disconnected);
             /* Disconnect and reconnect should fix it. */
-            c->destroy(clientio::CLIENTIO);
+            c->destroy(io);
             c = rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                 .fatal("reconnect to ping server");
-            c->call(clientio::CLIENTIO,
+            c->call(io,
                     wireproto::req_message(callabletag,
                                            c->allocsequencenr()))
                 .fatal("call after reconnect");
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 
-    testcaseV("rpc", "nullcall", [] {
-            initpubsub();
+    testcaseIO("rpc", "nullcall", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating nullary server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
             {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
-            c->send(clientio::CLIENTIO,
+            c->send(io,
                     wireproto::tx_message(nullarymsgtag))
                 .fatal("sending nullary message");
             {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
-            delete c->call(clientio::CLIENTIO,
+            delete c->call(io,
                            wireproto::req_message(proto::PING::tag,
                                                   c->allocsequencenr()))
                 .fatal("sending PING");
@@ -998,32 +966,30 @@ tests::_rpc() {
             (timestamp::now() + timedelta::milliseconds(300)).sleep();
             {   auto status(c->status());
                 assert(status.pendingrx.empty()); }
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 
 #if TESTING
-    testcaseV("rpc", "sendinterrupted", [] {
-            initpubsub();
+    testcaseIO("rpc", "sendinterrupted", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating nullary server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
             waitbox<void> unpause;
             eventwaiter<rpcconn *> waiter(
                 tests::__rpcconn::threadawoken,
-                [c, &unpause]
+                [c, &unpause, io]
                 (rpcconn *who) {
-                    if (who != c) unpause.get(clientio::CLIENTIO); });
+                    if (who != c) unpause.get(io); });
             /* Fill the client's outgoing queue. */
             int cntr = 0;
             while (cntr < 10) {
-                auto r(c->send(clientio::CLIENTIO,
+                auto r(c->send(io,
                                wireproto::tx_message(nullarymsgtag),
                                timestamp::now() +timedelta::milliseconds(100)));
                 if (r == error::timeout) {
@@ -1031,7 +997,7 @@ tests::_rpc() {
                 } else {
                     cntr = 0;
                     r.fatal("sending nullary message"); } }
-            assert(c->send(clientio::CLIENTIO,
+            assert(c->send(io,
                            wireproto::tx_message(nullarymsgtag),
                            timestamp::now() +timedelta::milliseconds(100))
                    .failure() ==
@@ -1044,20 +1010,18 @@ tests::_rpc() {
                     pub.publish(); });
             subscriber sub;
             subscription ss(sub, pub);
-            auto r(c->send(clientio::CLIENTIO,
+            auto r(c->send(io,
                            wireproto::tx_message(nullarymsgtag),
                            sub));
             assert(r.isnotified());
             assert(r.notified() == &ss);
             publisher.get();
             unpause.set();
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 #endif
-    testcaseV("rpc", "connectbadly", [] {
+    testcaseIO("rpc", "connectbadly", [] (clientio io) {
             /* Try to spoof a HELLO with a bad master secret. */
-            initpubsub();
             peername listenon(peername::loopback(peername::port(quickcheck())));
             auto ms(mastersecret::mk());
             registrationsecret rs((quickcheck()));
@@ -1071,7 +1035,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto slavepeer(peername::loopback(peername::port(quickcheck())));
             assert(rpcconn::connectmaster<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        beaconresult(
                            mastersecret::mk().nonce(slavepeer),
                            slavepeer,
@@ -1080,47 +1044,42 @@ tests::_rpc() {
                        slavename("HELLO"),
                        rpcconnconfig::dflt)
                    == error::disconnected);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "sendfailed", [] {
-            initpubsub();
+            s2->destroy(io); });
+    testcaseIO("rpc", "sendfailed", [] (clientio io) {
             peername listenon(peername::loopback(
                                   peername::port(quickcheck())));
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating callable RPC server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));
             /* Get the client RPC thread into a known place. */
             (timestamp::now() + timedelta::milliseconds(100)).sleep();
             c->sock.close();
-            assert(c->call(clientio::CLIENTIO,
+            assert(c->call(io,
                            wireproto::req_message(callabletag,
                                                   c->allocsequencenr()))
                    == error::disconnected);
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("rpc", "bigreply", [] {
-            initpubsub();
+            c->destroy(io);
+            s2->destroy(io); });
+    testcaseIO("rpc", "bigreply", [] (clientio io) {
             peername listenon(peername::loopback(
                                   peername::port(quickcheck())));
             auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                     .fatal("creating callable RPC server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
-                       clientio::CLIENTIO,
+                       io,
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));
             for (int i = 0; i < 10000; i++) {
-                c->send(clientio::CLIENTIO,
+                c->send(io,
                         wireproto::tx_message(bigreplytag))
                     .fatal("call big reply method"); }
-            c->destroy(clientio::CLIENTIO);
-            s2->destroy(clientio::CLIENTIO);
-            deinitpubsub(clientio::CLIENTIO); });
+            c->destroy(io);
+            s2->destroy(io); });
 }
