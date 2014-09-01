@@ -151,7 +151,7 @@ namespace wireproto {
     class tx_compoundparameter;
     class tx_message {
         friend class tx_compoundparameter;
-        tx_message() : t((uint16_t)-1), params()  {}
+        tx_message();
         tx_message(const tx_message &o) = delete;
         tx_message &addparam(uint16_t, const void *, size_t);
     public:

@@ -16,6 +16,8 @@
 #include "string.H"
 #include "waitbox.H"
 
+#include "orerror.tmpl"
+
 int
 main(int argc, char *argv[])
 {

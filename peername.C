@@ -83,7 +83,8 @@ peername::peername(const quickcheck &q) {
                 ((unsigned *)sin6->sin6_addr.s6_addr)[x] = (unsigned)random(); }
             break; }
         sin6->sin6_port = (unsigned short)q;
-        break; } } }
+        break; }
+    default: abort(); } }
 
 peername::peername(const peername &o)
     : sockaddr_(malloc(o.sockaddrsize_ + 1)),

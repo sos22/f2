@@ -136,6 +136,10 @@ req_message::serialise(buffer &buffer) const
     return tx_message::serialise(buffer, sequence);
 }
 
+tx_message::tx_message()
+    : t((uint16_t)-1),
+      params() {}
+
 tx_message &
 tx_message::addparam(uint16_t id, const void *content, size_t sz)
 {

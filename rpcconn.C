@@ -624,6 +624,7 @@ rpcconn::run(clientio io) {
                 txlock.unlock(&token); } } }
     history = (history << 4) | 9;
   done:
+    (void)history;
     endconn(io); }
 
 rpcconn::rpcconntoken::rpcconntoken(const thread::constoken &_thr,

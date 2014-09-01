@@ -228,7 +228,6 @@ struct padfield : public field {
             if (emitted < pad_chars) {
                 padstr[pad_chars - emitted] = '\0';
                 out.push(padstr);
-                emitted = pad_chars;
             }
         }
     }

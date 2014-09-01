@@ -15,6 +15,7 @@
 #include "streamname.H"
 #include "streamstatus.H"
 
+#include "list.tmpl"
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
 #include "wireproto.tmpl"

@@ -194,10 +194,9 @@ buffer::buffer(const buffer &o)
 buffer::~buffer(void)
 {
     auto i(first);
-    auto n(first);
     while (i) {
         assert(i->cons < i->prod);
-        n = i->next;
+        auto n(i->next);
         free(i);
         i = n;
     }
