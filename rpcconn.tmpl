@@ -30,11 +30,12 @@ rpcconn::fromsocket(socket_t sock,
 
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::fromsocketnoauth(socket_t sock,
+                          const class slavename &theirname,
                           const rpcconnconfig &config,
                           args &&... parameters) {
     return fromsocket<conn_t, args...>(
         sock,
-        rpcconnauth::mkdone(config),
+        rpcconnauth::mkdone(theirname, config),
         config,
         std::forward<args>(parameters)...); }
 
@@ -49,6 +50,7 @@ rpcconn::connectmaster(clientio io,
        point of beacon protocol, after all) and the crypto isn't
        strong enough to do more than that anyway. */
     auto res(connectnoauth<conn_t>(io,
+                                   ::slavename("<master>"),
                                    br.mastername,
                                    config,
                                    parameters...));
@@ -79,11 +81,13 @@ template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connectslave(clientio io,
                       const peername &peer,
                       const registrationsecret &rs,
+                      const class slavename &ourname,
                       const rpcconnconfig &config,
                       args ... parameters) {
     waitbox<orerror<void> > wb;
     auto res(connect<conn_t>(io,
-                             rpcconnauth::mkwaithelloslavea(rs, &wb, config),
+                             rpcconnauth::mkwaithelloslavea(
+                                 rs, &wb, ourname, config),
                              peer,
                              config,
                              parameters...));
@@ -112,12 +116,13 @@ rpcconn::connect(clientio io,
 
 template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connectnoauth(clientio io,
+                       const class slavename &theirname,
                        const peername &p,
                        const rpcconnconfig &config,
                        args &&... parameters) {
     return connect<conn_t, args...>(
         io,
-        rpcconnauth::mkdone(config),
+        rpcconnauth::mkdone(theirname, config),
         p,
         config,
         std::forward<args>(parameters)...); }

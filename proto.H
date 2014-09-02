@@ -87,16 +87,6 @@ namespace proto {
         static const parameter<uint64_t> ipv6b(5);
         static const parameter<bool> wildcardlocal(6);
     };
-    namespace rpcconnstatus {
-        static const parameter<class ::bufferstatus> outgoing(1);
-        static const parameter<class ::fd_tstatus> fd(2);
-        static const parameter<wireproto::sequencerstatus> sequencer(3);
-        static const parameter<list<wireproto::rx_messagestatus> >
-            pendingrx(4);
-        static const parameter<class ::peername> peername(5);
-        static const parameter<class ::walltime> lastcontact(6);
-        static const parameter<class ::rpcconnconfig> config(7);
-    };
     namespace storageslavestatus {
         static const parameter<class ::rpcserverstatus> server(1);
         static const parameter<class ::rpcconnstatus> masterconn(2);
@@ -225,10 +215,11 @@ namespace proto {
             static const msgtag tag(10);
             /* Digest of 'C'+nonce+registration secret */
             static const parameter<class digest> digest(950);
+            static const parameter<class slavename> name(951);
         }
         namespace C {
             static const msgtag tag(11);
-            /* No parameters */
+            static const parameter<class slavename> name(999);
         }
     }
 

@@ -162,7 +162,7 @@ orerror<rpcconn *>
 storageslave::accept(socket_t s) {
     return rpcconn::fromsocket<storageslaveconn>(
         s,
-        rpcconnauth::mksendhelloslavea(rs, config.connconfig),
+        rpcconnauth::mksendhelloslavea(rs, config.name, config.connconfig),
         config.connconfig,
         this,
         false); }

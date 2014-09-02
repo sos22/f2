@@ -166,6 +166,7 @@ orerror<rpcconn *>
 controlserver::accept(socket_t s) {
     return rpcconn::fromsocketnoauth<controlconn>(
         s,
+        slavename("<control interface>"),
         rpcconnconfig::dflt,
         this); }
 

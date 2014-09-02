@@ -38,6 +38,7 @@ main(int argc, char *argv[]) {
                   clientio::CLIENTIO,
                   peer,
                   rs,
+                  slavename("<command line>"),
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
     if (!strcmp(argv[3], "STALL")) {

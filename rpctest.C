@@ -20,7 +20,8 @@ public: trivrpcserver(constoken t, listenfd fd, int x)
     : rpcserver(t, fd) {
     assert(x == 73); }
 public: orerror<rpcconn *> accept(socket_t s) {
-    return rpcconn::fromsocketnoauth<rpcconn>(s, rpcconnconfig::dflt); }
+    return rpcconn::fromsocketnoauth<rpcconn>(
+        s, slavename("<test client>"), rpcconnconfig::dflt); }
 };
 
 static const wireproto::msgtag callabletag(134);
@@ -59,7 +60,8 @@ public:  callablerpcserver(constoken t,
     : rpcserver(t, fd),
       config(_config) {}
 public:  orerror<rpcconn *> accept(socket_t s) {
-    return rpcconn::fromsocketnoauth<callablerpcconn>(s, config); } };
+    return rpcconn::fromsocketnoauth<callablerpcconn>(
+        s, slavename("<test client>"), config); } };
 
 class smallqueueserver : public rpcserver {
     friend class pausedthread<smallqueueserver>;
@@ -76,7 +78,8 @@ public: orerror<rpcconn *> accept(socket_t s) {
         /* Generous ping limiter */
         ratelimiterconfig(frequency::hz(1000000000),
                           1000000000));
-    return rpcconn::fromsocketnoauth<rpcconn>(s, config); }
+    return rpcconn::fromsocketnoauth<rpcconn>(
+        s, slavename("<test client>"), config); }
 };
 
 class authrpcserver : public rpcserver {
@@ -130,7 +133,8 @@ public:  orerror<rpcconn *> accept(socket_t s) {
     logmsg(loglevel::info, fields::mk("accepting slaverpc connection"));
     return rpcconn::fromsocket<rpcconn>(
         s,
-        rpcconnauth::mksendhelloslavea(rs, rpcconnconfig::dflt),
+        rpcconnauth::mksendhelloslavea(
+            rs, slavename("<test server>"), rpcconnconfig::dflt),
         rpcconnconfig::dflt); }
 };
 
@@ -142,7 +146,8 @@ public:  sendonconnectserver(constoken t, listenfd fd, bool _sendbadhello)
     : rpcserver(t, fd),
       sendbadhello(_sendbadhello) {}
 public: orerror<rpcconn *> accept(socket_t s) {
-    auto res(rpcconn::fromsocketnoauth<rpcconn>(s, rpcconnconfig::dflt));
+    auto res(rpcconn::fromsocketnoauth<rpcconn>(
+                 s, slavename("<test client>"), rpcconnconfig::dflt));
     if (res.isfailure()) return res.failure();
     res.success()->send(clientio::CLIENTIO,
                         wireproto::tx_message(
@@ -179,6 +184,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
@@ -242,6 +248,7 @@ tests::_rpc() {
             /* Messages other than PING and HELLO without HELLO should fail */
             {   auto c(rpcconn::connectnoauth<rpcconn>(
                            io,
+                           slavename("<test server>"),
                            listenon,
                            rpcconnconfig::dflt)
                        .fatal("connecting to master"));
@@ -257,6 +264,7 @@ tests::_rpc() {
                  clientio _io) {
                     auto c(rpcconn::connectnoauth<rpcconn>(
                                _io,
+                               slavename("<test server>"),
                                listenon,
                                rpcconnconfig::dflt)
                            .fatal("connecting to master"));
@@ -348,6 +356,7 @@ tests::_rpc() {
             subscription ss(sub, pub);
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
@@ -367,6 +376,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to trivial server"));
@@ -399,6 +409,7 @@ tests::_rpc() {
             spark<orerror<rpcconn *> > connector([listenon, io] {
                     return rpcconn::connectnoauth<rpcconn>(
                         io,
+                        slavename("<test server>"),
                         listenon,
                         rpcconnconfig::dflt); });
             startedaccept.get(io);
@@ -421,6 +432,7 @@ tests::_rpc() {
                        io,
                        listenon,
                        rs,
+                       slavename("<test client>"),
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
             delete c->call(
@@ -441,6 +453,7 @@ tests::_rpc() {
              * authentication machine and prevent further connections. */
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
@@ -457,6 +470,7 @@ tests::_rpc() {
              * connection. */
             c = rpcconn::connectnoauth<rpcconn>(
                 io,
+                slavename("<test server>"),
                 listenon,
                 rpcconnconfig::dflt)
                 .fatal("connecting with slave auth");
@@ -473,6 +487,7 @@ tests::_rpc() {
             /* Similarly a bad digest. */
             c = rpcconn::connectnoauth<rpcconn>(
                 io,
+                slavename("<test server>"),
                 listenon,
                 rpcconnconfig::dflt)
                 .fatal("connecting with slave auth");
@@ -480,7 +495,9 @@ tests::_rpc() {
                     wireproto::tx_message(
                         wireproto::msgtag(proto::HELLOSLAVE::B::tag))
                     .addparam(proto::HELLOSLAVE::B::digest,
-                              ::digest(fields::mk("invalid"))))
+                              ::digest(fields::mk("invalid")))
+                    .addparam(proto::HELLOSLAVE::B::name,
+                              ::slavename("<bad digest client>")))
                 .fatal("sending HELLOSLAVE::B with no digest");
             assert(c->call(
                        io,
@@ -491,6 +508,7 @@ tests::_rpc() {
             s2->destroy(io); });
 #if TESTING
     testcaseIO("rpc", "slaveautherr", [] (clientio io) {
+            initlogging("T");
             peername listenon(peername::loopback(peername::port(quickcheck())));
             registrationsecret rs((quickcheck()));
             auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
@@ -509,19 +527,25 @@ tests::_rpc() {
                            io,
                            listenon,
                            rs,
+                           slavename("<bad hello client>"),
                            rpcconnconfig::dflt)
                        == error::unrecognisedmessage); }
-            /* HELLOSLAVE::C with an error should connectslave to
-             * return an error. */
+            /* HELLOSLAVE::C with an error should cause connectslave
+             * to return an error. */
             {   eventwaiter<wireproto::tx_message **> evt(
                     tests::__rpcconn::sendinghelloslavec,
                     [] (wireproto::tx_message **msg) {
+                        delete *msg;
+                        *msg = new wireproto::tx_message(
+                            proto::HELLOSLAVE::C::tag);
+                        ::logmsg(loglevel::info, fields::mk("send error HELLOSLAVE::C"));
                         (*msg)->addparam(wireproto::err_parameter,
                                          error::pastend); });
                 assert(rpcconn::connectslave<rpcconn>(
                            io,
                            listenon,
                            rs,
+                           slavename("<test error client>"),
                            rpcconnconfig::dflt)
                        == error::pastend); }
             s2->destroy(io); });
@@ -535,6 +559,7 @@ tests::_rpc() {
                        io,
                        listenon,
                        rs,
+                       slavename("<test auth client>"),
                        rpcconnconfig::dflt)
                    .fatal("connecting with slave auth"));
             auto status1(c->status());
@@ -582,6 +607,7 @@ tests::_rpc() {
                                io,
                                listenon,
                                rs,
+                               slavename("<test client>"),
                                rpcconnconfig::dflt) ==
                            (sendbadhello
                             ? error::missingparameter
@@ -641,6 +667,7 @@ tests::_rpc() {
                                           1));
                     c = rpcconn::connectnoauth<rpcconn>(
                         io,
+                        slavename("<small queue server>"),
                         listenon,
                         clientconfig)
                         .fatal("connecting large queue client");
@@ -712,6 +739,7 @@ tests::_rpc() {
                     private: void run(clientio __io) {
                         auto c(rpcconn::connectnoauth<rpcconn>(
                                    __io,
+                                   slavename("<test server>"),
                                    connectto,
                                    rpcconnconfig::dflt)
                                .fatal("connecting to callable server"));
@@ -820,6 +848,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test ping server>"),
                        listenon,
                        config)
                    .fatal("connect to ping server"));
@@ -861,6 +890,7 @@ tests::_rpc() {
              * way around. */
             c = rpcconn::connectnoauth<rpcconn>(
                 io,
+                slavename("<test ping server>"),
                 listenon,
                 config)
                 .fatal("connect to ping server");
@@ -903,6 +933,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to ping server"));
@@ -930,6 +961,7 @@ tests::_rpc() {
             c->destroy(io);
             c = rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                 .fatal("reconnect to ping server");
@@ -947,6 +979,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
@@ -977,6 +1010,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connect to nullary server"));
@@ -1053,6 +1087,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));
@@ -1073,6 +1108,7 @@ tests::_rpc() {
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
+                       slavename("<test server>"),
                        listenon,
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));

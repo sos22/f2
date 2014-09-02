@@ -68,7 +68,9 @@ main(int argc, char *argv[]) {
         while (1) {
             auto c(rpcconn::connect<rpcconn>(
                        clientio::CLIENTIO,
-                       rpcconnauth::mkdone(rpcconnconfig::dflt),
+                       rpcconnauth::mkdone(
+                           slavename("<master server>"),
+                           rpcconnconfig::dflt),
                        mastercontrolsock,
                        rpcconnconfig::dflt));
             if (c.issuccess()) {

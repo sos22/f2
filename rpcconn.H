@@ -113,17 +113,21 @@ private: ratelimiter pinglimiter;
 
 public:  maybe<class slavename> slavename() const;
 
-public:  static rpcconnauth mkdone(const rpcconnconfig &);
+public:  static rpcconnauth mkdone(
+    const class slavename &theirname,
+    const rpcconnconfig &);
 public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
     const registrationsecret &rs,
     const rpcconnconfig &);
 public:  static rpcconnauth mksendhelloslavea(
     const registrationsecret &rs,
+    const class slavename &ourname,
     const rpcconnconfig &);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
     waitbox<orerror<void> > *,
+    const class slavename &,
     const rpcconnconfig &);
 
 public:  ~rpcconnauth();
@@ -143,8 +147,8 @@ private: void start(buffer &outbuffer);
 
     /* Per-state state */
 private: struct done {
-    maybe<class slavename> slave;
-    done(const maybe<class slavename> &_slave);
+    class slavename slave;
+    done(const class slavename &_slave);
     };
 private: struct waithello {
     mastersecret ms;
@@ -153,18 +157,25 @@ private: struct waithello {
     };
 private: struct sendhelloslavea {
     registrationsecret rs;
-    sendhelloslavea(const registrationsecret &_rs);
+    class slavename ourname;
+    sendhelloslavea(const registrationsecret &_rs,
+                    const class slavename &_ourname);
     };
 private: struct waithelloslavea {
     registrationsecret rs;
     waitbox<orerror<void> > *wb;
+    class slavename ourname;
     waithelloslavea(const registrationsecret &_rs,
-                    waitbox<orerror<void> > *_wb);
+                    waitbox<orerror<void> > *_wb,
+                    const class slavename &_ourname);
     };
 private: struct waithelloslaveb {
     registrationsecret rs;
     nonce n;
-    waithelloslaveb(const registrationsecret &_rs, const nonce &_n);
+    class slavename ourname;
+    waithelloslaveb(const registrationsecret &_rs,
+                    const nonce &_n,
+                    const class slavename &_slavename);
     };
 private: struct waithelloslavec {
     waitbox<orerror<void> > *wb;
@@ -187,19 +198,22 @@ public:  wireproto::sequencer::status_t sequencer;
 public:  list<wireproto::rx_message::status_t> pendingrx;
 public:  peername::status_t peername_;
 public:  walltime lastcontact;
-public: rpcconnconfig config;
+public:  maybe<slavename> otherend;
+public:  rpcconnconfig config;
 
 private: rpcconnstatus(const buffer::status_t &_outgoing,
-                      const fd_t::status_t &_fd,
-                      const wireproto::sequencer::status_t &_sequencer,
-                      const peername::status_t &_peername,
-                      const walltime &_lastcontact,
-                      const rpcconnconfig &_config)
+                       const fd_t::status_t &_fd,
+                       const wireproto::sequencer::status_t &_sequencer,
+                       const peername::status_t &_peername,
+                       const walltime &_lastcontact,
+                       const maybe<slavename> &_otherend,
+                       const rpcconnconfig &_config)
     : outgoing(_outgoing),
       fd(_fd),
       sequencer(_sequencer),
       peername_(_peername),
       lastcontact(_lastcontact),
+      otherend(_otherend),
       config(_config) {}
 public:  rpcconnstatus(quickcheck);
 public:  ~rpcconnstatus();
@@ -301,6 +315,7 @@ public: template<typename t, typename...args> static orerror<t *> connectslave(
     clientio,
     const peername &,
     const registrationsecret &,
+    const slavename &ourname,
     const rpcconnconfig &,
     args...);
 
@@ -308,6 +323,7 @@ public: template<typename t, typename...args> static orerror<t *> connectslave(
      * for UNIX domain sockets. */
 public: template<typename t, typename ... args>static orerror<t *>connectnoauth(
     clientio,
+    const class slavename &theirname,
     const peername &,
     const rpcconnconfig &,
     args &&...);
@@ -336,6 +352,7 @@ public: template<typename t, typename... args>
 public: template<typename t, typename... args>
     static orerror<t *> fromsocketnoauth(
     socket_t,
+    const class slavename &theirname,
     const rpcconnconfig &config,
     args &&...);
 

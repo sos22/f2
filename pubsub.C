@@ -489,7 +489,7 @@ tests::pubsub() {
                         sub.wait(io, deadline);
                         timestamp endwait(timestamp::now());
                         assert(endwait - startwait <
-                               timedelta::milliseconds(10));
+                               timedelta::milliseconds(50));
                         cntr++; }
                     return true; } );
             t1.get();

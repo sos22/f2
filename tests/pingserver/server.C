@@ -53,7 +53,7 @@ orerror<rpcconn *>
 pingableserver::accept(socket_t s) {
     return rpcconn::fromsocket<pingableconn>(
         s,
-        rpcconnauth::mkdone(rpcconnconfig::dflt),
+        rpcconnauth::mkdone(slavename("<ping client>"), rpcconnconfig::dflt),
         rpcconnconfig::dflt,
         shutdown); }
 
