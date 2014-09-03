@@ -135,6 +135,7 @@ storageslave::build(clientio io,
                 io,
                 br.success(),
                 config.name,
+                actortype::storageslave,
                 config.connconfig,
                 server.success().unwrap(),
                 true));
@@ -162,7 +163,11 @@ orerror<rpcconn *>
 storageslave::accept(socket_t s) {
     return rpcconn::fromsocket<storageslaveconn>(
         s,
-        rpcconnauth::mksendhelloslavea(rs, config.name, config.connconfig),
+        rpcconnauth::mksendhelloslavea(
+            rs,
+            config.name,
+            actortype::storageslave,
+            config.connconfig),
         config.connconfig,
         this,
         false); }
@@ -217,6 +222,7 @@ storageslave::housekeeping(clientio io) {
                 io,
                 br.success(),
                 config.name,
+                actortype::storageslave,
                 config.connconfig,
                 this,
                 true));

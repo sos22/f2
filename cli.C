@@ -36,6 +36,7 @@ main(int argc, const char *const argv[])
     auto c(rpcconn::connectnoauth<rpcconn>(
                clientio::CLIENTIO,
                slavename("<cli connection>"),
+               actortype::cli,
                peername::local(filename(sock))
                .fatal("turning " + fields::mk(sock) + " into a peername"),
                rpcconnconfig::dflt));

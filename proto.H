@@ -193,6 +193,7 @@ namespace proto {
             static const parameter<class peername> peername(802);
             static const parameter<class digest> digest(803);
             static const parameter<class slavename> slavename(804);
+            static const parameter<class actortype> type(805);
         }
     }
 
@@ -210,12 +211,14 @@ namespace proto {
         namespace A {
             static const msgtag tag(9);
             static const parameter<nonce> nonce(900);
+            static const parameter<actortype> type(901);
         }
         namespace B {
             static const msgtag tag(10);
             /* Digest of 'C'+nonce+registration secret */
             static const parameter<class digest> digest(950);
             static const parameter<class slavename> name(951);
+            static const parameter<actortype> type(952);
         }
         namespace C {
             static const msgtag tag(11);

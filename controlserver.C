@@ -167,6 +167,7 @@ controlserver::accept(socket_t s) {
     return rpcconn::fromsocketnoauth<controlconn>(
         s,
         slavename("<control interface>"),
+        actortype::cli,
         rpcconnconfig::dflt,
         this); }
 

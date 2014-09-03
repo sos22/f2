@@ -20,9 +20,14 @@ const parser<actortype> &_actortype();
 
 class actortype {
 private: int val;
+    /* Agent exposes the master API */
 public:  static const actortype master;
+    /* Agent exposes the storage slave API */
 public:  static const actortype storageslave;
+    /* Agent is a command line program and does not expose any API to
+       the other end of the connection. */
 public:  static const actortype cli;
+    /* Miscellaneous type used by test programs. */
 public:  static const actortype test;
 public:  actortype(quickcheck);
 public:  bool operator==(const actortype &o) const { return val == o.val; }

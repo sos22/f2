@@ -38,8 +38,9 @@ static const parameter<wireproto::sequencerstatus> sequencer(3);
 static const parameter<list<wireproto::rx_messagestatus> > pendingrx(4);
 static const parameter<class ::peername> peername(5);
 static const parameter<class ::walltime> lastcontact(6);
-static const parameter<class :: slavename> otherend(7);
-static const parameter<class ::rpcconnconfig> config(8); } }
+static const parameter<class ::slavename> otherend(7);
+static const parameter<class ::actortype> otherendtype(8);
+static const parameter<class ::rpcconnconfig> config(9); } }
 
 rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes,
                              timedelta _pinginterval,
@@ -129,6 +130,8 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
     p.addparam(proto::rpcconnstatus::lastcontact, lastcontact);
     if (otherend.isjust()) {
         p.addparam(proto::rpcconnstatus::otherend, otherend.just()); }
+    if (otherendtype.isjust()) {
+        p.addparam(proto::rpcconnstatus::otherendtype, otherendtype.just()); }
     p.addparam(proto::rpcconnstatus::config, config);
     txm.addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl), p); }
@@ -150,6 +153,7 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
                           peername.just(),
                           lastcontact.just(),
                           p.getparam(proto::rpcconnstatus::otherend),
+                          p.getparam(proto::rpcconnstatus::otherendtype),
                           config.just());
     auto r(p.fetch(proto::rpcconnstatus::pendingrx, res.pendingrx));
     if (r.isfailure()) return Nothing;
@@ -163,6 +167,7 @@ fields::mk(const rpcconn::status_t &o) {
                          " peername:" + mk(o.peername_) +
                          " lastcontact:" + mk(o.lastcontact) +
                          " otherend:" + mk(o.otherend) +
+                         " otherendtype:" + mk(o.otherendtype) +
                          " config:" + mk(o.config) +
                          " pendingrx:{");
     bool first = true;
@@ -177,12 +182,18 @@ rpcconnauth::slavename() const {
     if (state == s_done) return ((done *)buf)->slave;
     else return Nothing; }
 
+maybe<actortype>
+rpcconnauth::type() const {
+    if (state == s_done) return ((done *)buf)->type;
+    else return Nothing; }
+
 rpcconnauth
 rpcconnauth::mkdone(const class slavename &remotename,
+                    actortype remotetype,
                     const rpcconnconfig &c) {
     rpcconnauth r(c);
     r.state = s_done;
-    new (r.buf) done(remotename);
+    new (r.buf) done(remotename, remotetype);
     return r; }
 
 rpcconnauth
@@ -205,36 +216,42 @@ rpcconnauth
 rpcconnauth::mksendhelloslavea(
     const registrationsecret &rs,
     const class slavename &_ourname,
+    actortype _ourtype,
     const rpcconnconfig &c) {
     rpcconnauth r(c);
     r.state = s_sendhelloslavea;
-    new (r.buf) sendhelloslavea(rs, _ourname);
+    new (r.buf) sendhelloslavea(rs, _ourname, _ourtype);
     return r; }
 
 rpcconnauth::sendhelloslavea::sendhelloslavea(
     const registrationsecret &_rs,
-    const class slavename &_ourname)
+    const class slavename &_ourname,
+    actortype _ourtype)
     : rs(_rs),
-      ourname(_ourname) {}
+      ourname(_ourname),
+      ourtype(_ourtype) {}
 
 rpcconnauth
 rpcconnauth::mkwaithelloslavea(
     const registrationsecret &rs,
     waitbox<orerror<void> > *wb,
     const class slavename &_ourname,
+    actortype _ourtype,
     const rpcconnconfig &c) {
     rpcconnauth r(c);
     r.state = s_waithelloslavea;
-    new (r.buf) waithelloslavea(rs, wb, _ourname);
+    new (r.buf) waithelloslavea(rs, wb, _ourname, _ourtype);
     return r; }
 
 rpcconnauth::waithelloslavea::waithelloslavea(
     const registrationsecret &_rs,
     waitbox<orerror<void> > *_wb,
-    const class slavename &_ourname)
+    const class slavename &_ourname,
+    actortype _ourtype)
     : rs(_rs),
       wb(_wb),
-      ourname(_ourname) {}
+      ourname(_ourname),
+      ourtype(_ourtype) {}
 
 rpcconnauth::waithelloslaveb::waithelloslaveb(
     const registrationsecret &_rs,
@@ -295,18 +312,20 @@ rpcconnauth::rpcconnauth(const rpcconnconfig &c)
     : state(s_preinit),
       pinglimiter(c.pinglimit) {}
 
-rpcconnauth::done::done(const class slavename &o)
-    : slave(o) {}
+rpcconnauth::done::done(const class slavename &o, actortype p)
+    : slave(o),
+      type(p) {}
 
 void
 rpcconnauth::start(buffer &b) {
     logmsg(loglevel::info, "start connection in auth state " + fields::mk(state));
     if (state != s_sendhelloslavea) return;
     auto n(nonce::mk());
+    auto &ss(*(sendhelloslavea *)buf);
     wireproto::tx_message(proto::HELLOSLAVE::A::tag)
         .addparam(proto::HELLOSLAVE::A::nonce, n)
+        .addparam(proto::HELLOSLAVE::A::type, ss.ourtype)
         .serialise(b);
-    auto &ss(*(sendhelloslavea *)buf);
     auto rs(ss.rs);
     auto ourname(ss.ourname);
     ss.~sendhelloslavea();
@@ -339,13 +358,20 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         auto peername(rxm.getparam(proto::HELLO::req::peername));
         auto _slavename(rxm.getparam(proto::HELLO::req::slavename));
         auto version(rxm.getparam(proto::HELLO::req::version));
-        if (!digest || !nonce || !peername || !_slavename || !version) {
+        auto flavour(rxm.getparam(proto::HELLO::req::type));
+        if (!digest ||
+            !nonce ||
+            !peername ||
+            !_slavename ||
+            !version ||
+            !flavour) {
             return messageresult(error::missingparameter); }
         logmsg(loglevel::verbose,
                "HELLO version " + fields::mk(version) +
                "nonce " + fields::mk(nonce) +
                "peername " + fields::mk(peername) +
-               "digest " + fields::mk(digest));
+               "digest " + fields::mk(digest) +
+               "flavour " + fields::mk(flavour));
         if (version.just() != 1) return messageresult(error::badversion);
         if (!s->ms.noncevalid(nonce.just(), peername.just())) {
             logmsg(loglevel::notice,
@@ -365,7 +391,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
         s->~waithello();
         state = s_done;
-        new (buf) done(_slavename.just());
+        new (buf) done(_slavename.just(), flavour.just());
         return messageresult(new wireproto::resp_message(rxm)); }
     case s_sendhelloslavea:
         /* Shouldn't get here; should have sent the HELLOSLAVE::A
@@ -385,7 +411,8 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             return messageresult(error::unrecognisedmessage); }
         logmsg(loglevel::info, fields::mk("got a HELLOSLAVE A"));
         auto nonce(rxm.getparam(proto::HELLOSLAVE::A::nonce));
-        if (!nonce) {
+        auto remotetype(rxm.getparam(proto::HELLOSLAVE::A::type));
+        if (!nonce || !remotetype) {
             wb->set(error::missingparameter);
             return messageresult(error::missingparameter); }
         auto txm(new wireproto::tx_message(proto::HELLOSLAVE::B::tag));
@@ -394,9 +421,10 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                                fields::mk(s->rs) +
                                fields::mk(nonce.just())));
         txm->addparam(proto::HELLOSLAVE::B::name, s->ourname);
+        txm->addparam(proto::HELLOSLAVE::B::type, s->ourtype);
         state = s_waithelloslavec;
         s->~waithelloslavea();
-        new (buf) waithelloslavec(wb);
+        new (buf) waithelloslavec(wb, remotetype.just());
         return messageresult(txm); }
     case s_waithelloslaveb: {
         auto s = (waithelloslaveb *)buf;
@@ -411,7 +439,9 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         logmsg(loglevel::info, fields::mk("got a HELLOSLAVE B"));
         auto digest(rxm.getparam(proto::HELLOSLAVE::B::digest));
         auto name(rxm.getparam(proto::HELLOSLAVE::B::name));
-        if (!digest || !name) return messageresult(error::missingparameter);
+        auto remotetype(rxm.getparam(proto::HELLOSLAVE::B::type));
+        if (!digest || !name || !remotetype) {
+            return messageresult(error::missingparameter); }
         if (digest.just() != ::digest("C" +
                                       fields::mk(s->rs) +
                                       fields::mk(s->n))) {
@@ -425,11 +455,12 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         tests::__rpcconn::sendinghelloslavec.trigger(&nextmsg);
         state = s_done;
         s->~waithelloslaveb();
-        new (buf) done(name.just());
+        new (buf) done(name.just(), remotetype.just());
         return messageresult(nextmsg); }
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
         auto wb(s->wb);
+        auto type(s->remotetype);
         auto err(rxm.getparam(wireproto::err_parameter));
         if (rxm.tag() != proto::HELLOSLAVE::C::tag &&
             err == Nothing) {
@@ -449,7 +480,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         else {
             s->~waithelloslavec();
             state = s_done;
-            new (buf) done(name.just());
+            new (buf) done(name.just(), type);
             wb->set(Success); }
         return messageresult::noreply; } }
     abort(); }
@@ -855,6 +886,7 @@ rpcconn::status_t
 rpcconn::status() const {
     auto tok1(authlock.lock());
     auto otherend(auth(tok1).slavename());
+    auto otherendtype(auth(tok1).type());
     authlock.unlock(&tok1);
     status_t res(outgoing.status(),
                  sock.status(),
@@ -862,6 +894,7 @@ rpcconn::status() const {
                  peer_,
                  lastcontact_wall,
                  otherend,
+                 otherendtype,
                  config);
     auto tok2(rxlock.lock());
     for (auto it(pendingrx.start()); !it.finished(); it.next()) {
@@ -877,6 +910,7 @@ rpcconnstatus::rpcconnstatus(quickcheck q)
       peername_(q),
       lastcontact(q),
       otherend(q),
+      otherendtype(q),
       config(q) {}
 
 rpcconnstatus::~rpcconnstatus() {
@@ -889,7 +923,10 @@ rpcconnstatus::operator == (const rpcconnstatus &o) const {
         sequencer == o.sequencer &&
         pendingrx.eq(o.pendingrx) &&
         peername_ == o.peername_ &&
-        lastcontact == o.lastcontact; }
+        lastcontact == o.lastcontact &&
+        otherend == o.otherend &&
+        otherendtype == o.otherendtype &&
+        config == o.config; }
 
 const messageresult
 messageresult::noreply;

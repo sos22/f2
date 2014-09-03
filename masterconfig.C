@@ -102,6 +102,11 @@ void
 tests::_masterconfig() {
     testcaseV("masterconfig", "parser", [] {
             parsers::roundtrip(parsers::_masterconfig()); });
+    testcaseV("masterconfig", "parser2", [] {
+            assert(parsers::_masterconfig()
+                   .match("<masterconfig: rs:<registrationsecret:password>>") ==
+                   masterconfig(registrationsecret::mk("password")
+                                .fatal(fields::mk("make rs")))); });
     testcaseV("masterconfig", "fields", [] {
             masterconfig ms(registrationsecret::mk("foo")
                             .fatal(fields::mk("foo")));

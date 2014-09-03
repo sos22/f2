@@ -70,6 +70,7 @@ main(int argc, char *argv[]) {
                        clientio::CLIENTIO,
                        rpcconnauth::mkdone(
                            slavename("<master server>"),
+                           actortype::test,
                            rpcconnconfig::dflt),
                        mastercontrolsock,
                        rpcconnconfig::dflt));

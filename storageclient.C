@@ -39,6 +39,7 @@ main(int argc, char *argv[]) {
                   peer,
                   rs,
                   slavename("<command line>"),
+                  actortype::cli,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
     if (!strcmp(argv[3], "STALL")) {

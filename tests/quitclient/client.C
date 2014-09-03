@@ -21,6 +21,7 @@ main(int argc, char *argv[]) {
                   clientio::CLIENTIO,
                   rpcconnauth::mkdone(
                       slavename("<quit server>"),
+                      actortype::cli,
                       rpcconnconfig::dflt),
                   peer,
                   rpcconnconfig::dflt)

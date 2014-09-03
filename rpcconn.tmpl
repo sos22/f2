@@ -31,11 +31,12 @@ rpcconn::fromsocket(socket_t sock,
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::fromsocketnoauth(socket_t sock,
                           const class slavename &theirname,
+                          actortype theirtype,
                           const rpcconnconfig &config,
                           args &&... parameters) {
     return fromsocket<conn_t, args...>(
         sock,
-        rpcconnauth::mkdone(theirname, config),
+        rpcconnauth::mkdone(theirname, theirtype, config),
         config,
         std::forward<args>(parameters)...); }
 
@@ -43,6 +44,7 @@ template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::connectmaster(clientio io,
                        const beaconresult &br,
                        const class slavename &slavename,
+                       actortype ourtype,
                        const rpcconnconfig &config,
                        args ... parameters) {
     /* No need to authenticate: we assume that the caller has already
@@ -51,6 +53,7 @@ rpcconn::connectmaster(clientio io,
        strong enough to do more than that anyway. */
     auto res(connectnoauth<conn_t>(io,
                                    ::slavename("<master>"),
+                                   actortype::master,
                                    br.mastername,
                                    config,
                                    parameters...));
@@ -66,6 +69,8 @@ rpcconn::connectmaster(clientio io,
                                 br.connectingname)
                       .addparam(proto::HELLO::req::slavename,
                                 slavename)
+                      .addparam(proto::HELLO::req::type,
+                                ourtype)
                       .addparam(proto::HELLO::req::digest,
                                 digest("B" +
                                        fields::mk(br.nonce) +
@@ -82,12 +87,13 @@ rpcconn::connectslave(clientio io,
                       const peername &peer,
                       const registrationsecret &rs,
                       const class slavename &ourname,
+                      actortype ourtype,
                       const rpcconnconfig &config,
                       args ... parameters) {
     waitbox<orerror<void> > wb;
     auto res(connect<conn_t>(io,
                              rpcconnauth::mkwaithelloslavea(
-                                 rs, &wb, ourname, config),
+                                 rs, &wb, ourname, ourtype, config),
                              peer,
                              config,
                              parameters...));
@@ -117,12 +123,13 @@ rpcconn::connect(clientio io,
 template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connectnoauth(clientio io,
                        const class slavename &theirname,
+                       actortype theirtype,
                        const peername &p,
                        const rpcconnconfig &config,
                        args &&... parameters) {
     return connect<conn_t, args...>(
         io,
-        rpcconnauth::mkdone(theirname, config),
+        rpcconnauth::mkdone(theirname, theirtype, config),
         p,
         config,
         std::forward<args>(parameters)...); }

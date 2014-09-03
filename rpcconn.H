@@ -1,6 +1,7 @@
 #ifndef RPCCONN_H__
 #define RPCCONN_H__
 
+#include "actortype.H"
 #include "buffer.H"
 #include "either.H"
 #include "list.H"
@@ -112,9 +113,11 @@ private: enum states state;
 private: ratelimiter pinglimiter;
 
 public:  maybe<class slavename> slavename() const;
+public:  maybe<class actortype> type() const;
 
 public:  static rpcconnauth mkdone(
     const class slavename &theirname,
+    actortype theirtype,
     const rpcconnconfig &);
 public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
@@ -123,11 +126,13 @@ public:  static rpcconnauth mkwaithello(
 public:  static rpcconnauth mksendhelloslavea(
     const registrationsecret &rs,
     const class slavename &ourname,
+    actortype ourtype,
     const rpcconnconfig &);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
     waitbox<orerror<void> > *,
     const class slavename &,
+    actortype ourtype,
     const rpcconnconfig &);
 
 public:  ~rpcconnauth();
@@ -148,7 +153,8 @@ private: void start(buffer &outbuffer);
     /* Per-state state */
 private: struct done {
     class slavename slave;
-    done(const class slavename &_slave);
+    actortype type;
+    done(const class slavename &_slave, actortype _type);
     };
 private: struct waithello {
     mastersecret ms;
@@ -158,16 +164,20 @@ private: struct waithello {
 private: struct sendhelloslavea {
     registrationsecret rs;
     class slavename ourname;
+    actortype ourtype;
     sendhelloslavea(const registrationsecret &_rs,
-                    const class slavename &_ourname);
+                    const class slavename &_ourname,
+                    actortype _ourtype);
     };
 private: struct waithelloslavea {
     registrationsecret rs;
     waitbox<orerror<void> > *wb;
     class slavename ourname;
+    actortype ourtype;
     waithelloslavea(const registrationsecret &_rs,
                     waitbox<orerror<void> > *_wb,
-                    const class slavename &_ourname);
+                    const class slavename &_ourname,
+                    actortype _ourtype);
     };
 private: struct waithelloslaveb {
     registrationsecret rs;
@@ -179,8 +189,10 @@ private: struct waithelloslaveb {
     };
 private: struct waithelloslavec {
     waitbox<orerror<void> > *wb;
-    waithelloslavec(waitbox<orerror<void> > *_wb)
-        : wb(_wb) {}
+    actortype remotetype;
+    waithelloslavec(waitbox<orerror<void> > *_wb, actortype _remotetype)
+        : wb(_wb),
+          remotetype(_remotetype) {}
     };
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 private: unsigned char buf[
@@ -199,6 +211,7 @@ public:  list<wireproto::rx_message::status_t> pendingrx;
 public:  peername::status_t peername_;
 public:  walltime lastcontact;
 public:  maybe<slavename> otherend;
+public:  maybe<actortype> otherendtype;
 public:  rpcconnconfig config;
 
 private: rpcconnstatus(const buffer::status_t &_outgoing,
@@ -207,6 +220,7 @@ private: rpcconnstatus(const buffer::status_t &_outgoing,
                        const peername::status_t &_peername,
                        const walltime &_lastcontact,
                        const maybe<slavename> &_otherend,
+                       maybe<actortype> _otherendtype,
                        const rpcconnconfig &_config)
     : outgoing(_outgoing),
       fd(_fd),
@@ -214,6 +228,7 @@ private: rpcconnstatus(const buffer::status_t &_outgoing,
       peername_(_peername),
       lastcontact(_lastcontact),
       otherend(_otherend),
+      otherendtype(_otherendtype),
       config(_config) {}
 public:  rpcconnstatus(quickcheck);
 public:  ~rpcconnstatus();
@@ -306,6 +321,7 @@ public: template<typename t, typename...args> static orerror<t *> connectmaster(
     clientio,
     const beaconresult &,
     const slavename &,
+    actortype ourtype,
     const rpcconnconfig &,
     args...);
 
@@ -316,6 +332,7 @@ public: template<typename t, typename...args> static orerror<t *> connectslave(
     const peername &,
     const registrationsecret &,
     const slavename &ourname,
+    actortype ourtype,
     const rpcconnconfig &,
     args...);
 
@@ -324,6 +341,7 @@ public: template<typename t, typename...args> static orerror<t *> connectslave(
 public: template<typename t, typename ... args>static orerror<t *>connectnoauth(
     clientio,
     const class slavename &theirname,
+    actortype theirtype,
     const peername &,
     const rpcconnconfig &,
     args &&...);
@@ -353,6 +371,7 @@ public: template<typename t, typename... args>
     static orerror<t *> fromsocketnoauth(
     socket_t,
     const class slavename &theirname,
+    actortype theirtype,
     const rpcconnconfig &config,
     args &&...);
 

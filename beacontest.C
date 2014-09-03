@@ -449,6 +449,7 @@ tests::beacon() {
             auto conn(rpcconn::connectnoauth<rpcconn>(
                           io,
                           slavename("<test server>"),
+                          actortype::test,
                           cs->localname(),
                           rpcconnconfig::dflt)
                       .fatal("connecting to our own control server"));
