@@ -389,8 +389,6 @@ protected: class rpcconntoken {
                           const peername &); };
 protected: rpcconn(const rpcconntoken &token);
 
-private: messageresult hellomessage(const wireproto::rx_message &);
-
     /* Bits to process incoming messages.  Servers should override
      * these methods; the default implementation doesn't do very
      * much. */
