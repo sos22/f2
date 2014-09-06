@@ -582,6 +582,19 @@ const fields::field &
 fields::mk(const wireproto::rx_message::status_t &o) {
     return "<tag:" + mk(o.t) + ">"; }
 
+class nullcompound {
+    WIREPROTO_TYPE(nullcompound); };
+wireproto_wrapper_type(nullcompound);
+void
+nullcompound::addparam(wireproto::parameter<nullcompound> tmpl,
+                       wireproto::tx_message &txm) const {
+    txm.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
+                 wireproto::tx_compoundparameter()); }
+maybe<nullcompound>
+nullcompound::fromcompound(const wireproto::rx_message &) {
+    return nullcompound(); }
+
+
 void
 tests::wireproto() {
     using namespace wireproto;
@@ -1154,4 +1167,19 @@ tests::wireproto() {
 
     testcaseV("wireproto", "sequencerstats", [] () {
             roundtrip<sequencerstatus>(); });
+
+    testcaseV("wireproto", "nullcompound", [] {
+            parameter<nullcompound> param(1);
+            {   ::buffer buf;
+                tx_message(msgtag(1))
+                    .addparam(param, nullcompound())
+                    .serialise(buf);
+                auto r(rx_message::fetch(buf));
+                assert(r.success().getparam(param).isjust()); }
+            {   ::buffer buf;
+                tx_message(msgtag(1))
+                    .serialise(buf);
+                auto r(rx_message::fetch(buf));
+                assert(r.success().getparam(param).isnothing()); } });
+
 }
