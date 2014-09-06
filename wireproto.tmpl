@@ -95,12 +95,6 @@ mk(const wireproto::parameter<t> &param)
             val.addparam(tmpl, *this);                                  \
             return *this;                                               \
         }                                                               \
-    }                                                                   \
-    namespace fields {                                                  \
-        template const field &mk(                                       \
-            const wireproto::parameter<wrapper_type> &);                \
-        template const field &mk(                                       \
-            const maybe<wrapper_type> &);                               \
     }
 #define wireproto_wrapper_type(wrapper_type)                            \
     __wireproto_wrapper_type(wrapper_type)                              \
