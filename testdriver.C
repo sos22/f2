@@ -6,6 +6,7 @@
 #include "beacontest.H"
 #include "buffer.H"
 #include "cond.H"
+#include "coordinator.H"
 #include "either.H"
 #include "error.H"
 #include "fd.H"
@@ -41,6 +42,7 @@ main(int argc, char *argv[])
     tests::beacon();
     tests::buffer();
     tests::cond();
+    tests::_coordinator();
     tests::either();
     tests::_error();
     tests::fd();

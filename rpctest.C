@@ -103,7 +103,7 @@ public:  orerror<rpcconn *> accept(socket_t s) {
     assert(connected == NULL || allowmulti);
     auto ss(rpcconn::fromsocket<rpcconn>(
                 s,
-                rpcconnauth::mkwaithello(ms, rs, rpcconnconfig::dflt),
+                rpcconnauth::mkwaithello(ms, rs, rpcconnconfig::dflt, NULL),
                 rpcconnconfig::dflt));
     if (ss.isfailure()) return ss;
     connected = ss.success();
@@ -137,7 +137,8 @@ public:  orerror<rpcconn *> accept(socket_t s) {
             rs,
             slavename("<test server>"),
             actortype::test,
-            rpcconnconfig::dflt),
+            rpcconnconfig::dflt,
+            NULL),
         rpcconnconfig::dflt); }
 };
 
@@ -1154,6 +1155,34 @@ tests::_rpc() {
                 c->send(io,
                         wireproto::tx_message(bigreplytag))
                     .fatal("call big reply method"); }
+            c->destroy(io);
+            s2->destroy(io); });
+    testcaseIO("rpc", "authtype", [] (clientio io) {
+            peername listenon(peername::loopback(
+                                  peername::port(quickcheck())));
+            auto ms(mastersecret::mk());
+            registrationsecret rs((quickcheck()));
+            auto s1(::rpcserver::listen<authrpcserver>(listenon,
+                                                       ms,
+                                                       rs,
+                                                       false)
+                    .fatal("creating RPC server"));
+            auto s2(s1.go());
+            auto slavepeer(peername::loopback(peername::port(quickcheck())));
+            auto c(rpcconn::connectmaster<rpcconn>(
+                       io,
+                       beaconresult(
+                           ms.nonce(slavepeer),
+                           slavepeer,
+                           listenon,
+                           rs),
+                       slavename("HELLO"),
+                       actortype::cli,
+                       rpcconnconfig::dflt)
+                   .fatal("connecting to master"));
+            assert(c->type() == actortype::master);
+            assert(c->localname().samehost(slavepeer));
+            assert(s2->connected->type() == actortype::cli);
             c->destroy(io);
             s2->destroy(io); });
 }

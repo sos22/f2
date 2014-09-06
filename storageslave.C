@@ -167,7 +167,8 @@ storageslave::accept(socket_t s) {
             rs,
             config.name,
             actortype::storageslave,
-            config.connconfig),
+            config.connconfig,
+            NULL),
         config.connconfig,
         this,
         false); }

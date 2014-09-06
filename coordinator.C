@@ -3,10 +3,13 @@
 #include "fields.H"
 #include "proto.H"
 #include "logging.H"
+#include "spark.H"
+#include "test.H"
 
 #include "list.tmpl"
 #include "rpcconn.tmpl"
 #include "rpcserver.tmpl"
+#include "spark.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -102,9 +105,45 @@ orerror<rpcconn *>
 coordinator::accept(socket_t s) {
     return rpcconn::fromsocket<coordinatorconn>(
         s,
-        rpcconnauth::mkwaithello(ms, rs, connconfig),
+        rpcconnauth::mkwaithello(ms, rs, connconfig, &slaveconnected),
         connconfig,
         this); }
+
+coordinator::iterator::iterator(const coordinator *owner,
+                                actortype type)
+    : content(),
+      /* Will be replaced with something correct later. */
+      cursor(content.start()) {
+    /* Acquiring a lock from a constructor.  Probably okay: it's a
+     * small leaf lock. */
+    auto token(owner->mux.lock());
+    for (auto it(owner->connections.start()); !it.finished(); it.next()) {
+        if ((*it)->type() == type) {
+            auto sn((*it)->slavename());
+            if (sn != Nothing) content.pushtail(sn.just()); } }
+    owner->mux.unlock(&token);
+    cursor.~iter();
+    new (&cursor) list<slavename>::iter(content.start()); }
+
+slavename
+coordinator::iterator::get() const {
+    /* Caller has to make sure we're not finish()ed. */
+    return *cursor; }
+
+void
+coordinator::iterator::next() {
+    cursor.next(); }
+
+bool
+coordinator::iterator::finished() const {
+    return cursor.finished(); }
+
+coordinator::iterator::~iterator() {
+    content.flush(); }
+
+coordinator::iterator
+coordinator::start(actortype t) const {
+    return iterator(this, t); }
 
 void
 coordinator::destroy(clientio io) {
@@ -150,3 +189,92 @@ fields::mk(const coordinator::status_t &o) {
         if (!first) res = &(*res + ",");
         res = &(*res + mk(*it)); }
     return *res + "}>"; }
+
+void
+tests::_coordinator() {
+    testcaseCS(
+        "coordinator",
+        "oneclient",
+        [] (controlserver *cs, clientio io) {
+            initlogging("T");
+            auto ms(mastersecret::mk());
+            registrationsecret rs((quickcheck()));
+            peername listenon(peername::loopback(peername::port(quickcheck())));
+            auto config(rpcconnconfig::dflt);
+            /* Try to speed disconnect detection up a bit. */
+            config.pinginterval = timedelta::milliseconds(100);
+            auto coord(coordinator::build(
+                           ms,
+                           rs,
+                           listenon,
+                           cs,
+                           config)
+                       .fatal("building test coordinator"));
+            /* List should start empty */
+            {   auto i(coord->start(actortype::test));
+                assert(i.finished()); }
+            subscriber sub;
+            subscription someonearrived(sub, coord->slaveconnected);
+
+            /* Connect a client */
+            waitbox<void> connected;
+            waitbox<void> authenticate;
+            spark<rpcconn *> client(
+                [&authenticate, &connected, io, &listenon, &ms, &rs] {
+                    auto conn(rpcconn::connectnoauth<rpcconn>(
+                                  io,
+                                  ::slavename("<test>"),
+                                  actortype::master,
+                                  listenon,
+                                  rpcconnconfig::dflt)
+                              .fatal("connecting to coordinator"));
+                    connected.set();
+                    auto ln(conn->localname());
+                    auto nonce(ms.nonce(ln));
+                    authenticate.get(io);
+                    conn->call(
+                        io,
+                        wireproto::req_message(proto::HELLO::tag,
+                                               conn->allocsequencenr())
+                        .addparam(proto::HELLO::req::version, 1u)
+                        .addparam(proto::HELLO::req::nonce, nonce)
+                        .addparam(proto::HELLO::req::peername,
+                                  conn->localname())
+                        .addparam(proto::HELLO::req::slavename,
+                                  ::slavename("<testconn>"))
+                        .addparam(proto::HELLO::req::type,
+                                  actortype::test)
+                        .addparam(proto::HELLO::req::digest,
+                                  digest("B" +
+                                         fields::mk(nonce) +
+                                         fields::mk(rs))));
+                    return conn; });
+            connected.get(io);
+            /* Connected but not authenticated -> shouldn't be in list */
+            {   auto i(coord->start(actortype::test));
+                assert(i.finished()); }
+            /* publisher shouldn't have been set */
+            assert(sub.poll() == NULL);
+            /* Let it connect. */
+            authenticate.set();
+            auto conn(client.get());
+            /* Should have set the publisher */
+            assert(sub.poll() == &someonearrived);
+            /* New conn should be in list */
+            {   auto i(coord->start(actortype::test));
+                assert(!i.finished());
+                assert(i.get() == ::slavename("<testconn>"));
+                i.next();
+                assert(i.finished()); }
+            /* Disconnect */
+            conn->destroy(io);
+            /* Conn should drop out of list */
+            (timestamp::now() +
+             config.pinginterval +
+             timedelta::milliseconds(50))
+                .sleep();
+            {   auto i(coord->start(actortype::test));
+                assert(i.finished()); }
+            /* Done */
+            someonearrived.detach();
+            coord->destroy(io); }); }

@@ -20,7 +20,8 @@ main(int argc, char *argv[]) {
                   clientio::CLIENTIO,
                   rpcconnauth::mkdone(slavename("<ping server>"),
                                       actortype::cli,
-                                      rpcconnconfig::dflt),
+                                      rpcconnconfig::dflt,
+                                      NULL),
                   peer,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));

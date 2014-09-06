@@ -10,6 +10,7 @@
 #include "rpcconn.H"
 #include "rpcserver.H"
 
+class actortype;
 class controlserver;
 class mastersecret;
 template <typename> class orerror;
@@ -62,8 +63,12 @@ private: class controlinterface : public ::controlinterface {
     };
 private: controlinterface controliface;
 
+    /* Above the connection auth locks */
 private: mutable mutex_t mux;
 private: list<coordinatorconn *> connections;
+    /* Notified whenever a slave enters the connected state (i.e. when
+     * it starts being exposed to the slave iterators). */
+public:  publisher slaveconnected;
 
 public:  static orerror<coordinator *> build(
     const mastersecret &,
@@ -78,6 +83,43 @@ private: coordinator(constoken,
                      controlserver *,
                      const rpcconnconfig &);
 private: orerror<rpcconn *> accept(socket_t);
+
+    /* Enumerator for connected slaves.  A slave is added to the
+     * connected list once it's made it through the authentication
+     * protocol (and the slaveconnected publisher will be notified
+     * immediately afterwards).  Slaves are removed from the connected
+     * list when the connection is lost.  It is (obviously) possible
+     * for the connection to be lost before the slave is removed from
+     * the list (because connection loss can happen at any time, with
+     * no synchronisation, depending on hardware error).  It is also
+     * possible for callers to see the slave drop out of the list
+     * before they see the connection lost if the slave transiently
+     * reconnects after we detect the initial connection loss. */
+    /* Note that enumerating the slave list does not prevent slaves
+     * from arriving or leaving.  The guarantees we provide are:
+     *
+     * (a) Any slave which is in the list when the enumeration starts
+     *     and remains in the list until it finishes will be returned at
+     *     some point in the enumeration.
+     * (b) Any slave which is returned by the enumeration will have been
+     *     in the list at some poing between the enumeration starting and
+     *     it finishing.
+     * (c) The enumerator returns each slave at most once.
+     */
+    /* The implementation actually works by snapshotting the set of
+     * available connections when it starts, but we'll probably want
+     * to switch to something a bit more intricate at some point. */
+public:  class iterator {
+        friend class coordinator;
+    private: list<slavename> content;
+    private: list<slavename>::iter cursor;
+    private: iterator(const coordinator *, actortype);
+    public:  slavename get() const;
+    public:  void next();
+    public:  bool finished() const;
+    public:  ~iterator(); };
+public:  iterator start(actortype) const;
+
 public:  void destroy(clientio);
 public:  typedef coordinatorstatus status_t;
 public:  status_t status() const;
@@ -88,5 +130,8 @@ class coordinatorconnstatus;
 namespace fields {
 const field &mk(const coordinatorconnstatus &);
 }
+
+namespace tests {
+void _coordinator(); }
 
 #endif /* !COORDINATOR_H__ */

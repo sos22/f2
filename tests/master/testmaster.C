@@ -71,7 +71,8 @@ main(int argc, char *argv[]) {
                        rpcconnauth::mkdone(
                            slavename("<master server>"),
                            actortype::test,
-                           rpcconnconfig::dflt),
+                           rpcconnconfig::dflt,
+                           NULL),
                        mastercontrolsock,
                        rpcconnconfig::dflt));
             if (c.issuccess()) {

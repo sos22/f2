@@ -106,6 +106,9 @@ private: enum states {
         s_waithelloslavec,
     };
 private: enum states state;
+    /* If non-NULL, will be notified shortly after we reach state
+     * done. */
+private: publisher *const pub;
 
     /* Rate limiter for incoming pings, because we handle pings before
        authenticating and it'd be a bit sad if a ping flood could
@@ -118,27 +121,32 @@ public:  maybe<class actortype> type() const;
 public:  static rpcconnauth mkdone(
     const class slavename &theirname,
     actortype theirtype,
-    const rpcconnconfig &);
+    const rpcconnconfig &,
+    publisher *pub);
 public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
     const registrationsecret &rs,
-    const rpcconnconfig &);
+    const rpcconnconfig &,
+    publisher *pub);
 public:  static rpcconnauth mksendhelloslavea(
     const registrationsecret &rs,
     const class slavename &ourname,
     actortype ourtype,
-    const rpcconnconfig &);
+    const rpcconnconfig &,
+    publisher *pub);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
     waitbox<orerror<void> > *,
     const class slavename &,
     actortype ourtype,
-    const rpcconnconfig &);
+    const rpcconnconfig &,
+    publisher *pub);
 
 public:  ~rpcconnauth();
 private: rpcconnauth(const rpcconnauth &o);
 private: void operator=(const rpcconnauth &o) = delete;
-private: explicit rpcconnauth(const rpcconnconfig &);
+private: rpcconnauth(const rpcconnconfig &,
+                     publisher *pub);
 
     /* Interface to rpcconn.  Returning Nothing indicates that the
      * message should go to normal processing.  Returning an error
@@ -154,7 +162,8 @@ private: void start(buffer &outbuffer);
 private: struct done {
     class slavename slave;
     actortype type;
-    done(const class slavename &_slave, actortype _type);
+    done(const class slavename &_slave,
+         actortype _type);
     };
 private: struct waithello {
     mastersecret ms;
@@ -354,7 +363,6 @@ public: template<typename t, typename ... args> static orerror<t *> connect(
     const rpcconnconfig &,
     args &&...);
 
-
     /* Establish a connection around an existing socket, without
      * sending any messages.  The connection can start receiving
      * messages as soon as its constructor returns. */
@@ -418,6 +426,10 @@ public: peername peer() const;
 
     /* Get slavename of the remote host, if we know it. */
 public: maybe<class slavename> slavename() const;
+    /* Get actortype of the remote host, if we know it. */
+public: maybe<actortype> type() const;
+    /* Get the peername for the local end of the connection */
+public: peername localname() const;
 
     /* Bits to send outgoing messages. */
     /* Queue a message to be sent.  This can block if the outgoing

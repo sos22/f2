@@ -190,18 +190,21 @@ rpcconnauth::type() const {
 rpcconnauth
 rpcconnauth::mkdone(const class slavename &remotename,
                     actortype remotetype,
-                    const rpcconnconfig &c) {
-    rpcconnauth r(c);
+                    const rpcconnconfig &c,
+                    publisher *pub) {
+    rpcconnauth r(c, pub);
     r.state = s_done;
     new (r.buf) done(remotename, remotetype);
+    if (pub) pub->publish();
     return r; }
 
 rpcconnauth
 rpcconnauth::mkwaithello(
     const mastersecret &ms,
     const registrationsecret &rs,
-    const rpcconnconfig &c) {
-    rpcconnauth r(c);
+    const rpcconnconfig &c,
+    publisher *pub) {
+    rpcconnauth r(c, pub);
     r.state = s_waithello;
     new (r.buf) waithello(ms, rs);
     return r; }
@@ -217,8 +220,9 @@ rpcconnauth::mksendhelloslavea(
     const registrationsecret &rs,
     const class slavename &_ourname,
     actortype _ourtype,
-    const rpcconnconfig &c) {
-    rpcconnauth r(c);
+    const rpcconnconfig &c,
+    publisher *pub) {
+    rpcconnauth r(c, pub);
     r.state = s_sendhelloslavea;
     new (r.buf) sendhelloslavea(rs, _ourname, _ourtype);
     return r; }
@@ -237,8 +241,9 @@ rpcconnauth::mkwaithelloslavea(
     waitbox<orerror<void> > *wb,
     const class slavename &_ourname,
     actortype _ourtype,
-    const rpcconnconfig &c) {
-    rpcconnauth r(c);
+    const rpcconnconfig &c,
+    publisher *pub) {
+    rpcconnauth r(c, pub);
     r.state = s_waithelloslavea;
     new (r.buf) waithelloslavea(rs, wb, _ourname, _ourtype);
     return r; }
@@ -263,6 +268,7 @@ rpcconnauth::waithelloslaveb::waithelloslaveb(
 
 rpcconnauth::rpcconnauth(const rpcconnauth &o)
     : state(o.state),
+      pub(o.pub),
       pinglimiter(o.pinglimiter) {
     switch (state) {
         /* Not currently used */
@@ -271,6 +277,7 @@ rpcconnauth::rpcconnauth(const rpcconnauth &o)
     case s_waithelloslavec:
         abort();
     case s_done:
+        if (pub) pub->publish();
         new (buf) done(*(done *)o.buf);
         return;
     case s_waithello:
@@ -308,11 +315,14 @@ rpcconnauth::~rpcconnauth() {
         return; }
     abort(); }
 
-rpcconnauth::rpcconnauth(const rpcconnconfig &c)
+rpcconnauth::rpcconnauth(const rpcconnconfig &c,
+                         publisher *_pub)
     : state(s_preinit),
+      pub(_pub),
       pinglimiter(c.pinglimit) {}
 
-rpcconnauth::done::done(const class slavename &o, actortype p)
+rpcconnauth::done::done(const class slavename &o,
+                        actortype p)
     : slave(o),
       type(p) {}
 
@@ -392,6 +402,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         s->~waithello();
         state = s_done;
         new (buf) done(_slavename.just(), flavour.just());
+        if (pub) pub->publish();
         return messageresult(new wireproto::resp_message(rxm)); }
     case s_sendhelloslavea:
         /* Shouldn't get here; should have sent the HELLOSLAVE::A
@@ -456,6 +467,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         state = s_done;
         s->~waithelloslaveb();
         new (buf) done(name.just(), remotetype.just());
+        if (pub) pub->publish();
         return messageresult(nextmsg); }
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
@@ -481,6 +493,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             s->~waithelloslavec();
             state = s_done;
             new (buf) done(name.just(), type);
+            if (pub) pub->publish();
             wb->set(Success); }
         return messageresult::noreply; } }
     abort(); }
@@ -748,6 +761,17 @@ rpcconn::slavename() const {
     auto res(auth(token).slavename());
     authlock.unlock(&token);
     return res; }
+
+maybe<actortype>
+rpcconn::type() const {
+    auto token(authlock.lock());
+    auto res(auth(token).type());
+    authlock.unlock(&token);
+    return res; }
+
+peername
+rpcconn::localname() const {
+    return sock.localname(); }
 
 rpcconn::sendres
 rpcconn::send(
