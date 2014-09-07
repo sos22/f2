@@ -61,7 +61,7 @@ quickcheck::operator const char *() const {
     while ((long)len <= 0) {
         r = (unsigned long)random();
         len = (1 << (r % 16)) + (((r / 16) % 256) - 128); }
-    char *buf = (char *)tmpheap::_alloc(len);
+    char *buf = (char *)tmpheap::_alloc(len+1);
     for (unsigned x = 0; x < len - 1; x++) {
         buf[x] = (char)((random() % 255) + 1); }
     buf[len] = '\0';
