@@ -3,6 +3,8 @@
 
 #include <pthread.h>
 
+#include <functional>
+
 class cond_t;
 
 class mutex_t {
@@ -38,6 +40,9 @@ public:
     mutex_t();
     ~mutex_t();
     token lock();
+    template <typename t> t locked(const std::function<t (token)> &);
+    void locked(const std::function<void (token)> &);
+
     void unlock(token *);
 };
 

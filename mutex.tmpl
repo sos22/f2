@@ -1,0 +1,11 @@
+#ifndef MUTEX_TMPL__
+#define MUTEX_TMPL__
+
+template <typename t> t
+mutex_t::locked(const std::function<t (mutex_t::token)> &f) {
+    auto token(lock());
+    auto res(f(token));
+    unlock(&token);
+    return res; }
+
+#endif /* !MUTEX_TMPL__ */

@@ -5,6 +5,7 @@
 #include "thread.H"
 #include "timedelta.H"
 
+#include "mutex.tmpl"
 #include "thread.tmpl"
 
 mutex_t::mutex_t()
@@ -31,6 +32,12 @@ mutex_t::unlock(token *tok)
     tok->release();
     pthread_mutex_unlock(&mux);
 }
+
+void
+mutex_t::locked(const std::function<void (mutex_t::token)> &f) {
+    auto token(lock());
+    f(token);
+    unlock(&token); }
 
 void
 tests::mutex() {
@@ -61,13 +68,41 @@ tests::mutex() {
                 void run(clientio) {
                     while (!_shutdown) {
                         unsigned i((unsigned long)random() % nr_muxes);
-                        auto token(_muxes[i].lock());
-                        assert(!_holders[i]);
-                        _holders[i] = ident;
-                        pthread_yield();
-                        assert(_holders[i] == ident);
-                        _holders[i] = 0;
-                        _muxes[i].unlock(&token); } } };
+                        switch (random() % 3) {
+                        case 0: {
+                            auto token(_muxes[i].lock());
+                            assert(!_holders[i]);
+                            _holders[i] = ident;
+                            pthread_yield();
+                            assert(_holders[i] == ident);
+                            _holders[i] = 0;
+                            _muxes[i].unlock(&token);
+                            break; }
+                        case 1:
+                            _muxes[i].locked(
+                                [this, i] (mutex_t::token token) {
+                                    token.formux(_muxes[i]);
+                                    assert(!_holders[i]);
+                                    _holders[i] = ident;
+                                    pthread_yield();
+                                    assert(_holders[i] == ident);
+                                    _holders[i] = 0; });
+                            break;
+                        case 2: {
+                            long q;
+                            long r;
+                            r = _muxes[i].locked<long>(
+                                [this, i, &q] (mutex_t::token token) {
+                                    token.formux(_muxes[i]);
+                                    q = random();
+                                    assert(!_holders[i]);
+                                    _holders[i] = ident;
+                                    pthread_yield();
+                                    assert(_holders[i] == ident);
+                                    _holders[i] = 0;
+                                    return q;});
+                            assert(r == q);
+                            break; } } } } };
             thr *thrs[nr_threads];
             for (unsigned x = 0; x < nr_threads; x++) {
                 thrs[x] = thread::spawn<thr>(fields::mk(x), muxes, holders,
