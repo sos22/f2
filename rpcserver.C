@@ -37,7 +37,7 @@ rpcserver::run(clientio io) {
                    completely screw us.  We're probably still dead,
                    but at least this way we die in a way which doesn't
                    spam the logs with crap. */
-                (timestamp::now() + timedelta::seconds(1)).sleep();
+                (timestamp::now() + timedelta::seconds(1)).sleep(io);
                 continue; }
             auto conn(accept(newsock.success()));
             if (conn.isfailure()) {

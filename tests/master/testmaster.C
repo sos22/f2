@@ -80,7 +80,8 @@ main(int argc, char *argv[]) {
                 c.fatal("Connecting to master; started at " +
                         fields::mk(start) + ", now " +
                         fields::mk(timestamp::now())); }
-            (timestamp::now() + timedelta::milliseconds(50)).sleep(); }
+            (timestamp::now() + timedelta::milliseconds(50))
+                .sleep(clientio::CLIENTIO); }
         logmsg(loglevel::info,
                "master took " + fields::mk(timestamp::now() - start) +
                " to start accepting control connections"); }
@@ -153,7 +154,7 @@ main(int argc, char *argv[]) {
             if (now > deadline) {
                 error::timeout.fatal(
                     "waiting for storage slave to connect to master"); }
-            (now + timedelta::milliseconds(20)).sleep(); }
+            (now + timedelta::milliseconds(20)).sleep(clientio::CLIENTIO); }
         logmsg(loglevel::info,
                "storage slave connected in " +
                fields::mk(timestamp::now() - start)); }
@@ -183,7 +184,7 @@ main(int argc, char *argv[]) {
             if (now > deadline) {
                 error::timeout.fatal(
                     "waiting for master to notice slave had stopped"); }
-            (now + timedelta::milliseconds(100)).sleep(); }
+            (now + timedelta::milliseconds(100)).sleep(clientio::CLIENTIO); }
         /* Shouldn't drop out for interruptions less than the ping
          * deadline. */
         assert(timestamp::now() > start + masterconnconfig.pingdeadline);
@@ -226,7 +227,7 @@ main(int argc, char *argv[]) {
             if (now > deadline) {
                 error::timeout.fatal(
                     "waiting for master to notice slave had restarted"); }
-            (now + timedelta::milliseconds(100)).sleep(); }
+            (now + timedelta::milliseconds(100)).sleep(clientio::CLIENTIO); }
         logmsg(loglevel::info,
                "master noticed slave restarted in " +
                fields::mk(timestamp::now() - start)); }
@@ -257,7 +258,7 @@ main(int argc, char *argv[]) {
             if (now > deadline) {
                 error::timeout.fatal(
                     "waiting for master to notice slave had died"); }
-            (now + timedelta::milliseconds(100)).sleep(); }
+            (now + timedelta::milliseconds(100)).sleep(clientio::CLIENTIO); }
         logmsg(loglevel::info,
                "master noticed slave stopped in " +
                fields::mk(timestamp::now() - start)); }

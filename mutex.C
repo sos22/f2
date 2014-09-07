@@ -107,7 +107,8 @@ tests::mutex() {
             for (unsigned x = 0; x < nr_threads; x++) {
                 thrs[x] = thread::spawn<thr>(fields::mk(x), muxes, holders,
                                              x+1, shutdown).go(); }
-            (timestamp::now() + timedelta::seconds(5)).sleep();
+            (timestamp::now() + timedelta::seconds(5))
+                .sleep(clientio::CLIENTIO);
             shutdown = true;
             for (unsigned x = 0; x < nr_threads; x++) {
                 thrs[x]->join(clientio::CLIENTIO); } }); }

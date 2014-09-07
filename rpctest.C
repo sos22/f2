@@ -731,7 +731,7 @@ tests::_rpc() {
                         replyrestart.set();
                         /* Give it a moment to do something. */
                         (timestamp::now() +
-                         timedelta::milliseconds(100)).sleep();
+                         timedelta::milliseconds(100)).sleep(io);
                         /* Start shutdown sequence on the server. */
                         s2->shutdown.set(true);
                         /* Tear down the server. */
@@ -780,7 +780,7 @@ tests::_rpc() {
                             if (res.isfailure() &&
                                 res.failure() == error::disconnected) {
                                 (timestamp::now() +timedelta::milliseconds(100))
-                                    .sleep(); }
+                                    .sleep(__io); }
                             else if (res.isfailure()) {
                                 res.failure().fatal(
                                     "calling callable server"); }
@@ -821,7 +821,7 @@ tests::_rpc() {
                     for (unsigned i = 0; i < nr_workers; i++) {
                         workers[i].go(listenon, cntr, shutdownclients); }
                     /* Give it a moment for things to get started. */
-                    (timestamp::now() + timedelta::milliseconds(500)).sleep();
+                    (timestamp::now() + timedelta::milliseconds(500)).sleep(io);
                     /* Make sure that we've made progress */
                     assert(cntr > 1000);
                     int cntrsnap;
@@ -834,7 +834,7 @@ tests::_rpc() {
                         cntrsnap = loadacquire(cntr);
                         /* Make sure clients don't crash quickly. */
                         (timestamp::now() + timedelta::milliseconds(500))
-                            .sleep(); }
+                            .sleep(io); }
                     /* Shut the clients down. */
                     shutdownclients.set();
                     for (unsigned i = 0; i < nr_workers; i++) {
@@ -885,7 +885,7 @@ tests::_rpc() {
                 io,
                 wireproto::req_message(callabletag, c->allocsequencenr()))
                 .fatal("calling ping server");
-            (timestamp::now() + config.pinginterval * 2).sleep();
+            (timestamp::now() + config.pinginterval * 2).sleep(io);
             delete c->call(
                 io,
                 wireproto::req_message(callabletag, c->allocsequencenr()))
@@ -938,7 +938,7 @@ tests::_rpc() {
                  config.pinginterval +
                  config.pinginterval +
                  timedelta::milliseconds(50))
-                    .sleep();
+                    .sleep(io);
                 /* Server should have noticed client death, so if we
                    unpause it we should find that we've been
                    disconnected. */
@@ -1044,9 +1044,9 @@ tests::_rpc() {
                             assert(r.failure() == error::disconnected); } }); }
             /* Interrupt a send with a publish. */
             publisher pub;
-            spark<void> publisher([&pub] () {
+            spark<void> publisher([&pub, io] () {
                     /* Let it get into place */
-                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                     pub.publish(); });
             subscriber sub;
             subscription ss(sub, pub);
@@ -1102,7 +1102,7 @@ tests::_rpc() {
                        rpcconnconfig::dflt)
                    .fatal("connecting to callable server"));
             /* Get the client RPC thread into a known place. */
-            (timestamp::now() + timedelta::milliseconds(100)).sleep();
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
             c->sock.close();
             assert(c->call(io,
                            wireproto::req_message(callabletag,

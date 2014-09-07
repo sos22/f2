@@ -122,7 +122,7 @@ tests::_timedelta() {
     testcaseV("timedelta", "time", [] {
             auto t(timedelta::time<int>([] {
                         (timestamp::now()+timedelta::milliseconds(100))
-                            .sleep();
+                            .sleep(clientio::CLIENTIO);
                         return 5; }));
             assert(t.v == 5);
             assert(timedelta::milliseconds(100) < t.td);

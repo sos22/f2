@@ -338,7 +338,7 @@ tests::beacon() {
                                  cs));
             while (!done) sub.wait(io);
             /* make sure race with shutdown goes the right way. */
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             server->destroy(io); });
 
     testcaseCS(
@@ -361,7 +361,7 @@ tests::beacon() {
                                  cs));
             while (!done) sub.wait(io);
             /* make sure race with shutdown goes the right way. */
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             server->destroy(io); });
 
     testcaseCS(

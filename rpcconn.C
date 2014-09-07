@@ -650,7 +650,7 @@ rpcconn::run(clientio io) {
                    DOSes, but we don't want to give the message()
                    method a clientio token, so have to do it here. */
                 if (msg.success().tag() == proto::PING::tag) {
-                    pinglimiter.wait(); }
+                    pinglimiter.wait(io); }
 
                 history = (history << 4) | 5;
                 auto res(message(msg.success()));

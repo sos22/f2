@@ -7,6 +7,8 @@
 #include "timestamp.H"
 #include "wireproto.H"
 
+class clientio;
+
 class ratelimiterconfig {
 public: frequency maxrate;
 public: unsigned bucketsize;
@@ -72,7 +74,7 @@ public:
        Otherwise, return false. */
     bool probe() __attribute__((warn_unused_result));
     /* Wait for a token to become available and consume one. */
-    void wait();
+    void wait(clientio);
     ratelimiter_status status() const;
 };
 

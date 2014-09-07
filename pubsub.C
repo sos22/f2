@@ -554,9 +554,9 @@ tests::pubsub() {
             subscriber sub;
             initpubsub();
             {   iosubscription ios(sub, pipe.success().read.poll(POLLIN));
-                (timestamp::now() + timedelta::milliseconds(10)).sleep(); }
+                (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
             pipe.success().close();
-            (timestamp::now() + timedelta::milliseconds(10)).sleep();
+            (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
             deinitpubsub(io); });
 
 #if TESTING
@@ -571,7 +571,7 @@ tests::pubsub() {
                 iosubdetachrace,
                 [fd = pipe.success().write, io] () {
                     fd.write(io, "X", 1);
-                    (timestamp::now() + timedelta::milliseconds(10)).sleep();});
+                    (timestamp::now() + timedelta::milliseconds(10)).sleep(io);});
             spark<bool> reader([fd = pipe.success().read, deadline] () {
                     subscriber sub;
                     iosubscription ios(sub, fd.poll(POLLIN));
@@ -624,7 +624,7 @@ tests::pubsub() {
                         r->~iosubscription();
                         memset(buf, 0x99, sizeof(buf)); }
                     return true; });
-            (timestamp::now() + timedelta::seconds(5)).sleep();
+            (timestamp::now() + timedelta::seconds(5)).sleep(io);
             shutdown = true;
             watcher.get();
             deinitpubsub(io); });
@@ -636,14 +636,14 @@ tests::pubsub() {
             spark<pair<timestamp, timestamp> > listen([&pipe, io] {
                     subscriber sub;
                     iosubscription ios(sub, pipe.read.poll(POLLIN));
-                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                     auto subtime(timestamp::now());
                     sub.wait(io);
                     return mkpair(subtime, timestamp::now()); });
-            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
             auto closeread(timestamp::now());
             pipe.read.close();
-            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
             auto closewrite(timestamp::now());
             pipe.write.close();
             auto t(listen.get());
@@ -661,14 +661,14 @@ tests::pubsub() {
             subscriber sub;
             iosubscription ss0(sub, pipe0.read.poll(POLLIN));
             iosubscription ss1(sub, pipe1.read.poll(POLLIN));
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             assert(sub.poll() == NULL);
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             pipe1.read.close();
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             assert(sub.poll() == NULL);
             pipe0.write.write(io, "foo", 3);
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             auto s1(sub.poll());
             auto s2(sub.poll());
             assert(s1 != NULL);
@@ -699,11 +699,11 @@ tests::pubsub() {
             {   subscriber sub;
                 iosubscription reading(sub, pipe.fd0.poll(POLLIN));
                 iosubscription writing(sub, pipe.fd0.poll(POLLOUT));
-                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 assert(sub.poll() == NULL);
                 {   char b[4096];
                     pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
-                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 assert(sub.poll() == &writing); }
             while (1) {
                 char b[4096];
@@ -718,11 +718,11 @@ tests::pubsub() {
             {   subscriber sub;
                 iosubscription writing(sub, pipe.fd0.poll(POLLOUT));
                 iosubscription reading(sub, pipe.fd0.poll(POLLIN));
-                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 assert(sub.poll() == NULL);
                 {   char b[4096];
                     pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
-                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 assert(sub.poll() == &writing); }
             deinitpubsub(io); });
 }

@@ -127,7 +127,7 @@ beaconserver::run(clientio io)
             errors++;
             /* Shouldn't happen, but back off a little bit if it does,
                just to avoid spamming the logs when things are bad. */
-            (timestamp::now() + timedelta::milliseconds(100)).sleep();
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
             continue;
         }
         auto rrr(wireproto::rx_message::fetch(inbuffer));

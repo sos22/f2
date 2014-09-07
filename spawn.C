@@ -7,6 +7,7 @@
 #include "spawnservice.h"
 
 #include "buildconfig.H"
+#include "clientio.H"
 #include "fields.H"
 #include "test.H"
 #include "timedelta.H"
@@ -330,15 +331,15 @@ process::kill() {
 void
 tests::_spawn() {
     using namespace spawn;
-    testcaseV("spawn", "truefalsebad", [] {
+    testcaseIO("spawn", "truefalsebad", [] (clientio io) {
             {   auto p(process::spawn(program(filename("/bin/true")))
                        .fatal("spawning /bin/true"));
-                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 assert(p->hasdied() != Nothing);
                 assert(p->join(p->hasdied().just()).left() ==shutdowncode::ok);}
             {   auto p(process::spawn(program("/bin/false"))
                        .fatal("spawning /bin/false"));
-                (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 assert(p->hasdied() != Nothing);
                 assert(p->join(p->hasdied().just()).left() == shutdowncode(1));}
             {   auto p(process::spawn(program("/does/not/exist")));
@@ -365,8 +366,7 @@ tests::_spawn() {
             auto t(timestamp::now() - start - timedelta::seconds(1));
             assert(t >= timedelta::seconds(0));
             assert(t <= timedelta::milliseconds(50)); });
-    testcaseV("spawn", "sleep2", [] {
-            initpubsub();
+    testcaseIO("spawn", "sleep2", [] (clientio io) {
             auto start(timestamp::now());
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg("1"))
@@ -377,17 +377,15 @@ tests::_spawn() {
                 woke = 0;
                 while (p->hasdied() == Nothing) {
                     woke++;
-                    assert(ss.wait(clientio::CLIENTIO) == &sub);
+                    assert(ss.wait(io) == &sub);
                     sub.rearm(); }
                 /* Can get a few spurious wakes, but not too many. */
                 assert(woke < 5); }
             assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
             auto t(timestamp::now() - start - timedelta::seconds(1));
             assert(t >= timedelta::seconds(0));
-            assert(t <= timedelta::milliseconds(50));
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("spawn", "sleep3", [] {
-            initpubsub();
+            assert(t <= timedelta::milliseconds(50)); });
+    testcaseIO("spawn", "sleep3", [] (clientio) {
             auto start(timestamp::now());
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(string("1")))
@@ -396,14 +394,12 @@ tests::_spawn() {
                    .left() == shutdowncode::ok);
             auto t(timestamp::now() - start - timedelta::seconds(1));
             assert(t >= timedelta::seconds(0));
-            assert(t <= timedelta::milliseconds(50));
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("spawn", "sleep4", [] {
-            initpubsub();
+            assert(t <= timedelta::milliseconds(50)); });
+    testcaseIO("spawn", "sleep4", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(std::move(string("1"))))
                    .fatal("spawning /bin/sleep"));
-            (timestamp::now() + timedelta::seconds(2)).sleep();
+            (timestamp::now() + timedelta::seconds(2)).sleep(io);
             {   subscriber ss;
                 spawn::subscription sub(ss, *p);
                 assert(ss.poll() == &sub);
@@ -411,106 +407,99 @@ tests::_spawn() {
                 assert(ss.poll() == NULL);
                 sub.rearm();
                 assert(ss.poll() == &sub); }
-            assert(p->join(clientio::CLIENTIO).left() == shutdowncode::ok);
-            deinitpubsub(clientio::CLIENTIO); } );
-    testcaseV("spawn", "signal", [] {
+            assert(p->join(io).left() == shutdowncode::ok); } );
+    testcaseIO("spawn", "signal", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(fields::mk(1)))
                    .fatal("spawning"));
             assert(p->hasdied() == Nothing);
             p->signal(signalnr::kill);
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             assert(p->join(p->hasdied().just()).right()== signalnr::kill); });
-    testcaseV("spawn", "signal2", [] {
+    testcaseIO("spawn", "signal2", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg("1"))
                    .fatal("spawning"));
             assert(p->hasdied() == Nothing);
             p->signal(signalnr::term);
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             assert(p->join(p->hasdied().just()).right()== signalnr::term); });
-    testcaseV("spawn", "signal3", [] {
+    testcaseIO("spawn", "signal3", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg("1"))
                    .fatal("spawning"));
             assert(p->hasdied() == Nothing);
             p->signal(signalnr::stop);
-            (timestamp::now() + timedelta::seconds(2)).sleep();
+            (timestamp::now() + timedelta::seconds(2)).sleep(io);
             assert(p->hasdied() == Nothing);
             p->signal(signalnr::cont);
-            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
             assert(p->join(p->hasdied().just()).left() ==shutdowncode::ok); });
-    testcaseV("spawn", "signal4", [] {
+    testcaseIO("spawn", "signal4", [] (clientio io) {
             auto p(process::spawn(program("/bin/true"))
                    .fatal("spawning truth"));
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             p->signal(signalnr::kill);
             assert(p->join(p->hasdied().just()).left() ==shutdowncode::ok); });
-    testcaseV("spawn", "signal5", [] {
+    testcaseIO("spawn", "signal5", [] (clientio io) {
             auto p(process::spawn(program("/bin/true"))
                    .fatal("spawning truth"));
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             assert(p->hasdied() != Nothing);
             p->signal(signalnr::kill);
             assert(p->join(p->hasdied().just()).left() ==shutdowncode::ok); } );
-    testcaseV("spawn", "raise1", [] {
-            initpubsub();
+    testcaseIO("spawn", "raise1", [] (clientio io) {
             auto p(process::spawn(program("./tests/abort/abort"))
                    .fatal("spawing ./tests/abort/abort"));
-            assert(p->join(clientio::CLIENTIO).right() == signalnr::abort);
-            deinitpubsub(clientio::CLIENTIO); });
-    testcaseV("spawn", "raise2", [] {
-            initpubsub();
+            assert(p->join(io).right() == signalnr::abort); });
+    testcaseIO("spawn", "raise2", [] (clientio io) {
             auto p(process::spawn(program("./tests/abort/abort"))
                    .fatal("spawing ./tests/abort/abort"));
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             p->signal(signalnr::kill);
-            assert(p->join(clientio::CLIENTIO).right() == signalnr::abort);
-            deinitpubsub(clientio::CLIENTIO); } );
-    testcaseV("spawn", "pause", [] {
+            assert(p->join(io).right() == signalnr::abort); });
+    testcaseIO("spawn", "pause", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(".11"))
                    .fatal("spawning sleep"));
             auto tok(p->pause());
-            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
             assert(p->hasdied() == Nothing);
             p->unpause(tok);
-            (timestamp::now() + timedelta::milliseconds(200)).sleep();
+            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
             assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); });
-    testcaseV("spawn", "pause2", [] {
+    testcaseIO("spawn", "pause2", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(".2"))
                    .fatal("spawning sleep"));
-            (timestamp::now() + timedelta::milliseconds(500)).sleep();
+            (timestamp::now() + timedelta::milliseconds(500)).sleep(io);
             auto tok(p->pause());
             assert(p->hasdied() != Nothing);
             p->unpause(tok);
             assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); });
-    testcaseV("spawn", "pause3", [] {
+    testcaseIO("spawn", "pause3", [] (clientio io) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg(".2"))
                    .fatal("spawning sleep"));
-            (timestamp::now() + timedelta::milliseconds(500)).sleep();
+            (timestamp::now() + timedelta::milliseconds(500)).sleep(io);
             assert(p->hasdied() != Nothing);
             auto tok(p->pause());
             assert(p->hasdied() != Nothing);
             p->unpause(tok);
             assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); });
-    testcaseV("spawn", "pause4", [] {
+    testcaseIO("spawn", "pause4", [] (clientio io) {
             auto p(process::spawn(program("./tests/abort/abort"))
                    .fatal("spawning abort"));
-            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep(io);
             auto tok(p->pause());
             p->unpause(tok);
             assert(p->join(p->hasdied().just()).right() == signalnr::abort); });
-    testcaseV("spawn", "kill", [] {
-            initpubsub();
+    testcaseIO("spawn", "kill", [] (clientio) {
             auto p(process::spawn(program("/bin/sleep")
                                   .addarg("3600"))
                    .fatal("spawning sleep"));
             auto start(timestamp::now());
             p->kill();
             auto end(timestamp::now());
-            assert(end - start < timedelta::milliseconds(50));
-            deinitpubsub(clientio::CLIENTIO); });
+            assert(end - start < timedelta::milliseconds(50)); });
 }

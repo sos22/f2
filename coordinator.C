@@ -272,7 +272,7 @@ tests::_coordinator() {
             (timestamp::now() +
              config.pinginterval +
              timedelta::milliseconds(50))
-                .sleep();
+                .sleep(io);
             {   auto i(coord->start(actortype::test));
                 assert(i.finished()); }
             /* Done */

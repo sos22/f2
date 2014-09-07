@@ -68,10 +68,10 @@ parsers::_walltime() {
 void
 tests::_walltime() {
     testcaseV("walltime", "wire", [] { wireproto::roundtrip<walltime>(); });
-    testcaseV("walltime", "granularity", [] {
+    testcaseIO("walltime", "granularity", [] (clientio io) {
             auto last(walltime::now());
             for (int i = 0; i < 100; i++) {
-                (timestamp::now() + timedelta::microseconds(2)).sleep();
+                (timestamp::now() + timedelta::microseconds(2)).sleep(io);
                 auto n(walltime::now());
                 assert(!(n == last));
                 last = n; } });

@@ -74,7 +74,8 @@ tests::cond() {
             mutex_t mux;
             cond_t cond(mux);
             spark<void> notify( [&mux, &cond] {
-                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    (timestamp::now() + timedelta::milliseconds(100))
+                        .sleep(clientio::CLIENTIO);
                     auto token(mux.lock());
                     cond.broadcast(token);
                     mux.unlock(&token); });
@@ -86,7 +87,8 @@ tests::cond() {
             mutex_t mux;
             cond_t cond(mux);
             spark<void> notify( [&mux, &cond] {
-                    (timestamp::now() + timedelta::milliseconds(100)).sleep();
+                    (timestamp::now() + timedelta::milliseconds(100))
+                        .sleep(clientio::CLIENTIO);
                     auto token(mux.lock());
                     cond.broadcast(token);
                     mux.unlock(&token);});
@@ -100,7 +102,8 @@ tests::cond() {
             mutex_t mux;
             cond_t cond(mux);
             spark<void> notify( [&mux, &cond] {
-                    (timestamp::now() + timedelta::milliseconds(200)).sleep();
+                    (timestamp::now() + timedelta::milliseconds(200))
+                        .sleep(clientio::CLIENTIO);
                     auto token(mux.lock());
                     cond.broadcast(token);
                     mux.unlock(&token); });

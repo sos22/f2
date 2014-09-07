@@ -70,7 +70,7 @@ ratelimiter::probe()
 }
 
 void
-ratelimiter::wait() {
+ratelimiter::wait(clientio io) {
     mutex_t::token tok(mux.lock());
     if (bucket_content != 0) {
         bucket_content--;
@@ -86,7 +86,7 @@ ratelimiter::wait() {
            to wait for the bucket to refill. */
         auto sleepto(last_refill + (1.0 / config.maxrate));
         mux.unlock(&tok);
-        sleepto.sleep();
+        sleepto.sleep(io);
         tok = mux.lock(); } }
 
 ratelimiter_status
@@ -209,7 +209,7 @@ tests::ratelimiter() {
                 assert(count <= (int)((n - start) * freq) + 5);
                 if (res) lastsuccess = n; } });
     auto bursty(
-        [] (bool over) {
+        [] (clientio io, bool over) {
             initlogging("test");
             double ratio = over ? 0.8 : 1.2;
             for (unsigned x = 0; x < 10; x++) {
@@ -251,7 +251,7 @@ tests::ratelimiter() {
                                 (timestamp::now() - burststart) * burstrate;
                             if (burstnr > targetburstnr) continue;
                             (burststart + (targetburstnr - burstnr) / burstrate)
-                                .sleep();
+                                .sleep(io);
                             if (r.probe()) allowed++;
                             else blocked++;
                             burstnr++; } }
@@ -264,7 +264,7 @@ tests::ratelimiter() {
                                 (timestamp::now() - slowstart) * baserate;
                             if (slownr > targetslownr) continue;
                             (slowstart + (targetslownr - slownr) / baserate)
-                                .sleep();
+                                .sleep(io);
                             if (r.probe()) allowed++;
                             else blocked++;
                             slownr++; } } }
@@ -280,10 +280,10 @@ tests::ratelimiter() {
             deinitlogging(); });
 
     testcaseV("ratelimiter", "burstygood",
-              [&bursty] () { bursty(false); });
+              [&bursty] () { bursty(clientio::CLIENTIO, false); });
 
     testcaseV("ratelimiter", "burstybad",
-              [&bursty] () { bursty(true); });
+              [&bursty] () { bursty(clientio::CLIENTIO, true); });
 
     testcaseV("ratelimiter", "eq", [] () {
             ::ratelimiter r(ratelimiterconfig(frequency::hz(10), 5));
@@ -301,24 +301,24 @@ tests::ratelimiter() {
     testcaseV("ratelimiter", "parsers", [] {
             parsers::roundtrip(parsers::_ratelimiterconfig()); });
 
-    testcaseV("ratelimiter", "dupewait", [] {
+    testcaseIO("ratelimiter", "dupewait", [] (clientio io) {
             ::ratelimiter r(ratelimiterconfig(frequency::hz(1000), 100));
             int cntr = 0;
             auto start(timestamp::now());
             while (timestamp::now() < start + timedelta::milliseconds(100)) {
-                r.wait();
+                r.wait(io);
                 cntr++; }
             assert(cntr >= 180);
             assert(cntr <= 220);
             ::ratelimiter r2(r);
             while (timestamp::now() < start + timedelta::milliseconds(200)) {
-                r2.wait();
+                r2.wait(io);
                 cntr++; }
             assert(cntr >= 280);
             assert(cntr <= 320);
             ::ratelimiter r3(r);
             while (timestamp::now() < start + timedelta::milliseconds(300)) {
-                r3.wait();
+                r3.wait(io);
                 cntr++; }
             assert(cntr >= 480);
             assert(cntr <= 520); });

@@ -6,6 +6,7 @@
 #ifndef TIMESTAMP_H__
 #define TIMESTAMP_H__
 
+class clientio;
 class quickcheck;
 class timedelta;
 struct timespec;
@@ -34,7 +35,7 @@ public:
     walltime aswalltime() const;
 
     /* Sleep until the represented time has passed. */
-    void sleep() const;
+    void sleep(clientio) const;
 
     static timestamp now();
     static timestamp fromtimespec(timespec);

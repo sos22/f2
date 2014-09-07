@@ -134,7 +134,8 @@ fields::mk(const thread &thr) {
 
 void
 tests::thread() {
-    testcaseIO("thread", "basic", [] (clientio io) {
+    testcaseV("thread", "basic", [] {
+            auto io(clientio::CLIENTIO);
             class testthr : public thread {
             public: volatile int &a;
             public: volatile bool &shutdown;
@@ -168,18 +169,18 @@ tests::thread() {
             /* The constructor runs immediately, but the run() method
              * doesn't. */
             assert(cntr == 97);
-            (timestamp::now() + timedelta::milliseconds(10)).sleep();
+            (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
             assert(cntr == 97);
             /* We can unpause it. */
             auto thr2(thr.go());
             assert(thr2 != NULL);
             /* It advances. */
-            (timestamp::now() + timedelta::milliseconds(10)).sleep();
+            (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
             assert(cntr > 97);
             /* Publisher doesn't notify while it's running. */
             subscriber sub;
             thread::deathsubscription ds(sub, thr2);
-            (timestamp::now() + timedelta::milliseconds(10)).sleep();
+            (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
             assert(sub.wait(io, timestamp::now()) == NULL);
             assert(thr2->hasdied() == Nothing);
             /* Publisher does notify when it dies. */

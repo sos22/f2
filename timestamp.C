@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "clientio.H"
 #include "fields.H"
 #include "mutex.H"
 #include "quickcheck.H"
@@ -40,7 +41,7 @@ timestamp::as_timespec() const {
     return res; }
 
 void
-timestamp::sleep() const {
+timestamp::sleep(clientio) const {
     while (1) {
         long left = v - now().v;
         if (left < 0) return;
