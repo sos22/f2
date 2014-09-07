@@ -101,7 +101,7 @@ public:  orerror<rpcconn *> accept(socket_t s) {
     assert(connected == NULL || allowmulti);
     auto ss(rpcconn::fromsocket<rpcconn>(
                 s,
-                rpcconnauth::mkwaithello(ms, rs, rpcconnconfig::dflt, NULL),
+                rpcconnauth::mkwaithello(ms, rs, NULL),
                 rpcconnconfig::dflt));
     if (ss.isfailure()) return ss;
     connected = ss.success();
@@ -134,9 +134,7 @@ public:  orerror<rpcconn *> accept(socket_t s) {
         rpcconnauth::mksendhelloslavea(
             rs,
             slavename("<test server>"),
-            actortype::test,
-            rpcconnconfig::dflt,
-            NULL),
+            actortype::test),
         rpcconnconfig::dflt); }
 };
 

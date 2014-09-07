@@ -36,7 +36,7 @@ rpcconn::fromsocketnoauth(socket_t sock,
                           args &&... parameters) {
     return fromsocket<conn_t, args...>(
         sock,
-        rpcconnauth::mkdone(theirname, theirtype, config, NULL),
+        rpcconnauth::mkdone(theirname, theirtype),
         config,
         std::forward<args>(parameters)...); }
 
@@ -93,11 +93,7 @@ rpcconn::connectslave(clientio io,
     waitbox<orerror<void> > wb;
     auto res(connect<conn_t>(io,
                              rpcconnauth::mkwaithelloslavea(
-                                 rs, &wb, ourname, ourtype, config,
-                                 /* We don't return until the auth
-                                    protocol is finished -> no need
-                                    for a connection publisher */
-                                 NULL),
+                                 rs, &wb, ourname, ourtype),
                              peer,
                              config,
                              parameters...));
@@ -133,7 +129,7 @@ rpcconn::connectnoauth(clientio io,
                        args &&... parameters) {
     return connect<conn_t, args...>(
         io,
-        rpcconnauth::mkdone(theirname, theirtype, config, NULL),
+        rpcconnauth::mkdone(theirname, theirtype),
         p,
         config,
         std::forward<args>(parameters)...); }

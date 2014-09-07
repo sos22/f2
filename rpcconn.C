@@ -189,40 +189,36 @@ rpcconnauth::type() const {
 
 rpcconnauth
 rpcconnauth::mkdone(const class slavename &remotename,
-                    actortype remotetype,
-                    const rpcconnconfig &c,
-                    publisher *pub) {
-    rpcconnauth r(c, pub);
+                    actortype remotetype) {
+    rpcconnauth r;
     r.state = s_done;
     new (r.buf) done(remotename, remotetype);
-    if (pub) pub->publish();
     return r; }
 
 rpcconnauth
 rpcconnauth::mkwaithello(
     const mastersecret &ms,
     const registrationsecret &rs,
-    const rpcconnconfig &c,
     publisher *pub) {
-    rpcconnauth r(c, pub);
+    rpcconnauth r;
     r.state = s_waithello;
-    new (r.buf) waithello(ms, rs);
+    new (r.buf) waithello(ms, rs, pub);
     return r; }
 
 rpcconnauth::waithello::waithello(
     const mastersecret &_ms,
-    const registrationsecret &_rs)
+    const registrationsecret &_rs,
+    publisher *_pub)
     : ms(_ms),
-      rs(_rs) {}
+      rs(_rs),
+      pub(_pub) {}
 
 rpcconnauth
 rpcconnauth::mksendhelloslavea(
     const registrationsecret &rs,
     const class slavename &_ourname,
-    actortype _ourtype,
-    const rpcconnconfig &c,
-    publisher *pub) {
-    rpcconnauth r(c, pub);
+    actortype _ourtype) {
+    rpcconnauth r;
     r.state = s_sendhelloslavea;
     new (r.buf) sendhelloslavea(rs, _ourname, _ourtype);
     return r; }
@@ -240,10 +236,8 @@ rpcconnauth::mkwaithelloslavea(
     const registrationsecret &rs,
     waitbox<orerror<void> > *wb,
     const class slavename &_ourname,
-    actortype _ourtype,
-    const rpcconnconfig &c,
-    publisher *pub) {
-    rpcconnauth r(c, pub);
+    actortype _ourtype) {
+    rpcconnauth r;
     r.state = s_waithelloslavea;
     new (r.buf) waithelloslavea(rs, wb, _ourname, _ourtype);
     return r; }
@@ -267,9 +261,7 @@ rpcconnauth::waithelloslaveb::waithelloslaveb(
       ourname(_ourname) {}
 
 rpcconnauth::rpcconnauth(const rpcconnauth &o)
-    : state(o.state),
-      pub(o.pub),
-      pinglimiter(o.pinglimiter) {
+    : state(o.state) {
     switch (state) {
         /* Not currently used */
     case s_preinit:
@@ -277,7 +269,6 @@ rpcconnauth::rpcconnauth(const rpcconnauth &o)
     case s_waithelloslavec:
         abort();
     case s_done:
-        if (pub) pub->publish();
         new (buf) done(*(done *)o.buf);
         return;
     case s_waithello:
@@ -315,11 +306,8 @@ rpcconnauth::~rpcconnauth() {
         return; }
     abort(); }
 
-rpcconnauth::rpcconnauth(const rpcconnconfig &c,
-                         publisher *_pub)
-    : state(s_preinit),
-      pub(_pub),
-      pinglimiter(c.pinglimit) {}
+rpcconnauth::rpcconnauth()
+    : state(s_preinit) {}
 
 rpcconnauth::done::done(const class slavename &o,
                         actortype p)
@@ -347,9 +335,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                      const peername &peer) {
     typedef maybe<orerror<wireproto::tx_message *> > rtype;
     if (rxm.tag() == proto::PING::tag) {
-        /* PING is valid in any authentication state, but rate limited
-         * for general sanity. */
-        pinglimiter.wait();
+        /* PING is valid in any authentication state */
         return Nothing; }
     switch (state) {
     case s_preinit: abort();
@@ -400,6 +386,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    "HELLO with invalid digest from " + fields::mk(peer));
             return rtype(error::authenticationfailed); }
         logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
+        auto pub(s->pub);
         s->~waithello();
         state = s_done;
         new (buf) done(_slavename.just(), flavour.just());
@@ -468,7 +455,6 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         state = s_done;
         s->~waithelloslaveb();
         new (buf) done(name.just(), remotetype.just());
-        if (pub) pub->publish();
         return rtype(nextmsg); }
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
@@ -494,7 +480,6 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             s->~waithelloslavec();
             state = s_done;
             new (buf) done(name.just(), type);
-            if (pub) pub->publish();
             wb->set(Success); }
         return rtype(NULL); } }
     abort(); }
@@ -606,10 +591,10 @@ rpcconn::run(clientio io) {
                 rxres.warn("receiving from " + fields::mk(peer_));
                 goto done; }
             insub.rearm();
-            auto contacttoken(contactlock.lock());
-            lastcontact_monotone = timestamp::now();
-            lastcontact_wall = walltime::now();
-            contactlock.unlock(&contacttoken);
+            {   auto contacttoken(contactlock.lock());
+                lastcontact_monotone = timestamp::now();
+                lastcontact_wall = walltime::now();
+                contactlock.unlock(&contacttoken); }
             if (pingsequence.isjust()) {
                 pingtime = lastcontact_monotone + config.pingdeadline;
             } else {
@@ -659,6 +644,13 @@ rpcconn::run(clientio io) {
                         tests::__rpcconn::receivedreply.trigger(); }
                     continue;
                 }
+
+                /* Bit of a hack: we accept PINGs before
+                   authenticating, so have to rate limit them to avoid
+                   DOSes, but we don't want to give the message()
+                   method a clientio token, so have to do it here. */
+                if (msg.success().tag() == proto::PING::tag) {
+                    pinglimiter.wait(); }
 
                 history = (history << 4) | 5;
                 auto res(message(msg.success()));
@@ -719,6 +711,7 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       shutdown(),
       sock(tok.sock),
       config(tok.config),
+      pinglimiter(config.pinglimit),
       txlock(),
       outgoing(),
       outgoingshrunk(),

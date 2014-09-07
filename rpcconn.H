@@ -105,47 +105,31 @@ private: enum states {
         s_waithelloslavec,
     };
 private: enum states state;
-    /* If non-NULL, will be notified shortly after we reach state
-     * done. */
-private: publisher *const pub;
-
-    /* Rate limiter for incoming pings, because we handle pings before
-       authenticating and it'd be a bit sad if a ping flood could
-       cause a DOS */
-private: ratelimiter pinglimiter;
 
 public:  maybe<class slavename> slavename() const;
 public:  maybe<class actortype> type() const;
 
 public:  static rpcconnauth mkdone(
     const class slavename &theirname,
-    actortype theirtype,
-    const rpcconnconfig &,
-    publisher *pub);
+    actortype theirtype);
 public:  static rpcconnauth mkwaithello(
     const mastersecret &ms,
     const registrationsecret &rs,
-    const rpcconnconfig &,
     publisher *pub);
 public:  static rpcconnauth mksendhelloslavea(
     const registrationsecret &rs,
     const class slavename &ourname,
-    actortype ourtype,
-    const rpcconnconfig &,
-    publisher *pub);
+    actortype ourtype);
 public:  static rpcconnauth mkwaithelloslavea(
     const registrationsecret &rs,
     waitbox<orerror<void> > *,
     const class slavename &,
-    actortype ourtype,
-    const rpcconnconfig &,
-    publisher *pub);
+    actortype ourtype);
 
 public:  ~rpcconnauth();
 private: rpcconnauth(const rpcconnauth &o);
 private: void operator=(const rpcconnauth &o) = delete;
-private: rpcconnauth(const rpcconnconfig &,
-                     publisher *pub);
+private: rpcconnauth();
 
     /* Interface to rpcconn.  Return Nothing to indicate that the
      * message should go to normal processing.  Return a message to
@@ -173,7 +157,12 @@ private: struct done {
 private: struct waithello {
     mastersecret ms;
     registrationsecret rs;
-    waithello(const mastersecret &_ms, const registrationsecret &_rs);
+    /* If non-NULL, will be notified shortly after we reach state
+     * done. */
+    publisher *const pub;
+    waithello(const mastersecret &_ms,
+              const registrationsecret &_rs,
+              publisher *pub);
     };
 private: struct sendhelloslavea {
     registrationsecret rs;
@@ -266,6 +255,11 @@ private: socket_t sock;
 
     /* Configuration parameters for the connection. */
 private: const rpcconnconfig config;
+
+    /* Rate limiter for incoming pings, because we handle pings before
+       authenticating and it'd be a bit sad if a ping flood could
+       cause a DOS */
+private: ratelimiter pinglimiter;
 
     /* Outgoing buffers.  Any thread can add stuff to this queue but
      * only the connection thread drains it.  The amount of stuff in

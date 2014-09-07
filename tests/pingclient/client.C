@@ -19,9 +19,7 @@ main(int argc, char *argv[]) {
     auto conn(rpcconn::connect<rpcconn>(
                   clientio::CLIENTIO,
                   rpcconnauth::mkdone(slavename("<ping server>"),
-                                      actortype::cli,
-                                      rpcconnconfig::dflt,
-                                      NULL),
+                                      actortype::cli),
                   peer,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));

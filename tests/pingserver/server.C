@@ -55,9 +55,7 @@ pingableserver::accept(socket_t s) {
     return rpcconn::fromsocket<pingableconn>(
         s,
         rpcconnauth::mkdone(slavename("<ping client>"),
-                            actortype::test,
-                            rpcconnconfig::dflt,
-                            NULL),
+                            actortype::test),
         rpcconnconfig::dflt,
         shutdown); }
 

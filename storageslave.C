@@ -167,9 +167,7 @@ storageslave::accept(socket_t s) {
         rpcconnauth::mksendhelloslavea(
             rs,
             config.name,
-            actortype::storageslave,
-            config.connconfig,
-            NULL),
+            actortype::storageslave),
         config.connconfig,
         this,
         false); }

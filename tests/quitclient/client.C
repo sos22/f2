@@ -21,9 +21,7 @@ main(int argc, char *argv[]) {
                   clientio::CLIENTIO,
                   rpcconnauth::mkdone(
                       slavename("<quit server>"),
-                      actortype::cli,
-                      rpcconnconfig::dflt,
-                      NULL),
+                      actortype::cli),
                   peer,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
