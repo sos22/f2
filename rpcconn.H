@@ -444,6 +444,8 @@ public: peername localname() const;
      * other side to receive it.  e.g. it might still be in the
      * outgoing buffer, or the kernel TX buffer, or on the wire, or
      * ... */
+    /* XXX unilateral sends are currently only used by the test
+     * harness; should maybe come up with a simpler scheme. */
 public:  class sendres {
         friend class rpcconn;
     private: orerror<maybe<subscriptionbase *> > const content;

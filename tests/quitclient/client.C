@@ -27,13 +27,12 @@ main(int argc, char *argv[]) {
                   peer,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
-    conn->send(
+    delete conn->call(
         clientio::CLIENTIO,
-        wireproto::tx_message(proto::QUIT::tag)
+        wireproto::req_message(proto::QUIT::tag, conn->allocsequencenr())
         .addparam(proto::QUIT::req::message, "quit now")
         .addparam(proto::QUIT::req::reason, shutdowncode::ok))
         .fatal("sending QUIT");
-    conn->drain(clientio::CLIENTIO);
     conn->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();

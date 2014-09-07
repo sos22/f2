@@ -265,12 +265,14 @@ main(int argc, char *argv[]) {
                fields::mk(timestamp::now() - start)); }
 
     /* Shut the master down cleanly. */
-    masterconn->send(clientio::CLIENTIO,
-                     wireproto::tx_message(proto::QUIT::tag)
-                     .addparam(proto::QUIT::req::message, "die")
-                     .addparam(proto::QUIT::req::reason, shutdowncode(7)))
+    delete masterconn->call(clientio::CLIENTIO,
+                            wireproto::req_message(
+                                proto::QUIT::tag,
+                                masterconn->allocsequencenr())
+                            .addparam(proto::QUIT::req::message, "die")
+                            .addparam(proto::QUIT::req::reason,
+                                      shutdowncode(7)))
         .fatal("sending QUIT message");
-    masterconn->drain(clientio::CLIENTIO);
     auto r(master->join(clientio::CLIENTIO));
     assert(r.left() == shutdowncode(7));
     masterconn->destroy(clientio::CLIENTIO);

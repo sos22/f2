@@ -130,7 +130,7 @@ namespace proto {
             static const parameter<const char *> message(300);
             static const parameter<shutdowncode> reason(301);
         };
-        /* No response */
+        /* No response parameters */
     };
 
     namespace STATUS {

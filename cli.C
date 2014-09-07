@@ -119,13 +119,13 @@ main(int argc, const char *const argv[])
         if (code.isfailure())
             code.failure().fatal(fields::mk("cannot parse shutdown code"));
         const char *message = args[1];
-        c.success()->send(
+        delete c.success()->call(
             clientio::CLIENTIO,
-            wireproto::tx_message(proto::QUIT::tag)
+            wireproto::req_message(proto::QUIT::tag,
+                                   c.success()->allocsequencenr())
             .addparam(proto::QUIT::req::message, message)
             .addparam(proto::QUIT::req::reason, code.success()))
             .fatal(fields::mk("sending QUIT message"));
-        c.success()->drain(clientio::CLIENTIO);
     } else if (!strcmp(mode, "BUILDCONFIG")) {
         using namespace proto::BUILDCONFIG;
         if (nrargs) errx(1, "BUILDCONFIG mode takes no arguments");

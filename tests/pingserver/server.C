@@ -39,7 +39,7 @@ pingableconn::message(const wireproto::rx_message &msg) {
         auto code(msg.getparam(proto::QUIT::req::reason));
         if (code == Nothing) return error::missingparameter;
         shutdown.set(code.just());
-        return messageresult::noreply;
+        return new wireproto::resp_message(msg);
     } else {
         return rpcconn::message(msg); } }
 

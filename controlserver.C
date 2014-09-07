@@ -137,7 +137,7 @@ controlconn::message(const wireproto::rx_message &rxm) {
         } else {
             logmsg(loglevel::notice,
                    "reject too-late shutdown from " + fields::mk(peer())); }
-        return messageresult::noreply;
+        return new wireproto::resp_message(rxm);
     } else if (rxm.tag() == proto::STATUS::tag) {
         auto res(new wireproto::resp_message(rxm));
         invoke([res] (controlinterface *si) { si->getstatus(res); });
