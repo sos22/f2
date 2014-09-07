@@ -652,6 +652,34 @@ tests::pubsub() {
             deinitpubsub(io);
             deinitlogging(); });
 
+    testcaseV("pubsub", "listenclosed2", [io] {
+            /* listen on fd0 and fd1 at the same time, close fd1,
+               confirm that making fd0 readable unblocks the stall. */
+            initpubsub();
+            auto pipe0(fd_t::pipe().fatal("pipe0"));
+            auto pipe1(fd_t::pipe().fatal("pipe1"));
+            subscriber sub;
+            iosubscription ss0(sub, pipe0.read.poll(POLLIN));
+            iosubscription ss1(sub, pipe1.read.poll(POLLIN));
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            assert(sub.poll() == NULL);
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            pipe1.read.close();
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            assert(sub.poll() == NULL);
+            pipe0.write.write(io, "foo", 3);
+            (timestamp::now() + timedelta::milliseconds(50)).sleep();
+            auto s1(sub.poll());
+            auto s2(sub.poll());
+            assert(s1 != NULL);
+            assert(s2 != NULL);
+            assert(s1 != s2);
+            assert(s1 == &ss1 || s1 == &ss0);
+            assert(s2 == &ss1 || s2 == &ss0);
+            pipe1.write.close();
+            pipe0.close();
+            deinitpubsub(io); });
+
     testcaseV("pubsub", "listenboth", [io] {
             /* Basic tests when we're listening for read and write on
                the same FD in different subscriptions. */
