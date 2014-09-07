@@ -12,8 +12,6 @@
 #include "orerror.H"
 #include "peername.H"
 #include "proto.H"
-#include "rpcregistration.H"
-#include "rpcservice.H"
 #include "test.H"
 #include "timedelta.H"
 #include "udpsocket.H"

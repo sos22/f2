@@ -11,7 +11,6 @@
 #include "ratelimiter.H"
 #include "registrationsecret.H"
 #include "rpcconn.H"
-#include "rpcinterface.H"
 #include "thread.H"
 #include "udpsocket.H"
 
