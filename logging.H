@@ -109,11 +109,12 @@ public:
 void initlogging(const char *ident);
 void deinitlogging(void);
 
-class messageresult;
 namespace wireproto {
 class rx_message;
+class resp_message;
 }
-messageresult getlogs(const wireproto::rx_message &);
+orerror<void> getlogs(const wireproto::rx_message &,
+                      wireproto::resp_message *res);
 
 namespace tests {
 template <typename> class event;

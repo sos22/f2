@@ -26,7 +26,8 @@ private: bool const ismaster;
 private: storageslaveconn(const rpcconn::rpcconntoken &tok,
                           storageslave *_owner,
                           bool _ismaster);
-private: messageresult message(const wireproto::rx_message &);
+private: orerror<wireproto::resp_message *> message(
+    const wireproto::rx_message &);
 private: void endconn(clientio);
 };
 
@@ -41,7 +42,7 @@ storageslaveconn::storageslaveconn(
     owner->clients.pushtail(this);
     owner->mux.unlock(&token); }
 
-messageresult
+orerror<wireproto::resp_message *>
 storageslaveconn::message(const wireproto::rx_message &rxm) {
     if (rxm.tag() == proto::CREATEEMPTY::tag) {
         auto job(rxm.getparam(proto::CREATEEMPTY::req::job));
@@ -330,7 +331,7 @@ storageslave::finish(
     else if (exists == true) return error::already;
     return finished.createfile(); }
 
-messageresult
+orerror<wireproto::resp_message *>
 storageslave::read(
     const wireproto::rx_message &rxm,
     const jobname &jn,
@@ -359,7 +360,7 @@ storageslave::read(
     resp->addparam(proto::READ::resp::bytes, b.success().steal());
     return resp; }
 
-messageresult
+orerror<wireproto::resp_message *>
 storageslave::listjobs(
     const wireproto::rx_message &rxm,
     const maybe<jobname> &cursor,
@@ -402,7 +403,7 @@ storageslave::listjobs(
     res.flush();
     return resp; }
 
-messageresult
+orerror<wireproto::resp_message *>
 storageslave::liststreams(
     const wireproto::rx_message &rxm,
     const jobname &jn,

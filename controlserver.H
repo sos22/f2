@@ -62,10 +62,11 @@ private: list<controlinterface *> invoking; /* All the interfaces
 private: controlserver *const owner;
 public:  controlconn(const rpcconn::rpcconntoken &tok,
                      controlserver *_owner);
-public:  virtual messageresult message(const wireproto::rx_message &);
+public:  orerror<wireproto::resp_message *> message(
+    const wireproto::rx_message &) final;
     /* Invoke a method on the control interfaces. */
 private: void invoke(const std::function<void (controlinterface *)> &);
-public:  virtual ~controlconn() {}
+public:  ~controlconn() {}
 };
 
 class controlserver : public rpcserver {

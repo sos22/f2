@@ -17,7 +17,8 @@ private: pingableconn(rpcconntoken token,
                       waitbox<shutdowncode> &_shutdown)
     : rpcconn(token),
       shutdown(_shutdown) {}
-public:  messageresult message(const wireproto::rx_message &);
+public:  orerror<wireproto::resp_message *> message(
+    const wireproto::rx_message &);
 public:  ~pingableconn() {}
 };
 
@@ -33,7 +34,7 @@ private: orerror<rpcconn *> accept(socket_t sock);
 private: ~pingableserver() {}
 };
 
-messageresult
+orerror<wireproto::resp_message *>
 pingableconn::message(const wireproto::rx_message &msg) {
     if (msg.tag() == proto::QUIT::tag) {
         auto code(msg.getparam(proto::QUIT::req::reason));

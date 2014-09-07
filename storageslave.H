@@ -88,17 +88,17 @@ public:  orerror<void> append(
 public:  orerror<void> finish(
     const jobname &t,
     const streamname &sn) const;
-private: messageresult read(
+private: orerror<wireproto::resp_message *> read(
     const wireproto::rx_message &rxm,
     const jobname &jn,
     const streamname &sn,
     uint64_t start,
     uint64_t end) const;
-private: messageresult listjobs(
+private: orerror<wireproto::resp_message *> listjobs(
     const wireproto::rx_message &rxm,
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit) const;
-private: messageresult liststreams(
+private: orerror<wireproto::resp_message *> liststreams(
     const wireproto::rx_message &rxm,
     const jobname &jn,
     const maybe<streamname> &cursor,

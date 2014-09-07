@@ -25,18 +25,16 @@ public: orerror<rpcconn *> accept(socket_t s) {
 };
 
 static const wireproto::msgtag callabletag(134);
-static const wireproto::msgtag nullarymsgtag(135);
 static const wireproto::msgtag bigreplytag(136);
 
 class callablerpcconn : public rpcconn {
     friend class pausedthread<callablerpcconn>;
 public: callablerpcconn(const rpcconntoken &token)
     : rpcconn(token) {}
-public: messageresult message(const wireproto::rx_message &rxm) {
+public: orerror<wireproto::resp_message *> message(
+    const wireproto::rx_message &rxm) {
     if (rxm.tag() == callabletag) {
         return new wireproto::resp_message(rxm); }
-    else if (rxm.tag() == nullarymsgtag) {
-        return messageresult::noreply; }
     else if (rxm.tag() == bigreplytag) {
         auto res(new wireproto::resp_message(rxm));
         char *buf = (char *)malloc(1024);
@@ -1006,37 +1004,6 @@ tests::_rpc() {
             c->destroy(io);
             s2->destroy(io); });
 
-    testcaseIO("rpc", "nullcall", [] (clientio io) {
-            peername listenon(peername::loopback(peername::port(quickcheck())));
-            auto s1(::rpcserver::listen<callablerpcserver>(listenon)
-                    .fatal("creating nullary server"));
-            auto s2(s1.go());
-            auto c(rpcconn::connectnoauth<rpcconn>(
-                       io,
-                       slavename("<test server>"),
-                       actortype::test,
-                       listenon,
-                       rpcconnconfig::dflt)
-                   .fatal("connect to nullary server"));
-            {   auto status(c->status());
-                assert(status.pendingrx.empty()); }
-            c->send(io,
-                    wireproto::tx_message(nullarymsgtag))
-                .fatal("sending nullary message");
-            {   auto status(c->status());
-                assert(status.pendingrx.empty()); }
-            delete c->call(io,
-                           wireproto::req_message(proto::PING::tag,
-                                                  c->allocsequencenr()))
-                .fatal("sending PING");
-            {   auto status(c->status());
-                assert(status.pendingrx.empty()); }
-            (timestamp::now() + timedelta::milliseconds(300)).sleep();
-            {   auto status(c->status());
-                assert(status.pendingrx.empty()); }
-            c->destroy(io);
-            s2->destroy(io); });
-
 #if TESTING
     testcaseIO("rpc", "sendinterrupted", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
@@ -1057,21 +1024,26 @@ tests::_rpc() {
                 (rpcconn *who) {
                     if (who != c) unpause.get(io); });
             /* Fill the client's outgoing queue. */
-            int cntr = 0;
-            while (cntr < 10) {
-                auto r(c->send(io,
-                               wireproto::tx_message(nullarymsgtag),
-                               timestamp::now() +timedelta::milliseconds(100)));
-                if (r == error::timeout) {
-                    cntr++;
-                } else {
-                    cntr = 0;
-                    r.fatal("sending nullary message"); } }
-            assert(c->send(io,
-                           wireproto::tx_message(nullarymsgtag),
-                           timestamp::now() +timedelta::milliseconds(100))
-                   .failure() ==
-                   error::timeout);
+            char bigbuf[10000];
+            memset(bigbuf, 'X', 9999);
+            bigbuf[9999] = '\0';
+            string bigstr(bigbuf);
+            spark<void> *sparks[100];
+            for (uint16_t i = 0; i < 100; i++) {
+                sparks[i] = new spark<void>(
+                    [&bigstr, c, i, io] {
+                        auto r(c->call(
+                                   io,
+                                   wireproto::req_message(
+                                       proto::PING::tag,
+                                       c->allocsequencenr())
+                                   .addparam(
+                                       wireproto::parameter<string>(i+1),
+                                       bigstr)));
+                        if (r.issuccess()) {
+                            delete r.success(); }
+                        else {
+                            assert(r.failure() == error::disconnected); } }); }
             /* Interrupt a send with a publish. */
             publisher pub;
             spark<void> publisher([&pub] () {
@@ -1080,13 +1052,15 @@ tests::_rpc() {
                     pub.publish(); });
             subscriber sub;
             subscription ss(sub, pub);
-            auto r(c->send(io,
-                           wireproto::tx_message(nullarymsgtag),
+            auto r(c->call(io,
+                           wireproto::req_message(proto::PING::tag,
+                                                  c->allocsequencenr()),
                            sub));
             assert(r.isnotified());
             assert(r.notified() == &ss);
             publisher.get();
             unpause.set();
+            for (int i = 0; i < 100; i++) delete sparks[i];
             c->destroy(io);
             s2->destroy(io); });
 #endif

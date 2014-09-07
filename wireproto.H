@@ -213,6 +213,8 @@ namespace wireproto {
         const sequencenr sequence;
         resp_message(const rx_message &r);
         void serialise(buffer &buf) const;
+        template <typename t> resp_message &addparam(parameter<t> p, t v)
+            { tx_message::addparam(p,v); return *this; }
     };
     class err_resp_message : public tx_message {
     public:

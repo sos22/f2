@@ -123,8 +123,9 @@ controlconn::invoke(const std::function<void (controlinterface *)> &f) {
             iface->idle.publish(); } }
     owner->ifacelock.unlock(&token); }
 
-messageresult
+orerror<wireproto::resp_message *>
 controlconn::message(const wireproto::rx_message &rxm) {
+    auto res(new wireproto::resp_message(rxm));
     if (rxm.tag() == proto::QUIT::tag) {
         auto reason(rxm.getparam(proto::QUIT::req::reason));
         auto msg(rxm.getparam(proto::QUIT::req::message));
@@ -136,25 +137,23 @@ controlconn::message(const wireproto::rx_message &rxm) {
             owner->shutdown.set(reason.just());
         } else {
             logmsg(loglevel::notice,
-                   "reject too-late shutdown from " + fields::mk(peer())); }
-        return new wireproto::resp_message(rxm);
-    } else if (rxm.tag() == proto::STATUS::tag) {
-        auto res(new wireproto::resp_message(rxm));
-        invoke([res] (controlinterface *si) { si->getstatus(res); });
-        return res; }
+                   "reject too-late shutdown from " + fields::mk(peer())); } }
+    else if (rxm.tag() == proto::STATUS::tag) {
+        invoke([res] (controlinterface *si) { si->getstatus(res); }); }
     else if (rxm.tag() == proto::GETLOGS::tag) {
-        return getlogs(rxm); }
+        auto r(::getlogs(rxm, res));
+        if (r.isfailure()) {
+            delete res;
+            return r.failure(); } }
     else if (rxm.tag() == proto::BUILDCONFIG::tag) {
-        auto res(new wireproto::resp_message(rxm));
-        res->addparam(proto::BUILDCONFIG::resp::config, buildconfig::us);
-        return res; }
+        res->addparam(proto::BUILDCONFIG::resp::config, buildconfig::us); }
     else if (rxm.tag() == proto::LISTENING::tag) {
-        auto res(new wireproto::resp_message(rxm));
         res->addparam(proto::LISTENING::resp::control, owner->localname());
-        invoke([res] (controlinterface *si) { si->getlistening(res); });
-        return res; }
+        invoke([res] (controlinterface *si) { si->getlistening(res); }); }
     else {
-        return rpcconn::message(rxm); } }
+        delete res;
+        return rpcconn::message(rxm); }
+    return res; }
 
 controlserver::controlserver(constoken token,
                              listenfd fd,

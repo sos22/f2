@@ -342,9 +342,10 @@ rpcconnauth::start(buffer &b) {
     new (buf) waithelloslaveb(rs, n, ourname);
     state = s_waithelloslaveb; }
 
-maybe<messageresult>
+maybe<orerror<wireproto::tx_message *> >
 rpcconnauth::message(const wireproto::rx_message &rxm,
                      const peername &peer) {
+    typedef maybe<orerror<wireproto::tx_message *> > rtype;
     if (rxm.tag() == proto::PING::tag) {
         /* PING is valid in any authentication state, but rate limited
          * for general sanity. */
@@ -362,7 +363,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    " from " +
                    fields::mk(peer) +
                    " without a HELLO");
-            return messageresult(error::unrecognisedmessage); }
+            return rtype(error::unrecognisedmessage); }
         auto digest(rxm.getparam(proto::HELLO::req::digest));
         auto nonce(rxm.getparam(proto::HELLO::req::nonce));
         auto peername(rxm.getparam(proto::HELLO::req::peername));
@@ -375,35 +376,35 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             !_slavename ||
             !version ||
             !flavour) {
-            return messageresult(error::missingparameter); }
+            return rtype(error::missingparameter); }
         logmsg(loglevel::verbose,
                "HELLO version " + fields::mk(version) +
                "nonce " + fields::mk(nonce) +
                "peername " + fields::mk(peername) +
                "digest " + fields::mk(digest) +
                "flavour " + fields::mk(flavour));
-        if (version.just() != 1) return messageresult(error::badversion);
+        if (version.just() != 1) return rtype(error::badversion);
         if (!s->ms.noncevalid(nonce.just(), peername.just())) {
             logmsg(loglevel::notice,
                    "HELLO with invalid nonce from " + fields::mk(peer));
-            return messageresult(error::authenticationfailed); }
+            return rtype(error::authenticationfailed); }
         if (!peername.just().samehost(peer)) {
             logmsg(loglevel::notice,
                    "HELLO with bad host (" + fields::mk(peername.just()) +
                    ", expected host " + fields::mk(peer) +")");
-            return messageresult(error::authenticationfailed); }
+            return rtype(error::authenticationfailed); }
         if (digest.just() != ::digest("B" +
                                       fields::mk(nonce.just()) +
                                       fields::mk(s->rs))) {
             logmsg(loglevel::notice,
                    "HELLO with invalid digest from " + fields::mk(peer));
-            return messageresult(error::authenticationfailed); }
+            return rtype(error::authenticationfailed); }
         logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
         s->~waithello();
         state = s_done;
         new (buf) done(_slavename.just(), flavour.just());
         if (pub) pub->publish();
-        return messageresult(new wireproto::resp_message(rxm)); }
+        return rtype(new wireproto::resp_message(rxm)); }
     case s_sendhelloslavea:
         /* Shouldn't get here; should have sent the HELLOSLAVE::A
            before checking for messages from the other side. */
@@ -419,13 +420,13 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    fields::mk(peer) +
                    "; expected HELLOSLAVE::A");
             wb->set(error::unrecognisedmessage);
-            return messageresult(error::unrecognisedmessage); }
+            return rtype(error::unrecognisedmessage); }
         logmsg(loglevel::info, fields::mk("got a HELLOSLAVE A"));
         auto nonce(rxm.getparam(proto::HELLOSLAVE::A::nonce));
         auto remotetype(rxm.getparam(proto::HELLOSLAVE::A::type));
         if (!nonce || !remotetype) {
             wb->set(error::missingparameter);
-            return messageresult(error::missingparameter); }
+            return rtype(error::missingparameter); }
         auto txm(new wireproto::tx_message(proto::HELLOSLAVE::B::tag));
         txm->addparam(proto::HELLOSLAVE::B::digest,
                       ::digest("C" +
@@ -436,7 +437,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         state = s_waithelloslavec;
         s->~waithelloslavea();
         new (buf) waithelloslavec(wb, remotetype.just());
-        return messageresult(txm); }
+        return rtype(txm); }
     case s_waithelloslaveb: {
         auto s = (waithelloslaveb *)buf;
         if (rxm.tag() != proto::HELLOSLAVE::B::tag) {
@@ -446,20 +447,20 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    " from " +
                    fields::mk(peer) +
                    "; expected HELLOSLAVE::B");
-            return messageresult(error::unrecognisedmessage); }
+            return rtype(error::unrecognisedmessage); }
         logmsg(loglevel::info, fields::mk("got a HELLOSLAVE B"));
         auto digest(rxm.getparam(proto::HELLOSLAVE::B::digest));
         auto name(rxm.getparam(proto::HELLOSLAVE::B::name));
         auto remotetype(rxm.getparam(proto::HELLOSLAVE::B::type));
         if (!digest || !name || !remotetype) {
-            return messageresult(error::missingparameter); }
+            return rtype(error::missingparameter); }
         if (digest.just() != ::digest("C" +
                                       fields::mk(s->rs) +
                                       fields::mk(s->n))) {
             logmsg(loglevel::notice,
                    "HELLOSLAVE::B with invalid digest from " +
                    fields::mk(peer) + "(" + fields::mk(name.just()) + ")");
-            return messageresult(error::authenticationfailed); }
+            return rtype(error::authenticationfailed); }
         wireproto::tx_message *nextmsg =
             new wireproto::tx_message(proto::HELLOSLAVE::C::tag);
         nextmsg->addparam(proto::HELLOSLAVE::C::name, s->ourname);
@@ -468,7 +469,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         s->~waithelloslaveb();
         new (buf) done(name.just(), remotetype.just());
         if (pub) pub->publish();
-        return messageresult(nextmsg); }
+        return rtype(nextmsg); }
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
         auto wb(s->wb);
@@ -495,7 +496,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             new (buf) done(name.just(), type);
             if (pub) pub->publish();
             wb->set(Success); }
-        return messageresult::noreply; } }
+        return rtype(NULL); } }
     abort(); }
 
 /* Only ever called from the connection thread.  Returns true if it's
@@ -630,9 +631,9 @@ rpcconn::run(clientio io) {
                         /* Authentication protocol rejected the
                          * connection.  Tear it down. */
                         goto done; }
-                    if (authres.just().isreply()) {
-                        bool out = queuereply(io, *authres.just().reply());
-                        delete authres.just().reply();
+                    if (authres.just().success() != NULL) {
+                        bool out = queuereply(io, *authres.just().success());
+                        delete authres.just().success();
                         if (out) goto done;
                         if (!outarmed) {
                             outsub.rearm();
@@ -661,14 +662,11 @@ rpcconn::run(clientio io) {
 
                 history = (history << 4) | 5;
                 auto res(message(msg.success()));
-                if (!res.isreply() && !res.isfailure()) {
-                    /* No response to this message */
-                    continue; }
 
                 bool out;
-                if (res.isreply()) {
-                    out = queuereply(io, *res.reply());
-                    delete res.reply();
+                if (res.issuccess()) {
+                    out = queuereply(io, *res.success());
+                    delete res.success();
                 } else {
                     wireproto::err_resp_message m(msg.success(), res.failure());
                     out = queuereply(io, m); }
@@ -736,7 +734,7 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       peer_(tok.peer),
       _auth(tok.auth) {}
 
-messageresult
+orerror<wireproto::resp_message *>
 rpcconn::message(const wireproto::rx_message &msg) {
     if (msg.tag() == proto::PING::tag) {
         static int cntr;
@@ -744,6 +742,7 @@ rpcconn::message(const wireproto::rx_message &msg) {
             .addparam(proto::PING::resp::cntr, cntr++);
     } else {
         return error::unimplemented; } }
+
 wireproto::sequencenr
 rpcconn::allocsequencenr() {
     auto token(sequencelock.lock());
@@ -951,9 +950,6 @@ rpcconnstatus::operator == (const rpcconnstatus &o) const {
         otherend == o.otherend &&
         otherendtype == o.otherendtype &&
         config == o.config; }
-
-const messageresult
-messageresult::noreply;
 
 const rpcconnconfig
 rpcconnconfig::dflt(
