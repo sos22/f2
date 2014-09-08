@@ -449,10 +449,8 @@ public: peername localname() const;
     /* Queue a message to be sent.  This can block if the outgoing
      * queue is full, so needs a clientio token.  Caller can specify a
      * deadline, causing the send to fail after a set time if it can't
-     * get space, and a subscriber block, causing the send to fail if
-     * some other thing gets notified.  Messages are always either
-     * queued or not queued; they never get half-added to the
-     * queue. */
+     * get space.  Messages are always either queued or not queued;
+     * they never get half-added to the queue. */
     /* Note that this adds stuff to the send queue; it doesn't
      * necessarily send it, and it certainly doesn't wait for the
      * other side to receive it.  e.g. it might still be in the
@@ -460,26 +458,6 @@ public: peername localname() const;
      * ... */
     /* XXX unilateral sends are currently only used by the test
      * harness; should maybe come up with a simpler scheme. */
-public:  class sendres {
-        friend class rpcconn;
-    private: orerror<maybe<subscriptionbase *> > const content;
-    private: sendres(error e) : content(e) {}
-    private: sendres(subscriptionbase *s) : content(s) {}
-    private: sendres() : content(Nothing) {}
-    public:  bool isfailure() const { return content.isfailure(); }
-    public:  error failure() const { return content.failure(); }
-    public:  bool isnotified() const {
-        return content.issuccess() && content.success().isjust(); }
-    public:  subscriptionbase *notified() const {
-        return content.success().just(); }
-    public:  bool issuccess() const {
-        return content.issuccess() && content.success().isnothing(); }
-};
-public:  sendres send(
-    clientio,
-    const wireproto::tx_message &msg,
-    subscriber &sub,
-    maybe<timestamp> deadline = Nothing);
 public:   orerror<void> send(
     clientio,
     const wireproto::tx_message &msg,

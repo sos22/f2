@@ -881,12 +881,12 @@ peername
 rpcconn::localname() const {
     return sock.localname(); }
 
-rpcconn::sendres
+orerror<void>
 rpcconn::send(
     clientio io,
     const wireproto::tx_message &msg,
-    subscriber &sub,
     maybe<timestamp> deadline) {
+    subscriber sub;
     auto txtoken(txlock.lock());
     if (outgoing.avail() > config.maxoutgoingbytes) {
         subscription moretx(sub, outgoingshrunk);
@@ -899,23 +899,12 @@ rpcconn::send(
             if (hasdied() != Nothing) return error::disconnected;
             auto res = sub.wait(io, deadline);
             if (res == NULL) return error::timeout;
-            if (res != &moretx && res != &died) return res;
+            assert(res == &moretx || res == &died);
             txtoken = txlock.lock(); } }
     msg.serialise(outgoing);
     outgoinggrew.publish();
     txlock.unlock(&txtoken);
-    return sendres(); }
-
-orerror<void>
-rpcconn::send(
-    clientio io,
-    const wireproto::tx_message &msg,
-    maybe<timestamp> deadline) {
-    subscriber sub;
-    auto res(send(io, msg, sub, deadline));
-    assert(!res.isnotified());
-    if (res.isfailure()) return res.failure();
-    else return Success; }
+    return Success; }
 
 rpcconn::asynccall::asynccall(wireproto::sequencenr snr,
                               rpcconn *_owner)
