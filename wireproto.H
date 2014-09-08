@@ -18,7 +18,6 @@ template <typename typ> maybe<typ> deserialise(bufslice &slice);
 class msgtag;
 template <typename t> class parameter;
 class rx_message;
-class rx_messagestatus;
 class sequencenr;
 class sequencerstatus;
 };
@@ -27,7 +26,6 @@ namespace fields {
 class field;
 const field &mk(const wireproto::msgtag &);
 const field &mk(const wireproto::rx_message *);
-const field &mk(const wireproto::rx_messagestatus &);
 const field &mk(const wireproto::sequencenr &);
 const field &mk(const wireproto::sequencerstatus &);
 template <typename t> const field &mk(const ::maybe<t> &);
@@ -222,14 +220,6 @@ namespace wireproto {
         err_resp_message(const rx_message &r, const error &e);
         void serialise(buffer &buf) const;
     };
-    class rx_messagestatus {
-        WIREPROTO_WRAPPER_TYPE(rx_messagestatus, msgtag, public);
-    public: msgtag t;
-    public: rx_messagestatus()
-        : t(0) {}
-    public: bool operator==(const rx_messagestatus &o) const {
-        return o.t == t; }
-    };
     class rx_message {
         friend const fields::field &fields::mk(const wireproto::rx_message *);
     private: rx_message() = delete;
@@ -253,8 +243,6 @@ namespace wireproto {
     public:  bool isreply() const;
     public:  sequencenr sequence() const;
     public:  msgtag tag() const;
-    public:  typedef rx_messagestatus status_t;
-    public:  status_t status() const;
     public:  ~rx_message();
     };
 

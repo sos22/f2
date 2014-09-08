@@ -173,6 +173,18 @@ buffer::queue(const void *buf, size_t sz)
     prod += sz;
 }
 
+void
+buffer::transfer(buffer &buf) {
+    assert((buf.first == NULL) == (buf.last == NULL));
+    assert((first == NULL) == (last == NULL));
+    prod += buf.prod - buf.cons;
+    if (first == NULL) first = buf.first;
+    else last->next = buf.first;
+    last = buf.last;
+    buf.first = NULL;
+    buf.last = NULL;
+    buf.cons = buf.prod; }
+
 bool
 buffer::empty() const
 {

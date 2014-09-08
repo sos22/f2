@@ -450,10 +450,6 @@ msgtag
 rx_message::tag() const {
     return msg->tag; }
 
-rx_message::status_t
-rx_message::status() const {
-    return status_t(msg->tag); }
-
 rx_message::~rx_message() {
     if (owning) free((void *)msg); }
 
@@ -569,18 +565,10 @@ _wireproto_simple_wrapper_type(wireproto::,
                                msgtag,
                                uint16_t,
                                val)
-_wireproto_simple_wrapper_type(wireproto::,
-                               rx_messagestatus,
-                               wireproto::msgtag,
-                               t)
 
 const fields::field &
 fields::mk(const wireproto::sequencer::status_t &o) {
     return "<nextseq:" + mk(o.nextseq) + ">"; }
-
-const fields::field &
-fields::mk(const wireproto::rx_message::status_t &o) {
-    return "<tag:" + mk(o.t) + ">"; }
 
 class nullcompound {
     WIREPROTO_TYPE(nullcompound); };
@@ -957,24 +945,7 @@ tests::wireproto() {
             assert(!strcmp(r->getparam(p).just(), "HELLO"));
             delete r; });
 
-    testcaseV("wireproto", "rxstatus", [t] () {
-            rx_message::status_t stat;
-            {   ::buffer buf;
-                {   parameter<int> p(1);
-                    tx_message(t).addparam(p, 5).serialise(buf); }
-                auto rxm(rx_message::fetch(buf));
-                stat = rxm.success().status(); }
-            {   fields::fieldbuf buf;
-                fields::mk(stat).fmt(buf);
-                assert(!strcmp(buf.c_str(), "<tag:99>")); }
-            parameter<rx_message::status_t> p(2);
-            ::buffer buf;
-            tx_message(t).addparam(p, stat).serialise(buf);
-            auto rxm(rx_message::fetch(buf));
-            assert(rxm.success().getparam(p).just() == stat); });
-
     testcaseV("wireproto", "rxfield", [t] () {
-            rx_message::status_t stat;
             ::buffer buf;
             parameter<int> p(1);
             parameter<int> p2(73);
@@ -985,7 +956,6 @@ tests::wireproto() {
             assert(!strcmp(fb.c_str(), "<rx_message 99:0 1/24 73/28>")); });
 
     testcaseV("wireproto", "rxfield2", [t] () {
-            rx_message::status_t stat;
             ::buffer buf;
             tx_message txm(t);
             for (unsigned short i = 1; i < 30; i++) {
@@ -1043,28 +1013,6 @@ tests::wireproto() {
             auto rxm(rx_message::fetch(buf));
             list<msgtag> l2;
             rxm.success().fetch(p, l2).fatal("fetching");
-            auto it1(l.start());
-            auto it2(l2.start());
-            while (1) {
-                assert(it1.finished() == it2.finished());
-                if (it1.finished()) break;
-                assert(*it1 == *it2);
-                it1.next();
-                it2.next(); }
-            l.flush();
-            l2.flush(); });
-
-    testcaseV("wireproto", "msgstatuslist", [t] () {
-            parameter<list<rx_message::status_t> > p(1);
-            ::buffer buf;
-            list<rx_message::status_t> l;
-            l.pushtail(rx_message::status_t(msgtag(7)));
-            tx_message(t).addparam(p, l).serialise(buf);
-            list<rx_message::status_t> l2;
-            rx_message::fetch(buf)
-                .fatal("decoding")
-                .fetch(p, l2)
-                .fatal("fetching");
             auto it1(l.start());
             auto it2(l2.start());
             while (1) {

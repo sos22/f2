@@ -350,35 +350,30 @@ tests::_rpc() {
 #if TESTING
     testcaseIO("rpc", "acceptfailed", [] (clientio io) {
             bool triggered = false;
-            publisher pub;
-            tests::eventwaiter<listenfd> w(
-                tests::rpcserver::accepting,
-                [&triggered, &pub] (listenfd fd) {
+            tests::eventwaiter<orerror<socket_t> &> w(
+                tests::rpcserver::accepted,
+                [io, &triggered] (orerror<socket_t> &fd) {
                     assert(!triggered);
-                    fd.close();
-                    triggered = true;
-                    pub.publish(); });
-            peername listenon(peername::loopback(peername::port(quickcheck())));
-            int x(73);
-            auto s1(::rpcserver::listen<trivrpcserver>(listenon, x)
+                    fd.success().close();
+                    fd = error::unknown;
+                    triggered = true; });
+            peername listenon(peername::loopback(peername::port::any));
+            auto s1(::rpcserver::listen<trivrpcserver>(listenon, 73)
                     .fatal("creating trivial server"));
             auto s2(s1.go());
-            subscriber sub;
-            subscription ss(sub, pub);
             auto c(rpcconn::connectnoauth<rpcconn>(
                        io,
                        slavename("<test server>"),
                        actortype::test,
-                       listenon,
-                       rpcconnconfig::dflt)
-                   .fatal("connecting to trivial server"));
-            while (!triggered) sub.wait(clientio::CLIENTIO);
-            assert(c->call(
+                       s2->localname(),
+                       rpcconnconfig::dflt));
+            assert(c.success()->call(
                        io,
-                       wireproto::req_message(proto::PING::tag,
-                                              c->allocsequencenr())) ==
+                       wireproto::req_message(
+                           proto::PING::tag,
+                           c.success()->allocsequencenr())) ==
                    error::disconnected);
-            c->destroy(io);
+            c.success()->destroy(io);
             s2->destroy(io); });
 #endif
     testcaseIO("rpc", "unconnectable", [] (clientio io) {
@@ -413,10 +408,10 @@ tests::_rpc() {
             /* Make sure status changes when we have pending connections. */
             waitbox<void> startedaccept;
             waitbox<void> finishaccept;
-            tests::eventwaiter<listenfd> w(
+            tests::eventwaiter<void> w(
                 tests::rpcserver::accepting,
                 [&startedaccept, &finishaccept, io]
-                (listenfd) {
+                () {
                     startedaccept.set();
                     finishaccept.get(io); });
             spark<orerror<rpcconn *> > connector([listenon, io] {
@@ -528,7 +523,6 @@ tests::_rpc() {
             s2->destroy(io); });
 #if TESTING
     testcaseIO("rpc", "slaveautherr", [] (clientio io) {
-            initlogging("T");
             peername listenon(peername::loopback(peername::port(quickcheck())));
             registrationsecret rs((quickcheck()));
             auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
@@ -570,51 +564,6 @@ tests::_rpc() {
                            actortype::test,
                            rpcconnconfig::dflt)
                        == error::pastend); }
-            s2->destroy(io); });
-    testcaseIO("rpc", "pendingreply", [] (clientio io) {
-            peername listenon(peername::loopback(peername::port(quickcheck())));
-            registrationsecret rs((quickcheck()));
-            auto s1(::rpcserver::listen<slaverpcserver>(listenon, rs)
-                    .fatal("creating trivial server"));
-            auto s2(s1.go());
-            auto c(rpcconn::connectslave<rpcconn>(
-                       io,
-                       listenon,
-                       rs,
-                       slavename("<test auth client>"),
-                       actortype::test,
-                       rpcconnconfig::dflt)
-                   .fatal("connecting with slave auth"));
-            auto status1(c->status());
-            assert(!strcmp(fields::mk(status1).c_str(),
-                           fields::mk(c->status()).c_str()));
-            waitbox<void> donerx;
-            waitbox<void> readyrx;
-            tests::eventwaiter<void> evt1(
-                tests::__rpcconn::calldonetx,
-                [&readyrx, io] { readyrx.get(io); });
-            tests::eventwaiter<void> evt2(
-                tests::__rpcconn::receivedreply,
-                [&donerx] { donerx.set(); });
-            spark<void> caller(
-                [c, io] {
-                    delete c->call(
-                        io,
-                        wireproto::req_message(proto::PING::tag,
-                                               c->allocsequencenr()))
-                        .fatal("sending ping"); });
-            donerx.get(io);
-            auto status2(c->status());
-            assert(strcmp(fields::mk(status1).c_str(),
-                          fields::mk(status2).c_str()));
-            readyrx.set();
-            caller.get();
-            auto status3(c->status());
-            assert(strcmp(fields::mk(status3).c_str(),
-                          fields::mk(status1).c_str()));
-            assert(strcmp(fields::mk(status3).c_str(),
-                          fields::mk(status2).c_str()));
-            c->destroy(io);
             s2->destroy(io); });
 #endif
     testcaseIO("rpc", "dodgyopen", [] (clientio _io) {
@@ -747,6 +696,11 @@ tests::_rpc() {
             auto work([] (bool serverfirst, clientio io) {
                     peername listenon(peername::loopback(
                                           peername::port(quickcheck())));
+                    auto config(rpcconnconfig::dflt);
+                    /* Effectively turn off ping limits so that things
+                       run a bit more quickly. */
+                    config.pinglimit = ratelimiterconfig(frequency::hz(1000),
+                                                         1000000000);
                     auto s1(::rpcserver::listen<callablerpcserver>(listenon)
                             .fatal("creating callablw RPC server"));
                     auto s2(s1.go());
@@ -816,7 +770,7 @@ tests::_rpc() {
                                     _cntr,
                                     p));
                         inner = t1.go(); } };
-                    const unsigned nr_workers = 20;
+                    const unsigned nr_workers = 2;
                     worker workers[nr_workers];
                     for (unsigned i = 0; i < nr_workers; i++) {
                         workers[i].go(listenon, cntr, shutdownclients); }
@@ -1005,7 +959,10 @@ tests::_rpc() {
 #if TESTING
     testcaseIO("rpc", "sendinterrupted", [] (clientio io) {
             peername listenon(peername::loopback(peername::port(quickcheck())));
-            auto s1(::rpcserver::listen<callablerpcserver>(listenon)
+            auto config(rpcconnconfig::dflt);
+            config.pinglimit = ratelimiterconfig(frequency::hz(100000),
+                                                 1000000);
+            auto s1(::rpcserver::listen<callablerpcserver>(listenon, config)
                     .fatal("creating nullary server"));
             auto s2(s1.go());
             auto c(rpcconn::connectnoauth<rpcconn>(

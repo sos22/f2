@@ -110,7 +110,8 @@ public:  bool operator==(const rpcserverstatus &o) const;
 
 namespace tests {
 namespace rpcserver {
-extern event<listenfd> accepting;
+extern event<void> accepting;
+extern event<orerror<socket_t> &> accepted;
 }
 }
 

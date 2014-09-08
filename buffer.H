@@ -104,6 +104,17 @@ public:
      * buffer is expanded as needed to make space.  This is the
      * inverse of fetch(). */
     void pushback(const void *, size_t sz);
+    /* Transfer the contents of @buf to the end of this buffer.  @buf
+     * is made empty.  Equivalent to:
+     *
+     * size_t s = buf.avail();
+     * void *p = malloc(s);
+     * buf.fetch(p, s);
+     * queue(p, s);
+     * free(p);
+     *
+     * But usually quite a bit more efficient. */
+    void transfer(buffer &buf);
 
     /* Check whether a buffer is currently empty.  Equivalent to
      * avail() != 0, but often slightly more efficient. */

@@ -210,13 +210,13 @@ class rpcconnstatus {
 public:  buffer::status_t outgoing;
 public:  fd_t::status_t fd;
 public:  wireproto::sequencer::status_t sequencer;
-public:  list<wireproto::rx_message::status_t> pendingrx;
 public:  peername::status_t peername_;
 public:  walltime lastcontact;
 public:  maybe<slavename> otherend;
 public:  maybe<actortype> otherendtype;
 public:  rpcconnconfig config;
-
+public:  unsigned const pendingtxcall;
+public:  unsigned const pendingrxcall;
 private: rpcconnstatus(const buffer::status_t &_outgoing,
                        const fd_t::status_t &_fd,
                        const wireproto::sequencer::status_t &_sequencer,
@@ -224,7 +224,9 @@ private: rpcconnstatus(const buffer::status_t &_outgoing,
                        const walltime &_lastcontact,
                        const maybe<slavename> &_otherend,
                        maybe<actortype> _otherendtype,
-                       const rpcconnconfig &_config)
+                       const rpcconnconfig &_config,
+                       unsigned _pendingtxcall,
+                       unsigned _pendingrxcall)
     : outgoing(_outgoing),
       fd(_fd),
       sequencer(_sequencer),
@@ -232,9 +234,10 @@ private: rpcconnstatus(const buffer::status_t &_outgoing,
       lastcontact(_lastcontact),
       otherend(_otherend),
       otherendtype(_otherendtype),
-      config(_config) {}
+      config(_config),
+      pendingtxcall(_pendingtxcall),
+      pendingrxcall(_pendingrxcall) {}
 public:  rpcconnstatus(quickcheck);
-public:  ~rpcconnstatus();
 public:  bool operator==(const rpcconnstatus &o) const;
 WIREPROTO_TYPE(rpcconnstatus);
 };
@@ -277,14 +280,6 @@ private: publisher outgoinggrew;
 private: mutex_t sequencelock;
 private: wireproto::sequencer sequencer;
 
-    /* Incoming buffers.  Only the connection thread can add stuff to
-     * this queue, any thread can take things out. */
-    /* lock is mutable so that we can acquire it from the status()
-       method, to get status of pendingrx */
-private: mutable mutex_t rxlock;
-private: list<const wireproto::rx_message *> pendingrx;
-private: publisher pendingrxextended;
-
     /* When was the last time we had contact with the other side?
        Used to drive periodic pings and dead connection detection. */
 private: mutex_t contactlock;
@@ -297,8 +292,34 @@ private: const peername peer_;
      * lock. */
 private: mutable mutex_t authlock;
 private: rpcconnauth _auth;
-private: rpcconnauth &auth(mutex_t::token) { return _auth; }
-private: const rpcconnauth &auth(mutex_t::token) const { return _auth; }
+private: rpcconnauth &auth(mutex_t::token);
+private: const rpcconnauth &auth(mutex_t::token) const;
+
+    /* State needed to process outgoing procedure calls. */
+public:  class asynccall;
+private: class _calls {
+    public: class _send {
+        public: list<asynccall *> pending;
+            /* Cache of pending.length() */
+        public: unsigned nrpending;
+            /* Published whenever stuff gets added to the pending list. */
+        public: publisher pub;
+        public: _send();
+        };
+    public: class _recv {
+        public: list<asynccall *> pending;
+        public: _recv();
+        };
+        /* Lock ordering: beneath tx lock. */
+        /* mutable because it's acquired from the status() method. */
+    public: mutable mutex_t mux;
+    public: _send send;
+    public: _recv recv;
+        /* Set once thread is too far through shutdown to accept more
+         * calls. */
+    public: bool finished;
+    public: _calls();
+    } calls;
 
 private: rpcconn() = delete;
 private: rpcconn(const rpcconn &) = delete;
@@ -399,6 +420,16 @@ private: virtual void endconn(clientio) {}
      * necessary. */
 private: bool queuereply(clientio, wireproto::tx_message &msg);
 
+    /* Try to transfer messages from the outgoing call queue to the
+     * main send buffer until we hit the maxoutgoingbytes limit.  Must
+     * be called under the TX lock, and will acquire and release the
+     * call lock. */
+private: void sendcalls(mutex_t::token /* txlock */);
+
+    /* We just received a reply.  Find the matching asynccall and
+     * complete it.  Acquires and releases the calls lock. */
+private: void receivereply(wireproto::rx_message *);
+
     /* Allocate a sequence number suitable for constructing a new
      * req_message */
 public: wireproto::sequencenr allocsequencenr();
@@ -490,6 +521,39 @@ public: orerror<const wireproto::rx_message *> call(
     const wireproto::req_message &msg,
     maybe<timestamp> deadline = Nothing);
 
+    /* Asynchronous calls: start a call but return before it
+     * completes. */
+public: class asynccall {
+        friend class rpcconn;
+    private: wireproto::sequencenr const sequence;
+    private: rpcconn *const owner;
+        /* Nothing until we get a reply, NULL once the reply's been
+         * fetched by the client. */
+    private: maybe<orerror<const wireproto::rx_message *> > _result;
+        /* Protects _result field.  Ordering: after the main calls
+         * mux, leaf lock. */
+    private: mutex_t mux;
+    private: buffer sendbuf;
+        /* Set when result() goes from Nothing to just(). */
+    public:  publisher pub;
+    private: asynccall(wireproto::sequencenr, rpcconn *);
+        /* Extract the result of the call.  Returns Nothing if the
+         * call is still outstanding, an error if there were some
+         * error, or the result message otherwise.  This will only
+         * return success once; calling it again once you have a
+         * successful return is an error. */
+    public:  maybe<orerror<const wireproto::rx_message *> > popresult();
+        /* Not a real destructor because it needs to acquire locks. */
+    public:  void destroy();
+        /* Use popresult() or destroy() instead. */
+    private: ~asynccall();
+    };
+    /* Note no clientio token: this never waits!  In particular, it
+     * doesn't wait for TX space, so will not apply any kind of
+     * backpressure.  Callers are responsible for keeping the number
+     * of async calls down to something sensible. */
+public: asynccall *callasync(const wireproto::req_message &msg);
+
     /* Start a teardown sequence on a connection.  Outgoing sends are
      * cancelled and no further incoming messages will be accepted.
      * Messages which are still being processed will be completed
@@ -537,8 +601,6 @@ public: status_t status() const;
 namespace tests {
 template <typename> class event;
 namespace __rpcconn {
-extern event<void> calldonetx;
-extern event<void> receivedreply;
 extern event<wireproto::tx_message **> sendinghelloslavec;
 extern event<rpcconn *> threadawoken;
 extern event<void> replystopped;

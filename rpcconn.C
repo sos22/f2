@@ -13,14 +13,13 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "mutex.tmpl"
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
 #include "test.tmpl"
 #include "waitbox.tmpl"
 #include "wireproto.tmpl"
 
-tests::event<void> tests::__rpcconn::calldonetx;
-tests::event<void> tests::__rpcconn::receivedreply;
 tests::event<wireproto::tx_message **> tests::__rpcconn::sendinghelloslavec;
 tests::event<rpcconn *> tests::__rpcconn::threadawoken;
 tests::event<void> tests::__rpcconn::replystopped;
@@ -35,12 +34,13 @@ namespace rpcconnstatus {
 static const parameter<class ::bufferstatus> outgoing(1);
 static const parameter<class ::fd_tstatus> fd(2);
 static const parameter<wireproto::sequencerstatus> sequencer(3);
-static const parameter<list<wireproto::rx_messagestatus> > pendingrx(4);
-static const parameter<class ::peername> peername(5);
-static const parameter<class ::walltime> lastcontact(6);
-static const parameter<class ::slavename> otherend(7);
-static const parameter<class ::actortype> otherendtype(8);
-static const parameter<class ::rpcconnconfig> config(9); } }
+static const parameter<class ::peername> peername(4);
+static const parameter<class ::walltime> lastcontact(5);
+static const parameter<class ::slavename> otherend(6);
+static const parameter<class ::actortype> otherendtype(7);
+static const parameter<class ::rpcconnconfig> config(8);
+static const parameter<unsigned> pendingtxcall(9);
+static const parameter<unsigned> pendingrxcall(10); } }
 
 rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes,
                              timedelta _pinginterval,
@@ -125,7 +125,6 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
     p.addparam(proto::rpcconnstatus::outgoing, outgoing);
     p.addparam(proto::rpcconnstatus::fd, fd);
     p.addparam(proto::rpcconnstatus::sequencer, sequencer);
-    p.addparam(proto::rpcconnstatus::pendingrx, pendingrx);
     p.addparam(proto::rpcconnstatus::peername, peername_);
     p.addparam(proto::rpcconnstatus::lastcontact, lastcontact);
     if (otherend.isjust()) {
@@ -133,6 +132,8 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
     if (otherendtype.isjust()) {
         p.addparam(proto::rpcconnstatus::otherendtype, otherendtype.just()); }
     p.addparam(proto::rpcconnstatus::config, config);
+    p.addparam(proto::rpcconnstatus::pendingtxcall, pendingtxcall);
+    p.addparam(proto::rpcconnstatus::pendingrxcall, pendingrxcall);
     txm.addparam(
         wireproto::parameter<wireproto::tx_compoundparameter>(tmpl), p); }
 maybe<rpcconn::status_t>
@@ -146,36 +147,33 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
     doparam(peername);
     doparam(lastcontact);
     doparam(config);
+    doparam(pendingtxcall);
+    doparam(pendingrxcall);
 #undef doparam
-    rpcconn::status_t res(outgoing.just(),
-                          fd.just(),
-                          sequencer.just(),
-                          peername.just(),
-                          lastcontact.just(),
-                          p.getparam(proto::rpcconnstatus::otherend),
-                          p.getparam(proto::rpcconnstatus::otherendtype),
-                          config.just());
-    auto r(p.fetch(proto::rpcconnstatus::pendingrx, res.pendingrx));
-    if (r.isfailure()) return Nothing;
-    else return res; }
+    return rpcconn::status_t(outgoing.just(),
+                             fd.just(),
+                             sequencer.just(),
+                             peername.just(),
+                             lastcontact.just(),
+                             p.getparam(proto::rpcconnstatus::otherend),
+                             p.getparam(proto::rpcconnstatus::otherendtype),
+                             config.just(),
+                             pendingtxcall.just(),
+                             pendingrxcall.just()); }
 
 const fields::field &
 fields::mk(const rpcconn::status_t &o) {
-    const field *acc = &("<outgoing: " + mk(o.outgoing) +
-                         " fd:" + mk(o.fd) +
-                         " sequencer:" + mk(o.sequencer) +
-                         " peername:" + mk(o.peername_) +
-                         " lastcontact:" + mk(o.lastcontact) +
-                         " otherend:" + mk(o.otherend) +
-                         " otherendtype:" + mk(o.otherendtype) +
-                         " config:" + mk(o.config) +
-                         " pendingrx:{");
-    bool first = true;
-    for (auto it(o.pendingrx.start()); !it.finished(); it.next()) {
-        if (!first) acc = &(*acc + ",");
-        first = false;
-        acc = &(*acc + mk(*it)); }
-    return *acc + "}>"; }
+    return "<outgoing: " + mk(o.outgoing) +
+        " fd:" + mk(o.fd) +
+        " sequencer:" + mk(o.sequencer) +
+        " peername:" + mk(o.peername_) +
+        " lastcontact:" + mk(o.lastcontact) +
+        " otherend:" + mk(o.otherend) +
+        " otherendtype:" + mk(o.otherendtype) +
+        " config:" + mk(o.config) +
+        " pendingtxcall:" + mk(o.pendingtxcall) +
+        " pendingrxcall:" + mk(o.pendingrxcall) +
+        ">"; }
 
 maybe<class slavename>
 rpcconnauth::slavename() const {
@@ -484,6 +482,28 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         return rtype(NULL); } }
     abort(); }
 
+rpcconnauth &
+rpcconn::auth(mutex_t::token) {
+    return _auth; }
+
+const rpcconnauth &
+rpcconn::auth(mutex_t::token) const {
+    return _auth; }
+
+rpcconn::_calls::_send::_send()
+    : pending(),
+      nrpending(0),
+      pub() {}
+
+rpcconn::_calls::_recv::_recv()
+    : pending() {}
+
+rpcconn::_calls::_calls()
+    : mux(),
+      send(),
+      recv(),
+      finished(false) {}
+
 /* Only ever called from the connection thread.  Returns true if it's
  * time for the connection to exit and false otherwise. */
 bool
@@ -510,8 +530,10 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
                     txres.failure().warn("clearing space for a reply to " +
                                          fields::mk(peer_));
                     return true; }
-                outgoingshrunk.publish();
-                if (outgoing.avail() <= config.maxoutgoingbytes) break;
+                if (outgoing.avail() <= config.maxoutgoingbytes) {
+                    sendcalls(txtoken);
+                    outgoingshrunk.publish();
+                    break; }
                 ios.rearm();
             }
             else {
@@ -524,6 +546,66 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
     txlock.unlock(&txtoken);
     return false; }
 
+/* XXX there are potentially some starvation issues here: once we
+ * start bumping up against the send queue limit we'll strongly prefer
+ * call()s over straight sends, and replies to the peer's calls over
+ * either.  We probably don't have enough straight send()s for it to
+ * matter, but it's possibly something to worry about in future. */
+void
+rpcconn::sendcalls(mutex_t::token token) {
+    token.formux(txlock);
+    auto calltoken(calls.mux.lock());
+    while (calls.send.nrpending != 0 &&
+           outgoing.avail() <= config.maxoutgoingbytes) {
+        auto call(calls.send.pending.pophead());
+        outgoing.transfer(call->sendbuf);
+        calls.send.nrpending--;
+        calls.recv.pending.pushtail(call); }
+    calls.mux.unlock(&calltoken); }
+
+void
+rpcconn::receivereply(wireproto::rx_message *msg) {
+    calls.mux.locked(
+        [this, msg]
+        (mutex_t::token) {
+            /* The thing to wake will usually be near the front of the
+             * list, assuming that the other end processes requests in
+             * order, so a linear scan is just about tolerable. */
+            asynccall *completing = NULL;
+            for (auto it(calls.recv.pending.start());
+                 !it.finished();
+                 it.next()) {
+                if ((*it)->sequence == msg->sequence()) {
+                    completing = *it;
+                    it.remove();
+                    break; } }
+            if (completing == NULL) {
+                logmsg(
+                    loglevel::error,
+                    fields::mk(peer_) +
+                    " sent a reply to an unknown message?"
+                    " (tag " + fields::mk(msg->tag()) +
+                    "; ident " + fields::mk(msg->sequence())+
+                    ")");
+                /* It's tempting to kill the connection here, but
+                 * that's a bad idea because the call must just have
+                 * been cancelled after sending, and we don't want
+                 * that race to cause us too many problems. */ }
+            else {
+                auto err(msg->getparam(wireproto::err_parameter));
+                completing->mux.locked(
+                    [completing, &err, msg, this]
+                    (mutex_t::token) {
+                        if (err.isjust()) {
+                            completing->_result =
+                                maybe<orerror<const wireproto::rx_message *> >(
+                                    err.just()); }
+                        else {
+                            completing->_result =
+                                maybe<orerror<const wireproto::rx_message *> >(
+                                    msg->steal()); } });
+                completing->pub.publish(); } }); }
+
 void
 rpcconn::run(clientio io) {
     subscriber sub;
@@ -531,6 +613,7 @@ rpcconn::run(clientio io) {
     subscription grewsub(sub, outgoinggrew);
     iosubscription insub(sub, sock.poll(POLLIN));
     iosubscription outsub(sub, sock.poll(POLLOUT));
+    subscription callsend(sub, calls.send.pub);
     buffer inbuffer;
     bool outarmed;
     unsigned long history = 0;
@@ -549,6 +632,10 @@ rpcconn::run(clientio io) {
     /* Out subscription starts armed to avoid silly races with someone
        queueing something before we start. */
     outarmed = true;
+
+    /* Similarly, avoid races with calls which race with our
+     * startup. */
+    calls.send.pub.publish();
 
     while (!shutdown.ready()) {
         subscriptionbase *ss = sub.wait(io, pingtime);
@@ -577,6 +664,13 @@ rpcconn::run(clientio io) {
                 if (!outarmed) outsub.rearm();
                 outarmed = true;
                 txlock.unlock(&token); }
+        } else if (ss == &callsend) {
+            history = (history << 4) | 10;
+            if (outgoing.avail() <= config.maxoutgoingbytes) {
+                txlock.locked([this] (mutex_t::token t) {sendcalls(t);}); }
+            if (!outarmed && !outgoing.empty()) {
+                outsub.rearm();
+                outarmed = true; }
         } else if (ss == &shutdownsub) {
             history = (history << 4) | 2;
             continue;
@@ -608,6 +702,7 @@ rpcconn::run(clientio io) {
                         msg.failure().warn(
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
+                history = (history << 4) | 12;
                 auto authtok(authlock.lock());
                 auto authres(auth(authtok).message(msg.success(), peer_));
                 authlock.unlock(&authtok);
@@ -634,14 +729,7 @@ rpcconn::run(clientio io) {
                         pingsequence = Nothing;
                         pingtime = timestamp::now() + config.pinginterval;
                     } else {
-                        /* XXX This will leak, with no visible
-                         * warning, if we receive a reply we weren't
-                         * expecting. */
-                        auto token(rxlock.lock());
-                        pendingrx.pushtail(msg.success().steal());
-                        pendingrxextended.publish();
-                        rxlock.unlock(&token);
-                        tests::__rpcconn::receivedreply.trigger(); }
+                        receivereply(&msg.success()); }
                     continue;
                 }
 
@@ -673,10 +761,13 @@ rpcconn::run(clientio io) {
             auto token(txlock.lock());
             if (!outgoing.empty()) {
                 auto txres(outgoing.send(io, sock, sub));
+                if (outgoing.avail() <= config.maxoutgoingbytes) {
+                    sendcalls(token); }
+                if (outgoing.avail() <= config.maxoutgoingbytes) {
+                    outgoingshrunk.publish(); }
                 if (!outgoing.empty()) {
                     outarmed = true;
                     outsub.rearm(); }
-                outgoingshrunk.publish();
                 txlock.unlock(&token);
                 if (txres.isfailure()) {
                     txres.failure().warn("sending to " + fields::mk(peer_));
@@ -693,6 +784,34 @@ rpcconn::run(clientio io) {
     history = (history << 4) | 9;
   done:
     (void)history;
+    /* Lost connection -> all outstanding calls fail, no more can be
+     * started. */
+    calls.mux.locked([this] (mutex_t::token) {
+            assert(!calls.finished);
+            calls.finished = true;
+            if (!calls.send.pending.empty() ||
+                !calls.recv.pending.empty()) {
+                logmsg(loglevel::info,
+                       "lost connection to " + fields::mk(peer_) +
+                       " with calls outstanding (" +
+                       fields::mk(calls.send.nrpending) + " tx, " +
+                       fields::mk(calls.recv.pending.length()) + " rx)"); }
+            while (!calls.send.pending.empty()) {
+                auto r(calls.send.pending.pophead());
+                r->mux.locked([this, r] (mutex_t::token) {
+                        if (r->_result.isnothing()) {
+                            r->_result =
+                                maybe<orerror<const wireproto::rx_message *> >(
+                                    error::disconnected);
+                            r->pub.publish(); } }); }
+            while (!calls.recv.pending.empty()) {
+                auto r(calls.recv.pending.pophead());
+                r->mux.locked([this, r] (mutex_t::token) {
+                        if (r->_result.isnothing()) {
+                            r->_result =
+                                maybe<orerror<const wireproto::rx_message *> >(
+                                    error::disconnected);
+                            r->pub.publish(); } }); }});
     endconn(io); }
 
 rpcconn::rpcconntoken::rpcconntoken(const thread::constoken &_thr,
@@ -718,9 +837,6 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       outgoinggrew(),
       sequencelock(),
       sequencer(),
-      rxlock(),
-      pendingrx(),
-      pendingrxextended(),
       contactlock(),
       lastcontact_monotone(timestamp::now()),
       lastcontact_wall(walltime::now()),
@@ -801,37 +917,134 @@ rpcconn::send(
     if (res.isfailure()) return res.failure();
     else return Success; }
 
+rpcconn::asynccall::asynccall(wireproto::sequencenr snr,
+                              rpcconn *_owner)
+    : sequence(snr.reply()),
+      owner(_owner),
+      _result(Nothing),
+      mux(),
+      sendbuf(),
+      pub() {}
+
+maybe<orerror<const wireproto::rx_message *> >
+rpcconn::asynccall::popresult() {
+    auto token(mux.lock());
+    auto res(_result);
+    /* Return-once rules. */
+    if (_result.isjust() &&
+        _result.just().issuccess()) {
+        assert(_result.just().success() != NULL);
+        _result = maybe<orerror<const wireproto::rx_message *> >(NULL); }
+    mux.unlock(&token);
+    return res; }
+
+void
+rpcconn::asynccall::destroy() {
+    /* The easy case is that the result is already populated, in which
+       case we just need to delete it. */
+    int cntr = 0;
+    while (!mux.locked<bool>([this] (mutex_t::token) {
+                if (_result.isjust()) {
+                    if (_result.just().issuccess() &&
+                        _result.just().success() != NULL) {
+                        delete _result.just().success(); }
+                    return true; }
+                else {
+                    return false; } } )) {
+        /* Result is not finished.  Do something more fiddly.  This is a quite
+         * racy.  If we hit one of the bad cases we just retry. */
+        if (sendbuf.empty()) {
+            /* Already sent the message, so we must be waiting for a
+             * response.  Try to pull ourselves out of the list. */
+            if (owner->calls.mux.locked<bool>([this] (mutex_t::token) {
+                        bool found = false;
+                        for (auto it(owner->calls.recv.pending.start());
+                             !it.finished();
+                             it.next()) {
+                            if (*it == this) {
+                                it.remove();
+                                found = true;
+                                break; } }
+                        return found; })) {
+                /* Removed from list -> we're done. */
+                break; }
+            else {
+                /* Not in list -> must have raced with receive.  Keep
+                   going around loop. */ } }
+        else {
+            /* Waiting to send the message.  We must be in the send
+             * pending list. */
+            if (owner->calls.mux.locked<bool>([this] (mutex_t::token) {
+                        bool found = false;
+                        for (auto it(owner->calls.send.pending.start());
+                             !it.finished();
+                             it.next()) {
+                            if (*it == this) {
+                                it.remove();
+                                assert(owner->calls.send.nrpending > 0);
+                                owner->calls.send.nrpending--;
+                                found = true;
+                                break; } }
+                        return found; })) {
+                break; } }
+        cntr++;
+        /* Every iteration of this loop should see the message advance
+           through the state machine, which should bound the number we
+           need (cntr == 0 -> send.pending, cntr == 1 -> recv.pending
+           cntr == 2 -> finished). */
+        assert(cntr < 3); }
+    /* Killed off the only external references to this -> delete
+     * ourselves. */
+    delete this; }
+
+rpcconn::asynccall::~asynccall() {}
+
+rpcconn::asynccall *
+rpcconn::callasync(const wireproto::req_message &msg) {
+    auto res(new asynccall(msg.sequence, this));
+    calls.mux.locked([&msg, res, this] (mutex_t::token) {
+            if (calls.finished) {
+                res->_result =
+                    maybe<orerror<const wireproto::rx_message *> >(
+                        error::disconnected); }
+            else {
+                calls.send.nrpending++;
+                if (calls.send.nrpending % 100 == 10) {
+                    logmsg(loglevel::info,
+                           fields::mk(calls.send.nrpending) +
+                           " outstanding calls against " +
+                           fields::mk(peer()) +
+                           "; last queued tag " +
+                           fields::mk(msg.t)); }
+                msg.serialise(res->sendbuf);
+                calls.send.pending.pushtail(res);
+                calls.send.pub.publish(); } });
+    return res; }
+
 rpcconn::callres
 rpcconn::call(
     clientio io,
     const wireproto::req_message &msg,
     subscriber &sub,
     maybe<timestamp> deadline) {
-    {   auto txres(send(io, msg, sub, deadline));
-        if (txres.isfailure()) return txres.failure();
-        if (txres.isnotified()) return txres.notified();
-        assert(txres.issuccess()); }
-    tests::__rpcconn::calldonetx.trigger();
-    subscription morerx(sub, pendingrxextended);
-    deathsubscription died(sub, this);
+    auto acall((callasync(msg)));
+    subscription ss(sub, acall->pub);
     while (1) {
-        {   auto rxtoken(rxlock.lock());
-            for (auto it(pendingrx.start()); !it.finished(); it.next()) {
-                if ((*it)->sequence() == msg.sequence.reply()) {
-                    auto res(*it);
-                    it.remove();
-                    rxlock.unlock(&rxtoken);
-                    auto err(res->getparam(wireproto::err_parameter));
-                    if (err.isjust()) {
-                        delete res;
-                        return err.just();
-                    } else {
-                        return res; } } }
-            rxlock.unlock(&rxtoken); }
-        if (hasdied() != Nothing) return error::disconnected;
-        auto res(sub.wait(io, deadline));
-        if (res == NULL) return error::timeout;
-        if (res != &morerx && res != &died) return res; } }
+        auto res(acall->popresult());
+        if (res.isjust()) {
+            ss.detach();
+            acall->destroy();
+            if (res.just().isfailure()) return res.just().failure();
+            else return res.just().success(); }
+        auto waitres(sub.wait(io, deadline));
+        if (waitres == NULL) {
+            ss.detach();
+            acall->destroy();
+            return error::timeout; }
+        if (waitres != &ss) {
+            ss.detach();
+            acall->destroy();
+            return waitres; } } }
 
 orerror<const wireproto::rx_message *>
 rpcconn::call(
@@ -855,15 +1068,7 @@ rpcconn::hasdied() const {
                 return deathtoken(t); }); }
 
 rpcconn::~rpcconn() {
-    sock.close();
-    if (!pendingrx.empty()) {
-        logmsg(loglevel::failure,
-               "shutdown connection to " +
-               fields::mk(peer()) +
-               " with " +
-               fields::mk(pendingrx.length()) +
-               " rx pending"); }
-    pendingrx.flush(); }
+    sock.close(); }
 
 void
 rpcconn::drain(clientio io) {
@@ -904,6 +1109,11 @@ rpcconn::status() const {
     auto otherend(auth(tok1).slavename());
     auto otherendtype(auth(tok1).type());
     authlock.unlock(&tok1);
+    unsigned nrtx;
+    unsigned nrrx;
+    calls.mux.locked([&nrrx, &nrtx, this] (mutex_t::token) {
+            nrtx = calls.send.nrpending;
+            nrrx = calls.recv.pending.length(); });
     status_t res(outgoing.status(),
                  sock.status(),
                  sequencer.status(),
@@ -911,33 +1121,28 @@ rpcconn::status() const {
                  lastcontact_wall,
                  otherend,
                  otherendtype,
-                 config);
-    auto tok2(rxlock.lock());
-    for (auto it(pendingrx.start()); !it.finished(); it.next()) {
-        res.pendingrx.pushtail((*it)->status()); }
-    rxlock.unlock(&tok2);
+                 config,
+                 nrtx,
+                 nrrx);
     return res; }
 
 rpcconnstatus::rpcconnstatus(quickcheck q)
     : outgoing(q),
       fd(q),
       sequencer(q),
-      pendingrx(),
       peername_(q),
       lastcontact(q),
       otherend(q),
       otherendtype(q),
-      config(q) {}
-
-rpcconnstatus::~rpcconnstatus() {
-    pendingrx.flush(); }
+      config(q),
+      pendingtxcall(q),
+      pendingrxcall(q) {}
 
 bool
 rpcconnstatus::operator == (const rpcconnstatus &o) const {
     return outgoing == o.outgoing &&
         fd == o.fd &&
         sequencer == o.sequencer &&
-        pendingrx.eq(o.pendingrx) &&
         peername_ == o.peername_ &&
         lastcontact == o.lastcontact &&
         otherend == o.otherend &&

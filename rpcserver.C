@@ -27,9 +27,10 @@ rpcserver::run(clientio io) {
                 (*it)->conn->teardown(); }
         } else if (s == &ios) {
             /* Accept a new incoming connection */
-            tests::rpcserver::accepting.trigger(sock);
+            tests::rpcserver::accepting.trigger();
             /* Should be quick because ios was notified. */
             auto newsock(sock.accept(io));
+            tests::rpcserver::accepted.trigger(newsock);
             ios.rearm();
             if (newsock.isfailure()) {
                 newsock.failure().warn("accepting incoming connection");
@@ -37,7 +38,7 @@ rpcserver::run(clientio io) {
                    completely screw us.  We're probably still dead,
                    but at least this way we die in a way which doesn't
                    spam the logs with crap. */
-                (timestamp::now() + timedelta::seconds(1)).sleep(io);
+                (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
                 continue; }
             auto conn(accept(newsock.success()));
             if (conn.isfailure()) {
@@ -106,4 +107,5 @@ const fields::field &
 fields::mk(const rpcserverstatus &s) {
     return "<rpcserverstatus: " + mk(s.fd) + ">"; }
 
-tests::event<listenfd> tests::rpcserver::accepting;
+tests::event<void> tests::rpcserver::accepting;
+tests::event<orerror<socket_t> &> tests::rpcserver::accepted;
