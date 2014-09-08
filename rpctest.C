@@ -1114,4 +1114,61 @@ tests::_rpc() {
             assert(s2->connected->type() == actortype::cli);
             c->destroy(io);
             s2->destroy(io); });
+
+
+#if TESTING
+    testcaseIO("rpc", "stalledrxcall", [] (clientio io) {
+            auto s1(::rpcserver::listen<trivrpcserver>(
+                        peername::loopback(peername::port::any),
+                        73)
+                    .fatal("listening"));
+            auto s2(s1.go());
+            auto f1(fields::mk(s2->status()).c_str());
+            waitbox<void> restart;
+            eventwaiter<void> waiter(
+                tests::rpcserver::accepting,
+                [&restart, io] {
+                    restart.get(io); });
+            auto c(rpcconn::connectnoauth<rpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting to test server"));
+            auto f2(fields::mk(s2->status()).c_str());
+            assert(strcmp(f1, f2));
+            f1 = fields::mk(c->status()).c_str();
+            auto acall(c->callasync(
+                           wireproto::req_message(
+                               proto::PING::tag,
+                               c->allocsequencenr())));
+            assert(strcmp(fields::mk(c->status()).c_str(), f1));
+            acall->destroy();
+            c->destroy(io);
+            restart.set();
+            s2->destroy(io); });
+#endif
+
+    testcaseIO("rpc", "calltimedout", [] (clientio io) {
+            auto s1(::rpcserver::listen<trivrpcserver>(
+                        peername::loopback(peername::port::any),
+                        73)
+                    .fatal("listening"));
+            auto s2(s1.go());
+            auto c(rpcconn::connectnoauth<rpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting to test server"));
+            assert(c->call(
+                       io,
+                       wireproto::req_message(proto::PING::tag,
+                                              c->allocsequencenr()),
+                       timestamp::now())
+                   == error::timeout);
+            c->destroy(io);
+            s2->destroy(io); });
 }
