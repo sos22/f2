@@ -23,6 +23,9 @@
 tests::event<wireproto::tx_message **> tests::__rpcconn::sendinghelloslavec;
 tests::event<rpcconn *> tests::__rpcconn::threadawoken;
 tests::event<void> tests::__rpcconn::replystopped;
+tests::event<rpcconn *> tests::__rpcconn::calldestroyrace1;
+tests::event<rpcconn *> tests::__rpcconn::calldestroyrace2;
+tests::event<rpcconn *> tests::__rpcconn::calldestroyrace3;
 
 namespace proto {
 namespace rpcconnconfig {
@@ -554,17 +557,17 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
 void
 rpcconn::sendcalls(mutex_t::token token) {
     token.formux(txlock);
-    auto calltoken(calls.mux.lock());
-    while (calls.send.nrpending != 0 &&
-           outgoing.avail() <= config.maxoutgoingbytes) {
-        auto call(calls.send.pending.pophead());
-        outgoing.transfer(call->sendbuf);
-        calls.send.nrpending--;
-        calls.recv.pending.pushtail(call); }
-    calls.mux.unlock(&calltoken); }
+    calls.mux.locked([this] (mutex_t::token) {
+            while (calls.send.nrpending != 0 &&
+                   outgoing.avail() <= config.maxoutgoingbytes) {
+                auto call(calls.send.pending.pophead());
+                outgoing.transfer(call->sendbuf);
+                calls.send.nrpending--;
+                calls.recv.pending.pushtail(call); }}); }
 
 void
 rpcconn::receivereply(wireproto::rx_message *msg) {
+    tests::__rpcconn::calldestroyrace2.trigger(this);
     calls.mux.locked(
         [this, msg]
         (mutex_t::token) {
@@ -604,7 +607,8 @@ rpcconn::receivereply(wireproto::rx_message *msg) {
                             completing->_result =
                                 maybe<orerror<const wireproto::rx_message *> >(
                                     msg->steal()); } });
-                completing->pub.publish(); } }); }
+                completing->pub.publish(); } });
+    tests::__rpcconn::calldestroyrace3.trigger(this); }
 
 void
 rpcconn::run(clientio io) {
@@ -943,6 +947,7 @@ rpcconn::asynccall::destroy() {
         /* Result is not finished.  Do something more fiddly.  This is a quite
          * racy.  If we hit one of the bad cases we just retry. */
         if (sendbuf.empty()) {
+            tests::__rpcconn::calldestroyrace1.trigger(owner);
             /* Already sent the message, so we must be waiting for a
              * response.  Try to pull ourselves out of the list. */
             if (owner->calls.mux.locked<bool>([this] (mutex_t::token) {

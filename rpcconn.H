@@ -582,6 +582,9 @@ namespace __rpcconn {
 extern event<wireproto::tx_message **> sendinghelloslavec;
 extern event<rpcconn *> threadawoken;
 extern event<void> replystopped;
+extern event<rpcconn *> calldestroyrace1;
+extern event<rpcconn *> calldestroyrace2;
+extern event<rpcconn *> calldestroyrace3;
 }
 }
 

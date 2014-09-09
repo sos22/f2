@@ -160,6 +160,36 @@ public: orerror<rpcconn *> accept(socket_t s) {
         .fatal("sendinging message");
     return res; } };
 
+class slowrpcconn : public rpcconn {
+    friend class pausedthread<slowrpcconn>;
+private: const waitbox<void> &unpause;
+public:  slowrpcconn(const rpcconntoken &token,
+                     const waitbox<void> &_unpause)
+    : rpcconn(token),
+      unpause(_unpause) {}
+private: orerror<wireproto::resp_message *> message(
+    const wireproto::rx_message &rxm) {
+    unpause.get(clientio::CLIENTIO);
+    return rpcconn::message(rxm); } };
+
+class slowrpcserver : public rpcserver {
+    friend class pausedthread<slowrpcserver>;
+    friend class thread;
+private: const waitbox<void> &unpause;
+public:  slowrpcserver(constoken t, listenfd fd, const waitbox<void> &_unpause)
+    : rpcserver(t, fd),
+      unpause(_unpause) {}
+public:  orerror<rpcconn *> accept(socket_t s) {
+    auto config(rpcconnconfig::dflt);
+    config.pinglimit = ratelimiterconfig(frequency::hz(100000000),
+                                         1000000000);
+    return rpcconn::fromsocketnoauth<slowrpcconn>(
+        s,
+        slavename("<test client>"),
+        actortype::test,
+        config,
+        unpause); } };
+
 void
 tests::_rpc() {
     testcaseV("rpc", "connconfig", [] {
@@ -1171,4 +1201,105 @@ tests::_rpc() {
                    == error::timeout);
             c->destroy(io);
             s2->destroy(io); });
+
+
+    testcaseIO("rpc", "calldestroy", [] (clientio io) {
+            waitbox<void> servergo;
+            auto s1(::rpcserver::listen<slowrpcserver>(
+                        peername::loopback(peername::port::any),
+                        servergo)
+                    .fatal("listening"));
+            auto s2(s1.go());
+            auto c(rpcconn::connectnoauth<rpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting to test server"));
+            /* Server is paused.  Stuff client's outgoing queue. */
+            list<rpcconn::asynccall *> outstanding;
+            for (int nr = 0; nr < 10000; nr++) {
+                outstanding.pushtail(
+                    c->callasync(wireproto::req_message(
+                                     proto::PING::tag,
+                                     c->allocsequencenr()))); }
+            ::logmsg(loglevel::verbose, fields::mk("stuffed queue"));
+            /* Tear them all down before unpausing the server.  Some
+             * will have sent and be waiting for a reply, others will
+             * still be waiting to send. */
+            while (!outstanding.empty()) outstanding.poptail()->destroy();
+            ::logmsg(loglevel::verbose, fields::mk("cancelled sends"));
+            /* Unpause server. */
+            servergo.set();
+            /* Let one go all the way through before we cancel it. */
+            auto call(c->callasync(wireproto::req_message(
+                                       proto::PING::tag,
+                                       c->allocsequencenr())));
+            (timestamp::now() + timedelta::seconds(2)).sleep(io);
+            ::logmsg(loglevel::verbose, fields::mk("cancel complete call"));
+            call->destroy();
+            /* And now do a normal call, to make sure everything's
+             * still working. */
+            call = c->callasync(wireproto::req_message(
+                                    proto::PING::tag,
+                                    c->allocsequencenr()));
+            subscriber sub;
+            subscription ss(sub, call->pub);
+            while (true) {
+                auto rr(call->popresult());
+                if (rr == Nothing) {
+                    sub.wait(io);
+                    continue; }
+                assert(rr.just().issuccess());
+                delete rr.just().success();
+                break; }
+            c->destroy(io);
+            s2->destroy(io); });
+
+#if TESTING
+    testcaseIO("rpc", "callrace", [] (clientio io) {
+            initlogging("T");
+            /* Try to get the conn thread to do the send while we're
+               doing a destroy. */
+            auto s1(::rpcserver::listen<trivrpcserver>(
+                        peername::loopback(peername::port::any),
+                        73)
+                    .fatal("listening"));
+            auto s2(s1.go());
+            auto c(rpcconn::connectnoauth<rpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting to test server"));
+            waitbox<void> waitbox1;
+            waitbox<void> waitbox2;
+            eventwaiter<rpcconn *> waiter1(
+                tests::__rpcconn::calldestroyrace1,
+                [&waitbox1, &waitbox2, c]
+                (rpcconn *_c) {
+                    if (c != _c) return;
+                    waitbox1.set();
+                    waitbox2.get(clientio::CLIENTIO); });
+            eventwaiter<rpcconn *> waiter2(
+                tests::__rpcconn::calldestroyrace2,
+                [&waitbox1, c]
+                (rpcconn *_c)
+                {   if (c == _c) waitbox1.get(clientio::CLIENTIO); });
+            eventwaiter<rpcconn *> waiter3(
+                tests::__rpcconn::calldestroyrace3,
+                [&waitbox2, c]
+                (rpcconn *_c)
+                {   if (c == _c) waitbox2.set(); });
+            auto call(c->callasync(
+                          wireproto::req_message(proto::PING::tag,
+                                                 c->allocsequencenr())));
+            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
+            call->destroy();
+            c->destroy(io);
+            s2->destroy(io); });
+#endif
+
 }
