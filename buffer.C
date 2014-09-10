@@ -1086,4 +1086,20 @@ tests::buffer(void)
                 assert(strcmp(
                            fields::mk(buf).showshape().c_str(),
                            "<buffer: prod:5 cons:1 [{prod:5;cons:1;sz:16,352[ELLO]}]>")
-                       == 0); } }); }
+                       == 0); } });
+    testcaseV("buffer", "transfer", [] {
+            ::buffer buf1;
+            buf1.queue("HELLO", 5);
+            ::buffer buf2;
+            buf2.transfer(buf1);
+            assert(buf1.empty());
+            assert(buf2.avail() == 5);
+            char bytes[11];
+            buf2.fetch(bytes, 3);
+            assert(buf2.avail() == 2);
+            assert(!memcmp(bytes, "HEL", 3));
+            buf1.queue("GOODBYE", 7);
+            buf2.transfer(buf1);
+            assert(buf2.avail() == 9);
+            buf2.fetch(bytes, 9);
+            assert(!memcmp(bytes, "LOGOODBYE", 9)); }); }
