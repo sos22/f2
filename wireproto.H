@@ -57,9 +57,10 @@ namespace wireproto {
         sequencenr() = delete;
         uint64_t val;
         explicit sequencenr(uint64_t _val)
-            : val(_val)
-            {}
+            : val(_val) {}
+#ifndef COVERAGESKIP
     public:
+#endif
         sequencenr(const sequencenr &o)
             : val(o.val) {}
         ~sequencenr() {}
@@ -156,8 +157,10 @@ namespace wireproto {
         const msgtag t;
         tx_message(msgtag);
         template <typename t> tx_message &addparam(parameter<t>, const t &);
+#ifndef COVERAGESKIP
         template <typename t> tx_message &addparam(parameter<list<t> >,
                                                    const list<t> &);
+#endif
         tx_message &addparam(parameter<const char *>, const char *);
         virtual ~tx_message();
         virtual void serialise(buffer &buf) const;

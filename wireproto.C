@@ -1130,4 +1130,20 @@ tests::wireproto() {
                 auto r(rx_message::fetch(buf));
                 assert(r.success().getparam(param).isnothing()); } });
 
-}
+    testcaseV("wireproto", "listparam", [] {
+            parameter<list<int> > lparam(1);
+            ::buffer buf;
+            list<int> x;
+            x.pushtail(5);
+            x.pushtail(7);
+            tx_message(msgtag(1))
+                .addparam(lparam, x)
+                .serialise(buf);
+            list<int> y;
+            rx_message::fetch(buf)
+                .fatal("fetch message we just built")
+                .fetch(lparam, y)
+                .fatal("extracting list");
+            assert(x.eq(y));
+            x.flush();
+            y.flush(); }); }
