@@ -290,10 +290,23 @@ private: const peername peer_;
 
     /* Authentication state.  Ordering: auth lock is below coordinator
      * lock. */
+    /* Mutable so that it can be acquired from the const status()
+     * method. */
 private: mutable mutex_t authlock;
 private: rpcconnauth _auth;
 private: rpcconnauth &auth(mutex_t::token);
 private: const rpcconnauth &auth(mutex_t::token) const;
+
+    /* Reference count machinery */
+private: mutex_t referencelock;
+private: cond_t referencecond;
+    /* Simple refcount, protected by the referencelock.  referencecond
+     * signalled when this reaches zero. */
+private: int references;
+    /* Set normally, cleared once endconn() returns.  For debug
+     * purposes only.  Not synchronised; access with atomic ops only
+     * if there is any possibility of a race. */
+private: bool referenceable;
 
     /* State needed to process outgoing procedure calls. */
 public:  class asynccall;
@@ -413,8 +426,38 @@ protected: virtual orerror<wireproto::resp_message *> message(
     /* The connection is going away and has finished processing its
      * last message.  It's still safe to call send() and call() but,
      * depending on the reason for the shutdown, that might just give
-     * back an error. */
+     * back an error.  It is not safe to create further references to
+     * the rpcconn with reference() once endconn() returns; the
+     * endconn() implementation must ensure that that does not
+     * happen. */
 private: virtual void endconn(clientio) {}
+
+    /* Connection reference counting.  Each rpcconn has an internal
+     * reference count and hasdied() will not return a valid death
+     * token until that reference count reaches zero (the connection
+     * to the remote peer might, of course, be lost at any time, so
+     * holding a reference does not imply that call()s will succeed;
+     * it just makes sure that they won't reference freed memory if
+     * they happen to race with a destroy() call).  reference()
+     * increments the internal refcount and returns a token for the
+     * new reference.  unreference() releases this token.  Note that
+     * the death subscription will not fire and that join(clientio)
+     * and destroy(clientio) will block until the last reference is
+     * released, so reference tokens behave quite a lot like mutex
+     * tokens when considering deadlocks.  The tokens themselves have
+     * handle-like semantics i.e. the structure itself can be copied
+     * at will but all copies will refer to the same ``logical'' token
+     * and, in particular, releasing one of the copies will release
+     * all of them. */
+    /* Note that reference() is unsafe once endconn() has returned.
+     * endconn() must ensure that no further references are created to
+     * the conn. */
+public:  class reftoken {
+        friend class rpcconn;
+    private: reftoken() {}
+    };
+public:  reftoken reference();
+public:  void unreference(reftoken);
 
     /* Queue the reply to a message, waiting for outbuf space if
      * necessary. */

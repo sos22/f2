@@ -21,8 +21,48 @@ public: trivrpcserver(constoken t, listenfd fd, int x)
     assert(x == 73); }
 public: orerror<rpcconn *> accept(socket_t s) {
     return rpcconn::fromsocketnoauth<rpcconn>(
-        s, slavename("<test client>"), actortype::test, rpcconnconfig::dflt); }
-};
+        s, slavename("<test client>"), actortype::test, rpcconnconfig::dflt);}};
+
+class invrpcserver;
+
+class invrpcconn : public rpcconn {
+    friend class pausedthread<invrpcconn>;
+public: invrpcserver &owner;
+public: invrpcconn(const rpcconntoken &token,
+                   invrpcserver &_owner)
+    : rpcconn(token),
+      owner(_owner) {}
+public: void endconn(clientio); };
+
+class invrpcserver : public rpcserver {
+    friend class pausedthread<invrpcserver>;
+    friend class thread;
+public: rpcconn *connected;
+public: publisher connectedpub;
+public: publisher disconnectedpub;
+public: invrpcserver(constoken t, listenfd fd)
+    : rpcserver(t, fd),
+      connected(NULL),
+      connectedpub(),
+      disconnectedpub() {}
+public: orerror<rpcconn *> accept(socket_t s) {
+    assert(connected == NULL);
+    auto res(rpcconn::fromsocketnoauth<invrpcconn>(
+                 s,
+                 slavename("<test client>"),
+                 actortype::test,
+                 rpcconnconfig::dflt,
+                 *this));
+    if (res.isfailure()) return res.failure();
+    connected = res.success();
+    connectedpub.publish();
+    return res.success(); } };
+
+void
+invrpcconn::endconn(clientio) {
+    assert(owner.connected != NULL);
+    owner.connected = NULL;
+    owner.disconnectedpub.publish(); }
 
 static const wireproto::msgtag callabletag(134);
 static const wireproto::msgtag bigreplytag(136);
@@ -1302,4 +1342,52 @@ tests::_rpc() {
             s2->destroy(io); });
 #endif
 
-}
+    testcaseIO("rpc", "refcounts", [] (clientio io) {
+            auto s1(::rpcserver::listen<invrpcserver>(
+                        peername::loopback(peername::port::any))
+                    .fatal("listening"));
+            auto s2(s1.go());
+            auto c(::rpcconn::connectnoauth<callablerpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+            {   subscriber sub;
+                subscription ss(sub, s2->connectedpub);
+                while (s2->connected == NULL) sub.wait(io); }
+            auto c2(s2->connected);
+            const int nr = 100;
+            list<rpcconn::reftoken> tokens;
+            for (int i = 0; i < nr; i++) tokens.pushtail(c2->reference());
+            /* Disconnect the client.  Server side should remain
+               viable until the reference drops. */
+            c->destroy(io);
+            {   subscriber sub;
+                subscription ss(sub, s2->disconnectedpub);
+                while (s2->connected != NULL) sub.wait(io); }
+            /* give endconn() a chance to return */
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+            /* Check that call() returns an error without crashing. */
+            assert(c2->call(io,
+                            wireproto::req_message(callabletag,
+                                                   c2->allocsequencenr()))
+                   == error::disconnected);
+            /* And that it still fails once we're down to our last
+             * reference. */
+            for (int i = 0; i < nr - 1; i++) c2->unreference(tokens.pophead());
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+            assert(c2->call(io,
+                            wireproto::req_message(callabletag,
+                                                   c2->allocsequencenr()))
+                   == error::disconnected);
+            /* Can't shut down server until reference drops. */
+            bool dropped = false;
+            spark<void> shutdowner([&dropped, s2, io] {
+                    s2->destroy(io);
+                    assert(dropped == true); });
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+            dropped = true;
+            c2->unreference(tokens.pophead());
+            /* We're done */ }); }

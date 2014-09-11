@@ -507,6 +507,29 @@ rpcconn::_calls::_calls()
       recv(),
       finished(false) {}
 
+rpcconn::reftoken
+rpcconn::reference() {
+    referencelock.locked([this] (mutex_t::token) {
+            references++;
+            assert(references > 0);
+            if (references % 100 == 90) {
+                logmsg(loglevel::debug,
+                       "runaway reference count? " + fields::mk(references) +
+                       " references to " + fields::mk(peer_) +
+                       " rpcconn"); }
+        });
+    /* loadacquire() because it can move earlier without causing a
+     * crash but cannot be moved later. */
+    assert(loadacquire(referenceable));
+    return reftoken(); }
+
+void
+rpcconn::unreference(rpcconn::reftoken) {
+    referencelock.locked([this] (mutex_t::token token) {
+            assert(references > 0);
+            references--;
+            if (references == 0) referencecond.broadcast(token); }); }
+
 /* Only ever called from the connection thread.  Returns true if it's
  * time for the connection to exit and false otherwise. */
 bool
@@ -788,6 +811,14 @@ rpcconn::run(clientio io) {
     history = (history << 4) | 9;
   done:
     (void)history;
+
+    endconn(io);
+
+    /* endconn is supposed to make sure that nobody creates any more
+     * references to the connection. */
+    /* storerelease so that it happens after endconn() */
+    storerelease(&referenceable, false);
+
     /* Lost connection -> all outstanding calls fail, no more can be
      * started. */
     calls.mux.locked([this] (mutex_t::token) {
@@ -816,7 +847,11 @@ rpcconn::run(clientio io) {
                                 maybe<orerror<const wireproto::rx_message *> >(
                                     error::disconnected);
                             r->pub.publish(); } }); }});
-    endconn(io); }
+
+    /* Wait for any remaining references to drop away. */
+    {   auto token(referencelock.lock());
+        while (references != 0) token = referencecond.wait(io, &token);
+        referencelock.unlock(&token); } }
 
 rpcconn::rpcconntoken::rpcconntoken(const thread::constoken &_thr,
                                     socket_t _sock,
@@ -845,7 +880,11 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       lastcontact_monotone(timestamp::now()),
       lastcontact_wall(walltime::now()),
       peer_(tok.peer),
-      _auth(tok.auth) {}
+      _auth(tok.auth),
+      referencelock(),
+      referencecond(referencelock),
+      references(0),
+      referenceable(true) {}
 
 orerror<wireproto::resp_message *>
 rpcconn::message(const wireproto::rx_message &msg) {
@@ -1062,6 +1101,8 @@ rpcconn::hasdied() const {
                 return deathtoken(t); }); }
 
 rpcconn::~rpcconn() {
+    assert(!referenceable);
+    assert(references == 0);
     sock.close(); }
 
 void
