@@ -6,6 +6,7 @@
 
 #include "controlserver.H"
 #include "mastersecret.H"
+#include "pair.H"
 #include "registrationsecret.H"
 #include "rpcconn.H"
 #include "rpcserver.H"
@@ -119,6 +120,13 @@ public:  class iterator {
     public:  bool finished() const;
     public:  ~iterator(); };
 public:  iterator start(actortype) const;
+
+    /* Given a slavename, return either Nothing, if we lack a
+     * connection to it, or an <rpcconn, rpcconn::reftoken> pair, if
+     * we do.  The caller should unreference the connection once
+     * they're finished with it. */
+public:  maybe<pair<rpcconn *, rpcconn::reftoken> >
+    get(const slavename &) const;
 
 public:  void destroy(clientio);
 public:  typedef coordinatorstatus status_t;

@@ -145,6 +145,20 @@ coordinator::iterator
 coordinator::start(actortype t) const {
     return iterator(this, t); }
 
+maybe<pair<rpcconn *, rpcconn::reftoken> >
+coordinator::get(const slavename &name) const {
+    auto token(mux.lock());
+    for (auto it(connections.start());
+         !it.finished();
+         it.next()) {
+        if ((*it)->slavename() == name) {
+            auto res(pair<rpcconn *, rpcconn::reftoken>(
+                         *it, (*it)->reference()));
+            mux.unlock(&token);
+            return res; } }
+    mux.unlock(&token);
+    return Nothing; }
+
 void
 coordinator::destroy(clientio io) {
     controliface.stop();
