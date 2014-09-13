@@ -1063,7 +1063,8 @@ tests::_rpc() {
                                        proto::PING::tag,
                                        c->allocsequencenr())
                                    .addparam(
-                                       wireproto::parameter<string>(i+1),
+                                       wireproto::parameter<string>(
+					       (uint16_t)(i+1)),
                                        bigstr)));
                         if (r.issuccess()) {
                             delete r.success(); }

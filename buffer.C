@@ -7,6 +7,7 @@
 #include "buffer.H"
 
 #include <string.h>
+#include <unistd.h>
 
 #include "either.H"
 #include "fd.H"

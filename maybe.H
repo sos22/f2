@@ -2,6 +2,7 @@
 #define MAYBE_H__
 
 #include <algorithm>
+#include <functional>
 
 #include <assert.h>
 #include <string.h>

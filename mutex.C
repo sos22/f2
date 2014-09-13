@@ -35,9 +35,9 @@ mutex_t::unlock(token *tok)
 
 void
 mutex_t::locked(const std::function<void (mutex_t::token)> &f) {
-    auto token(lock());
-    f(token);
-    unlock(&token); }
+    auto _token(lock());
+    f(_token);
+    unlock(&_token); }
 
 void
 tests::mutex() {

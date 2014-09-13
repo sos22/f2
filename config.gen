@@ -2,12 +2,11 @@
 
 cat <<EOF
 CPPFLAGS="${CPPFLAGS}"
-CPPFLAGS+=" -Wundef -I. -Qunused-arguments"
+CPPFLAGS+=" -Wundef -I."
 CYYFLAGS="${CYYFLAGS}"
 CYYFLAGS+=" -O0 -g -fno-strict-aliasing"
 CYYFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
 CYYFLAGS+=" -Winit-self -Wswitch-enum"
-CYYFLAGS+=" -Xclang -coverage-version='404*'"
 CXXFLAGS="${CXXFLAGS} -std=c++1y"
 CXXFLAGS+=" \${CPPFLAGS}"
 CXXFLAGS+=" \${CYYFLAGS}"
@@ -15,9 +14,9 @@ CXXFLAGS+=" -fno-operator-names -fno-exceptions"
 CFLAGS="${CFLAGS} -std=gnu99"
 CFLAGS+=" \${CPPFLAGS}"
 CFLAGS+=" \${CYYFLAGS}"
-CXX="clang++"
-CC="clang"
-LD="clang"
+CXX=g++
+CC=gcc
+LD=gcc
 PREFIX="$(pwd)"
 EOF
 

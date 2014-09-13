@@ -146,12 +146,12 @@ coordinator::start(actortype t) const {
     return iterator(this, t); }
 
 maybe<pair<rpcconn *, rpcconn::reftoken> >
-coordinator::get(const slavename &name) const {
+coordinator::get(const slavename &_name) const {
     auto token(mux.lock());
     for (auto it(connections.start());
          !it.finished();
          it.next()) {
-        if ((*it)->slavename() == name) {
+        if ((*it)->slavename() == _name) {
             auto res(pair<rpcconn *, rpcconn::reftoken>(
                          *it, (*it)->reference()));
             mux.unlock(&token);

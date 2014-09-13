@@ -4,6 +4,7 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <net/if.h>
+#include <unistd.h>
 
 #include "either.H"
 #include "error.H"
@@ -214,9 +215,9 @@ peername::fromcompound(const wireproto::rx_message &msg)
         strcpy(un.sun_path, local.just());
         return peername(
             (struct sockaddr *)&un,
-            msg.getparam(proto::peername::wildcardlocal).dflt(false)
-            ? sizeof(sa_family_t)
-            : sizeof(un)); }
+            (unsigned)(msg.getparam(proto::peername::wildcardlocal).dflt(false)
+		       ? sizeof(sa_family_t)
+		       : sizeof(un))); }
     auto port(msg.getparam(proto::peername::port));
     if (port == Nothing) return Nothing;
     auto ipv4(msg.getparam(proto::peername::ipv4));

@@ -460,7 +460,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
     case s_waithelloslavec: {
         auto s = (waithelloslavec *)buf;
         auto wb(s->wb);
-        auto type(s->remotetype);
+        auto _type(s->remotetype);
         auto err(rxm.getparam(wireproto::err_parameter));
         if (rxm.tag() != proto::HELLOSLAVE::C::tag &&
             err == Nothing) {
@@ -480,7 +480,7 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
         else {
             s->~waithelloslavec();
             state = s_done;
-            new (buf) done(name.just(), type);
+            new (buf) done(name.just(), _type);
             wb->set(Success); }
         return rtype(NULL); } }
     abort(); }
@@ -583,10 +583,10 @@ rpcconn::sendcalls(mutex_t::token token) {
     calls.mux.locked([this] (mutex_t::token) {
             while (calls.send.nrpending != 0 &&
                    outgoing.avail() <= config.maxoutgoingbytes) {
-                auto call(calls.send.pending.pophead());
-                outgoing.transfer(call->sendbuf);
+                auto _call(calls.send.pending.pophead());
+                outgoing.transfer(_call->sendbuf);
                 calls.send.nrpending--;
-                calls.recv.pending.pushtail(call); }}); }
+                calls.recv.pending.pushtail(_call); }}); }
 
 void
 rpcconn::receivereply(wireproto::rx_message *msg) {

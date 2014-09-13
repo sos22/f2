@@ -3,9 +3,9 @@
 
 template <typename t> t
 mutex_t::locked(const std::function<t (mutex_t::token)> &f) {
-    auto token(lock());
-    auto res(f(token));
-    unlock(&token);
+    auto _token(lock());
+    auto res(f(_token));
+    unlock(&_token);
     return res; }
 
 #endif /* !MUTEX_TMPL__ */
