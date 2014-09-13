@@ -263,6 +263,11 @@ logmsg(loglevel level, const fields::field &fld)
 {
     policy.logmsg(level, fld);
 }
+void
+logmsg(loglevel level, const char *what)
+{
+    policy.logmsg(level, fields::mk(what));
+}
 
 void
 logpolicy::deinit(void)

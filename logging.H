@@ -63,6 +63,7 @@ public:
 };
 
 void logmsg(loglevel level, const fields::field &);
+void logmsg(loglevel level, const char *);
 
 class memlog_idx {
     friend class memlog_sink;
