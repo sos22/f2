@@ -12,13 +12,15 @@ tests::event<t>::trigger(t arg) {
     for (auto it(listeners.start()); !it.finished(); it.next()) {
         auto i(static_cast<eventwaiter<t> *>(*it));
         l.pushtail(i);
-        i->refcount++; }
+        i->refcount++;
+    }
     mux.unlock(&token);
     for (auto it(l.start()); !it.finished(); it.next()) {
         auto i(static_cast<eventwaiter<t> *>(*it));
         i->action(arg);
-        i->refcount--;
-        if ( i->refcount == 0 ) i->idle.publish(); }
+        mux.locked([i] (mutex_t::token) {
+                i->refcount--;
+                if ( i->refcount == 0 ) i->idle.publish(); }); }
     l.flush(); }
 
 template <typename t>
