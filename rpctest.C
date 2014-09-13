@@ -771,15 +771,14 @@ tests::_rpc() {
 #endif
     testcaseIO("rpc", "shutdownbusy", [] (clientio _io) {
             auto work([] (bool serverfirst, clientio io) {
-                    peername listenon(peername::loopback(
-                                          peername::port(quickcheck())));
                     auto config(rpcconnconfig::dflt);
                     /* Effectively turn off ping limits so that things
                        run a bit more quickly. */
                     config.pinglimit = ratelimiterconfig(frequency::hz(1000),
                                                          1000000000);
-                    auto s1(::rpcserver::listen<callablerpcserver>(listenon)
-                            .fatal("creating callablw RPC server"));
+                    auto s1(::rpcserver::listen<callablerpcserver>(
+				peername::loopback(peername::port::any))
+                            .fatal("creating callable RPC server"));
                     auto s2(s1.go());
 
                     waitbox<void> shutdownclients;
@@ -791,7 +790,7 @@ tests::_rpc() {
                     private: const waitbox<void> &shutdown;
                     private: int &cntr;
                     private: int localcntr;
-                    private: const peername &connectto;
+                    private: const peername connectto;
                     private: void run(clientio __io) {
                         auto c(rpcconn::connectnoauth<rpcconn>(
                                    __io,
@@ -850,7 +849,7 @@ tests::_rpc() {
                     const unsigned nr_workers = 2;
                     worker workers[nr_workers];
                     for (unsigned i = 0; i < nr_workers; i++) {
-                        workers[i].go(listenon, cntr, shutdownclients); }
+                        workers[i].go(s2->localname(), cntr, shutdownclients); }
                     /* Give it a moment for things to get started. */
                     (timestamp::now() + timedelta::milliseconds(500)).sleep(io);
                     /* Make sure that we've made progress */
