@@ -645,16 +645,15 @@ tests::_rpc() {
 #endif
     testcaseIO("rpc", "dodgyopen", [] (clientio _io) {
             auto worker([] (bool sendbadhello, clientio io) {
-                    peername listenon(peername::loopback(
-                                          peername::port(quickcheck())));
                     auto s1(::rpcserver::listen<sendonconnectserver>(
-                                listenon, sendbadhello)
+                                peername::loopback(peername::port::any),
+				sendbadhello)
                             .fatal("creating sendconnectserver"));
                     auto s2(s1.go());
                     registrationsecret rs((quickcheck()));
                     assert(rpcconn::connectslave<rpcconn>(
                                io,
-                               listenon,
+                               s2->localname(),
                                rs,
                                slavename("<test client>"),
                                actortype::test,
