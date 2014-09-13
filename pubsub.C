@@ -320,7 +320,7 @@ void
 tests::pubsub() {
     /* don't use testcaseIO from here: we need to be able to control
        when initpubsub() and deinitpubsub get called. */
-    auto epsilon(timedelta::milliseconds(10));
+    auto epsilon(timedelta::milliseconds(50));
     clientio io(clientio::CLIENTIO);
 
     testcaseV("pubsub", "pubcons", [] () {
@@ -494,7 +494,7 @@ tests::pubsub() {
                     return true; } );
             t1.get();
             t2.get();
-            assert(cntr >= 10000); });
+            assert(cntr >= 5000); });
 
     testcaseV("pubsub", "pingpong", [io] {
             /* Ping-pong back and forth between two threads for a
