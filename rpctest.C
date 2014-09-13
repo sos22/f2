@@ -604,7 +604,12 @@ tests::_rpc() {
             finishaccept.set();
             connector.get().success()->destroy(io);
             /* And make sure it goes back afterwards. */
-            assert(s2->status() == status1);
+	    auto status2(s2->status());
+	    if (!(status2 == status1)) {
+		initlogging("T");
+		::logmsg(loglevel::emergency,
+			 fields::mk(status2) + " != " + fields::mk(status1));
+		abort(); }
             s2->destroy(io); });
 #endif
     testcaseIO("rpc", "slaveauth", [] (clientio io) {
