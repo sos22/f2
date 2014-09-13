@@ -69,7 +69,9 @@ public:
     /* Send some bytes from the start of the buffer.  Only ever makes
      * a single write syscall, so won't block if poll returns POLLOUT.
      * Might leave some bytes in the buffer, even when it returns
-     * success. */
+     * success.  Returns NULL on success, error::timeout on timeout, a
+     * notified subscription if sub gets notified while we're waiting,
+     * or some other error if something goes wrong. */
     orerror<subscriptionbase *> send(clientio,
                                      fd_t,
                                      subscriber &sub,

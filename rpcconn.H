@@ -564,7 +564,12 @@ public: class asynccall {
          * return success once; calling it again once you have a
          * successful return is an error. */
     public:  maybe<orerror<const wireproto::rx_message *> > popresult();
-        /* Not a real destructor because it needs to acquire locks. */
+        /* Not a real destructor because it needs to acquire locks.
+         * Safe to call without first calling popresult(), in which
+         * case it will not be possible to check the result of the
+         * call.  If destroy() is called early enough then the rpcconn
+         * will try to abort making the call, but never guarantees to
+         * do so, and gives no indication of whether it did. */
     public:  void destroy();
         /* Use popresult() or destroy() instead. */
     private: ~asynccall();

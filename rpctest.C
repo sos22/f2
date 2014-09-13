@@ -55,6 +55,7 @@ public: orerror<rpcconn *> accept(socket_t s) {
                  *this));
     if (res.isfailure()) return res.failure();
     connected = res.success();
+    assert(connected->type() == actortype::test);
     connectedpub.publish();
     return res.success(); } };
 
@@ -146,6 +147,7 @@ public:  orerror<rpcconn *> accept(socket_t s) {
     if (ss.isfailure()) return ss;
     connected = ss.success();
     assert(connected->slavename() == Nothing);
+    assert(connected->type() == Nothing);
     return connected; } };
 
 class unconnectableserver : public rpcserver {
@@ -1064,7 +1066,7 @@ tests::_rpc() {
                                        c->allocsequencenr())
                                    .addparam(
                                        wireproto::parameter<string>(
-					       (uint16_t)(i+1)),
+                                           (uint16_t)(i+1)),
                                        bigstr)));
                         if (r.issuccess()) {
                             delete r.success(); }
@@ -1300,7 +1302,6 @@ tests::_rpc() {
 
 #if TESTING
     testcaseIO("rpc", "callrace", [] (clientio io) {
-            initlogging("T");
             /* Try to get the conn thread to do the send while we're
                doing a destroy. */
             auto s1(::rpcserver::listen<trivrpcserver>(
@@ -1391,4 +1392,73 @@ tests::_rpc() {
             (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
             dropped = true;
             c2->unreference(tokens.pophead());
-            /* We're done */ }); }
+            /* We're done */ });
+
+#if TESTING
+    testcaseIO("rpc", "queuereplyshutdown", [] (clientio io) {
+            /* Shut down a connection which is stalled waiting for TX
+               space for an RPC reply */
+            /* Create bigreply server */
+            /* Server has a small outgoing queue */
+            rpcconnconfig serverconfig(rpcconnconfig::dflt);
+            serverconfig.maxoutgoingbytes = 1000;
+            auto s1(::rpcserver::listen<callablerpcserver>(
+                        peername::loopback(peername::port::any),
+                        serverconfig)
+                    .fatal("creating server"));
+            auto s2(s1.go());
+            /* Connect client */
+            /* Client has a big outgoing queue */
+            rpcconnconfig clientconfig(rpcconnconfig::dflt);
+            clientconfig.maxoutgoingbytes = 100000000;
+            auto c(rpcconn::connectnoauth<rpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       clientconfig)
+                   .fatal("connecting"));
+            /* Pause the client rpcconn thread */
+            waitbox<void> releaseclient;
+            tests::eventwaiter<rpcconn *> waiter(
+                tests::__rpcconn::threadawoken,
+                [c, &releaseclient] (rpcconn *who) {
+                    if (c == who) releaseclient.get(clientio::CLIENTIO); });
+            /* Force the client to send a bunch of calls, even though
+             * its thread is paused */
+            list<rpcconn::asynccall *> calls;
+            for (int i = 0; i < 1000; i++) {
+                calls.pushtail(c->callasync(wireproto::req_message(
+                                                bigreplytag,
+                                                c->allocsequencenr()))); }
+            c->txlock.locked([c] (mutex_t::token token) {
+                    c->sendcalls(token); });
+            c->txlock.locked([c, io] (mutex_t::token) {
+                    while (!c->outgoing.empty()) {
+                        subscriber sub;
+                        /* Sync IO under a lock.  Okay because it's
+                         * got a short timeout. */
+                        auto r(c->outgoing.send(
+                                   io,
+                                   c->sock,
+                                   sub,
+                                   timestamp::now() + timedelta::milliseconds(100)));
+                        /* If the server's filled its outgoing queue
+                         * then it'll stop accepting incoming
+                         * messages, and if we then fill our outgoing
+                         * socket buf we'll deadlock.  Break it with a
+                         * timeout. */
+                        if (r == error::timeout) break;
+                        assert(r == NULL); } });
+            /* Abort all the calls. */
+            while (!calls.empty()) calls.pophead()->destroy();
+            /* Give the server a chance to get to where we want it. */
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+            /* It should now be stopped waiting for space to send more
+             * replies.  Shut it down. */
+            s2->destroy(io);
+            /* We're done; shut everything else down. */
+            releaseclient.set();
+            c->destroy(io); });
+#endif
+}
