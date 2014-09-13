@@ -158,7 +158,6 @@ error::warn(const fields::field &msg) const
            "warning: " + msg + ": " + fields::mk(*this));
     fields::fieldbuf buf;
     (msg + ": " + fields::mk(*this)).fmt(buf);
-    warnx("warning: %s", buf.c_str());
 }
 
 void
