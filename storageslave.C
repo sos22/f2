@@ -26,8 +26,8 @@ private: bool const ismaster;
 private: storageslaveconn(const rpcconn::rpcconntoken &tok,
                           storageslave *_owner,
                           bool _ismaster);
-private: orerror<wireproto::resp_message *> message(
-    const wireproto::rx_message &);
+private: messageresult message(const wireproto::rx_message &,
+			       messagetoken) final;
 private: void endconn(clientio);
 };
 
@@ -42,8 +42,8 @@ storageslaveconn::storageslaveconn(
     owner->clients.pushtail(this);
     owner->mux.unlock(&token); }
 
-orerror<wireproto::resp_message *>
-storageslaveconn::message(const wireproto::rx_message &rxm) {
+rpcconn::messageresult
+storageslaveconn::message(const wireproto::rx_message &rxm, messagetoken token) {
     if (rxm.tag() == proto::CREATEEMPTY::tag) {
         auto job(rxm.getparam(proto::CREATEEMPTY::req::job));
         auto stream(rxm.getparam(proto::CREATEEMPTY::req::stream));
@@ -98,7 +98,7 @@ storageslaveconn::message(const wireproto::rx_message &rxm) {
         if (res.isfailure()) return res.failure();
         else return new wireproto::resp_message(rxm);
     } else {
-        return rpcconn::message(rxm); } }
+	    return rpcconn::message(rxm, token); } }
 
 void
 storageslaveconn::endconn(clientio) {
@@ -329,7 +329,7 @@ storageslave::finish(
     else if (exists == true) return error::already;
     return finished.createfile(); }
 
-orerror<wireproto::resp_message *>
+rpcconn::messageresult
 storageslave::read(
     const wireproto::rx_message &rxm,
     const jobname &jn,
@@ -358,7 +358,7 @@ storageslave::read(
     resp->addparam(proto::READ::resp::bytes, b.success().steal());
     return resp; }
 
-orerror<wireproto::resp_message *>
+rpcconn::messageresult
 storageslave::listjobs(
     const wireproto::rx_message &rxm,
     const maybe<jobname> &cursor,
@@ -401,7 +401,7 @@ storageslave::listjobs(
     res.flush();
     return resp; }
 
-orerror<wireproto::resp_message *>
+rpcconn::messageresult
 storageslave::liststreams(
     const wireproto::rx_message &rxm,
     const jobname &jn,

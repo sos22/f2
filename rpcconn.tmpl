@@ -14,6 +14,11 @@
 #include "thread.tmpl"
 #include "waitbox.tmpl"
 
+template <typename t> rpcconn::postedcall &
+rpcconn::postedcall::addparam(wireproto::parameter<t> tmpl, const t &what) {
+    resp.addparam(tmpl, what);
+    return *this; }
+
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::fromsocket(socket_t sock,
                     const rpcconnauth &auth,

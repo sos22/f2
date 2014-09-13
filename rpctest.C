@@ -72,8 +72,9 @@ class callablerpcconn : public rpcconn {
     friend class pausedthread<callablerpcconn>;
 public: callablerpcconn(const rpcconntoken &token)
     : rpcconn(token) {}
-public: orerror<wireproto::resp_message *> message(
-    const wireproto::rx_message &rxm) {
+public: messageresult message(
+    const wireproto::rx_message &rxm,
+    messagetoken token) {
     if (rxm.tag() == callabletag) {
         return new wireproto::resp_message(rxm); }
     else if (rxm.tag() == bigreplytag) {
@@ -87,7 +88,7 @@ public: orerror<wireproto::resp_message *> message(
         free(buf);
         return res; }
     else {
-        return rpcconn::message(rxm); } } };
+        return rpcconn::message(rxm, token); } } };
 
 class callablerpcserver : public rpcserver {
     friend class pausedthread<callablerpcserver>;
@@ -214,10 +215,11 @@ public:  slowrpcconn(const rpcconntoken &token,
                      const waitbox<void> &_unpause)
     : rpcconn(token),
       unpause(_unpause) {}
-private: orerror<wireproto::resp_message *> message(
-    const wireproto::rx_message &rxm) {
+private: messageresult message(
+    const wireproto::rx_message &rxm,
+    messagetoken token) {
     unpause.get(clientio::CLIENTIO);
-    return rpcconn::message(rxm); } };
+    return rpcconn::message(rxm, token); } };
 
 class slowrpcserver : public rpcserver {
     friend class pausedthread<slowrpcserver>;
@@ -236,6 +238,103 @@ public:  orerror<rpcconn *> accept(socket_t s) {
         actortype::test,
         config,
         unpause); } };
+
+static const wireproto::msgtag postedcalltag(101);
+class postedconn : public rpcconn {
+    friend class pausedthread<postedconn>;
+private: const int mode;
+private: const waitbox<void> *const unpause;
+private: spark<void> *async;
+public:  explicit postedconn(const rpcconntoken &token,
+			     int _mode,
+			     const waitbox<void> *_unpause)
+    : rpcconn(token),
+      mode(_mode),
+      unpause(_unpause),
+      async(NULL) {
+    assert(mode >= 0);
+    assert(mode <= 3);
+    assert((mode == 3) == (unpause != NULL)); }
+public:  messageresult message(
+    const wireproto::rx_message &msg,
+    messagetoken token) {
+    if (msg.tag() != postedcalltag) return rpcconn::message(msg, token);
+    auto c(new postedcall(this, msg, token));
+    switch (mode) {
+    case 0:
+	c->complete(clientio::CLIENTIO);
+	break;
+    case 1:
+	c->addparam(wireproto::parameter<int>(73), 902);
+	c->complete(clientio::CLIENTIO);
+	break;
+    case 2:
+	c->addparam(wireproto::parameter<int>(73), 902);
+	c->fail(clientio::CLIENTIO, error::notafile);
+	break;
+    case 3:
+	assert(unpause != NULL);
+	async = new spark<void>([c, this] {
+		unpause->get(clientio::CLIENTIO);
+		c->complete(clientio::CLIENTIO); });
+	break;
+    default:
+	abort(); }
+    return c; }
+public: void endconn(clientio) final {
+    if (async) {
+	async->get();
+	delete async; } } };
+class postedrpcserver : public rpcserver {
+    friend class pausedthread<postedrpcserver>;
+    friend class thread;
+private: const int mode;
+private: const waitbox<void> *const unpause;
+public:  postedrpcserver(constoken t,
+			 listenfd fd,
+			 int _mode,
+			 const waitbox<void> *_unpause = NULL)
+    : rpcserver(t, fd),
+      mode(_mode),
+      unpause(_unpause) {}
+public:  orerror<rpcconn *> accept(socket_t s) {
+    return rpcconn::fromsocketnoauth<postedconn>(
+	s,
+	slavename("<test client>"),
+	actortype::test,
+	rpcconnconfig::dflt,
+	mode,
+	unpause); } };
+
+static const wireproto::msgtag randomslowtag(99);
+class randomslowconn : public rpcconn {
+    friend class pausedthread<randomslowconn>;
+private: list<spark<void> > sparks;
+public:  explicit randomslowconn(const rpcconntoken &token)
+    : rpcconn(token),
+      sparks() {}
+public:  messageresult message(
+        const wireproto::rx_message &msg,
+        messagetoken token) {
+        if (msg.tag() != randomslowtag) return rpcconn::message(msg, token);
+        auto res(new postedcall(this, msg, token));
+        sparks.append([res] {
+                (timestamp::now() + timedelta::milliseconds(random() % 1000))
+                    .sleep(clientio::CLIENTIO);
+                res->complete(clientio::CLIENTIO); });
+        return res; }
+public:  void endconn(clientio) { sparks.flush(); } };
+class randomslowserver : public rpcserver {
+    friend class pausedthread<randomslowserver>;
+    friend class thread;
+public:  randomslowserver(constoken t, listenfd fd)
+    : rpcserver(t, fd) {}
+public:  orerror<rpcconn *> accept(socket_t s) {
+    return rpcconn::fromsocketnoauth<randomslowconn>(
+        s,
+        slavename("<test client>"),
+        actortype::test,
+        rpcconnconfig::dflt); } };
 
 void
 tests::_rpc() {
@@ -1464,4 +1563,143 @@ tests::_rpc() {
             releaseclient.set();
             c->destroy(io); });
 #endif
-}
+    testcaseIO("rpc", "postedcallsbasic", [] (clientio io) {
+            /* Basic posted calls must work. */
+	    auto s1(::rpcserver::listen<postedrpcserver>(
+			peername::loopback(peername::port::any),
+			/*mode*/ 0)
+		    .fatal("listen"));
+	    auto s2(s1.go());
+	    auto c(::rpcconn::connectnoauth<rpcconn>(
+		       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+	    delete c->call(io,
+			   wireproto::req_message(
+			       postedcalltag,
+			       c->allocsequencenr()))
+		.fatal("basic call");
+	    c->destroy(io);
+	    s2->destroy(io); });
+    testcaseIO("rpc", "postedcallsparams", [] (clientio io) {
+	    /* posted call with a response parameter */
+	    auto s1(::rpcserver::listen<postedrpcserver>(
+			peername::loopback(peername::port::any),
+			/*mode*/ 1)
+		    .fatal("listen"));
+	    auto s2(s1.go());
+	    auto c(::rpcconn::connectnoauth<rpcconn>(
+		       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+	    auto resp(c->call(io,
+			      wireproto::req_message(
+			       postedcalltag,
+			       c->allocsequencenr()))
+		      .fatal("basic call"));
+	    assert(resp->getparam(wireproto::parameter<int>(73)) == 902);
+	    delete resp;
+	    c->destroy(io);
+	    s2->destroy(io); });
+    testcaseIO("rpc", "postedcallserr", [] (clientio io) {
+	    /* posted call with a response error */
+	    auto s1(::rpcserver::listen<postedrpcserver>(
+			peername::loopback(peername::port::any),
+			/*mode*/ 2)
+		    .fatal("listen"));
+	    auto s2(s1.go());
+	    auto c(::rpcconn::connectnoauth<rpcconn>(
+		       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+	    assert(c->call(io,
+			   wireproto::req_message(
+			       postedcalltag,
+			       c->allocsequencenr()))
+		   == error::notafile);
+	    c->destroy(io);
+	    s2->destroy(io); });
+    testcaseIO("rpc", "postedcallsoverlap", [] (clientio io) {
+            /* Must be able to make sync calls while there are posted
+             * calls outstanding. */
+	    waitbox<void> unpauseserver;
+	    auto s1(::rpcserver::listen<postedrpcserver>(
+			peername::loopback(peername::port::any),
+			/*mode*/ 3,
+			&unpauseserver)
+		    .fatal("listen"));
+	    auto s2(s1.go());
+	    auto c(::rpcconn::connectnoauth<rpcconn>(
+		       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+	    spark<void> call1([c, io] {
+		    delete c->call(io,
+				   wireproto::req_message(
+				       postedcalltag, c->allocsequencenr()))
+			.fatal("postedcall"); });
+	    (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+	    delete c->call(io,
+			   wireproto::req_message(
+			       proto::PING::tag,
+			       c->allocsequencenr()))
+		.fatal("ping");
+	    unpauseserver.set();
+	    call1.get();
+	    s2->destroy(io);
+	    c->destroy(io); });
+    testcaseIO("rpc", "randomslow", [] (clientio io) {
+            auto s1(::rpcserver::listen<randomslowserver>(
+                        peername::loopback(peername::port::any))
+                    .fatal("listening"));
+            auto s2(s1.go());
+            auto c(::rpcconn::connectnoauth<rpcconn>(
+                       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+            /* Launch a bunch of async calls against the randomly slow
+             * server, from a bunch of different threads. */
+            const int nrthreads = 16;
+            const int callsperthread = 1024;
+            rpcconn::asynccall *calls[nrthreads][callsperthread];
+            list<spark<void> > threads;
+            for (int i = 0; i < nrthreads; i++) {
+                threads.append([c, &calls, i] {
+                        for (int j = 0; j < callsperthread; j++) {
+                            calls[i][j] = c->callasync(
+                                wireproto::req_message(
+                                    randomslowtag,
+                                    c->allocsequencenr())); } }); }
+            threads.flush();
+            /* Wait for the calls to finish, again from a bunch of
+             * different threads. */
+            for (int i = 0; i < nrthreads; i++) {
+                threads.append([c, calls, i, io] {
+                        for (int j = 0; j < callsperthread; j++) {
+                            auto r(calls[i][j]->popresult());
+                            if (r == Nothing) {
+                                subscriber sub;
+                                subscription ss(sub, calls[i][j]->pub);
+                                r = calls[i][j]->popresult();
+                                while (r == Nothing) {
+                                    sub.wait(io);
+                                    r = calls[i][j]->popresult(); } }
+                            delete r.just().success(); } }); }
+            threads.flush();
+            c->destroy(io);
+            s2->destroy(io); }); }

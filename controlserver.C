@@ -123,8 +123,8 @@ controlconn::invoke(const std::function<void (controlinterface *)> &f) {
             iface->idle.publish(); } }
     owner->ifacelock.unlock(&token); }
 
-orerror<wireproto::resp_message *>
-controlconn::message(const wireproto::rx_message &rxm) {
+rpcconn::messageresult
+controlconn::message(const wireproto::rx_message &rxm, messagetoken token) {
     auto res(new wireproto::resp_message(rxm));
     if (rxm.tag() == proto::QUIT::tag) {
         auto reason(rxm.getparam(proto::QUIT::req::reason));
@@ -152,7 +152,7 @@ controlconn::message(const wireproto::rx_message &rxm) {
         invoke([res] (controlinterface *si) { si->getlistening(res); }); }
     else {
         delete res;
-        return rpcconn::message(rxm); }
+        return rpcconn::message(rxm, token); }
     return res; }
 
 controlserver::controlserver(constoken token,

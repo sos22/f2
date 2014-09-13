@@ -63,6 +63,10 @@ tx_message::serialised_size() const
 }
 
 void
+tx_message::flush() {
+    params.flush(); }
+
+void
 tx_message::serialise(buffer &buffer, sequencenr snr) const
 {
     size_t sz = serialised_size();

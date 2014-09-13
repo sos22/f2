@@ -794,15 +794,23 @@ rpcconn::run(clientio io) {
                     pinglimiter.wait(io); }
 
                 history = (history << 4) | 5;
-                auto res(message(msg.success()));
+                auto res(message(msg.success(), messagetoken()));
 
                 bool out;
-                if (res.issuccess()) {
+                switch (res.flavour()) {
+                case messageresult::mr_success:
                     out = queuereply(io, *res.success());
                     delete res.success();
-                } else {
+                    break;
+                case messageresult::mr_failure: {
                     wireproto::err_resp_message m(msg.success(), res.failure());
-                    out = queuereply(io, m); }
+                    out = queuereply(io, m);
+                    break; }
+                case messageresult::mr_posted:
+                    /* postedcall constructor does all the work */
+                    out = false;
+                    break;
+                }
                 if (out) goto done;
                 if (!outarmed) {
                     outsub.rearm();
@@ -833,13 +841,39 @@ rpcconn::run(clientio io) {
                 /* Don't rearm: the outgoing queue is empty, so we
                  * don't need to. */
                 history = (history << 4) | 8;
-                txlock.unlock(&token); } } }
+                txlock.unlock(&token); }
+	    /* Check for completed posted calls */
+	    for (auto it(postedcalls.start()); !it.finished(); /**/) {
+		bool completed(
+		    (*it)->mux.locked<bool>([&it] (mutex_t::token) -> bool {
+			    return (*it)->completed; }));
+		/* No need for per-call mux here: once the completed
+		 * flag is set and whoever set it has dropped the
+		 * lock, they will never access it again. */
+		if (completed) {
+		    (*it)->owner = NULL;
+		    delete *it;
+		    it.remove(); }
+		else it.next(); } } }
     history = (history << 4) | 9;
   done:
     (void)history;
 
+    _threadfinished.set();
+
     authlock.locked([this] (mutex_t::token token) {
             auth(token).disconnect(token); });
+
+    /* It's too late for any more postedcalls to complete */
+    /* (no more can start because we've stopped calling message()) */
+    /* We know that whoever owns the locks on individual posted calls
+     * will eventually drop them because we've set _threadfinished. */
+    while (!postedcalls.empty()) {
+	auto c(postedcalls.pophead());
+	auto completed(c->mux.locked<bool>([c] (mutex_t::token) {
+		    c->owner = NULL;
+		    return c->completed; }));
+	if (completed) delete c; };
 
     endconn(io);
 
@@ -913,16 +947,108 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       referencelock(),
       referencecond(referencelock),
       references(0),
-      referenceable(true) {}
+      referenceable(true),
+      calls(),
+      postedcalls(),
+      _threadfinished() {}
 
-orerror<wireproto::resp_message *>
-rpcconn::message(const wireproto::rx_message &msg) {
+enum rpcconn::messageresult::_flavour
+rpcconn::messageresult::flavour() const {
+    if (content.isfailure()) return mr_failure;
+    else if (content.success() == NULL) return mr_posted;
+    else return mr_success; }
+
+wireproto::resp_message *
+rpcconn::messageresult::success() const {
+    assert(flavour() == mr_success);
+    return content.success(); }
+
+error
+rpcconn::messageresult::failure() const {
+    return content.failure(); }
+
+rpcconn::messageresult
+rpcconn::message(const wireproto::rx_message &msg, messagetoken) {
     if (msg.tag() == proto::PING::tag) {
         static int cntr;
         return &(*new wireproto::resp_message(msg))
             .addparam(proto::PING::resp::cntr, cntr++);
     } else {
         return error::unimplemented; } }
+
+rpcconn::postedcall::postedcall(
+    rpcconn *conn,
+    const wireproto::rx_message &rxm,
+    rpcconn::messagetoken)
+    : resp(rxm),
+      owner(conn),
+      mux(),
+      completed(false) {
+    owner->postedcalls.pushtail(this); }
+
+void
+rpcconn::postedcall::fail(clientio io, error err) {
+    resp.flush();
+    resp.addparam(wireproto::err_parameter, err);
+    complete(io); }
+
+void
+rpcconn::postedcall::complete(clientio io) {
+    auto token(mux.lock());
+    if (owner == NULL) {
+	/* Connection is already shutting down -> drop the reply. */
+	completed = true;
+	mux.unlock(&token);
+	delete this;
+	return; }
+    /* conn thread should clear owner before it dies, so if we have an
+     * owner the thread can't be dead. */
+    assert(!owner->hasdied());
+    /* Can't use the normal queuereply () or send() methods here
+     * because of the way we handle shutdown.  Need to make sure we
+     * drop the lock if the connection's thread finishes. */
+    auto txtoken(owner->txlock.lock());
+    if (owner->outgoing.avail() > owner->config.maxoutgoingbytes) {
+	subscriber sub;
+	subscription moretx(sub, owner->outgoingshrunk);
+	subscription finished(sub, owner->_threadfinished.pub);
+	while (owner->outgoing.avail() > owner->config.maxoutgoingbytes) {
+	    owner->txlock.unlock(&txtoken);
+	    if (owner->_threadfinished.ready()) {
+		/* Tell conn thread to delete us when it shuts down.
+		 * We can't do it here, because we're still in the
+		 * conn's posted call list, and we can't remove
+		 * ourselves from the list without either a race or a
+		 * deadlock. */
+		completed = true;
+		mux.unlock(&token);
+		return; }
+	    mux.unlock(&token);
+	    auto r = sub.wait(io);
+	    assert(r == &moretx || r == &finished);
+	    token = mux.lock();
+	    /* Dropped our lock -> owner might now be NULL */
+	    if (owner == NULL) {
+		completed = true;
+		mux.unlock(&token);
+		/* Conn thread removes us from the list when it clears
+		 * owner -> delete ourselves rather than setting
+		 * completed. */
+		delete this;
+		return; }
+	    txtoken = owner->txlock.lock(); } }
+    assert(owner->outgoing.avail() <= owner->config.maxoutgoingbytes);
+    resp.serialise(owner->outgoing);
+    owner->txlock.unlock(&txtoken);
+    owner->outgoinggrew.publish();
+    /* conn thread will GC us when it wakes up to send the reply we
+       just put in the outgoing buffer. */
+    completed = true;
+    mux.unlock(&token); }
+
+rpcconn::postedcall::~postedcall() {
+    assert(completed == true);
+    assert(owner == NULL); }
 
 wireproto::sequencenr
 rpcconn::allocsequencenr() {
@@ -974,8 +1100,8 @@ rpcconn::send(
             assert(res == &moretx || res == &died);
             txtoken = txlock.lock(); } }
     msg.serialise(outgoing);
-    outgoinggrew.publish();
     txlock.unlock(&txtoken);
+    outgoinggrew.publish();
     return Success; }
 
 rpcconn::asynccall::asynccall(wireproto::sequencenr snr,

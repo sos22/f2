@@ -262,6 +262,7 @@ const field &mk(const rpcconnstatus &);
 }
 
 class rpcconn : protected thread {
+    friend class postedcall;
     friend class thread;
     friend class pausedthread<rpcconn>;
     friend void tests::_rpc();
@@ -434,11 +435,113 @@ protected: rpcconn(const rpcconntoken &token);
      * these methods; the default implementation doesn't do very
      * much. */
     /* Process a message received from the other end of the
-     * connection.  Should return either an error, to send an error
-     * reply, or a response message.  This should generally not wait
-     * for client IO, to avoid deadlocks. */
-protected: virtual orerror<wireproto::resp_message *> message(
-    const wireproto::rx_message &);
+     * connection.  The rpcconn is stopped while this is running and
+     * will not send or receive anything, so message() methods should
+     * generally not attempt any further client IO (and hence do not
+     * receive a clientio token.  The message() method must return one
+     * of three possible types of return value:
+     *
+     * -- an error, to return that error to the client;
+     * -- a wireproto resp_message, to queue that message for
+     *    transmission as a reply to the call; or
+     * -- a posted call, indicating that the derived class will
+     *    generate a reply asynchronously and eventually queue it up
+     *    itself.
+     *
+     * For details of posted calls, see the postedcall class. */
+    class postedcall;
+public:    class messageresult {
+        friend class rpcconn;
+    private: enum _flavour {
+            mr_success,
+            mr_failure,
+            mr_posted
+        };
+        /* A wireproto::resp_message for mr_success, an error for
+         * mr_failure, or NULL for mr_posted. */
+        /* (We can't store a pointer to the postedcall because it
+         * remains owned by the message() implementation, which might
+         * asynchronously complete() or fail() it at any time) */
+    private: orerror<wireproto::resp_message *> const content;
+    private: enum _flavour flavour() const;
+    private: wireproto::resp_message *success() const;
+    private: error failure() const;
+    public:  messageresult(error e)
+        : content(e) {}
+    public:  messageresult(wireproto::resp_message *m)
+        : content(m) {}
+    public:  messageresult(postedcall *)
+        : content(NULL) {}
+    };
+public:    class messagetoken {
+        friend class rpcconn;
+    private: messagetoken() {};
+    };
+protected: virtual messageresult message(
+        const wireproto::rx_message &,
+        messagetoken);
+
+    /* A representation of a call which is too complex to be completed
+     * directly in the message() call.  message() implementations can
+     * allocate one of these and return it as their messageresult,
+     * causing the rpcconn to process any other messages which might
+     * be waiting to be sent or received, and then complete the posted
+     * call once it is convenient to do so. */
+    /* Note that postedcalls has no abort() or abandon() method: once
+     * a postedcall is started it must always reply to the client,
+     * whether successfully (with complete()) or unsuccessfully (with
+     * fail()). */
+protected: class postedcall {
+        friend class rpcconn;
+        /* Partially-constructed reply to the call which initiated
+         * us. */
+    private: wireproto::resp_message resp;
+        /* rpcconn on which the reply will ultimately be sent.  Note
+         * that this can become NULL if the connection is lost before
+         * the postedcall is completed. */
+    private: rpcconn *owner;
+        /* Protects @owner and @completed. */
+    private: mutex_t mux;
+        /* Set once the complete() or fail() methods have been called.
+         * If the rpcconn thread observes this to be set while it
+         * holds @mux then it will delete the posted call. */
+    private: bool completed;
+        /* Construct a new postedcall in response to a received
+         * message.  This is only safe to call from the message()
+         * method (hence the messagetoken parameter).  The new
+         * structure must be returned by message(). */
+    public:  postedcall(
+            rpcconn *,
+            const wireproto::rx_message &,
+            messagetoken);
+        /* Add an additional parameter to the response to the call.
+         * This is essentially the same as a wireproto message's
+         * method of the same name. */
+    public:  template <typename t> postedcall &addparam(
+            wireproto::parameter<t>, const t &);
+        /* Mark the call as failed.  Any parameters which have been
+         * added are removed and the peer is sent an error reply.
+         * This acts as a destructor: once fail() is called, the
+         * postedcall is only accessible to the rpcconn
+         * implementation; whoever called fail() should treat it as
+         * having been released. */
+        /* Note that this method will wait for outgoing buffer space,
+         * and so requires a clientio token. */
+    public:  void fail(clientio, error);
+        /* Mark the reply as finished and start sending it to the
+         * other end of the connection.  Like fail(), this acts as a
+         * destructor on the message and so the caller should not
+         * access it again.  Also like fail(), it waits for space in
+         * the outgoing queue, so requires a clientio token. */
+    public:  void complete(clientio);
+        /* Use complete() or fail() instead. */
+    private: ~postedcall(); };
+    /* rpcconn maintains a list of all of the postedcalls pending
+     * against itself, so that it can cancel them all when it shuts
+     * down (and for debugging).  Only accessed from the conn
+     * thread, so no synchronisation. */
+private: list<postedcall *> postedcalls;
+
     /* The connection is going away and has finished processing its
      * last message.  It's still safe to call send() and call() but,
      * depending on the reason for the shutdown, that might just give
@@ -603,6 +706,12 @@ public: asynccall *callasync(const wireproto::req_message &msg);
      * Use the thread death protocol to finish tearing the connection
      * down. */
 public:  void teardown();
+
+    /* Set once the rpcconn thread has gone far enough through its
+     * shutdown sequence that it will no longer send or receive
+     * messages.  This happens shortly before the thread itself
+     * exits. */
+private: waitbox<void> _threadfinished;
 
     /* Re-expose the thread death protocol. */
 public:  class deathtoken : public thread::deathtoken {
