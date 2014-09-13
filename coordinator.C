@@ -58,13 +58,10 @@ coordinatorconn::coordinatorconn(const rpcconn::rpcconntoken &tok,
 void
 coordinatorconn::endconn(clientio) {
     auto token(owner->mux.lock());
-    bool found = false;
     for (auto it(owner->connections.start()); !it.finished(); it.next()) {
         if (*it == this) {
-            found = true;
             it.remove();
             break; } }
-    assert(found);
     owner->mux.unlock(&token); }
 
 void
@@ -105,7 +102,18 @@ orerror<rpcconn *>
 coordinator::accept(socket_t s) {
     return rpcconn::fromsocket<coordinatorconn>(
         s,
-        rpcconnauth::mkwaithello(ms, rs, &slaveconnected),
+        rpcconnauth::mkwaithello(
+            ms,
+            rs,
+            [this] (orerror<rpcconn *> conn,
+                    mutex_t::token /* authlock */) -> orerror<void> {
+                if (conn.isfailure()) return conn.failure();
+                mux.locked([this, conn] (mutex_t::token) {
+                        connections.pushtail(
+                            static_cast<coordinatorconn *>(
+                                conn.success())); });
+                slaveconnected.publish();
+                return Success; }),
         connconfig,
         this); }
 

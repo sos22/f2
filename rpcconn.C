@@ -200,19 +200,26 @@ rpcconnauth
 rpcconnauth::mkwaithello(
     const mastersecret &ms,
     const registrationsecret &rs,
-    publisher *pub) {
+    const std::function<orerror<void> (orerror<rpcconn *>,
+                                       mutex_t::token)> &finished) {
     rpcconnauth r;
     r.state = s_waithello;
-    new (r.buf) waithello(ms, rs, pub);
+    new (r.buf) waithello(ms, rs, finished);
     return r; }
 
 rpcconnauth::waithello::waithello(
     const mastersecret &_ms,
     const registrationsecret &_rs,
-    publisher *_pub)
+    const std::function<orerror<void> (orerror<rpcconn *>,
+                                       mutex_t::token)> &_finished)
     : ms(_ms),
       rs(_rs),
-      pub(_pub) {}
+      finished(_finished) {}
+
+rpcconnauth::waithello::waithello(const waithello &o)
+    : ms(o.ms),
+      rs(o.rs),
+      finished(o.finished) {}
 
 rpcconnauth
 rpcconnauth::mksendhelloslavea(
@@ -332,8 +339,10 @@ rpcconnauth::start(buffer &b) {
     state = s_waithelloslaveb; }
 
 maybe<orerror<wireproto::tx_message *> >
-rpcconnauth::message(const wireproto::rx_message &rxm,
-                     const peername &peer) {
+rpcconnauth::message(rpcconn *conn,
+                     const wireproto::rx_message &rxm,
+                     const peername &peer,
+                     mutex_t::token authtoken) {
     typedef maybe<orerror<wireproto::tx_message *> > rtype;
     if (rxm.tag() == proto::PING::tag) {
         /* PING is valid in any authentication state */
@@ -387,12 +396,13 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
                    "HELLO with invalid digest from " + fields::mk(peer));
             return rtype(error::authenticationfailed); }
         logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
-        auto pub(s->pub);
+        auto finished(s->finished);
         s->~waithello();
         state = s_done;
         new (buf) done(_slavename.just(), flavour.just());
-        if (pub) pub->publish();
-        return rtype(new wireproto::resp_message(rxm)); }
+        auto res(finished(conn, authtoken));
+        if (res.isfailure()) return rtype(res.failure());
+        else return rtype(new wireproto::resp_message(rxm)); }
     case s_sendhelloslavea:
         /* Shouldn't get here; should have sent the HELLOSLAVE::A
            before checking for messages from the other side. */
@@ -483,6 +493,21 @@ rpcconnauth::message(const wireproto::rx_message &rxm,
             new (buf) done(name.just(), _type);
             wb->set(Success); }
         return rtype(NULL); } }
+    abort(); }
+
+void
+rpcconnauth::disconnect(mutex_t::token authlock) {
+    switch (state) {
+    case s_preinit: abort();
+    case s_done: return;
+    case s_waithello: {
+        waithello *s = (waithello *)buf;
+        s->finished(error::disconnected, authlock);
+        return; }
+    case s_sendhelloslavea: abort();
+    case s_waithelloslavea: return;
+    case s_waithelloslaveb: return;
+    case s_waithelloslavec: return; }
     abort(); }
 
 rpcconnauth &
@@ -731,7 +756,8 @@ rpcconn::run(clientio io) {
                         goto done; } }
                 history = (history << 4) | 12;
                 auto authtok(authlock.lock());
-                auto authres(auth(authtok).message(msg.success(), peer_));
+                auto authres(auth(authtok)
+                             .message(this, msg.success(), peer_, authtok));
                 authlock.unlock(&authtok);
                 if (authres != Nothing) {
                     if (authres.just().isfailure()) {
@@ -811,6 +837,9 @@ rpcconn::run(clientio io) {
     history = (history << 4) | 9;
   done:
     (void)history;
+
+    authlock.locked([this] (mutex_t::token token) {
+            auth(token).disconnect(token); });
 
     endconn(io);
 

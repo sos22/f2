@@ -434,7 +434,7 @@ tests::_spawn() {
             (timestamp::now() + timedelta::seconds(2)).sleep(io);
             assert(p->hasdied() == Nothing);
             p->signal(signalnr::cont);
-            (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
+            (timestamp::now() + timedelta::milliseconds(1000)).sleep(io);
             assert(p->join(p->hasdied().just()).left() ==shutdowncode::ok); });
     testcaseIO("spawn", "signal4", [] (clientio io) {
             auto p(process::spawn(program("/bin/true"))

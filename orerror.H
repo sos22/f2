@@ -72,6 +72,10 @@ public:
         if (isfailure()) failure().fatal(w);
         else return success(); }
 
+    const t dflt(const t &o) const {
+        if (issuccess()) return success();
+        else return o; }
+
     template <typename o> orerror(const orerror<o> &other)
         : errored(other.isfailure()) {
         if (errored) {

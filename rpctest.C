@@ -142,13 +142,18 @@ public:  orerror<rpcconn *> accept(socket_t s) {
     assert(connected == NULL || allowmulti);
     auto ss(rpcconn::fromsocket<rpcconn>(
                 s,
-                rpcconnauth::mkwaithello(ms, rs, NULL),
+                rpcconnauth::mkwaithello(
+                    ms,
+                    rs,
+                    [this] (orerror<rpcconn *> conn,
+                            mutex_t::token /*authlock*/) {
+                        connected = conn.dflt(NULL);
+                        return Success; }),
                 rpcconnconfig::dflt));
     if (ss.isfailure()) return ss;
-    connected = ss.success();
-    assert(connected->slavename() == Nothing);
-    assert(connected->type() == Nothing);
-    return connected; } };
+    assert(ss.success()->slavename() == Nothing);
+    assert(ss.success()->type() == Nothing);
+    return ss.success(); } };
 
 class unconnectableserver : public rpcserver {
     friend class pausedthread<unconnectableserver>;
