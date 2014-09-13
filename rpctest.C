@@ -1665,6 +1665,38 @@ tests::_rpc() {
 	    call1.get();
 	    s2->destroy(io);
 	    c->destroy(io); });
+    testcaseIO("rpc", "postedcallslate", [] (clientio io) {
+	    /* Must not crash if a posted call completed after the
+	     * peer has disconnected. */
+	    waitbox<void> unpauseserver;
+	    auto s1(::rpcserver::listen<postedrpcserver>(
+			peername::loopback(peername::port::any),
+			/*mode*/ 3,
+			&unpauseserver)
+		    .fatal("listen"));
+	    auto s2(s1.go());
+	    auto c(::rpcconn::connectnoauth<rpcconn>(
+		       io,
+                       slavename("<test server>"),
+                       actortype::test,
+                       s2->localname(),
+                       rpcconnconfig::dflt)
+                   .fatal("connecting"));
+	    spark<void> call1([c, io] {
+		    ::logmsg(loglevel::info, "start call");
+		    assert(c->call(io,
+				   wireproto::req_message(
+				       postedcalltag, c->allocsequencenr()))
+			   == error::disconnected);
+		    ::logmsg(loglevel::info, "done call"); });
+	    (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+	    ::logmsg(loglevel::info, "starting destroy");
+	    spark<void> sp([s2, io] { s2->destroy(io); } );
+	    (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+	    ::logmsg(loglevel::info, "unpausing");
+	    unpauseserver.set();
+	    call1.get();
+	    c->destroy(io); });
     testcaseIO("rpc", "randomslow", [] (clientio io) {
             auto s1(::rpcserver::listen<randomslowserver>(
                         peername::loopback(peername::port::any))
