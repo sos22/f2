@@ -157,8 +157,7 @@ storageslave::storageslave(constoken token,
       master(),
       clients(),
       config(_config),
-      mux() {
-    control_.start(); }
+      mux() {}
 
 orerror<rpcconn *>
 storageslave::accept(socket_t s) {
@@ -485,7 +484,6 @@ storageslave::removestream(const jobname &jn,
 
 void
 storageslave::destroy(clientio io) {
-    control_.stop();
     /* Shut down the master connection. */
     auto token(master.lock.lock());
     /* Stop anyone reconnecting. */

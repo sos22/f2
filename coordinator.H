@@ -128,7 +128,6 @@ public:  iterator start(actortype) const;
 public:  maybe<pair<rpcconn *, rpcconn::reftoken> >
     get(const slavename &) const;
 
-public:  void destroy(clientio);
 public:  typedef coordinatorstatus status_t;
 public:  status_t status() const;
 };

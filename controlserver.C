@@ -21,33 +21,19 @@
     })
 
 controlinterface::controlinterface(controlserver *cs)
-    : started(false),
+    : inuse(true),
       invoking(),
       active(0),
       idle(),
-      owner(cs) {}
+      owner(cs) {
+    owner->ifacelock.locked([this] (mutex_t::token) {
+            owner->ifaces.pushtail(this); }); }
 
-void
-controlinterface::start() {
+controlinterface::~controlinterface() {
     auto token(owner->ifacelock.lock());
-    assert(!started);
-    assert(active == 0);
-    assert(invoking.empty());
-    started = true;
-    owner->ifaces.pushtail(this);
-    owner->ifacelock.unlock(&token); }
-
-void
-controlinterface::stop() {
-    auto token(owner->ifacelock.lock());
-    assert(started);
-    /* Prevent anyone else from taking out another reference. */
-    started = false;
-    for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
-        if (*it == this) {
-            it.remove();
-            break; } }
-    /* Interrupt any conns who are about to start invoking us. */
+    /* Prevent anyone else from adding us to their invoking list. */
+    inuse = false;
+    /* Remove ourselves from all of the invoking lists. */
     while (!invoking.empty()) {
         auto conn(invoking.pophead());
         bool found = false;
@@ -72,12 +58,14 @@ controlinterface::stop() {
             sub.wait(clientio::CLIENTIO);
             token = owner->ifacelock.lock(); } }
     assert(invoking.empty());
+    /* Remove ourselves from the owner's iface list.  Once we've done
+     * this and dropped the owner ifacelock the owner can be released
+     * at any time. */
+    for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
+        if (*it == this) {
+            it.remove();
+            break; } }
     owner->ifacelock.unlock(&token); }
-
-controlinterface::~controlinterface() {
-    assert(!started);
-    assert(invoking.empty());
-    assert(active == 0); }
 
 controlconn::controlconn(const rpcconn::rpcconntoken &tok,
                          controlserver *_owner)
@@ -94,12 +82,12 @@ controlconn::invoke(const std::function<void (controlinterface *)> &f) {
     assert(invoking.empty());
     for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
         auto iface(*it);
-        if (iface->started) {
+        if (iface->inuse) {
             iface->invoking.pushtail(this);
             invoking.pushtail(iface); } }
     while (!invoking.empty()) {
         auto iface(invoking.pophead());
-        assert(iface->started);
+        assert(iface->inuse);
         iface->active++;
         assert(iface->active != 0);
         bool found = false;

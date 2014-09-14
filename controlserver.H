@@ -16,8 +16,9 @@ class controlserver;
 class controlinterface {
     /* All fields are protected by owner->ifacelock. */
     friend class controlconn;
-private: bool started; /* True if we're started() and not
-                        * stopped(). */
+private: bool inuse; /* Starts true, remains true until we're too far
+                        through shutdown to accept further
+                        requests. */
 private: list<controlconn *> invoking; /* Inverse index for the
                                         * controlconn @invoking
                                         * list. */
@@ -29,23 +30,17 @@ private: publisher idle; /* signalled whenever we enter a state where
 private: controlserver *const owner;
 
     /* Construct a new control interface and register it with the
-       control server.  The interface is initially stopped and will
-       not start accepting requests until ::start() is called. */
+       control server.  The interface starts accepting queries as soon
+       as it is constructed. */
 protected: controlinterface(controlserver *);
-    /* Start accepting new requests on this interface.  Once this is
-       called, new requests can come in to ::getstatus() and
-       ::getlistening() at any time until ::stop() is called. */
-public:    void start();
     /* Add parameters to a STATUS query. */
 public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
     /* Add parameters to a LISTENING query. */
 public:    virtual void getlistening(wireproto::resp_message *msg) const = 0;
-    /* Stop calling ::getstatus()/::getlistening() on this interface,
-       waiting for any extant invocations to finish before returning.
-       The interface will remain stopped until start() is called. */
-public:    void stop();
-    /* Destruct the interface.  The interface must be stopped before
-     * this is called. */
+    /* Destruct the interface, waiting for any extant invocations of
+     * getstatus() and getlistening() to finish if necessarry.  We get
+     * away with waiting from a destructor because all the getstatus()
+     * and getlistening() methods are guaranteed to be quick. */
 public:    virtual ~controlinterface();
 };
 
@@ -76,6 +71,8 @@ class controlserver : public rpcserver {
     friend class thread;
     friend class controlinterface;
 private: list<controlinterface *> ifaces; /* Protected by @ifacelock */
+    /* Invoked from constructors and destructors -> must be small and
+     * leaf */
 private: mutex_t ifacelock;
 private: waitbox<shutdowncode> &shutdown;
 private: controlserver(constoken,

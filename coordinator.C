@@ -95,8 +95,7 @@ coordinator::coordinator(
       ms(_ms),
       rs(_rs),
       connconfig(_config),
-      controliface(this, cs) {
-    controliface.start(); }
+      controliface(this, cs) {}
 
 orerror<rpcconn *>
 coordinator::accept(socket_t s) {
@@ -166,11 +165,6 @@ coordinator::get(const slavename &_name) const {
             return res; } }
     mux.unlock(&token);
     return Nothing; }
-
-void
-coordinator::destroy(clientio io) {
-    controliface.stop();
-    rpcserver::destroy(io); }
 
 orerror<coordinator *>
 coordinator::build(

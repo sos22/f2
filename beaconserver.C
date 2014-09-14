@@ -80,8 +80,7 @@ beaconserver::beaconserver(thread::constoken tok,
       listenfd(_listenfd),
       shutdown(),
       errors(0),
-      rx(0) {
-    controliface_.start(); }
+      rx(0) {}
 
 beaconserver::controliface::controliface(beaconserver *server,
                                          controlserver *cs)
@@ -201,7 +200,6 @@ beaconserver::run(clientio io)
 void
 beaconserver::destroy(clientio io)
 {
-    controliface_.stop();
     shutdown.set(true);
     auto l(listenfd);
     join(io);
