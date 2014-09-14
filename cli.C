@@ -48,20 +48,11 @@ main(int argc, const char *const argv[])
     r = 0;
     if (!strcmp(mode, "PING")) {
         if (nrargs != 0) errx(1, "PING mode takes no arguments");
-        auto m = c.success()->call(
-            clientio::CLIENTIO,
-            wireproto::req_message(proto::PING::tag,
-                                   c.success()->allocsequencenr()).
-            addparam(proto::PING::req::msg, "Hello"));
-        if (m.issuccess()) {
-            fields::print("master sequence " +
-                          fields::mk(m.success()->getparam(proto::PING::resp::cntr)) +
-                          ", message " +
-                          fields::mk(m.success()->getparam(proto::PING::resp::msg)) +
-                          "\n");
-            delete m.success();
-        } else {
-            m.failure().fatal("sending ping"); }
+        delete c.success()->call(
+	    clientio::CLIENTIO,
+	    wireproto::req_message(proto::PING::tag,
+                                   c.success()->allocsequencenr()))
+	    .fatal("sending ping");
     } else if (!strcmp(mode, "LOGS")) {
         if (nrargs) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);

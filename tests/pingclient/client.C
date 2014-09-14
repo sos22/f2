@@ -23,14 +23,11 @@ main(int argc, char *argv[]) {
                   peer,
                   rpcconnconfig::dflt)
               .fatal("connecting to " + fields::mk(peer)));
-    auto cr(conn->call(
-                clientio::CLIENTIO,
-                wireproto::req_message(proto::PING::tag,
-                                       conn->allocsequencenr()))
-            .fatal("sending PING"));
-    fields::print(
-        "PING " + fields::mk(cr->getparam(proto::PING::resp::cntr)));
-    delete cr;
+    delete conn->call(
+	clientio::CLIENTIO,
+	wireproto::req_message(proto::PING::tag,
+			       conn->allocsequencenr()))
+	.fatal("sending PING");
     conn->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();

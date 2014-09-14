@@ -969,12 +969,8 @@ rpcconn::messageresult::failure() const {
 
 rpcconn::messageresult
 rpcconn::message(const wireproto::rx_message &msg, messagetoken) {
-    if (msg.tag() == proto::PING::tag) {
-        static int cntr;
-        return &(*new wireproto::resp_message(msg))
-            .addparam(proto::PING::resp::cntr, cntr++);
-    } else {
-        return error::unimplemented; } }
+    if (msg.tag() == proto::PING::tag) return new wireproto::resp_message(msg);
+    else return error::unimplemented; }
 
 rpcconn::postedcall::postedcall(
     rpcconn *conn,
