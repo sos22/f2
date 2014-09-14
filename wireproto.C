@@ -62,9 +62,10 @@ tx_message::serialised_size() const
     return sz;
 }
 
-void
+tx_message &
 tx_message::flush() {
-    params.flush(); }
+    params.flush();
+    return *this; }
 
 void
 tx_message::serialise(buffer &buffer, sequencenr snr) const
@@ -1150,4 +1151,15 @@ tests::wireproto() {
                 .fatal("extracting list");
             assert(x.eq(y));
             x.flush();
-            y.flush(); }); }
+            y.flush(); });
+
+    testcaseV("wireproto", "flush", [] {
+	    parameter<int> param(1);
+	    ::buffer buf;
+	    tx_message(msgtag(2))
+		.addparam(param, 5)
+		.flush()
+		.serialise(buf);
+	    assert(rx_message::fetch(buf)
+		   .fatal("decoding message")
+		   .getparam(param) == Nothing); }); }

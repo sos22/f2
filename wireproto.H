@@ -165,7 +165,7 @@ namespace wireproto {
         virtual ~tx_message();
         virtual void serialise(buffer &buf) const;
         /* Remove all of the message parameters attached so far. */
-        void flush();
+        tx_message &flush();
     protected:
         void serialise(buffer &buf, sequencenr snr) const;
     public: size_t serialised_size() const;
