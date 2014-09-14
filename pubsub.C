@@ -70,7 +70,7 @@ iopollingthread::run(clientio io) {
             r--;
             if (i == 0) {
                 /* Control FD is handled as part of the general loop
-                 * processing. */
+                 * processing, so just clear the message. */
                 char b;
                 auto readres(readcontrolfd.read(io, &b, 1));
                 if (!COVERAGE && readres.isfailure()) {
@@ -148,8 +148,17 @@ iopollingthread::detach(iosubscription &sub) {
                 break; } }
         assert(found);
         mux.unlock(&token); }
-    /* Don't wake polling thread up just to tell them to stop
-       listening on this FD; what would be the point? */ }
+    /* Surprise!  If you have a poll() which is listening on FDs A and
+     * B and you close B at about the same time as A becomes readable
+     * the kernel wil occasionally completely fail to wake you up.
+     * Not waking up for B being closed is pretty reasonable, but not
+     * waking up for A becoming readable seems like a bug (although
+     * it's not one I've been able to reproduce in a small, controlled
+     * test case).  In either case, waking the iopoll thread here
+     * seems to fix things. */
+    auto r(writecontrolfd.write(clientio::CLIENTIO, "Z", 1));
+    if (!COVERAGE && r.isfailure()) {
+        r.failure().fatal("waking up poller thread for lost FD"); } }
 
 void
 iopollingthread::stop(clientio io) {
