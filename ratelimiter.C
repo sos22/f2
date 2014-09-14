@@ -205,7 +205,7 @@ tests::ratelimiter() {
                    timestamp not quite matching the one used for
                    bucket refill).  Reflect that in an asymmetric
                    acceptable range. */
-                assert(count >= (int)((n - start) * freq) - 100);
+                assert(count >= (int)((n - start) * freq) - 200);
                 assert(count <= (int)((n - start) * freq) + 5);
                 if (res) lastsuccess = n; } });
     auto bursty(
