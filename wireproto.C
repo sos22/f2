@@ -1135,11 +1135,10 @@ tests::wireproto() {
             tx_message(msgtag(1))
                 .addparam(lparam, x)
                 .serialise(buf);
-            assert(x.eq(
-                       rx_message::fetch(buf)
-                       .fatal("fetch message we just built")
-                       .getparam(lparam)
-                       .fatal(fields::mk("extracting list")))); });
+            assert(x == rx_message::fetch(buf)
+                   .fatal("fetch message we just built")
+                   .getparam(lparam)
+                   .fatal(fields::mk("extracting list"))); });
 
     testcaseV("wireproto", "flush", [] {
 	    parameter<int> param(1);

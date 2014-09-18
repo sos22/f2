@@ -9,7 +9,6 @@
 #include "parsers.H"
 #include "peername.H"
 #include "pubsub.H"
-#include "registrationsecret.H"
 #include "shutdown.H"
 #include "storageconfig.H"
 #include "storageslave.H"

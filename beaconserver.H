@@ -1,121 +1,99 @@
-/* The beacon server is a thing which listens for broadcast slave
-   HELLO messages and tells them where the master is.  It doesn't
-   do anything else, so e.g. it doesn't track who it*/
+/* The beacon server is a thing which listens for incoming BEACON
+ * requests and, if they match our configuration, replies with BEACON
+ * responses.  It also sends a unilateral BEACON response to the
+ * broadcast interface when it starts, just to help things get
+ * started. */
 #ifndef BEACONSERVER_H__
 #define BEACONSERVER_H__
 
+#include "actortype.H"
+#include "beacon.H"
+#include "clustername.H"
 #include "controlserver.H"
-#include "mastersecret.H"
 #include "peername.H"
-#include "quickcheck.H"
-#include "ratelimiter.H"
-#include "registrationsecret.H"
-#include "rpcconn.H"
-#include "thread.H"
+#include "slavename.H"
+#include "timedelta.H"
+#include "tuple.H"
 #include "udpsocket.H"
+#include "wireproto.H"
 
-class frequency;
+class clientio;
 
-class beaconstatus {
-WIREPROTO_TYPE(beaconstatus);
-public: registrationsecret secret;
-public: ratelimiter_status limiter;
-public: unsigned errors;
-public: unsigned rx;
-public: beaconstatus(const registrationsecret &_secret,
-                     const ratelimiter_status &_limiter,
-                     unsigned _errors,
-                     unsigned _rx)
-    : secret(_secret),
-      limiter(_limiter),
-      errors(_errors),
-      rx(_rx) {}
-public: beaconstatus(const quickcheck &q)
-    : secret(q),
-      limiter(q),
-      errors(q),
-      rx(q) {}
-public: bool operator==(const beaconstatus &o) const {
-    return secret == o.secret &&
-        limiter == o.limiter &&
-        errors == o.errors &&
-        rx == o.rx; }
-};
-
-namespace fields {
-const field &mk(const beaconstatus &);
-}
-
+#define _beaconserverconfig(ctxt, iter0, iter1)                         \
+    iter0(ctxt, 1, ref, ::beaconconfig, proto)                          \
+    /* What cluster are we broadcasting our beacon messages into? */    \
+    iter0(ctxt, 2, ref, clustername, cluster)                           \
+    /* Who are we advertising? */                                       \
+    iter0(ctxt, 3, ref, slavename, name)                                \
+    /* What interface do they support? */                               \
+    iter0(ctxt, 4, value, actortype, type)                              \
+    /* What TCP port are they listening on? */                          \
+    iter0(ctxt, 5, ref, peernameport, port)                             \
+    /* How long may clients cache our responses for?  Note that this */ \
+    /* will be measured from the point they receive the response, and */ \
+    /* not the point at which we send it i.e. the actual liveness time */ \
+    /* is this plus one network delay. */                               \
+    iter1(ctxt, 6, value, timedelta, cachetime)
 class beaconserverconfig {
-    friend class beaconserver;
-#define mkfield(type, name)                                     \
-    private: type name ##_;                                     \
-public:  beaconserverconfig name(const type &_ ## name) {       \
-    beaconserverconfig res(*this);                              \
-    res.name ##_ = _ ## name;                                   \
-    return res; }
-    mkfield(peername, coordinator)
-    mkfield(ratelimiterconfig, limiter)
-    mkfield(mastersecret, ms)
-    mkfield(peername::port, port)
-    mkfield(registrationsecret, rs)
-#undef mkfield
-public: beaconserverconfig(const registrationsecret &_rs,
-                           const peername &_coordinator,
-                           const ratelimiterconfig &_limiter,
-                           const mastersecret &_ms,
-                           peername::port _port)
-    : coordinator_(_coordinator),
-      limiter_(_limiter),
-      ms_(_ms),
-      port_(_port),
-      rs_(_rs) {} };
+    mktuplefields(beaconserverconfig, public); };
+mktupleext(beaconserverconfig);
+
+#define _beaconserverstatus(ctxt, iter0, iter1)                         \
+    iter0(ctxt, 1, ref, ::beaconserverconfig, config)                   \
+    /* How many errors have we encountered, ever? */                    \
+    iter0(ctxt, 2, value, unsigned, errors)                             \
+    /* How many requests have we ignored due to filter mismatches, */   \
+    /* ever? */                                                         \
+    iter1(ctxt, 3, value, unsigned, ignored)
+class beaconserverstatus {
+    mktuplefields(beaconserverstatus, public); };
+mktupleext(beaconserverstatus);
 
 class beaconserver : private thread {
     friend class thread;
     friend class pausedthread<beaconserver>;
-    friend class statusiface;
 
-    class controliface : public controlinterface {
+private: class controliface : public controlinterface {
     private: beaconserver *owner;
     public:  controliface(beaconserver *_owner, controlserver *cs);
     public:  void getstatus(wireproto::tx_message *) const;
     public:  void getlistening(wireproto::resp_message *) const;
     };
 
-public:  controliface controliface_;
-    registrationsecret secret;
-    peername mastername;
-    mastersecret mastersecret_;
-    ratelimiter limiter;
-    udpsocket listenfd;
-    waitbox<bool> shutdown;
+private: beaconserver() = delete;
+private: beaconserver(const beaconserver &) = delete;
+private: void operator=(const beaconserver &) = delete;
 
-    unsigned errors; /* total number of errors, ever */
-    unsigned rx; /* total number of packets received, ever */
+private: controliface controliface_;
+private: beaconserverconfig config;
+private: udpsocket listenfd;
+private: udpsocket clientfd;
+private: waitbox<void> shutdown;
+private: unsigned errors; /* total number of errors, ever */
+private: unsigned ignored; /* total number of ignored requests,
+                            * excluding errors, ever */
 
-    beaconserver(thread::constoken,
-                 const beaconserverconfig &config,
-                 controlserver *cs,
-                 udpsocket listenfd);
+    /* Construct a new beacon server.  We expose listening and status
+     * interfaces over the controlserver cs. */
+public:  static orerror<beaconserver *> build(const beaconserverconfig &,
+                                              controlserver *cs);
+    /* Use build() */
+private: beaconserver(thread::constoken,
+                      const beaconserverconfig &config,
+                      controlserver *cs,
+                      udpsocket listenfd,
+                      udpsocket clientfd);
+private: void run(clientio);
 
-    void run(clientio);
+    /* Shut down a beacon server. */
+public: void destroy(clientio);
 
-    beaconserver() = delete;
-    beaconserver(const beaconserver &) = delete;
-    void operator=(const beaconserver &) = delete;
-public:
-    static orerror<beaconserver *> build(const beaconserverconfig &,
-                                         controlserver *);
-    void destroy(clientio);
+    /* Use destroy() instead */
+private: ~beaconserver();
 
-public: typedef beaconstatus status_t;
+public: typedef beaconserverstatus status_t;
 public: status_t status() const;
-};
 
-namespace tests {
-template <typename> class event;
-extern event<udpsocket> beaconserverreceive;
-}
+public: typedef beaconserverconfig config_t; };
 
 #endif /* !BEACONSERVER_H__ */

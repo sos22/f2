@@ -21,122 +21,30 @@ rpcconn::postedcall::addparam(wireproto::parameter<t> tmpl, const t &what) {
 
 template <typename conn_t, typename... args> orerror<conn_t *>
 rpcconn::fromsocket(socket_t sock,
-                    const rpcconnauth &auth,
                     const rpcconnconfig &config,
                     args &&... parameters) {
     auto peer(sock.peer());
     if (peer.isfailure()) return peer.failure();
     else return thread::_spawn<conn_t, rpcconntoken, args...>(
         "IO:"+fields::mk(peer.success()),
-        [sock, &auth, &config, &peer] (const thread::constoken &inner) {
-            return rpcconntoken(inner, sock, auth, config, peer.success()); },
+        [sock, &config, &peer] (const thread::constoken &inner) {
+            return rpcconntoken(inner, sock, config, peer.success()); },
         std::forward<args>(parameters)...)
              .go(); }
 
-template <typename conn_t, typename... args> orerror<conn_t *>
-rpcconn::fromsocketnoauth(socket_t sock,
-                          const class slavename &theirname,
-                          actortype theirtype,
-                          const rpcconnconfig &config,
-                          args &&... parameters) {
-    return fromsocket<conn_t, args...>(
-        sock,
-        rpcconnauth::mkdone(theirname, theirtype),
-        config,
-        std::forward<args>(parameters)...); }
-
-template <typename conn_t, typename... args> orerror<conn_t *>
-rpcconn::connectmaster(clientio io,
-                       const beaconresult &br,
-                       const class slavename &slavename,
-                       actortype ourtype,
-                       const rpcconnconfig &config,
-                       args ... parameters) {
-    /* No need to authenticate: we assume that the caller has already
-       done enough to check that the peername is correct (that is the
-       point of beacon protocol, after all) and the crypto isn't
-       strong enough to do more than that anyway. */
-    auto res(connectnoauth<conn_t>(io,
-                                   ::slavename("<master>"),
-                                   actortype::master,
-                                   br.mastername,
-                                   config,
-                                   parameters...));
-    if (res.isfailure()) return res.failure();
-    auto conn(res.success());
-    auto hellores(conn->call(
-                      io,
-                      wireproto::req_message(proto::HELLO::tag,
-                                             conn->allocsequencenr())
-                      .addparam(proto::HELLO::req::version, 1u)
-                      .addparam(proto::HELLO::req::nonce, br.nonce)
-                      .addparam(proto::HELLO::req::peername,
-                                br.connectingname)
-                      .addparam(proto::HELLO::req::slavename,
-                                slavename)
-                      .addparam(proto::HELLO::req::type,
-                                ourtype)
-                      .addparam(proto::HELLO::req::digest,
-                                digest("B" +
-                                       fields::mk(br.nonce) +
-                                       fields::mk(br.secret)))));
-    if (hellores.isfailure()) {
-        conn->destroy(io);
-        return hellores.failure(); }
-    logmsg(loglevel::notice,
-           "connected to master at " + fields::mk(br.mastername));
-    return conn; }
-
-template <typename conn_t, typename ... args> orerror<conn_t *>
-rpcconn::connectslave(clientio io,
-                      const peername &peer,
-                      const registrationsecret &rs,
-                      const class slavename &ourname,
-                      actortype ourtype,
-                      const rpcconnconfig &config,
-                      args ... parameters) {
-    waitbox<orerror<void> > wb;
-    auto res(connect<conn_t>(io,
-                             rpcconnauth::mkwaithelloslavea(
-                                 rs, &wb, ourname, ourtype),
-                             peer,
-                             config,
-                             parameters...));
-    if (res.isfailure()) return res.failure();
-    auto r(wb.get(io));
-    if (r.isfailure()) {
-        res.success()->destroy(io);
-        return r.failure(); }
-    return res.success(); }
-
 template <typename conn_t, typename ... args> orerror<conn_t *>
 rpcconn::connect(clientio io,
-                 const rpcconnauth &auth,
                  const peername &p,
                  const rpcconnconfig &config,
                  args &&... parameters) {
+    /* XXX send version number */
     auto s(tcpsocket::connect(io, p));
     if (s.isfailure()) return s.failure();
     auto r(fromsocket<conn_t>(
                s.success(),
-               auth,
                config,
                std::forward<args>(parameters)...));
     if (r.isfailure()) s.success().close();
     return r; }
-
-template <typename conn_t, typename ... args> orerror<conn_t *>
-rpcconn::connectnoauth(clientio io,
-                       const class slavename &theirname,
-                       actortype theirtype,
-                       const peername &p,
-                       const rpcconnconfig &config,
-                       args &&... parameters) {
-    return connect<conn_t, args...>(
-        io,
-        rpcconnauth::mkdone(theirname, theirtype),
-        p,
-        config,
-        std::forward<args>(parameters)...); }
 
 #endif /* !RPCCONN_TMPL__ */

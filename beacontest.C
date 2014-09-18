@@ -5,13 +5,10 @@
 #include "controlserver.H"
 #include "fields.H"
 #include "logging.H"
-#include "mastersecret.H"
-#include "nonce.H"
 #include "pair.H"
 #include "peername.H"
 #include "proto.H"
 #include "pubsub.H"
-#include "registrationsecret.H"
 #include "test.H"
 
 #include "parsers.tmpl"

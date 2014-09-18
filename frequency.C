@@ -7,6 +7,9 @@
 #include "timedelta.H"
 
 #include "parsers.tmpl"
+#include "wireproto.tmpl"
+
+wireproto_simple_wrapper_type(frequency, double, hz_)
 
 frequency
 frequency::hz(double hz)

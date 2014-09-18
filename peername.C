@@ -30,6 +30,9 @@
 const peername::port
 peername::port::any(0);
 
+wireproto_wrapper_type(peername)
+wireproto_simple_wrapper_type(peernameport, unsigned short, p)
+
 peername::peername(const quickcheck &q) {
     switch (random() % 3) {
     case 0: {
@@ -165,7 +168,7 @@ fields::mk(const peername &p) {
 
 const fields::field &
 fields::mk(const peername::port &p) {
-    return "<port:" + mk(p.unwrap()) + ">"; }
+    return "<port:" + mk(p.p) + ">"; }
 
 void
 peername::addparam(wireproto::parameter<peername> tmpl,
@@ -185,7 +188,8 @@ peername::addparam(wireproto::parameter<peername> tmpl,
         tx.addparam(proto::peername::ipv4,
                     *(uint32_t *)&((const struct sockaddr_in *)sa)->sin_addr);
         tx.addparam(proto::peername::port,
-                    ((const struct sockaddr_in *)sa)->sin_port);
+                    peername::port(
+                        ntohs(((const struct sockaddr_in *)sa)->sin_port)));
         break;
     case AF_INET6:
         tx.addparam(
@@ -195,7 +199,8 @@ peername::addparam(wireproto::parameter<peername> tmpl,
             proto::peername::ipv6b,
             ((uint64_t *)&((const struct sockaddr_in6 *)sa)->sin6_addr)[1]);
         tx.addparam(proto::peername::port,
-                    ((const struct sockaddr_in6 *)sa)->sin6_port);
+                    peername::port(
+                        ntohs(((const struct sockaddr_in6 *)sa)->sin6_port)));
         break;
     default:
         abort();
@@ -216,8 +221,8 @@ peername::fromcompound(const wireproto::rx_message &msg)
         return peername(
             (struct sockaddr *)&un,
             (unsigned)(msg.getparam(proto::peername::wildcardlocal).dflt(false)
-		       ? sizeof(sa_family_t)
-		       : sizeof(un))); }
+                       ? sizeof(sa_family_t)
+                       : sizeof(un))); }
     auto port(msg.getparam(proto::peername::port));
     if (port == Nothing) return Nothing;
     auto ipv4(msg.getparam(proto::peername::ipv4));
@@ -225,7 +230,7 @@ peername::fromcompound(const wireproto::rx_message &msg)
         struct sockaddr_in in;
         memset(&in, 0, sizeof(in));
         in.sin_family = AF_INET;
-        in.sin_port = port.just();
+        in.sin_port = htons(port.just().p);
         *(uint32_t *)&in.sin_addr = ipv4.just();
         return peername((struct sockaddr *)&in, sizeof(in));
     }
@@ -235,20 +240,16 @@ peername::fromcompound(const wireproto::rx_message &msg)
     struct sockaddr_in6 in6;
     memset(&in6, 0, sizeof(in6));
     in6.sin6_family = AF_INET6;
-    in6.sin6_port = port.just();
+    in6.sin6_port = htons(port.just().p);
     ((uint64_t *)&in6.sin6_addr)[0] = ipv6a.just();
     ((uint64_t *)&in6.sin6_addr)[1] = ipv6b.just();
     return peername((struct sockaddr *)&in6, sizeof(in6));
 }
 
-peername::port::port(const quickcheck &q) {
+peername::port::peernameport(const quickcheck &q) {
     do {
         p = (unsigned short)q;
     } while (p <= 1024); }
-
-peername::port::port(int _p)
-    : p((uint16_t)_p) {
-    assert(_p >= 0 && _p < 65536); }
 
 peername
 peername::udpbroadcast(peername::port p)
@@ -314,6 +315,36 @@ peername::samehost(const peername &o) const {
     default:
         abort();
     } }
+
+/* Check whether the address represented is a non-unicast one. */
+bool
+peername::isbroadcast() const {
+    switch (sockaddr()->sa_family) {
+    case PF_LOCAL: return false;
+    case PF_INET: {
+        auto sa((const struct sockaddr_in *)sockaddr());
+        return (sa->sin_addr.s_addr & 0xf0) == 0xe0 ||
+            sa->sin_addr.s_addr == 0 ||
+            sa->sin_addr.s_addr == 0xffffffff; }
+    case PF_INET6: {
+        auto sa((const struct sockaddr_in6 *)sockaddr());
+        return sa->sin6_addr.s6_addr[0] == 0xff; }
+    default:
+        abort(); } }
+
+peername
+peername::setport(port p) const {
+    switch (sockaddr()->sa_family) {
+    case PF_LOCAL: abort();
+    case PF_INET: {
+        auto sa(*(const struct sockaddr_in *)sockaddr());
+        sa.sin_port = htons(p.p);
+        return peername((const struct sockaddr *)&sa, sizeof(sa)); }
+    case PF_INET6: {
+        auto sa(*(const struct sockaddr_in6 *)sockaddr());
+        sa.sin6_port = htons(p.p);
+        return peername((const struct sockaddr *)&sa, sizeof(sa)); }
+    default: abort(); } }
 
 const struct sockaddr *
 peername::sockaddr() const {

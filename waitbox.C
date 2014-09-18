@@ -15,6 +15,15 @@ waitbox<void>::get(clientio io) const {
     subscription s(sub, pub);
     while (!ready()) sub.wait(io); }
 
+maybe<void>
+waitbox<void>::get(clientio io, timestamp deadline) const {
+    subscriber sub;
+    subscription s(sub, pub);
+    while (!ready()) {
+        auto r = sub.wait(io, deadline);
+        if (r == NULL) return Nothing; }
+    return maybe<void>::just; }
+
 bool
 waitbox<void>::ready() const {
     auto token(mux.lock());

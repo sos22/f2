@@ -11,7 +11,7 @@ rpcserver::listen(const peername &p, args &&... params) {
     if (s.isfailure()) return s.failure();
     else return pausedrpcserver<t>(
         thread::spawn<t>(
-            fields::mk("root " + fields::mk(p)),
+            "root " + fields::mk(p),
             s.success(),
             params...)); }
 

@@ -9,6 +9,9 @@
 
 #include "either.tmpl"
 #include "parsers.tmpl"
+#include "wireproto.tmpl"
+
+wireproto_simple_wrapper_type(digest, unsigned long, val)
 
 digest::digest(const fields::field &what)
 {

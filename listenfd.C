@@ -16,6 +16,8 @@
 #include "maybe.tmpl"
 #include "wireproto.tmpl"
 
+#include "fieldfinal.H"
+
 orerror<socket_t>
 listenfd::accept(clientio) const
 {

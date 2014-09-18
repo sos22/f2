@@ -26,6 +26,7 @@ private: slavename() = delete;
 public:  slavename(const slavename &);
 public:  slavename(const quickcheck &);
 public:  bool operator==(const slavename &) const;
+public:  bool operator!=(const slavename &) const;
 WIREPROTO_WRAPPER_TYPE(slavename, string, public);
 };
 

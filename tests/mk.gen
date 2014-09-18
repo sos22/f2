@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cat <<EOF
+include tests/beacon/client.mk
+include tests/beacon/server.mk
+EOF

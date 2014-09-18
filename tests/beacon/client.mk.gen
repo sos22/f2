@@ -1,0 +1,6 @@
+#! /bin/bash
+
+. shutil
+
+cc tests/beacon/client.C
+ld tests/beacon/client tests/beacon/client.o libR.a

@@ -6,4 +6,10 @@ maybe<t>::maybe(const quickcheck &o)
     : r(o) {
     if (!r) new (content) t(o); }
 
+template <typename t> template <typename ... args> void
+maybe<t>::mkjust(args &&...params) {
+    if (!r) just().~t();
+    r = false;
+    ::new (content) t(std::forward<args>(params)...); }
+
 #endif /* !MAYBE_TMPL__ */

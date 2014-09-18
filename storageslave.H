@@ -49,7 +49,6 @@ private: class controliface : public controlinterface {
     private: void getlistening(wireproto::resp_message *) const;
     };
 private: controliface control_;
-private: registrationsecret const rs;
 private: struct _masterconn {
     mutable mutex_t lock;
     storageslaveconn *conn;
@@ -72,7 +71,6 @@ public:  static orerror<storageslave *> build(
     controlserver *);
 private: storageslave(constoken,
                       listenfd,
-                      const registrationsecret &_rs,
                       controlserver *cs,
                       const storageconfig &config);
 private: orerror<rpcconn *> accept(socket_t);

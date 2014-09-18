@@ -22,6 +22,9 @@ public:  const publisher &pub;
     void set(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
     const t &get(clientio) const;
+    /* Wait for the waitbox with a timeout, returning its contents if
+     * it is set or Nothing if we time out. */
+    maybe<t> &get(clientio, timestamp) const;
     /* Return the contents of the waitbox if it's been set and Nothing
      * otherwise. */
     maybe<t> poll() const;
@@ -40,6 +43,7 @@ public:  waitbox() : mux(), content(Nothing), pub(pub_) {};
 public:  const publisher &pub;
 public:  void set();
 public:  void get(clientio) const;
+public:  maybe<void> get(clientio, timestamp) const;
 public:  bool ready() const;
 };
 

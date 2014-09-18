@@ -8,14 +8,16 @@ function bits() {
         echo $1$suffix
     }
     _ actortype
+    _ beacon
     _ beaconclient
     _ beaconserver
     _ buffer
     _ buildconfig
     _ buildconfigimpl
+    _ clustername
+    _ clustersecret
     _ cond
     _ controlserver
-    _ coordinator
     _ digest
     _ either
     _ error
@@ -38,7 +40,6 @@ function bits() {
     _ pubsub
     _ quickcheck
     _ ratelimiter
-    _ registrationsecret
     _ rpcconn
     _ rpcserver
     _ shutdown
@@ -71,6 +72,8 @@ do
 done
 
 ar lib.a $(bits .o)
+
+ar libR.a actortype.o beacon.o beaconclient.o beaconserver.o buffer.o buildconfig.o buildconfigimpl.o clustername.o cond.o controlserver.o error.o fd.o fields.o filename.o frequency.o listenfd.o logging.o maybe.o mutex.o parsers.o peername.o pubsub.o quickcheck.o rpcconn.o rpcserver.o socket.o shutdown.o slavename.o spark.o string.o tcpsocket.o test.o tid.o timedelta.o timestamp.o tmpheap.o thread.o udpsocket.o util.o waitbox.o walltime.o wireproto.o
 
 cat << EOF
 buildconfig.d:

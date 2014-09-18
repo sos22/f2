@@ -157,10 +157,12 @@ namespace wireproto {
         const msgtag t;
         tx_message(msgtag);
         template <typename t> tx_message &addparam(parameter<t>, const t &);
-#ifndef COVERAGESKIP
         template <typename t> tx_message &addparam(parameter<list<t> >,
                                                    const list<t> &);
-#endif
+        template <typename t> tx_message &addparam(parameter<maybe<t> >,
+                                                   const maybe<t> &);
+        template <typename t> tx_message &addparam(parameter<maybe<t> >,
+                                                   const t &);
         tx_message &addparam(parameter<const char *>, const char *);
         virtual ~tx_message();
         virtual void serialise(buffer &buf) const;
@@ -240,6 +242,8 @@ namespace wireproto {
     public:  static orerror<rx_message> fetch(const bufslice &buf);
     public:  static orerror<rx_message> fetch(buffer &buf);
     public:  template <typename typ> maybe<typ> getparam(parameter<typ>) const;
+    public:  template <typename typ> maybe<typ> getparam(
+        parameter<maybe<typ> >) const;
     public:  template <typename typ> maybe<list<typ> >
                  getparam(parameter<list<typ> >) const;
     public:  rx_message *steal();

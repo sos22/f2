@@ -4,13 +4,11 @@
 
 #include "beaconserver.H"
 #include "buildconfig.H"
-#include "coordinator.H"
 #include "fields.H"
 #include "logging.H"
 #include "peername.H"
 #include "proto.H"
 #include "pubsub.H"
-#include "registrationsecret.H"
 #include "rpcconn.H"
 #include "shutdown.H"
 #include "storageslave.H"

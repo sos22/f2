@@ -1,42 +1,27 @@
 #ifndef STORAGECONFIG_H__
 #define STORAGECONFIG_H__
 
-#include "beaconclient.H"
+#include "beaconserver.H"
 #include "filename.H"
 #include "rpcconn.H"
 #include "slavename.H"
-#include "string.H"
+#include "tuple.H"
 
-class quickcheck;
-
+#define _storageconfig(ctxt, iter0, iter1)              \
+    iter0(ctxt, 1, ref, peername, controlsock)          \
+    iter0(ctxt, 2, ref, filename, poolpath)             \
+    iter0(ctxt, 3, ref, beaconserverconfig, beacon)     \
+    iter1(ctxt, 4, ref, rpcconnconfig, connconfig)
 class storageconfig {
-public: peername controlsock;
-public: filename poolpath;
-public: beaconclientconfig beacon;
-public: slavename name;
-public: peername listenon;
-public: rpcconnconfig connconfig;
-public: storageconfig(const peername &_controlsock,
-                      const filename &_poolpath,
-                      const beaconclientconfig &_beacon,
-                      const slavename &_name,
-                      const peername &_listenon,
-                      const rpcconnconfig &_connconfig);
-public: storageconfig(const quickcheck &q);
-public: bool operator==(const storageconfig &o) const; };
-
-namespace fields {
-class field;
-const field &mk(const storageconfig &);
-}
+    mktuplefields(storageconfig, public); };
+mktupleext(storageconfig);
 
 template <typename> class parser;
 namespace parsers {
-const parser<storageconfig> &_storageconfig();
+const parser<storageconfig> &__storageconfig();
 }
 
 namespace tests {
-void _storageconfig();
-}
+void __storageconfig(); }
 
 #endif /* !STORAGECONFIG_H__ */

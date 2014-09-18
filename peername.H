@@ -6,8 +6,25 @@
 #include "wireproto.H"
 
 class filename;
+class peername;
 class quickcheck;
 struct sockaddr;
+
+/* A representation of the port part of an address.  Only really
+   meaningful for IP and IP6 addresses; UNIX sockets return a fixed
+   dummy value. */
+class peernameport {
+    friend class peername;
+    friend class udpsocket;
+public:
+    unsigned short p; /* host byte order */
+    peernameport(const quickcheck &q);
+    bool operator==(const peernameport &o) const { return p == o.p; }
+    /* Special port which can be used to get the OS to allocate an
+       arbitrary port for you. */
+    const static peernameport any;
+    WIREPROTO_WRAPPER_TYPE(peernameport, unsigned short, public);
+};
 
 class peername {
     void *sockaddr_;
@@ -22,22 +39,7 @@ public:
     peername(const struct sockaddr *s, unsigned s_size);
     bool operator==(const peername &o) const;
 
-    /* A representation of the port part of an address.  Only really
-       meaningful for IP and IP6 addresses; UNIX sockets return a
-       fixed dummy value. */
-    class port {
-        friend class peername;
-        friend class udpsocket;
-        unsigned short p; /* host byte order */
-    public:
-        port(const quickcheck &q);
-        explicit port(int);
-        int unwrap() const { return p; }
-        bool operator==(const port &o) const { return p == o.p; }
-        /* Special port which can be used to get the OS to allocate an
-           arbitrary port for you. */
-        const static port any;
-    };
+    typedef peernameport port;
 
     /* Get a peername which can be used to send a UDP broadcast on a
        particular port. */
@@ -62,6 +64,14 @@ public:
     /* Check whether two peernames refer to the same address and
        address family. */
     bool samehost(const peername &p) const;
+
+    /* Check whether a given address is a broadcast address (or, more
+       accurately, any non-unicast address) */
+    bool isbroadcast() const;
+
+    /* Construct a new peername which refers to the same host but on a
+     * different port. */
+    peername setport(port) const;
 
     /* Get the sockaddr for this peer */
     const struct sockaddr *sockaddr() const;

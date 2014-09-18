@@ -32,7 +32,7 @@ private: controlserver *const owner;
     /* Construct a new control interface and register it with the
        control server.  The interface starts accepting queries as soon
        as it is constructed. */
-protected: controlinterface(controlserver *);
+protected: explicit controlinterface(controlserver *cs);
     /* Add parameters to a STATUS query. */
 public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
     /* Add parameters to a LISTENING query. */

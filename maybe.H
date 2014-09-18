@@ -59,6 +59,7 @@ public:
         {
             ::new (content) t(what);
         }
+    template <typename ... args> void mkjust(args &&... params);
     void operator=(const maybe &o)
         {
             if (isjust())
@@ -67,6 +68,10 @@ public:
             if (isjust())
                 new (content) t(o.just());
         }
+    void operator=(const t &o) {
+        if (isjust()) just().~t();
+        r = false;
+        new (content) t(o); }
     bool isnothing() const { return r; }
     bool operator!() const { return isnothing(); }
     bool isjust() const { return !r; }

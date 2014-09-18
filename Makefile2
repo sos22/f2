@@ -12,6 +12,7 @@ include storage.mk
 include storageclient.mk
 include test.mk
 include tests.mk
+include tests/mk
 
 # The all target only builds things which most people would want.  The
 # coverage check and test suite are under a different target.

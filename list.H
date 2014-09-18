@@ -3,6 +3,7 @@
 
 #include <functional>
 
+class quickcheck;
 template <typename> class list;
 
 /* Sorting a linked list is usually a hint that you're doing something
@@ -19,6 +20,8 @@ class list {
 public:
     list(const list &o);
     list(list &&o);
+    list(const quickcheck &);
+
     list steal();
 
     class iter {
@@ -86,10 +89,10 @@ public:
     /* Non-copying interface, suitable for more complicated types. */
     /* Allocate a new item, using the default constructor, place it at
        the end of the list, and return a reference to it. */
-    template <typename... args> t &append(args...);
+    template <typename... args> t &append(args &&...);
     /* Allocate a new item, using the default constructor, place it at
        the start of the list, and return a reference to it. */
-    template <typename... args> t &prepend(args...);
+    template <typename... args> t &prepend(args && ...);
 
     /* Check that the list looks vaguely reasonable */
     void sanitycheck() const;
@@ -104,9 +107,7 @@ public:
     template <typename other_t> list<other_t> map(
         std::function<other_t (const t&)> what) const;
 
-    /* Equality comparison.  Not an operator because it can be quite
-       expensive. */
-    bool eq(const list &o) const;
+    bool operator==(const list &o) const;
 };
 
 #endif /* !LIST_H__ */

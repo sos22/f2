@@ -6,10 +6,12 @@
 #include "wireproto.H"
 
 class actortype;
-class beaconstatus;
+class beaconclientstatus;
+class beaconserverstatus;
 class buffer;
 class bufferstatus;
 class buildconfig;
+class clustername;
 class coordinatorstatus;
 class coordinatorconnstatus;
 class digest;
@@ -22,6 +24,7 @@ class memlog_idx;
 class memlog_entry;
 class nonce;
 class peername;
+class peernameport;
 class rpcconnconfig;
 class rpcconnstatus;
 class rpcserverstatus;
@@ -33,17 +36,12 @@ class streamstatus;
 class ratelimiterconfig;
 class ratelimiter_status;
 class registrationsecret;
+class timedelta;
 class walltime;
 
 namespace proto {
     using namespace wireproto;
 
-    namespace beaconstatus {
-        static const parameter<registrationsecret> secret(1);
-        static const parameter<class ratelimiter_status> limiter(2);
-        static const parameter<unsigned> errors(3);
-        static const parameter<unsigned> rx(4);
-    };
     namespace bufferstatus {
         static const parameter<unsigned long> prod(1);
         static const parameter<unsigned long> cons(2);
@@ -81,7 +79,7 @@ namespace proto {
     };
     namespace peername {
         static const parameter<const char *> local(1);
-        static const parameter<uint16_t> port(2);
+        static const parameter<peernameport> port(2);
         static const parameter<uint32_t> ipv4(3);
         static const parameter<uint64_t> ipv6a(4);
         static const parameter<uint64_t> ipv6b(5);
@@ -112,8 +110,8 @@ namespace proto {
     /* It'll do for now. */
     namespace PING {
         static const msgtag tag(1);
-	/* No request parameters */
-	/* No response parameters */
+        /* No request parameters */
+        /* No response parameters */
     };
     /* Control interface */
 
@@ -144,10 +142,12 @@ namespace proto {
         static const msgtag tag(4);
         /* no request parameters */
         namespace resp {
-            static const parameter< ::beaconstatus> beacon(450);
+            static const parameter< ::beaconserverstatus> beacon(450);
             static const parameter< ::coordinatorstatus> coordinator(451);
             static const parameter< ::storageslavestatus> storageslave(452);
             static const parameter< ::slavename> myname(453);
+            static const parameter<maybe<::beaconclientstatus> >
+                 beaconclient(453);
         };
     };
 
@@ -176,60 +176,81 @@ namespace proto {
         }
     }
 
-    /* Beacon interface */
-    namespace HAIL {
-        static const msgtag tag(7);
+    /* Beacon interface.  Every server in the system is expected to
+     * send periodic BEACON::resp messages to a broadcast (or in
+     * future multicast) interface advertising their capabilities and
+     * the address on which peers should connect to them.  Anything
+     * which can act as a client should listen for these messages and
+     * use them to build up a (slavename,actortype)->peername mapping.
+     * Servers should also listen for BEACON::req messages and respond
+     * to them with unicast BEACON::resp messages to whoever sent the
+     * req; these are used to populate an initial start-of-day table.
+     */
+    namespace BEACON {
         namespace req {
-            static const parameter<unsigned> version(700);
-            static const parameter<class nonce> nonce(701);
+            static const msgtag tag(700);
+            /* Protocol version */
+            static const parameter<unsigned> version(800);
+            /* Filter on who should respond: */
+            /* Always filter by cluster */
+            static const parameter<clustername> cluster(801);
+            /* Optionally filter by slavename */
+            static const parameter<slavename> name(802);
+            /* Optionally filter by type */
+            static const parameter<actortype> type(803);
         }
         namespace resp {
+            static const msgtag tag(750);
+            /* Protocol version */
             static const parameter<unsigned> version(750);
-            static const parameter<class peername> mastername(751);
-            static const parameter<class peername> slavename(752);
-            static const parameter<class masternonce> nonce(753);
-            static const parameter<class digest> digest(754);
+            /* What interface do we expose? */
+            static const parameter<actortype> type(751);
+            /* Persistent identifier for this slave */
+            static const parameter<slavename> name(752);
+            /* Which cluster are we part of? */
+            static const parameter<clustername> cluster(753);
+            /* What TCP port do we offer service on?  The host part of
+             * the peername should be taken from the response's source
+             * address. */
+            static const parameter<peernameport> port(754);
+            /* How long may the recipient beacon client cache this
+             * result for? */
+            static const parameter<timedelta> cachetime(755);
         }
     }
 
+    /* HELLO protocol, used when connecting to a remote server.  The
+     * server and client both know the cluster secret and must arrange
+     * to mutually authenticate each other. */
+    /* This is not a particularly secure protocol (in particular, the
+     * connection we authenticate isn't encrypted at all and is highly
+     * vulnerable to TCP injection), it just makes attacks a little
+     * tiny bit more difficult. */
     namespace HELLO {
-        static const msgtag tag(8);
-        namespace req {
-            static const parameter<unsigned> version(800);
-            static const parameter<class masternonce> nonce(801);
-            static const parameter<class peername> peername(802);
-            static const parameter<class digest> digest(803);
-            static const parameter<class slavename> slavename(804);
-            static const parameter<class actortype> type(805);
-        }
-    }
-
-    namespace HELLOSLAVE {
-        /* Slave hello protocol, used when connecting directly to a
-         * slave.  It's assumed that whoever's doing the connecting
-         * has already checked that they're connecting to the right
-         * place; the aim is to allow the connectee to authenticate
-         * the connector.  When someone connects to a slave, the slave
-         * immediately sends a fresh nonce (message A).  The connector
-         * then replies with message B containing a digest of the
-         * nonce plus the registration secret plus the fixed string
-         * 'C'. The connectee then either drops the connection or
-         * responds with message C. */
+        /* Server starts the protocol by sending message A with a
+         * fresh nonce. */
         namespace A {
-            static const msgtag tag(9);
-            static const parameter<nonce> nonce(900);
-            static const parameter<actortype> type(901);
+            static const msgtag tag(8);
+            static const parameter<nonce> nonce(800);
         }
+        /* Client responds with a message B containing a digest of the
+         * A nonce and the cluster secret, plus a new nonce of its
+         * own.  The digest proves to the server that the client knows
+         * the secret. */
         namespace B {
-            static const msgtag tag(10);
-            /* Digest of 'C'+nonce+registration secret */
-            static const parameter<class digest> digest(950);
-            static const parameter<class slavename> name(951);
-            static const parameter<actortype> type(952);
+            static const wireproto::msgtag tag(9);
+            /* Digest of 'B' + the nonce from message A + the cluster
+             * secret. */
+            static const parameter<digest> digest(900);
+            /* Fresh nonce */
+            static const parameter<nonce> nonce(901);
         }
+        /* Server responds with a message containing a digest of the
+         * secret and the B nonce, proving to the client that the
+         * server knows the secret. */
         namespace C {
-            static const msgtag tag(11);
-            static const parameter<class slavename> name(999);
+            static const wireproto::msgtag tag(10);
+            static const parameter<digest> digest(1000);
         }
     }
 

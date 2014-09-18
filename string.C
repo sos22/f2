@@ -51,7 +51,11 @@ string::operator+(const string &o) const {
 
 bool
 string::operator==(const string &o) const {
-    return strcmp(c_str(), o.c_str()) == 0; }
+    return !(*this != o); }
+
+bool
+string::operator!=(const string &o) const {
+    return strcmp(c_str(), o.c_str()) != 0; }
 
 bool
 string::operator<(const string &o) const {

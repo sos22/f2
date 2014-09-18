@@ -23,4 +23,7 @@ min(const t &a, args ... params) {
     if (r < a) return r;
     else return a; }
 
+#define CONCAT(a, b) a##b
+#define CONCAT2(a, b) CONCAT(a, b)
+
 #endif /* !UTIL_H__ */

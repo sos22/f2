@@ -151,10 +151,8 @@ controlserver::controlserver(constoken token,
 
 orerror<rpcconn *>
 controlserver::accept(socket_t s) {
-    return rpcconn::fromsocketnoauth<controlconn>(
+    return rpcconn::fromsocket<controlconn>(
         s,
-        slavename("<control interface>"),
-        actortype::cli,
         rpcconnconfig::dflt,
         this); }
 

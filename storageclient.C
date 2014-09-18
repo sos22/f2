@@ -10,7 +10,6 @@
 #include "parsers.H"
 #include "peername.H"
 #include "pubsub.H"
-#include "registrationsecret.H"
 #include "rpcconn.H"
 #include "streamname.H"
 #include "streamstatus.H"

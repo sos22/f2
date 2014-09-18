@@ -3,6 +3,13 @@
 
 #include <stdlib.h>
 
+template <typename t>
+list<t>::list(const quickcheck &q)
+    : head(NULL),
+      tail(NULL) {
+    unsigned len((unsigned)q % 128);
+    for (unsigned x = 0; x < len; x++) append(q); }
+
 template <typename t> struct list<t>::member {
     member *next;
     member *prev;
@@ -13,8 +20,8 @@ template <typename t> struct list<t>::member {
         : next(_next), prev(_prev), value(v)
         {}
     template <typename ... args>
-    member(member *_next, member *_prev, int, args...params)
-        : next(_next), prev(_prev), value(params...)
+    member(member *_next, member *_prev, int, args &&...params)
+        : next(_next), prev(_prev), value(std::forward<args>(params)...)
         {}
 };
 
@@ -137,9 +144,9 @@ list<t>::idx(unsigned x) const {
         x--; } }
 
 template <typename t> template <typename ... args> t &
-list<t>::append(args ... params)
+list<t>::append(args &&... params)
 {
-    auto m(new member(NULL, tail, 73, params...));
+    auto m(new member(NULL, tail, 73, std::forward<args>(params)...));
     if (tail) {
         assert(head);
         tail->next = m;
@@ -152,9 +159,9 @@ list<t>::append(args ... params)
 }
 
 template <typename t> template <typename ... args> t &
-list<t>::prepend(args ... params)
+list<t>::prepend(args &&... params)
 {
-    auto m(new member(head, NULL, 73, params...));
+    auto m(new member(head, NULL, 73, std::forward<args>(params)...));
     if (head) {
         assert(tail);
         head->prev = m;
@@ -387,7 +394,7 @@ sort(list<t> &what) {
         cursor1 = next; } }
 
 template <typename t> bool
-list<t>::eq(const list<t> &o) const {
+list<t>::operator==(const list<t> &o) const {
     auto c1(start());
     auto c2(o.start());
     while (true) {

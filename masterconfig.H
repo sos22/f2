@@ -4,7 +4,6 @@
 #include "frequency.H"
 #include "peername.H"
 #include "ratelimiter.H"
-#include "registrationsecret.H"
 #include "rpcconn.H"
 #include "string.H"
 

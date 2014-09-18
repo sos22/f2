@@ -10,7 +10,6 @@
 
 #include "beaconclient.H"
 #include "buildconfig.H"
-#include "coordinator.H"
 #include "fields.H"
 #include "filename.H"
 #include "logging.H"
@@ -19,7 +18,6 @@
 #include "proto.H"
 #include "pubsub.H"
 #include "quickcheck.H"
-#include "registrationsecret.H"
 #include "rpcconn.H"
 #include "shutdown.H"
 #include "spawn.H"

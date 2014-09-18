@@ -31,6 +31,7 @@ public:  static const actortype cli;
 public:  static const actortype test;
 public:  actortype(quickcheck);
 public:  bool operator==(const actortype &o) const { return val == o.val; }
+public:  bool operator!=(const actortype &o) const { return val != o.val; }
 WIREPROTO_WRAPPER_TYPE(actortype, int, private);
 };
 

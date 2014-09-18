@@ -112,6 +112,18 @@ template <typename t> const parser<t> &operator+(
 template <typename t> const parser<t> &operator||(
     const parser<t> &a, const parser<t> &b);
 
+/* Syntactic sugar for mapping over concatenations. */
+namespace parsers {
+template <typename o,
+          typename a,
+          typename b,
+          typename c,
+          typename d,
+          typename e,
+          typename f> const parser<o> &map(
+              const ::parser<pair<pair<pair<pair<pair<a, b>, c>, d>, e>, f> > &in,
+              const std::function<o (a, b, c, d, e, f)> &func); }
+
 namespace tests {
 void parsers(void);
 }

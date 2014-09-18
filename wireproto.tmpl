@@ -7,8 +7,6 @@
 
 #include "orerror.tmpl"
 
-#include "fieldfinal.H"
-
 class quickcheck;
 
 namespace wireproto {
@@ -51,6 +49,10 @@ rx_message::getparam(parameter<list<nested> > p) const {
             res.pushtail(r.just()); } }
     return res; }
 
+template <typename typ> maybe<typ>
+rx_message::getparam(parameter<maybe<typ> > t) const {
+    return getparam(parameter<typ>(t)); }
+
 template <typename nested> tx_message &
 tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
 {
@@ -58,6 +60,15 @@ tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
         addparam(parameter<nested>(tmpl), *it);
     return *this;
 }
+
+template <typename typ> tx_message &
+tx_message::addparam(parameter<maybe<typ> > tmpl, const maybe<typ> &what) {
+    if (what != Nothing) return addparam(parameter<typ>(tmpl), what.just());
+    else return *this; }
+
+template <typename typ> tx_message &
+tx_message::addparam(parameter<maybe<typ> > tmpl, const typ &what) {
+    return addparam(parameter<typ>(tmpl), what); }
 
 template <typename type> void
 roundtrip(unsigned nr = 1000) {

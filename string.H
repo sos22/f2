@@ -17,7 +17,7 @@ const strfield &mk(const string &);
 
 class string {
     friend const fields::strfield &fields::mk(const string &);
-private: const char *content; /* owned malloc() nul-terminated */
+private: const char *content; /* owned malloc()ed nul-terminated */
 public:  string();
     /* Construct a string by stealing a pointer from the caller.  The
        pointer must be malloc()ed and nul-terminated.  The string will
@@ -30,6 +30,7 @@ public:  string(quickcheck &q);
 public:  void operator=(const string &);
 public:  string operator+(const string &) const;
 public:  bool operator==(const string &) const;
+public:  bool operator!=(const string &) const;
 public:  bool operator<(const string &) const;
 public:  bool operator>(const string &) const;
 public:  size_t len() const;

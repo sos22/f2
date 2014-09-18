@@ -13,7 +13,11 @@ slavename::slavename(const slavename &o)
 
 bool
 slavename::operator==(const slavename &o) const {
-    return content == o.content; }
+    return !(content != o.content); }
+
+bool
+slavename::operator!=(const slavename &o) const {
+    return content != o.content; }
 
 slavename::slavename(const quickcheck &q)
     : content(q) {}

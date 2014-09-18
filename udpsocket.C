@@ -18,6 +18,10 @@ udpsocket::listen(peername::port p) {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0)
         return error::from_errno();
+    int one = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) < 0) {
+        ::close(fd);
+        return error::from_errno(); }
     struct sockaddr_in sin;
     memset(&sin, 0, sizeof(sin));
     sin.sin_family = AF_INET;
@@ -78,7 +82,7 @@ udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
     unsigned char sockaddr[4096];
     socklen_t sockaddr_size;
     char rxbuf[65536];
-    
+
     sockaddr_size = sizeof(sockaddr);
     if (deadline == Nothing) {
         recved = recvfrom(fd, rxbuf, sizeof(rxbuf), 0,
@@ -100,8 +104,15 @@ udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
                           (struct sockaddr *)sockaddr, &sockaddr_size); }
     if (recved < 0) return error::from_errno();
     buf.queue(rxbuf, (size_t)recved);
-    return peername((const struct sockaddr *)sockaddr,
-                    sockaddr_size); }
+    peername res((const struct sockaddr *)sockaddr,
+                 sockaddr_size);
+    if (res.isbroadcast()) {
+        logmsg(loglevel::failure,
+               "Received udp packet from a broadcast address " +
+               fields::mk(res) +
+               ", dropping");
+        return error::invalidmessage; }
+    return res; }
 
 orerror<void>
 udpsocket::send(buffer &buf, const peername &p) const {

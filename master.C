@@ -4,14 +4,12 @@
 
 #include "beaconserver.H"
 #include "controlserver.H"
-#include "coordinator.H"
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
 #include "masterconfig.H"
 #include "parsers.H"
 #include "pubsub.H"
-#include "registrationsecret.H"
 #include "shutdown.H"
 #include "waitbox.H"
 

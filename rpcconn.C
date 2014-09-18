@@ -31,33 +31,27 @@ namespace proto {
 namespace rpcconnconfig {
 static const wireproto::parameter<unsigned> maxoutgoingbytes(1);
 static const wireproto::parameter<timedelta> pinginterval(2);
-static const wireproto::parameter<timedelta> pingdeadline(3);
-static const wireproto::parameter<ratelimiterconfig> pinglimit(4); }
+static const wireproto::parameter<timedelta> pingdeadline(3); }
 namespace rpcconnstatus {
 static const parameter<class ::bufferstatus> outgoing(1);
 static const parameter<class ::fd_tstatus> fd(2);
 static const parameter<wireproto::sequencerstatus> sequencer(3);
 static const parameter<class ::peername> peername(4);
 static const parameter<class ::walltime> lastcontact(5);
-static const parameter<class ::slavename> otherend(6);
-static const parameter<class ::actortype> otherendtype(7);
-static const parameter<class ::rpcconnconfig> config(8);
-static const parameter<unsigned> pendingtxcall(9);
-static const parameter<unsigned> pendingrxcall(10); } }
+static const parameter<class ::rpcconnconfig> config(6);
+static const parameter<unsigned> pendingtxcall(7);
+static const parameter<unsigned> pendingrxcall(8); } }
 
 rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes,
                              timedelta _pinginterval,
-                             timedelta _pingdeadline,
-                             const ratelimiterconfig &_pinglimiter)
+                             timedelta _pingdeadline)
     : maxoutgoingbytes(_maxoutgoingbytes),
       pinginterval(_pinginterval),
-      pingdeadline(_pingdeadline),
-      pinglimit(_pinglimiter) {}
+      pingdeadline(_pingdeadline) {}
 rpcconnconfig::rpcconnconfig(quickcheck q)
     : maxoutgoingbytes(q),
       pinginterval(q),
-      pingdeadline(q),
-      pinglimit(q) {}
+      pingdeadline(q) {}
 wireproto_wrapper_type(rpcconnconfig)
 void
 rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
@@ -67,8 +61,7 @@ rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
                  .addparam(proto::rpcconnconfig::maxoutgoingbytes,
                            maxoutgoingbytes)
                  .addparam(proto::rpcconnconfig::pinginterval, pinginterval)
-                 .addparam(proto::rpcconnconfig::pingdeadline, pingdeadline)
-                 .addparam(proto::rpcconnconfig::pinglimit, pinglimit)); }
+                 .addparam(proto::rpcconnconfig::pingdeadline, pingdeadline)); }
 maybe<rpcconnconfig>
 rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
 #define doparam(name)                                   \
@@ -77,25 +70,21 @@ rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
     doparam(maxoutgoingbytes);
     doparam(pinginterval);
     doparam(pingdeadline);
-    doparam(pinglimit);
 #undef doparam
     return rpcconnconfig(maxoutgoingbytes.just(),
                          pinginterval.just(),
-                         pingdeadline.just(),
-                         pinglimit.just()); }
+                         pingdeadline.just()); }
 bool
 rpcconnconfig::operator==(const rpcconnconfig &o) const {
     return maxoutgoingbytes == o.maxoutgoingbytes &&
         pinginterval == o.pinginterval &&
-        pingdeadline == o.pingdeadline &&
-        pinglimit == o.pinglimit; }
+        pingdeadline == o.pingdeadline; }
 const fields::field &
 fields::mk(const rpcconnconfig &c) {
     return "<rpcconnconfig:"
         " maxoutgoingbytes:" + fields::mk(c.maxoutgoingbytes) +
         " pinginterval:" + fields::mk(c.pinginterval) +
         " pingdeadline:" + fields::mk(c.pingdeadline) +
-        " pinglimit:" + fields::mk(c.pinglimit) +
         ">"; }
 const parser<rpcconnconfig> &
 parsers::_rpcconnconfig() {
@@ -103,22 +92,18 @@ parsers::_rpcconnconfig() {
             ~(" maxoutgoingbytes:" + intparser<unsigned>()) +
             ~(" pinginterval:" + _timedelta()) +
             ~(" pingdeadline:" + _timedelta()) +
-            ~(" pinglimit:" + _ratelimiterconfig()) +
             ">")
         .map<rpcconnconfig>(
-            [] (const pair<pair<pair< maybe<unsigned>,
-                                      maybe<timedelta> >,
-                                maybe<timedelta> >,
-                           maybe<ratelimiterconfig> > &x) {
+            [] (const pair<pair< maybe<unsigned>,
+                                 maybe<timedelta> >,
+                           maybe<timedelta> > &x) {
                 return rpcconnconfig(
-                    x.first().first().first().dflt(
+                    x.first().first().dflt(
                         rpcconnconfig::dflt.maxoutgoingbytes),
-                    x.first().first().second().dflt(
-                        rpcconnconfig::dflt.pinginterval),
                     x.first().second().dflt(
-                        rpcconnconfig::dflt.pingdeadline),
+                        rpcconnconfig::dflt.pinginterval),
                     x.second().dflt(
-                        rpcconnconfig::dflt.pinglimit)); }); }
+                        rpcconnconfig::dflt.pingdeadline)); }); }
 
 wireproto_wrapper_type(rpcconn::status_t)
 void
@@ -130,10 +115,6 @@ rpcconn::status_t::addparam(wireproto::parameter<rpcconnstatus> tmpl,
     p.addparam(proto::rpcconnstatus::sequencer, sequencer);
     p.addparam(proto::rpcconnstatus::peername, peername_);
     p.addparam(proto::rpcconnstatus::lastcontact, lastcontact);
-    if (otherend.isjust()) {
-        p.addparam(proto::rpcconnstatus::otherend, otherend.just()); }
-    if (otherendtype.isjust()) {
-        p.addparam(proto::rpcconnstatus::otherendtype, otherendtype.just()); }
     p.addparam(proto::rpcconnstatus::config, config);
     p.addparam(proto::rpcconnstatus::pendingtxcall, pendingtxcall);
     p.addparam(proto::rpcconnstatus::pendingrxcall, pendingrxcall);
@@ -158,8 +139,6 @@ rpcconn::status_t::fromcompound(const wireproto::rx_message &p) {
                              sequencer.just(),
                              peername.just(),
                              lastcontact.just(),
-                             p.getparam(proto::rpcconnstatus::otherend),
-                             p.getparam(proto::rpcconnstatus::otherendtype),
                              config.just(),
                              pendingtxcall.just(),
                              pendingrxcall.just()); }
@@ -171,352 +150,10 @@ fields::mk(const rpcconn::status_t &o) {
         " sequencer:" + mk(o.sequencer) +
         " peername:" + mk(o.peername_) +
         " lastcontact:" + mk(o.lastcontact) +
-        " otherend:" + mk(o.otherend) +
-        " otherendtype:" + mk(o.otherendtype) +
         " config:" + mk(o.config) +
         " pendingtxcall:" + mk(o.pendingtxcall) +
         " pendingrxcall:" + mk(o.pendingrxcall) +
         ">"; }
-
-maybe<class slavename>
-rpcconnauth::slavename() const {
-    if (state == s_done) return ((done *)buf)->slave;
-    else return Nothing; }
-
-maybe<actortype>
-rpcconnauth::type() const {
-    if (state == s_done) return ((done *)buf)->type;
-    else return Nothing; }
-
-rpcconnauth
-rpcconnauth::mkdone(const class slavename &remotename,
-                    actortype remotetype) {
-    rpcconnauth r;
-    r.state = s_done;
-    new (r.buf) done(remotename, remotetype);
-    return r; }
-
-rpcconnauth
-rpcconnauth::mkwaithello(
-    const mastersecret &ms,
-    const registrationsecret &rs,
-    const std::function<orerror<void> (orerror<rpcconn *>,
-                                       mutex_t::token)> &finished) {
-    rpcconnauth r;
-    r.state = s_waithello;
-    new (r.buf) waithello(ms, rs, finished);
-    return r; }
-
-rpcconnauth::waithello::waithello(
-    const mastersecret &_ms,
-    const registrationsecret &_rs,
-    const std::function<orerror<void> (orerror<rpcconn *>,
-                                       mutex_t::token)> &_finished)
-    : ms(_ms),
-      rs(_rs),
-      finished(_finished) {}
-
-rpcconnauth::waithello::waithello(const waithello &o)
-    : ms(o.ms),
-      rs(o.rs),
-      finished(o.finished) {}
-
-rpcconnauth
-rpcconnauth::mksendhelloslavea(
-    const registrationsecret &rs,
-    const class slavename &_ourname,
-    actortype _ourtype) {
-    rpcconnauth r;
-    r.state = s_sendhelloslavea;
-    new (r.buf) sendhelloslavea(rs, _ourname, _ourtype);
-    return r; }
-
-rpcconnauth::sendhelloslavea::sendhelloslavea(
-    const registrationsecret &_rs,
-    const class slavename &_ourname,
-    actortype _ourtype)
-    : rs(_rs),
-      ourname(_ourname),
-      ourtype(_ourtype) {}
-
-rpcconnauth
-rpcconnauth::mkwaithelloslavea(
-    const registrationsecret &rs,
-    waitbox<orerror<void> > *wb,
-    const class slavename &_ourname,
-    actortype _ourtype) {
-    rpcconnauth r;
-    r.state = s_waithelloslavea;
-    new (r.buf) waithelloslavea(rs, wb, _ourname, _ourtype);
-    return r; }
-
-rpcconnauth::waithelloslavea::waithelloslavea(
-    const registrationsecret &_rs,
-    waitbox<orerror<void> > *_wb,
-    const class slavename &_ourname,
-    actortype _ourtype)
-    : rs(_rs),
-      wb(_wb),
-      ourname(_ourname),
-      ourtype(_ourtype) {}
-
-rpcconnauth::waithelloslaveb::waithelloslaveb(
-    const registrationsecret &_rs,
-    const nonce &_n,
-    const class slavename &_ourname)
-    : rs(_rs),
-      n(_n),
-      ourname(_ourname) {}
-
-rpcconnauth::rpcconnauth(const rpcconnauth &o)
-    : state(o.state) {
-    switch (state) {
-        /* Not currently used */
-    case s_preinit:
-    case s_waithelloslaveb:
-    case s_waithelloslavec:
-        abort();
-    case s_done:
-        new (buf) done(*(done *)o.buf);
-        return;
-    case s_waithello:
-        new (buf) waithello(*(waithello *)o.buf);
-        return;
-    case s_sendhelloslavea:
-        new (buf) sendhelloslavea(*(sendhelloslavea *)o.buf);
-        return;
-    case s_waithelloslavea:
-        new (buf) waithelloslavea(*(waithelloslavea *)o.buf);
-        return; }
-    abort(); }
-
-rpcconnauth::~rpcconnauth() {
-    switch (state) {
-    case s_preinit:
-        abort();
-    case s_done:
-        ((done *)buf)->~done();
-        return;
-    case s_waithello:
-        ((waithello *)buf)->~waithello();
-        return;
-    case s_sendhelloslavea:
-        ((sendhelloslavea *)buf)->~sendhelloslavea();
-        return;
-    case s_waithelloslavea:
-        ((waithelloslavea *)buf)->~waithelloslavea();
-        return;
-    case s_waithelloslaveb:
-        ((waithelloslaveb *)buf)->~waithelloslaveb();
-        return;
-    case s_waithelloslavec:
-        ((waithelloslavec *)buf)->~waithelloslavec();
-        return; }
-    abort(); }
-
-rpcconnauth::rpcconnauth()
-    : state(s_preinit) {}
-
-rpcconnauth::done::done(const class slavename &o,
-                        actortype p)
-    : slave(o),
-      type(p) {}
-
-void
-rpcconnauth::start(buffer &b) {
-    logmsg(loglevel::info, "start connection in auth state " + fields::mk(state));
-    if (state != s_sendhelloslavea) return;
-    auto n(nonce::mk());
-    auto &ss(*(sendhelloslavea *)buf);
-    wireproto::tx_message(proto::HELLOSLAVE::A::tag)
-        .addparam(proto::HELLOSLAVE::A::nonce, n)
-        .addparam(proto::HELLOSLAVE::A::type, ss.ourtype)
-        .serialise(b);
-    auto rs(ss.rs);
-    auto ourname(ss.ourname);
-    ss.~sendhelloslavea();
-    new (buf) waithelloslaveb(rs, n, ourname);
-    state = s_waithelloslaveb; }
-
-maybe<orerror<wireproto::tx_message *> >
-rpcconnauth::message(rpcconn *conn,
-                     const wireproto::rx_message &rxm,
-                     const peername &peer,
-                     mutex_t::token authtoken) {
-    typedef maybe<orerror<wireproto::tx_message *> > rtype;
-    if (rxm.tag() == proto::PING::tag) {
-        /* PING is valid in any authentication state */
-        return Nothing; }
-    switch (state) {
-    case s_preinit: abort();
-    case s_done: return Nothing;
-    case s_waithello: {
-        waithello *s = (waithello *)buf;
-        if (rxm.tag() != proto::HELLO::tag) {
-            logmsg(loglevel::failure,
-                   "received message tag " +
-                   fields::mk(rxm.tag()) +
-                   " from " +
-                   fields::mk(peer) +
-                   " without a HELLO");
-            return rtype(error::unrecognisedmessage); }
-        auto digest(rxm.getparam(proto::HELLO::req::digest));
-        auto nonce(rxm.getparam(proto::HELLO::req::nonce));
-        auto peername(rxm.getparam(proto::HELLO::req::peername));
-        auto _slavename(rxm.getparam(proto::HELLO::req::slavename));
-        auto version(rxm.getparam(proto::HELLO::req::version));
-        auto flavour(rxm.getparam(proto::HELLO::req::type));
-        if (!digest ||
-            !nonce ||
-            !peername ||
-            !_slavename ||
-            !version ||
-            !flavour) {
-            return rtype(error::missingparameter); }
-        logmsg(loglevel::verbose,
-               "HELLO version " + fields::mk(version) +
-               "nonce " + fields::mk(nonce) +
-               "peername " + fields::mk(peername) +
-               "digest " + fields::mk(digest) +
-               "flavour " + fields::mk(flavour));
-        if (version.just() != 1) return rtype(error::badversion);
-        if (!s->ms.noncevalid(nonce.just(), peername.just())) {
-            logmsg(loglevel::notice,
-                   "HELLO with invalid nonce from " + fields::mk(peer));
-            return rtype(error::authenticationfailed); }
-        if (!peername.just().samehost(peer)) {
-            logmsg(loglevel::notice,
-                   "HELLO with bad host (" + fields::mk(peername.just()) +
-                   ", expected host " + fields::mk(peer) +")");
-            return rtype(error::authenticationfailed); }
-        if (digest.just() != ::digest("B" +
-                                      fields::mk(nonce.just()) +
-                                      fields::mk(s->rs))) {
-            logmsg(loglevel::notice,
-                   "HELLO with invalid digest from " + fields::mk(peer));
-            return rtype(error::authenticationfailed); }
-        logmsg(loglevel::notice, "Valid HELLO from " + fields::mk(peer));
-        auto finished(s->finished);
-        s->~waithello();
-        state = s_done;
-        new (buf) done(_slavename.just(), flavour.just());
-        auto res(finished(conn, authtoken));
-        if (res.isfailure()) return rtype(res.failure());
-        else return rtype(new wireproto::resp_message(rxm)); }
-    case s_sendhelloslavea:
-        /* Shouldn't get here; should have sent the HELLOSLAVE::A
-           before checking for messages from the other side. */
-        abort();
-    case s_waithelloslavea: {
-        auto s = (waithelloslavea *)buf;
-        auto wb(s->wb);
-        if (rxm.tag() != proto::HELLOSLAVE::A::tag) {
-            logmsg(loglevel::failure,
-                   "received message " +
-                   fields::mk(&rxm) +
-                   " from " +
-                   fields::mk(peer) +
-                   "; expected HELLOSLAVE::A");
-            wb->set(error::unrecognisedmessage);
-            return rtype(error::unrecognisedmessage); }
-        logmsg(loglevel::info, fields::mk("got a HELLOSLAVE A"));
-        auto nonce(rxm.getparam(proto::HELLOSLAVE::A::nonce));
-        auto remotetype(rxm.getparam(proto::HELLOSLAVE::A::type));
-        if (!nonce || !remotetype) {
-            wb->set(error::missingparameter);
-            return rtype(error::missingparameter); }
-        auto txm(new wireproto::tx_message(proto::HELLOSLAVE::B::tag));
-        txm->addparam(proto::HELLOSLAVE::B::digest,
-                      ::digest("C" +
-                               fields::mk(s->rs) +
-                               fields::mk(nonce.just())));
-        txm->addparam(proto::HELLOSLAVE::B::name, s->ourname);
-        txm->addparam(proto::HELLOSLAVE::B::type, s->ourtype);
-        state = s_waithelloslavec;
-        s->~waithelloslavea();
-        new (buf) waithelloslavec(wb, remotetype.just());
-        return rtype(txm); }
-    case s_waithelloslaveb: {
-        auto s = (waithelloslaveb *)buf;
-        if (rxm.tag() != proto::HELLOSLAVE::B::tag) {
-            logmsg(loglevel::failure,
-                   "received message " +
-                   fields::mk(&rxm) +
-                   " from " +
-                   fields::mk(peer) +
-                   "; expected HELLOSLAVE::B");
-            return rtype(error::unrecognisedmessage); }
-        logmsg(loglevel::info, fields::mk("got a HELLOSLAVE B"));
-        auto digest(rxm.getparam(proto::HELLOSLAVE::B::digest));
-        auto name(rxm.getparam(proto::HELLOSLAVE::B::name));
-        auto remotetype(rxm.getparam(proto::HELLOSLAVE::B::type));
-        if (!digest || !name || !remotetype) {
-            return rtype(error::missingparameter); }
-        if (digest.just() != ::digest("C" +
-                                      fields::mk(s->rs) +
-                                      fields::mk(s->n))) {
-            logmsg(loglevel::notice,
-                   "HELLOSLAVE::B with invalid digest from " +
-                   fields::mk(peer) + "(" + fields::mk(name.just()) + ")");
-            return rtype(error::authenticationfailed); }
-        wireproto::tx_message *nextmsg =
-            new wireproto::tx_message(proto::HELLOSLAVE::C::tag);
-        nextmsg->addparam(proto::HELLOSLAVE::C::name, s->ourname);
-        tests::__rpcconn::sendinghelloslavec.trigger(&nextmsg);
-        state = s_done;
-        s->~waithelloslaveb();
-        new (buf) done(name.just(), remotetype.just());
-        return rtype(nextmsg); }
-    case s_waithelloslavec: {
-        auto s = (waithelloslavec *)buf;
-        auto wb(s->wb);
-        auto _type(s->remotetype);
-        auto err(rxm.getparam(wireproto::err_parameter));
-        if (rxm.tag() != proto::HELLOSLAVE::C::tag &&
-            err == Nothing) {
-            logmsg(loglevel::failure,
-                   "received message " +
-                   fields::mk(&rxm) +
-                   " from " +
-                   fields::mk(peer) +
-                   "; expected HELLOSLAVE::C");
-            err = error::unrecognisedmessage; }
-        auto name(rxm.getparam(proto::HELLOSLAVE::C::name));
-        if (!name && err == Nothing) err = error::missingparameter;
-        if (err.isjust()) {
-            err.just().warn("HELLOSLAVE C from " + fields::mk(peer)); }
-        if (err.isjust()) {
-            wb->set(err.just()); }
-        else {
-            s->~waithelloslavec();
-            state = s_done;
-            new (buf) done(name.just(), _type);
-            wb->set(Success); }
-        return rtype(NULL); } }
-    abort(); }
-
-void
-rpcconnauth::disconnect(mutex_t::token authlock) {
-    switch (state) {
-    case s_preinit: abort();
-    case s_done: return;
-    case s_waithello: {
-        waithello *s = (waithello *)buf;
-        s->finished(error::disconnected, authlock);
-        return; }
-    case s_sendhelloslavea: abort();
-    case s_waithelloslavea: return;
-    case s_waithelloslaveb: return;
-    case s_waithelloslavec: return; }
-    abort(); }
-
-rpcconnauth &
-rpcconn::auth(mutex_t::token) {
-    return _auth; }
-
-const rpcconnauth &
-rpcconn::auth(mutex_t::token) const {
-    return _auth; }
 
 rpcconn::_calls::_send::_send()
     : pending(),
@@ -677,10 +314,6 @@ rpcconn::run(clientio io) {
        the deadline for receiving it, otherwise. */
     timestamp pingtime(timestamp::now() + config.pinginterval);
 
-    {   auto authtok(authlock.lock());
-        auth(authtok).start(outgoing);
-        authlock.unlock(&authtok); }
-
     /* Out subscription starts armed to avoid silly races with someone
        queueing something before we start. */
     outarmed = true;
@@ -755,23 +388,6 @@ rpcconn::run(clientio io) {
                             "decoding message from " + fields::mk(peer_));
                         goto done; } }
                 history = (history << 4) | 12;
-                auto authtok(authlock.lock());
-                auto authres(auth(authtok)
-                             .message(this, msg.success(), peer_, authtok));
-                authlock.unlock(&authtok);
-                if (authres != Nothing) {
-                    if (authres.just().isfailure()) {
-                        /* Authentication protocol rejected the
-                         * connection.  Tear it down. */
-                        goto done; }
-                    if (authres.just().success() != NULL) {
-                        bool out = queuereply(io, *authres.just().success());
-                        delete authres.just().success();
-                        if (out) goto done;
-                        if (!outarmed) {
-                            outsub.rearm();
-                            outarmed = true; } }
-                    continue; }
                 if (msg.success().isreply()) {
                     if (msg.success().tag() == proto::PING::tag &&
                         pingsequence.isjust() &&
@@ -785,13 +401,6 @@ rpcconn::run(clientio io) {
                         receivereply(&msg.success()); }
                     continue;
                 }
-
-                /* Bit of a hack: we accept PINGs before
-                   authenticating, so have to rate limit them to avoid
-                   DOSes, but we don't want to give the message()
-                   method a clientio token, so have to do it here. */
-                if (msg.success().tag() == proto::PING::tag) {
-                    pinglimiter.wait(io); }
 
                 history = (history << 4) | 5;
                 auto res(message(msg.success(), messagetoken()));
@@ -842,38 +451,35 @@ rpcconn::run(clientio io) {
                  * don't need to. */
                 history = (history << 4) | 8;
                 txlock.unlock(&token); }
-	    /* Check for completed posted calls */
-	    for (auto it(postedcalls.start()); !it.finished(); /**/) {
-		bool completed(
-		    (*it)->mux.locked<bool>([&it] (mutex_t::token) -> bool {
-			    return (*it)->completed; }));
-		/* No need for per-call mux here: once the completed
-		 * flag is set and whoever set it has dropped the
-		 * lock, they will never access it again. */
-		if (completed) {
-		    (*it)->owner = NULL;
-		    delete *it;
-		    it.remove(); }
-		else it.next(); } } }
+            /* Check for completed posted calls */
+            for (auto it(postedcalls.start()); !it.finished(); /**/) {
+                bool completed(
+                    (*it)->mux.locked<bool>([&it] (mutex_t::token) -> bool {
+                            return (*it)->completed; }));
+                /* No need for per-call mux here: once the completed
+                 * flag is set and whoever set it has dropped the
+                 * lock, they will never access it again. */
+                if (completed) {
+                    (*it)->owner = NULL;
+                    delete *it;
+                    it.remove(); }
+                else it.next(); } } }
     history = (history << 4) | 9;
   done:
     (void)history;
 
     _threadfinished.set();
 
-    authlock.locked([this] (mutex_t::token token) {
-            auth(token).disconnect(token); });
-
     /* It's too late for any more postedcalls to complete */
     /* (no more can start because we've stopped calling message()) */
     /* We know that whoever owns the locks on individual posted calls
      * will eventually drop them because we've set _threadfinished. */
     while (!postedcalls.empty()) {
-	auto c(postedcalls.pophead());
-	auto completed(c->mux.locked<bool>([c] (mutex_t::token) {
-		    c->owner = NULL;
-		    return c->completed; }));
-	if (completed) delete c; };
+        auto c(postedcalls.pophead());
+        auto completed(c->mux.locked<bool>([c] (mutex_t::token) {
+                    c->owner = NULL;
+                    return c->completed; }));
+        if (completed) delete c; };
 
     endconn(io);
 
@@ -918,12 +524,10 @@ rpcconn::run(clientio io) {
 
 rpcconn::rpcconntoken::rpcconntoken(const thread::constoken &_thr,
                                     socket_t _sock,
-                                    const rpcconnauth &__auth,
                                     const rpcconnconfig &_config,
                                     const peername &_peer)
     : thr(_thr),
       sock(_sock),
-      auth(__auth),
       config(_config),
       peer(_peer) {}
 
@@ -932,7 +536,6 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       shutdown(),
       sock(tok.sock),
       config(tok.config),
-      pinglimiter(config.pinglimit),
       txlock(),
       outgoing(),
       outgoingshrunk(),
@@ -943,7 +546,6 @@ rpcconn::rpcconn(const rpcconntoken &tok)
       lastcontact_monotone(timestamp::now()),
       lastcontact_wall(walltime::now()),
       peer_(tok.peer),
-      _auth(tok.auth),
       referencelock(),
       referencecond(referencelock),
       references(0),
@@ -1056,20 +658,6 @@ rpcconn::allocsequencenr() {
 peername
 rpcconn::peer() const {
     return peer_; }
-
-maybe<class slavename>
-rpcconn::slavename() const {
-    auto token(authlock.lock());
-    auto res(auth(token).slavename());
-    authlock.unlock(&token);
-    return res; }
-
-maybe<actortype>
-rpcconn::type() const {
-    auto token(authlock.lock());
-    auto res(auth(token).type());
-    authlock.unlock(&token);
-    return res; }
 
 peername
 rpcconn::localname() const {
@@ -1291,10 +879,6 @@ rpcconn::destroy(clientio io) {
 
 rpcconn::status_t
 rpcconn::status() const {
-    auto tok1(authlock.lock());
-    auto otherend(auth(tok1).slavename());
-    auto otherendtype(auth(tok1).type());
-    authlock.unlock(&tok1);
     unsigned nrtx;
     unsigned nrrx;
     calls.mux.locked([&nrrx, &nrtx, this] (mutex_t::token) {
@@ -1305,8 +889,6 @@ rpcconn::status() const {
                  sequencer.status(),
                  peer_,
                  lastcontact_wall,
-                 otherend,
-                 otherendtype,
                  config,
                  nrtx,
                  nrrx);
@@ -1318,8 +900,6 @@ rpcconnstatus::rpcconnstatus(quickcheck q)
       sequencer(q),
       peername_(q),
       lastcontact(q),
-      otherend(q),
-      otherendtype(q),
       config(q),
       pendingtxcall(q),
       pendingrxcall(q) {}
@@ -1331,9 +911,9 @@ rpcconnstatus::operator == (const rpcconnstatus &o) const {
         sequencer == o.sequencer &&
         peername_ == o.peername_ &&
         lastcontact == o.lastcontact &&
-        otherend == o.otherend &&
-        otherendtype == o.otherendtype &&
-        config == o.config; }
+        config == o.config &&
+        pendingtxcall == o.pendingtxcall &&
+        pendingrxcall == o.pendingrxcall; }
 
 const rpcconnconfig
 rpcconnconfig::dflt(
@@ -1342,10 +922,4 @@ rpcconnconfig::dflt(
     /* Ping interval */
     timedelta::seconds(1),
     /* Ping deadline */
-    timedelta::seconds(60),
-    /* Ping limiter */
-    ratelimiterconfig(
-        /* Rate */
-        frequency::hz(2),
-        /* Bucket size */
-        10));
+    timedelta::seconds(60));
