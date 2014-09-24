@@ -12,8 +12,6 @@ class buffer;
 class bufferstatus;
 class buildconfig;
 class clustername;
-class coordinatorstatus;
-class coordinatorconnstatus;
 class digest;
 class fd_tstatus;
 class frequency;
@@ -46,13 +44,6 @@ namespace proto {
         static const parameter<unsigned long> prod(1);
         static const parameter<unsigned long> cons(2);
         static const parameter<unsigned int> nrfrags(3);
-    };
-    namespace coordinatorconnstatus {
-        static const parameter< ::rpcconnstatus> conn(1);
-        static const parameter<slavename> slave(2);
-    };
-    namespace coordinatorstatus {
-        static const parameter<list< ::coordinatorconnstatus> > conns(1);
     };
     namespace fd_tstatus {
         static const parameter<int> fd(1);
@@ -143,7 +134,6 @@ namespace proto {
         /* no request parameters */
         namespace resp {
             static const parameter< ::beaconserverstatus> beacon(450);
-            static const parameter< ::coordinatorstatus> coordinator(451);
             static const parameter< ::storageslavestatus> storageslave(452);
             static const parameter< ::slavename> myname(453);
             static const parameter<maybe<::beaconclientstatus> >

@@ -308,9 +308,14 @@ beaconclient::run(clientio io) {
                          it.next()) {
                         auto entry(*it);
                         if (entry->name == respname) {
-                            entry->mux.locked([&bcr, entry] (mutex_t::token) {
-                                    entry->result = bcr; });
+                            auto publish(entry->mux.locked<bool>(
+                                             [&bcr, entry] (mutex_t::token) {
+                                                 auto res(
+                                                     entry->result == Nothing);
+                                                 entry->result = bcr;
+                                                 return res; } ) );
                             entry->pub.publish();
+                            if (publish) changed.publish();
                             found = true;
                             break; } }
                     if (!found) {
@@ -322,7 +327,8 @@ beaconclient::run(clientio io) {
                                 bcr,
                                 walltime::now(),
                                 timestamp::now(),
-                                respcachetime.just() + timestamp::now())); } });
+                                respcachetime.just() + timestamp::now()));
+                        changed.publish(); } });
             continue; }
         /* Must have hit the timeout.  Figure out what we're doing
          * about it. */
@@ -356,8 +362,7 @@ beaconclient::run(clientio io) {
                     if (entry->lastused + config.gctimeout < timestamp::now()) {
                         /* Entry expired */
                         it.remove();
-                        entry->mux.locked([entry] (mutex_t::token) {
-                                entry->dead = true; });
+                        entry->dead = true;
                         entry->pub.publish();
                         entry->deref(); }
                     else if (broadcast) {

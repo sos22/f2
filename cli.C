@@ -31,35 +31,31 @@ main(int argc, const char *const argv[])
     int nrargs = argc - 3;
     initlogging("cli");
     initpubsub();
-    auto c(rpcconn::connectnoauth<rpcconn>(
+    auto c(rpcconn::connect<rpcconn>(
                clientio::CLIENTIO,
-               slavename("<cli connection>"),
-               actortype::cli,
                peername::local(filename(sock))
                .fatal("turning " + fields::mk(sock) + " into a peername"),
-               rpcconnconfig::dflt));
+               rpcconnconfig::dflt)
+           .fatal("connecting to " + fields::mk(sock)));
     int r;
-
-    if (c.isfailure())
-        c.failure().fatal("connecting to master");
 
     r = 0;
     if (!strcmp(mode, "PING")) {
         if (nrargs != 0) errx(1, "PING mode takes no arguments");
-        delete c.success()->call(
+        delete c->call(
 	    clientio::CLIENTIO,
 	    wireproto::req_message(proto::PING::tag,
-                                   c.success()->allocsequencenr()))
+                                   c->allocsequencenr()))
 	    .fatal("sending ping");
     } else if (!strcmp(mode, "LOGS")) {
         if (nrargs) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);
         unsigned nr = 200;
         while (1) {
-            auto m = c.success()->call(
+            auto m = c->call(
                 clientio::CLIENTIO,
                 wireproto::req_message(proto::GETLOGS::tag,
-                                       c.success()->allocsequencenr())
+                                       c->allocsequencenr())
                 .addparam(proto::GETLOGS::req::startidx, cursor)
                 .addparam(proto::GETLOGS::req::nr, nr));
             if (m.isfailure()) {
@@ -84,8 +80,8 @@ main(int argc, const char *const argv[])
     } else if (!strcmp(mode, "STATUS")) {
         using namespace proto::STATUS;
         if (nrargs) errx(1, "STATUS mode takes no arguments");
-        auto snr(c.success()->allocsequencenr());
-        auto m = c.success()->call(
+        auto snr(c->allocsequencenr());
+        auto m = c->call(
             clientio::CLIENTIO,
             wireproto::req_message(tag, snr));
         if (m.isfailure()) {
@@ -93,10 +89,12 @@ main(int argc, const char *const argv[])
         } else {
             auto mm(m.success());
             fields::print("beacon: " + fields::mk(mm->getparam(resp::beacon)) +
-                          "\ncoordinator: " +
-                              fields::mk(mm->getparam(resp::coordinator)) +
                           "\nstorageslave: " +
                               fields::mk(mm->getparam(resp::storageslave)) +
+                          "\nmyname: " +
+                              fields::mk(mm->getparam(resp::myname)) +
+                          "\nbeaconclient: " +
+                              fields::mk(mm->getparam(resp::beaconclient)) +
                           "\n");
             delete mm; }
     } else if (!strcmp(mode, "QUIT")) {
@@ -106,20 +104,20 @@ main(int argc, const char *const argv[])
         if (code.isfailure())
             code.failure().fatal(fields::mk("cannot parse shutdown code"));
         const char *message = args[1];
-        delete c.success()->call(
+        delete c->call(
             clientio::CLIENTIO,
             wireproto::req_message(proto::QUIT::tag,
-                                   c.success()->allocsequencenr())
+                                   c->allocsequencenr())
             .addparam(proto::QUIT::req::message, message)
             .addparam(proto::QUIT::req::reason, code.success()))
             .fatal(fields::mk("sending QUIT message"));
     } else if (!strcmp(mode, "BUILDCONFIG")) {
         using namespace proto::BUILDCONFIG;
         if (nrargs) errx(1, "BUILDCONFIG mode takes no arguments");
-        auto m(c.success()->call(
+        auto m(c->call(
                    clientio::CLIENTIO,
                    wireproto::req_message(tag,
-                                          c.success()->allocsequencenr()))
+                                          c->allocsequencenr()))
                .fatal("sending BUILDCONFIG message"));
         fields::print(
             fields::mk(m->getparam(resp::config)) + "\n");
@@ -127,10 +125,10 @@ main(int argc, const char *const argv[])
     } else if (!strcmp(mode, "LISTENING")) {
         using namespace proto::LISTENING;
         if (nrargs) errx(1, "LISTENING mode takes no arguments");
-        auto m(c.success()->call(
+        auto m(c->call(
                    clientio::CLIENTIO,
                    wireproto::req_message(tag,
-                                          c.success()->allocsequencenr()))
+                                          c->allocsequencenr()))
                .fatal("sending LISTENING message"));
         fields::print(
             "coordinator: " +
@@ -145,7 +143,7 @@ main(int argc, const char *const argv[])
     else {
         printf("Unknown command %s.  Known: PING, LOGS\n", mode);
         r = 1; }
-    c.success()->destroy(clientio::CLIENTIO);
+    c->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
     return r;

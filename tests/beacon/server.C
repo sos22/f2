@@ -28,7 +28,7 @@ main(int argc, char *argv[]) {
     auto server(beaconserver::build(beaconconfig, c)
                 .fatal("starting beacon server"));
     auto r(w.get(clientio::CLIENTIO));
-    delete server;
+    server->destroy(clientio::CLIENTIO);
     c->destroy(clientio::CLIENTIO);
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();

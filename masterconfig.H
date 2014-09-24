@@ -13,18 +13,15 @@ class quickcheck;
 class masterconfig {
 private: masterconfig() = delete;
 public:  peername controlsock;
-public:  registrationsecret rs;
 public:  peername listenon;
 public:  peername::port beaconport;
 public:  ratelimiterconfig beaconlimit;
 public:  rpcconnconfig connconfig;
 public:  masterconfig(const peername &,
-                      const registrationsecret &,
                       const peername &,
                       const peername::port &,
                       const ratelimiterconfig &,
                       const rpcconnconfig &);
-public:  masterconfig(const registrationsecret &rs);
 public:  masterconfig(const quickcheck &q);
 public:  masterconfig _controlsock(const peername &s) const;
 public:  masterconfig _rs(const registrationsecret &rs) const;

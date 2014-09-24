@@ -35,8 +35,8 @@ main(int argc, char *argv[]) {
         for (auto it(client->start()); !it.finished(); it.next()) {
             logmsg(loglevel::info,
                    "name: " + fields::mk(it.name()) +
-                   "type: " + fields::mk(it.type()) +
-                   "peer: " + fields::mk(it.peer())); }
+                   " type: " + fields::mk(it.type()) +
+                   " peer: " + fields::mk(it.peer())); }
         sub.wait(clientio::CLIENTIO); }
     client->destroy(clientio::CLIENTIO);
     c->destroy(clientio::CLIENTIO);

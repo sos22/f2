@@ -15,7 +15,6 @@ function bits() {
     _ buildconfig
     _ buildconfigimpl
     _ clustername
-    _ clustersecret
     _ cond
     _ controlserver
     _ digest
