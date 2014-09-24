@@ -20,8 +20,7 @@ tests::event<t>::trigger(t arg) {
         i->action(arg);
         mux.locked([i] (mutex_t::token) {
                 i->refcount--;
-                if ( i->refcount == 0 ) i->idle.publish(); }); }
-    l.flush(); }
+                if ( i->refcount == 0 ) i->idle.publish(); }); } }
 
 template <typename t>
 tests::eventwaiter<t>::eventwaiter(event<t> &_evt,

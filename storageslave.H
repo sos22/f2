@@ -25,7 +25,6 @@ public:  storageslavestatus(const rpcserver::status_t &_server,
     : server(_server),
       masterconn(_masterconn),
       clientconns(_clientconns) {}
-public:  ~storageslavestatus();
 WIREPROTO_TYPE(storageslavestatus);
 };
 

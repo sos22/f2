@@ -69,10 +69,6 @@ public:
     memlog_sink()
         : backlog(10000), outstanding(), next_sequence(memlog_idx::min), lock()
         {}
-    ~memlog_sink()
-        {
-            outstanding.flush();
-        }
     void msg(const char *s)
         {
             auto t(lock.lock());
@@ -272,8 +268,6 @@ logmsg(loglevel level, const char *what)
 void
 logpolicy::deinit(void)
 {
-    for (auto it(loglevel::begin()); !it.finished(); it.next())
-        level_to_sink(*it).flush();
     syslog.close();
     filelog.close();
     memlog.flush();
@@ -369,9 +363,8 @@ getlogs(const wireproto::rx_message &msg,
     list<memlog_entry> results;
     auto resume(policy.memlog.fetch(start, nr, results));
     m->addparam(proto::GETLOGS::resp::msgs, results.steal());
-    if (resume.isjust())
-        m->addparam(proto::GETLOGS::resp::resume, resume.just());
-    results.flush();
+    if (resume.isjust()) {
+        m->addparam(proto::GETLOGS::resp::resume, resume.just()); }
     return Success; }
 
 void
@@ -406,29 +399,23 @@ tests::logging() {
                     default:
                         abort();
                     }
-                    idx++;
-                }
-                l.flush(); }
+                    idx++; } }
             {   list<memlog_entry> l;
                 auto truncat1(ms.fetch(memlog_idx::min, 1, l));
                 assert(l.length() == 1);
                 assert(truncat1.isjust());
                 assert(l.peekhead().idx == memlog_idx::min);
                 assert(!strcmp(l.peekhead().msg, "Hello"));
-                l.flush();
                 auto truncat2(ms.fetch(truncat1.just(), 1, l));
                 assert(l.length() == 1);
                 assert(truncat2.isjust());
                 assert(l.peekhead().idx == truncat1.just());
                 assert(!strcmp(l.peekhead().msg, "World"));
-                l.flush();
                 auto truncat3(ms.fetch(truncat2.just(), 1, l));
                 assert(l.length() == 1);
                 assert(truncat3 == Nothing);
                 assert(l.peekhead().idx == truncat2.just());
-                assert(!strcmp(l.peekhead().msg, "Goodbye"));
-                l.flush(); }
-    
+                assert(!strcmp(l.peekhead().msg, "Goodbye")); }
             ms.flush(); }); }
 
 namespace tests {

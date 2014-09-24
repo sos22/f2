@@ -170,7 +170,6 @@ main(int argc, char *argv[]) {
         m->fetch(proto::LISTJOBS::resp::jobs, jobs)
             .fatal("getting jobs list");
         fields::print("jobs: " + fields::mk(jobs) + "\n");
-        jobs.flush();
     } else if (strcmp(argv[3], "LISTSTREAMS") == 0) {
         if (argc < 5 || argc > 7) {
             errx(1,
@@ -202,7 +201,6 @@ main(int argc, char *argv[]) {
         m->fetch(proto::LISTSTREAMS::resp::streams, streams)
             .fatal("getting streams list");
         fields::print("streams: " + fields::mk(streams) + "\n");
-        streams.flush();
         delete m;
     } else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
         if (argc != 6) {

@@ -78,7 +78,6 @@ main(int argc, const char *const argv[])
                 .fatal(fields::mk("decoding returned message list"));
             for (auto it(msgs.start()); !it.finished(); it.next())
                 printf("%9ld: %s\n", it->idx.as_long(), it->msg);
-            msgs.flush();
             auto s(mm->getparam(proto::GETLOGS::resp::resume));
             delete mm;
             if (!s)

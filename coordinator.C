@@ -80,9 +80,7 @@ coordinator::status() const {
     for (auto it(connections.start()); !it.finished(); it.next()) {
         c.pushtail((*it)->status()); }
     mux.unlock(&token);
-    coordinator::status_t res(c);
-    c.flush();
-    return res; }
+    return coordinator::status_t(c); }
 
 coordinator::coordinator(
     constoken token,
@@ -145,9 +143,6 @@ bool
 coordinator::iterator::finished() const {
     return cursor.finished(); }
 
-coordinator::iterator::~iterator() {
-    content.flush(); }
-
 coordinator::iterator
 coordinator::start(actortype t) const {
     return iterator(this, t); }
@@ -194,9 +189,7 @@ coordinator::status_t::fromcompound(const wireproto::rx_message &msg) {
     list<coordinatorconn::status_t> conns;
     auto r(msg.fetch(proto::coordinatorstatus::conns, conns));
     if (r.isfailure()) return Nothing;
-    coordinator::status_t res(conns);
-    conns.flush();
-    return res; }
+    return coordinator::status_t(conns); }
 const fields::field &
 fields::mk(const coordinator::status_t &o) {
     const field *res = &fields::mk("<conns:{");

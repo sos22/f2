@@ -54,9 +54,6 @@ program::addarg(const fields::field &f) {
     args.pushtail(string(f.c_str()));
     return *this; }
 
-program::~program() {
-    args.flush(); }
-
 /* XXX acquiring a lock from a constructor is usually a bad sign. */
 subscription::subscription(subscriber &ss, const process &p)
     : iosubscription(ss, p.fromchild.poll(POLLIN)),

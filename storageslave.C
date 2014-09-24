@@ -383,7 +383,6 @@ storageslave::listjobs(
             res.pushtail(jn.success()); }
         if (it.isfailure()) {
             it.failure().warn("listing " + fields::mk(config.poolpath));
-            res.flush();
             return it.failure(); } }
     sort(res);
     maybe<jobname> newcursor(Nothing);
@@ -397,7 +396,6 @@ storageslave::listjobs(
     if (newcursor != Nothing) {
         resp->addparam(proto::LISTJOBS::resp::cursor, newcursor.just()); }
     resp->addparam(proto::LISTJOBS::resp::jobs, res);
-    res.flush();
     return resp; }
 
 rpcconn::messageresult
@@ -429,14 +427,12 @@ storageslave::liststreams(
             if (size.isfailure()) {
                 size.failure().warn("getting size of " +
                                     fields::mk(fname + "content"));
-                res.flush();
                 return size.failure(); }
             auto finished((fname + "finished").exists());
             if (finished.isfailure()) {
                 finished.failure().warn("checking whether " + fields::mk(jn) +
                                         "::" + fields::mk(it.filename()) +
                                         " finished");
-                res.flush();
                 return finished.failure(); }
             if (finished == true) {
                 res.pushtail(streamstatus::finished(sn.success(),
@@ -446,7 +442,6 @@ storageslave::liststreams(
                                                    size.success())); } }
         if (it.isfailure()) {
             it.failure().warn("listing " + fields::mk(dir));
-            res.flush();
             return it.failure(); } }
     sort(res);
     maybe<streamname> newcursor(Nothing);
@@ -460,7 +455,6 @@ storageslave::liststreams(
     if (newcursor != Nothing) {
         resp->addparam(proto::LISTSTREAMS::resp::cursor, newcursor.just()); }
     resp->addparam(proto::LISTSTREAMS::resp::streams, res);
-    res.flush();
     return resp; }
 
 orerror<void>
@@ -531,8 +525,6 @@ storageslave::status() const {
                  : Nothing,
                  cl);
     master.lock.unlock(&token2);
-
-    cl.flush();
     return res; }
 
 void
@@ -549,9 +541,6 @@ storageslave::status_t::addparam(
         tx_msg.addparam(proto::storageslavestatus::masterconn,
                         masterconn.just()); } }
 
-storageslavestatus::~storageslavestatus() {
-    clientconns.flush(); }
-
 maybe<storageslave::status_t>
 storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
     auto s(msg.getparam(proto::storageslavestatus::server));
@@ -560,9 +549,7 @@ storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
     list<rpcconn::status_t> clientconns;
     auto r(msg.fetch(proto::storageslavestatus::clientconns, clientconns));
     if (r.isfailure()) return Nothing;
-    storageslave::status_t res(s.just(), masterconn, clientconns);
-    clientconns.flush();
-    return res; }
+    else return storageslave::status_t(s.just(), masterconn, clientconns); }
 const fields::field &
 fields::mk(const storageslave::status_t &o) {
     return "<storageslave: server=" + mk(o.server) +

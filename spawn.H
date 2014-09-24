@@ -23,7 +23,6 @@ public:  program &addarg(const char *);
 public:  program &addarg(const string &);
 public:  program &addarg(string &&);
 public:  program &addarg(const fields::field &);
-public:  ~program();
 };
 
 /* Ideally, this would inherit privately from iosubscription and

@@ -47,10 +47,7 @@ req_message::req_message(msgtag _t, sequencenr _sequence)
     : tx_message(_t), sequence(_sequence)
 {}
 
-tx_message::~tx_message()
-{
-    params.flush();
-}
+tx_message::~tx_message() {}
 
 size_t
 tx_message::serialised_size() const
@@ -753,8 +750,7 @@ tests::wireproto() {
                 l1.pushtail("Z");
                 tx_message(t)
                     .addparam(p3, l1)
-                    .serialise(buf);
-                l1.flush(); }
+                    .serialise(buf); }
             {   auto rxm(rx_message::fetch(buf).fatal("decoding"));
                 assert(rxm.tag() == t);
                 list<const char *> l2;
@@ -767,8 +763,7 @@ tests::wireproto() {
                 it.next();
                 assert(!strcmp(*it, "Z"));
                 it.next();
-                assert(it.finished());
-                l2.flush(); }
+                assert(it.finished()); }
             assert(buf.empty()); });
 
     testcaseV("wireproto", "emptycompound", [t] () {
@@ -1025,9 +1020,7 @@ tests::wireproto() {
                 if (it1.finished()) break;
                 assert(*it1 == *it2);
                 it1.next();
-                it2.next(); }
-            l.flush();
-            l2.flush(); });
+                it2.next(); } });
 
     testcaseV("wireproto", "send2big", [t] () {
             tx_message txm(t);
@@ -1149,9 +1142,7 @@ tests::wireproto() {
                 .fatal("fetch message we just built")
                 .fetch(lparam, y)
                 .fatal("extracting list");
-            assert(x.eq(y));
-            x.flush();
-            y.flush(); });
+            assert(x.eq(y)); });
 
     testcaseV("wireproto", "flush", [] {
 	    parameter<int> param(1);

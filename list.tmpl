@@ -48,18 +48,15 @@ list<t>::steal() {
     return res; }
 
 template <typename t>
-list<t>::~list()
-{
-    assert(empty());
-}
+list<t>::~list() {
+    flush();
+    assert(empty()); }
 
 template <typename t> void
-list<t>::flush()
-{
+list<t>::flush() {
     auto i(start());
     while (!i.finished())
-        i.remove();
-}
+        i.remove(); }
 
 template <typename t> bool
 list<t>::empty() const

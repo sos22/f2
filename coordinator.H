@@ -36,7 +36,6 @@ public: list<coordinatorconnstatus> conns;
 public: coordinatorstatus(
     const list<coordinatorconnstatus> &_conns)
     : conns(_conns) {}
-public: ~coordinatorstatus() { conns.flush(); }
 WIREPROTO_TYPE(coordinatorstatus);
 };
 namespace fields {
@@ -117,8 +116,7 @@ public:  class iterator {
     private: iterator(const coordinator *, actortype);
     public:  slavename get() const;
     public:  void next();
-    public:  bool finished() const;
-    public:  ~iterator(); };
+    public:  bool finished() const; };
 public:  iterator start(actortype) const;
 
     /* Given a slavename, return either Nothing, if we lack a

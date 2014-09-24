@@ -799,8 +799,7 @@ tests::fields()
             l.pushtail(12);
             buf.reset();
             mk(l).fmt(buf);
-            assert(!strcmp(buf.c_str(), "{1 12}"));
-            l.flush(); });
+            assert(!strcmp(buf.c_str(), "{1 12}")); });
 
     testcaseV("fields", "escape", [] () {
             fieldbuf buf;

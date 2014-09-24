@@ -52,13 +52,9 @@ struct test {
 struct testcomponent {
     const char *name;
     list<test> tests;
-    ~testcomponent() { tests.flush(); }
 };
 
-struct testregistry : public list<testcomponent> {
-    ~testregistry() { flush(); } };
-
-static testregistry components;
+static list<testcomponent> components;
 
 void
 testcaseV(const char *c_name,

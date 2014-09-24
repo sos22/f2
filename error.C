@@ -192,8 +192,7 @@ tests::_error() {
             list<string> fmted;
             for (int x = -lasterror; x <= firsterror + 10; x++) {
                 fmted.pushtail(string(fields::mk(error(x)).c_str())); }
-            assert(!fmted.hasdupes());
-            fmted.flush(); });
+            assert(!fmted.hasdupes()); });
     testcaseV("error", "errno", [] {
             errno = 7;
             auto e(error::from_errno());

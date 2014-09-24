@@ -291,8 +291,7 @@ tests::_filename() {
                 assert(r.length() == 3);
                 assert(r.idx(0) == ".");
                 assert(r.idx(1) == "..");
-                assert(r.idx(2) == "bar");
-                r.flush(); }
+                assert(r.idx(2) == "bar"); }
             assert(foo.rmdir() == error::notempty);
             assert((foo + "bar").unlink().issuccess());
             assert(foo.rmdir().issuccess());

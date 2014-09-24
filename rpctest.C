@@ -322,8 +322,7 @@ public:  messageresult message(
                 (timestamp::now() + timedelta::milliseconds(random() % 1000))
                     .sleep(clientio::CLIENTIO);
                 res->complete(clientio::CLIENTIO); });
-        return res; }
-public:  void endconn(clientio) { sparks.flush(); } };
+        return res; } };
 class randomslowserver : public rpcserver {
     friend class pausedthread<randomslowserver>;
     friend class thread;
@@ -1722,7 +1721,6 @@ tests::_rpc() {
                                 wireproto::req_message(
                                     randomslowtag,
                                     c->allocsequencenr())); } }); }
-            threads.flush();
             /* Wait for the calls to finish, again from a bunch of
              * different threads. */
             for (int i = 0; i < nrthreads; i++) {
@@ -1737,6 +1735,5 @@ tests::_rpc() {
                                     sub.wait(io);
                                     r = calls[i][j]->popresult(); } }
                             delete r.just().success(); } }); }
-            threads.flush();
             c->destroy(io);
             s2->destroy(io); }); }
