@@ -166,9 +166,8 @@ main(int argc, char *argv[]) {
         fields::print("cursor: " +
                       fields::mk(m->getparam(proto::LISTJOBS::resp::cursor)) +
                       "\n");
-        list<jobname> jobs;
-        m->fetch(proto::LISTJOBS::resp::jobs, jobs)
-            .fatal("getting jobs list");
+        list<jobname> jobs(m->getparam(proto::LISTJOBS::resp::jobs)
+                           .fatal("getting jobs list"));
         fields::print("jobs: " + fields::mk(jobs) + "\n");
     } else if (strcmp(argv[3], "LISTSTREAMS") == 0) {
         if (argc < 5 || argc > 7) {
@@ -197,10 +196,10 @@ main(int argc, char *argv[]) {
             "cursor: " +
             fields::mk(m->getparam(proto::LISTSTREAMS::resp::cursor)) +
             "\n");
-        list<streamstatus> streams;
-        m->fetch(proto::LISTSTREAMS::resp::streams, streams)
-            .fatal("getting streams list");
-        fields::print("streams: " + fields::mk(streams) + "\n");
+        fields::print("streams: " +
+                      fields::mk(m->getparam(proto::LISTSTREAMS::resp::streams)
+                                 .fatal("getting streams list"))
+                      + "\n");
         delete m;
     } else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
         if (argc != 6) {

@@ -186,10 +186,9 @@ coordinator::status_t::addparam(
                     .addparam(proto::coordinatorstatus::conns, conns)); }
 maybe<coordinator::status_t>
 coordinator::status_t::fromcompound(const wireproto::rx_message &msg) {
-    list<coordinatorconn::status_t> conns;
-    auto r(msg.fetch(proto::coordinatorstatus::conns, conns));
-    if (r.isfailure()) return Nothing;
-    return coordinator::status_t(conns); }
+    auto r(msg.getparam(proto::coordinatorstatus::conns));
+    if (r == Nothing) return Nothing;
+    else return coordinator::status_t(r.just()); }
 const fields::field &
 fields::mk(const coordinator::status_t &o) {
     const field *res = &fields::mk("<conns:{");

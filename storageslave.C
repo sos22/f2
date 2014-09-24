@@ -545,11 +545,11 @@ maybe<storageslave::status_t>
 storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
     auto s(msg.getparam(proto::storageslavestatus::server));
     auto masterconn(msg.getparam(proto::storageslavestatus::masterconn));
-    if (!s) return Nothing;
-    list<rpcconn::status_t> clientconns;
-    auto r(msg.fetch(proto::storageslavestatus::clientconns, clientconns));
-    if (r.isfailure()) return Nothing;
-    else return storageslave::status_t(s.just(), masterconn, clientconns); }
+    auto clientconns(msg.getparam(proto::storageslavestatus::clientconns));
+    if (!s || !clientconns) return Nothing;
+    else return storageslave::status_t(s.just(),
+                                       masterconn,
+                                       clientconns.just()); }
 const fields::field &
 fields::mk(const storageslave::status_t &o) {
     return "<storageslave: server=" + mk(o.server) +

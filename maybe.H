@@ -86,6 +86,9 @@ public:
     const t &fatal(const fields::field &msg) const {
         if (isjust()) return just();
         else error::nothing.fatal(msg); }
+    const t &fatal(const char *msg) const {
+        if (isjust()) return just();
+        else error::nothing.fatal(msg); }
 #endif
     bool operator==(const maybe &o) const {
         if (isjust() != o.isjust()) return false;

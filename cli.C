@@ -73,9 +73,8 @@ main(int argc, const char *const argv[])
                     continue; }
                 m.failure().fatal("requesting logs"); }
             auto mm(m.success());
-            list<memlog_entry> msgs;
-            mm->fetch(proto::GETLOGS::resp::msgs, msgs)
-                .fatal(fields::mk("decoding returned message list"));
+            auto msgs(mm->getparam(proto::GETLOGS::resp::msgs)
+                      .fatal(fields::mk("decoding message list")));
             for (auto it(msgs.start()); !it.finished(); it.next())
                 printf("%9ld: %s\n", it->idx.as_long(), it->msg);
             auto s(mm->getparam(proto::GETLOGS::resp::resume));

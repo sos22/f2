@@ -240,10 +240,8 @@ namespace wireproto {
     public:  static orerror<rx_message> fetch(const bufslice &buf);
     public:  static orerror<rx_message> fetch(buffer &buf);
     public:  template <typename typ> maybe<typ> getparam(parameter<typ>) const;
-    public:  template <typename typ> orerror<void> fetch(
-        parameter<typ>, typ &out) const;
-    public:  template <typename typ> orerror<void> fetch(
-        parameter<list<typ> >, list<typ> &out) const;
+    public:  template <typename typ> maybe<list<typ> >
+                 getparam(parameter<list<typ> >) const;
     public:  rx_message *steal();
     public:  bool isreply() const;
     public:  sequencenr sequence() const;

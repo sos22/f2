@@ -753,8 +753,8 @@ tests::wireproto() {
                     .serialise(buf); }
             {   auto rxm(rx_message::fetch(buf).fatal("decoding"));
                 assert(rxm.tag() == t);
-                list<const char *> l2;
-                rxm.fetch(p3, l2).fatal("fetching");
+                list<const char *> l2(
+                    rxm.getparam(p3).fatal(fields::mk("fetching")));
                 assert(l2.length() == 3);
                 auto it(l2.start());
                 assert(!strcmp(*it, "X"));
@@ -997,11 +997,10 @@ tests::wireproto() {
             txm.addparam(parameter<int>(p), 9);
             ::buffer buf;
             txm.serialise(buf);
-            auto rxm(rx_message::fetch(buf));
-            list<int> l;
-            auto fr(rxm.success().fetch(p, l));
-            assert(fr == error::invalidmessage);
-            assert(l.empty()); });
+            auto rxm(rx_message::fetch(buf).fatal("decoding"));
+            assert(rx_message::fetch(buf)
+                   .fatal("decoding")
+                   .getparam(p) == Nothing); });
 
     testcaseV("wireproto", "msgtaglist", [t] () {
             parameter<list<msgtag> > p(1);
@@ -1010,9 +1009,8 @@ tests::wireproto() {
             l.pushtail(msgtag(1));
             l.pushtail(msgtag(2));
             tx_message(t).addparam(p, l).serialise(buf);
-            auto rxm(rx_message::fetch(buf));
-            list<msgtag> l2;
-            rxm.success().fetch(p, l2).fatal("fetching");
+            auto rxm(rx_message::fetch(buf).fatal("decoding"));
+            list<msgtag> l2(rxm.getparam(p).fatal(fields::mk("decoding")));
             auto it1(l.start());
             auto it2(l2.start());
             while (1) {
@@ -1137,12 +1135,11 @@ tests::wireproto() {
             tx_message(msgtag(1))
                 .addparam(lparam, x)
                 .serialise(buf);
-            list<int> y;
-            rx_message::fetch(buf)
-                .fatal("fetch message we just built")
-                .fetch(lparam, y)
-                .fatal("extracting list");
-            assert(x.eq(y)); });
+            assert(x.eq(
+                       rx_message::fetch(buf)
+                       .fatal("fetch message we just built")
+                       .getparam(lparam)
+                       .fatal(fields::mk("extracting list")))); });
 
     testcaseV("wireproto", "flush", [] {
 	    parameter<int> param(1);

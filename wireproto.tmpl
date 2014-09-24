@@ -36,19 +36,20 @@ rx_message::getparam(parameter<typ> p) const
     return deserialise<typ>(slice);
 }
 
-template <typename nested> orerror<void>
-rx_message::fetch(parameter<list<nested> > tmpl, list<nested> &out) const {
+template <typename nested> maybe<list<nested> >
+rx_message::getparam(parameter<list<nested> > p) const {
+    list<nested> res;
     for (unsigned x = 0; x < msg->nrparams; x++) {
-        if (msg->idx[x].id == tmpl.id) {
+        if (msg->idx[x].id == p.id) {
             bufslice slice(
                 (const void *)((unsigned long)msg + msg->idx[x].offset),
                 (x + 1 == msg->nrparams
                  ? msg->sz
                  : msg->idx[x+1].offset) - msg->idx[x].offset);
             auto r(deserialise<nested>(slice));
-            if (r == Nothing) return error::invalidmessage;
-            out.pushtail(r.just()); } }
-    return Success; }
+            if (r == Nothing) return Nothing;
+            res.pushtail(r.just()); } }
+    return res; }
 
 template <typename nested> tx_message &
 tx_message::addparam(parameter<list<nested> > tmpl, const list<nested> &val)
