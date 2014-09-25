@@ -69,7 +69,7 @@ done
 
 ar lib.a $(bits .o)
 
-ar libR.a actortype.o beacon.o beaconclient.o beaconserver.o buffer.o buildconfig.o buildconfigimpl.o clustername.o cond.o controlserver.o error.o fd.o fields.o filename.o frequency.o listenfd.o logging.o maybe.o mutex.o parsers.o peername.o pubsub.o quickcheck.o rpcconn.o rpcserver.o socket.o shutdown.o slavename.o spark.o string.o tcpsocket.o test.o tid.o timedelta.o timestamp.o tmpheap.o thread.o udpsocket.o util.o waitbox.o walltime.o wireproto.o
+ar libR.a actortype.o beacon.o beaconclient.o beaconserver.o buffer.o buildconfig.o buildconfigimpl.o clustername.o cond.o controlserver.o digest.o error.o fd.o fields.o filename.o frequency.o jobname.o listenfd.o logging.o maybe.o mutex.o parsers.o peername.o pubsub.o quickcheck.o rpcconn.o rpcserver.o socket.o shutdown.o slavename.o spark.o storageslave.o streamname.o streamstatus.o string.o tcpsocket.o test.o tid.o timedelta.o timestamp.o tmpheap.o thread.o udpsocket.o util.o waitbox.o walltime.o wireproto.o
 
 cat << EOF
 buildconfig.d:

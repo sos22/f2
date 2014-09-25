@@ -15,13 +15,11 @@ rpcserver::run(clientio io) {
     list<rpcconn::deathsubscription *> threads;
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
-    subscription hksub(sub, keephouse);
     iosubscription ios(sub, sock.poll());
 
     while (!shutdown.ready() || !threads.empty()) {
         auto s = sub.wait(io);
-        if (s == &hksub) housekeeping(io);
-        else if (s == &shutdownsub) {
+        if (s == &shutdownsub) {
             shutdownsub.detach();
             for (auto it(threads.start()); !it.finished(); it.next()) {
                 (*it)->conn->teardown(); }
@@ -68,17 +66,7 @@ rpcserver::run(clientio io) {
 rpcserver::rpcserver(constoken t, listenfd fd)
     : thread(t),
       shutdown(),
-      sock(fd),
-      keephouse() {}
-
-#ifndef COVERAGESKIP
-void
-rpcserver::housekeeping(clientio) {
-    logmsg(loglevel::emergency,
-           "housekeeping callback was invoked without being defined (" +
-           fields::mk(status()) + ")");
-    abort(); }
-#endif
+      sock(fd) {}
 
 rpcserver::status_t
 rpcserver::status() const {

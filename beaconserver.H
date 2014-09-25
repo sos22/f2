@@ -25,15 +25,11 @@ class clientio;
     iter0(ctxt, 2, ref, clustername, cluster)                           \
     /* Who are we advertising? */                                       \
     iter0(ctxt, 3, ref, slavename, name)                                \
-    /* What interface do they support? */                               \
-    iter0(ctxt, 4, value, actortype, type)                              \
-    /* What TCP port are they listening on? */                          \
-    iter0(ctxt, 5, ref, peernameport, port)                             \
     /* How long may clients cache our responses for?  Note that this */ \
     /* will be measured from the point they receive the response, and */ \
     /* not the point at which we send it i.e. the actual liveness time */ \
     /* is this plus one network delay. */                               \
-    iter1(ctxt, 6, value, timedelta, cachetime)
+    iter1(ctxt, 4, value, timedelta, cachetime)
 class beaconserverconfig {
     mktuplefields(beaconserverconfig, public); };
 mktupleext(beaconserverconfig);
@@ -44,7 +40,11 @@ mktupleext(beaconserverconfig);
     iter0(ctxt, 2, value, unsigned, errors)                             \
     /* How many requests have we ignored due to filter mismatches, */   \
     /* ever? */                                                         \
-    iter1(ctxt, 3, value, unsigned, ignored)
+    iter0(ctxt, 3, value, unsigned, ignored)                            \
+    /* What type of interface are we advertising? */                    \
+    iter0(ctxt, 4, value, ::actortype, type)                            \
+    /* On what port is it exposed? */                                   \
+    iter1(ctxt, 5, ref, peernameport, port)
 class beaconserverstatus {
     mktuplefields(beaconserverstatus, public); };
 mktupleext(beaconserverstatus);
@@ -66,6 +66,8 @@ private: void operator=(const beaconserver &) = delete;
 
 private: controliface controliface_;
 private: beaconserverconfig config;
+private: const actortype advertisetype;
+private: const peername::port advertiseport;
 private: udpsocket listenfd;
 private: udpsocket clientfd;
 private: waitbox<void> shutdown;
@@ -76,10 +78,14 @@ private: unsigned ignored; /* total number of ignored requests,
     /* Construct a new beacon server.  We expose listening and status
      * interfaces over the controlserver cs. */
 public:  static orerror<beaconserver *> build(const beaconserverconfig &,
+                                              actortype type,
+                                              peername::port port,
                                               controlserver *cs);
     /* Use build() */
 private: beaconserver(thread::constoken,
                       const beaconserverconfig &config,
+                      actortype type,
+                      peername::port port,
                       controlserver *cs,
                       udpsocket listenfd,
                       udpsocket clientfd);

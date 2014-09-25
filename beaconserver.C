@@ -34,23 +34,16 @@ parsers::__beaconserverconfig() {
             ~(" proto:" + parsers::__beaconconfig()) +
             " cluster:" + parsers::__clustername() +
             " name:" + parsers::_slavename() +
-            " type:" + parsers::_actortype() +
-            " port:" + parsers::_peernameport() +
             ~(" cachetime:" + parsers::_timedelta()) +
             ">")
         .map<beaconserverconfig>(
             []
-            (const pair<pair<pair<pair<pair<maybe<beaconconfig>,
-                                            clustername>,
-                                       slavename>,
-                                  actortype>,
-                             peernameport>,
+            (const pair<pair<pair<maybe<beaconconfig>,
+                                  clustername>,
+                             slavename>,
                         maybe<timedelta> > &w) {
             return beaconserverconfig(
-                w.first().first().first().first().first().dflt(
-                    beaconconfig::dflt),
-                w.first().first().first().first().second(),
-                w.first().first().first().second(),
+                w.first().first().first().dflt(beaconconfig::dflt),
                 w.first().first().second(),
                 w.first().second(),
                 w.second().dflt(timedelta::seconds(60))); }); }
@@ -73,12 +66,16 @@ beaconserver::controliface::getlistening(
 
 beaconserver::beaconserver(thread::constoken token,
                            const beaconserverconfig &_config,
+                           actortype type,
+                           peername::port port,
                            controlserver *cs,
                            udpsocket _listenfd,
                            udpsocket _clientfd)
     : thread(token),
       controliface_(this, cs),
       config(_config),
+      advertisetype(type),
+      advertiseport(port),
       listenfd(_listenfd),
       clientfd(_clientfd),
       shutdown(),
@@ -87,6 +84,8 @@ beaconserver::beaconserver(thread::constoken token,
 
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
+                    actortype type,
+                    peername::port port,
                     controlserver *cs) {
     auto listensock(udpsocket::listen(config.proto.reqport));
     if (listensock.isfailure()) return listensock.failure();
@@ -97,6 +96,8 @@ beaconserver::build(const beaconserverconfig &config,
     else return thread::spawn<beaconserver>(
         fields::mk("beaconserver"),
         config,
+        type,
+        port,
         cs,
         listensock.success(),
         clientsock.success())
@@ -113,10 +114,10 @@ beaconserver::run(clientio io) {
     wireproto::tx_message response(proto::BEACON::resp::tag);
     response
         .addparam(proto::BEACON::resp::version, 1u)
-        .addparam(proto::BEACON::resp::type, config.type)
+        .addparam(proto::BEACON::resp::type, advertisetype)
         .addparam(proto::BEACON::resp::name, config.name)
         .addparam(proto::BEACON::resp::cluster, config.cluster)
-        .addparam(proto::BEACON::resp::port, config.port)
+        .addparam(proto::BEACON::resp::port, advertiseport)
         .addparam(proto::BEACON::resp::cachetime, config.cachetime);
 
     /* Broadcast our existence as soon as we start, to make things a
@@ -194,7 +195,7 @@ beaconserver::run(clientio io) {
             continue; }
         if (reqcluster != config.cluster ||
             (reqname != Nothing && reqname != config.name) ||
-            (reqtype != Nothing && reqtype != config.type)) {
+            (reqtype != Nothing && reqtype != advertisetype)) {
             logmsg(loglevel::debug,
                    "BEACON request from " +
                    fields::mk(rr.success()) +
@@ -203,7 +204,7 @@ beaconserver::run(clientio io) {
                    " type " + fields::mk(reqtype) +
                    "; we are cluster " + fields::mk(config.cluster) +
                    " name " + fields::mk(config.name) +
-                   " type " + fields::mk(config.type) +
+                   " type " + fields::mk(advertisetype) +
                    "; ignoring");
             ignored++;
             continue; }
@@ -234,4 +235,4 @@ beaconserver::~beaconserver() {}
 
 beaconserver::status_t
 beaconserver::status() const {
-    return status_t(config, errors, ignored); }
+    return status_t(config, errors, ignored, advertisetype, advertiseport); }

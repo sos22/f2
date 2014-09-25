@@ -25,9 +25,10 @@ main(int argc, char *argv[])
 
     if (argc != 2) errx(1, "need one argument, the storage configuration");
 
-    auto config(parsers::_storageconfig()
+    auto config(parsers::__storageconfig()
                 .match(argv[1])
-                .fatal("cannot parse " + fields::mk(argv[1]) + " as storage configuration"));
+                .fatal("cannot parse " + fields::mk(argv[1]) +
+                       " as storage configuration"));
 
     logmsg(loglevel::notice, fields::mk("storage slave starting"));
 
@@ -37,10 +38,7 @@ main(int argc, char *argv[])
     config.controlsock.evict();
     auto c(controlserver::build(config.controlsock, s)
            .fatal("build control interface"));
-    auto slave(storageslave::build(
-                   clientio::CLIENTIO,
-                   config,
-                   c)
+    auto slave(storageslave::build(config, c)
                .fatal("build storage slave"));
 
     auto r = s.get(clientio::CLIENTIO);

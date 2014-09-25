@@ -17,13 +17,10 @@ class jobname;
 
 class storageslavestatus {
 public:  rpcserver::status_t server;
-public:  maybe<rpcconn::status_t> masterconn;
 public:  list<rpcconn::status_t> clientconns;
 public:  storageslavestatus(const rpcserver::status_t &_server,
-                            const maybe<rpcconn::status_t> &_masterconn,
                             const list<rpcconn::status_t> &_clientconns)
     : server(_server),
-      masterconn(_masterconn),
       clientconns(_clientconns) {}
 WIREPROTO_TYPE(storageslavestatus);
 };
@@ -49,32 +46,19 @@ private: class controliface : public controlinterface {
     private: void getlistening(wireproto::resp_message *) const;
     };
 private: controliface control_;
-private: struct _masterconn {
-    mutable mutex_t lock;
-    storageslaveconn *conn;
-    int refcount;
-    bool dying;
-    publisher idle;
-    _masterconn()
-        : lock(),
-          conn(NULL),
-          refcount(0),
-          dying(false),
-          idle() {} } master;
+    /* XXX only used for status interface; maybe move all of that to
+     * rpcserver layer? */
 private: list<storageslaveconn *> clients;
 private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
-public:  static orerror<storageslave *> build(
-    clientio io,
-    const storageconfig &config,
-    controlserver *);
+public:  static orerror<storageslave *> build(const storageconfig &config,
+                                              controlserver *);
 private: storageslave(constoken,
                       listenfd,
                       controlserver *cs,
                       const storageconfig &config);
 private: orerror<rpcconn *> accept(socket_t);
-private: void housekeeping(clientio);
 public:  orerror<void> createempty(
     const jobname &t,
     const streamname &sn) const;
@@ -104,7 +88,6 @@ public:  orerror<void> removestream(
     const jobname &jn,
     const streamname &sn) const;
 public:  void destroy(clientio);
-private: ~storageslave();
 
 public:  typedef storageslavestatus status_t;
 public:  status_t status() const;

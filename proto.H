@@ -76,11 +76,6 @@ namespace proto {
         static const parameter<uint64_t> ipv6b(5);
         static const parameter<bool> wildcardlocal(6);
     };
-    namespace storageslavestatus {
-        static const parameter<class ::rpcserverstatus> server(1);
-        static const parameter<class ::rpcconnstatus> masterconn(2);
-        static const parameter<list< ::rpcconnstatus> > clientconns(3);
-    };
     namespace streamstatus {
         static const parameter<class ::streamname> name(1);
         static const parameter<bool> finished(2);
