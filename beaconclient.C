@@ -356,7 +356,7 @@ beaconclient::run(clientio io) {
         cachelock.locked([this, broadcast] (mutex_t::token) {
             for (auto it(cache.start()); !it.finished(); ) {
                 auto entry(*it);
-                entry->mux.locked(
+                bool release = entry->mux.locked<bool>(
                     [broadcast, entry, &it, this]
                     (mutex_t::token) {
                     if (entry->lastused + config.gctimeout < timestamp::now()) {
@@ -364,7 +364,7 @@ beaconclient::run(clientio io) {
                         it.remove();
                         entry->dead = true;
                         entry->pub.publish();
-                        entry->deref(); }
+                        return true; }
                     else if (broadcast) {
                         /* Sending a broadcast counts as a query on
                          * all peers. */
@@ -416,7 +416,10 @@ beaconclient::run(clientio io) {
                                they'll be covered by the usual retry
                                logic anyway. */
                             entry->lastbeaconrequest =
-                                timestamp::now(); } } } ); } }); }
+                                timestamp::now(); } }
+                    return false; } );
+                if (release) entry->deref();
+                else it.next(); } } ); }
     /* Control interface is still runnng so this has to be under the
      * cache lock. */
     cachelock.locked([this] (mutex_t::token) { cache.flush(); });

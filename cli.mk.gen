@@ -3,6 +3,6 @@
 . shutil
 
 cc cli.C
-ld cli cli.o lib.a
+ld cli cli.o libR.a
 
 target cli

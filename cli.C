@@ -89,8 +89,6 @@ main(int argc, const char *const argv[])
         } else {
             auto mm(m.success());
             fields::print("beacon: " + fields::mk(mm->getparam(resp::beacon)) +
-                          "\nstorageslave: " +
-                              fields::mk(mm->getparam(resp::storageslave)) +
                           "\nmyname: " +
                               fields::mk(mm->getparam(resp::myname)) +
                           "\nbeaconclient: " +

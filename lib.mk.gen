@@ -27,15 +27,12 @@ function bits() {
     _ jobname
     _ listenfd
     _ logging
-    _ masterconfig
-    _ mastersecret
     _ maybe
     _ mutex
     _ nonce
     _ obj
     _ parsers
     _ peername
-    _ proto
     _ pubsub
     _ quickcheck
     _ ratelimiter
@@ -89,7 +86,6 @@ testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule filename filename.C filename.H
 testmodule frequency frequency.C frequency.H
-testmodule masterconfig masterconfig.C masterconfig.H
 testmodule maybe maybe.C maybe.H maybe.tmpl
 testmodule mutex mutex.C mutex.H mutex.tmpl
 testmodule parsers parsers.C parsers.H parsers.tmpl
