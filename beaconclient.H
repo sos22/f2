@@ -27,23 +27,23 @@ template <typename> class orerror;
 class quickcheck;
 
 #define _beaconclientconfig(ctxt, iter0, iter1)                         \
-    iter0(ctxt, 1, ref, ::beaconconfig, proto)                          \
+    iter0(ctxt, 1, mand, ref, ::beaconconfig, proto)                    \
     /* What cluster are we tracking? */                                 \
-    iter0(ctxt, 2, ref, ::clustername, cluster)                         \
+    iter0(ctxt, 2, mand, ref, ::clustername, cluster)                   \
     /* Optionally filter on the type of remote hosts to track */        \
-    iter0(ctxt, 3, value, maybe<actortype>, type)                       \
+    iter0(ctxt, 3, opt, value, actortype, type)                         \
     /* Optionally filter on the slavename of remote hosts to track. */  \
     /* This is only really useful from command line tools. */           \
-    iter0(ctxt, 4, ref, maybe<slavename>, name)                         \
+    iter0(ctxt, 4, opt, ref, slavename, name)                           \
     /* How long should we wait after making a query before sending */   \
     /* another one? */                                                  \
-    iter0(ctxt, 5, value, ::timedelta, queryinterval)                   \
+    iter0(ctxt, 5, mand, value, ::timedelta, queryinterval)             \
     /* How often should we send broadcast queries to discover new */    \
     /* peers? */                                                        \
-    iter0(ctxt, 6, value, ::timedelta, broadcastinterval)               \
+    iter0(ctxt, 6, mand, value, ::timedelta, broadcastinterval)         \
     /* How long should we keep cached entries around for if they're */  \
     /* not being used? */                                               \
-    iter1(ctxt, 7, value, ::timedelta, gctimeout)
+    iter1(ctxt, 7, mand, value, ::timedelta, gctimeout)
 class beaconclientconfig {
     mktuplefields(beaconclientconfig, public);
 public: static beaconclientconfig dflt(const clustername &,
@@ -53,13 +53,13 @@ mktupleext(beaconclientconfig);
 
 #define _beaconclientresult(ctxt, iter0, iter1)                         \
     /* Interface exposed by remote system */                            \
-    iter0(ctxt, 1, value, ::actortype, type)                            \
+    iter0(ctxt, 1, mand, value, ::actortype, type)                      \
     /* Where to connect to for this server? */                          \
-    iter0(ctxt, 2, ref, ::peername, server)                             \
+    iter0(ctxt, 2, mand, ref, ::peername, server)                       \
     /* Where is the beacon for this server? */                          \
-    iter0(ctxt, 3, ref, ::peername, beacon)                             \
+    iter0(ctxt, 3, mand, ref, ::peername, beacon)                       \
     /* When did we last get a beacon response for this slave? */        \
-    iter1(ctxt, 4, value, ::walltime, lastbeaconresponsewall)
+    iter1(ctxt, 4, mand, value, ::walltime, lastbeaconresponsewall)
 class beaconclientresult {
     mktuplefields(beaconclientresult, public);
 };
@@ -67,21 +67,21 @@ mktupleext(beaconclientresult);
 
 #define _beaconclientslotstatus(ctxt, iter0, iter1)                     \
     /* name of remote system */                                         \
-    iter0(ctxt, 1, ref, ::slavename, name)                              \
+    iter0(ctxt, 1, mand, ref, ::slavename, name)                        \
     /* Nothing if we've not gotten a beacon response yet or the */      \
     /* response details otherwise. */                                   \
-    iter0(ctxt, 2, ref, ::maybe< ::beaconclientresult>, result)         \
+    iter0(ctxt, 2, opt, ref, ::beaconclientresult, result)              \
     /* When did we last send a request to the beacon?  Nothing if */    \
     /* either we've never sent a request or if the last request we */   \
     /* sent has already received a response. */                         \
-    iter0(ctxt, 3, value, ::maybe< ::walltime>, lastbeaconrequestwall)  \
+    iter0(ctxt, 3, opt, value, ::walltime, lastbeaconrequestwall)       \
     /* When we this entry last used?  We only bother to refresh things*/ \
     /* which have been used recently. */                                \
-    iter0(ctxt, 4, value, ::walltime, lastusedwall)                     \
+    iter0(ctxt, 4, mand, value, ::walltime, lastusedwall)               \
     /* Simple reference count for the slot.  The slot is deleted if */  \
     /* this reaches zero.  Being in the beaconclient cache list counts*/\
     /* as a reference. */                                               \
-    iter1(ctxt, 5, value, unsigned, refcount)
+    iter1(ctxt, 5, mand, value, unsigned, refcount)
 class beaconclientslotstatus {
     mktuplefields(beaconclientslotstatus, public); };
 mktupleext(beaconclientslotstatus);
@@ -127,9 +127,9 @@ public:  typedef beaconclientslotstatus status_t;
 public:  status_t status() const; };
 
 #define _beaconclientstatus(ctxt, iter0, iter1)                         \
-    iter0(ctxt, 1, ref, ::beaconclientconfig, config)                   \
-    iter0(ctxt, 2, ref, ::list< ::beaconclientslot::status_t>, cache)   \
-    iter1(ctxt, 3, value, int, errors)
+    iter0(ctxt, 1, mand, ref, ::beaconclientconfig, config)             \
+    iter0(ctxt, 2, mand, ref, ::list< ::beaconclientslot::status_t>, cache) \
+    iter1(ctxt, 3, mand, value, int, errors)
 class beaconclientstatus {
     mktuplefields(beaconclientstatus, public);
 public: beaconclientstatus(const beaconclientconfig &, int);

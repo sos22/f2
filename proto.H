@@ -131,8 +131,7 @@ namespace proto {
             static const parameter< ::beaconserverstatus> beacon(450);
             static const parameter< ::storageslavestatus> storageslave(451);
             static const parameter< ::slavename> myname(452);
-            static const parameter<maybe<::beaconclientstatus> >
-                 beaconclient(453);
+            static const parameter< ::beaconclientstatus> beaconclient(453);
         };
     };
 

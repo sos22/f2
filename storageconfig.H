@@ -7,11 +7,11 @@
 #include "slavename.H"
 #include "tuple.H"
 
-#define _storageconfig(ctxt, iter0, iter1)              \
-    iter0(ctxt, 1, ref, peername, controlsock)          \
-    iter0(ctxt, 2, ref, filename, poolpath)             \
-    iter0(ctxt, 3, ref, beaconserverconfig, beacon)     \
-    iter1(ctxt, 4, ref, rpcconnconfig, connconfig)
+#define _storageconfig(ctxt, iter0, iter1)                    \
+    iter0(ctxt, 1, mand, ref, peername, controlsock)          \
+    iter0(ctxt, 2, mand, ref, filename, poolpath)             \
+    iter0(ctxt, 3, mand, ref, beaconserverconfig, beacon)     \
+    iter1(ctxt, 4, mand, ref, rpcconnconfig, connconfig)
 class storageconfig {
     mktuplefields(storageconfig, public); };
 mktupleext(storageconfig);

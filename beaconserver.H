@@ -20,31 +20,31 @@
 class clientio;
 
 #define _beaconserverconfig(ctxt, iter0, iter1)                         \
-    iter0(ctxt, 1, ref, ::beaconconfig, proto)                          \
+    iter0(ctxt, 1, mand, ref, ::beaconconfig, proto)                    \
     /* What cluster are we broadcasting our beacon messages into? */    \
-    iter0(ctxt, 2, ref, clustername, cluster)                           \
+    iter0(ctxt, 2, mand, ref, clustername, cluster)                     \
     /* Who are we advertising? */                                       \
-    iter0(ctxt, 3, ref, slavename, name)                                \
+    iter0(ctxt, 3, mand, ref, slavename, name)                          \
     /* How long may clients cache our responses for?  Note that this */ \
     /* will be measured from the point they receive the response, and */ \
     /* not the point at which we send it i.e. the actual liveness time */ \
     /* is this plus one network delay. */                               \
-    iter1(ctxt, 4, value, timedelta, cachetime)
+    iter1(ctxt, 4, mand, value, timedelta, cachetime)
 class beaconserverconfig {
     mktuplefields(beaconserverconfig, public); };
 mktupleext(beaconserverconfig);
 
 #define _beaconserverstatus(ctxt, iter0, iter1)                         \
-    iter0(ctxt, 1, ref, ::beaconserverconfig, config)                   \
+    iter0(ctxt, 1, mand, ref, ::beaconserverconfig, config)             \
     /* How many errors have we encountered, ever? */                    \
-    iter0(ctxt, 2, value, unsigned, errors)                             \
+    iter0(ctxt, 2, mand, value, unsigned, errors)                       \
     /* How many requests have we ignored due to filter mismatches, */   \
     /* ever? */                                                         \
-    iter0(ctxt, 3, value, unsigned, ignored)                            \
+    iter0(ctxt, 3, mand, value, unsigned, ignored)                      \
     /* What type of interface are we advertising? */                    \
-    iter0(ctxt, 4, value, ::actortype, type)                            \
+    iter0(ctxt, 4, mand, value, ::actortype, type)                      \
     /* On what port is it exposed? */                                   \
-    iter1(ctxt, 5, ref, peernameport, port)
+    iter1(ctxt, 5, mand, ref, peernameport, port)
 class beaconserverstatus {
     mktuplefields(beaconserverstatus, public); };
 mktupleext(beaconserverstatus);

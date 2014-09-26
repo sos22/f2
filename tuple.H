@@ -6,17 +6,19 @@
  * something like this:
 
  #define _T(ctxt, iter0, iter1)                 \
- iter0(ctxt, 1, value, int, x)                  \
- iter0(ctxt, 2, value, char, y)                 \
- iter1(ctxt, 3, ref, string, z)
+ iter0(ctxt, 1, opt, value, int, x)             \
+ iter0(ctxt, 2, mand, value, char, y)           \
+ iter1(ctxt, 3, opt, ref, string, z)
 
  * The first argument to the iterators is a context which should be
  * passed in verbatim from the type definer.  The second is an index
  * which must be unique for each field.  The third is an indicator,
- * either value or ref, which is used to decide whether to pass a
- * field by reference or by value.  The fourth is the type of the
- * field. The fifth is the name of the field.  Use the first iterator
- * for ``internal'' fields and the second for the last in the structure.
+ * either mand or opt, of whether the parameter should be considered
+ * optional.  The fourth is an indicator, either value or ref, which
+ * is used to decide whether to pass a field by reference or by value.
+ * The fifth is the type of the field. The sixth is the name of the
+ * field.  Use the first iterator for ``internal'' fields and the
+ * second for the last in the structure.
  *
  * You can then declare the tuple like this:
 
@@ -40,16 +42,24 @@ mktupledef(T)
 
 #include "wireproto.tmpl"
 
-#define __mktuplefields(_ctxt, _idx, _flavour, type, name)              \
-    public: type name ;
-#define __mktupledeclref(type, fname)                                   \
+#define __mktuplefieldsopt(type)                                        \
+    maybe< type >
+#define __mktuplefieldsmand(type)                                       \
+    type
+#define __mktuplefields(_ctxt, _idx, opt, _flavour, type, name)         \
+    public: __mktuplefields ## opt(type) name ;
+#define __mktupledeclrefopt(type, fname)                                \
+    const maybe< type > &fname
+#define __mktupledeclrefmand(type, fname)                               \
     const type &fname
-#define __mktupledeclvalue(type, fname)                                 \
+#define __mktupledeclvalueopt(type, fname)                              \
+    maybe< type > fname
+#define __mktupledeclvaluemand(type, fname)                             \
     type fname
-#define __mktupledecl0(_ctxt, _idx, flavour, type, fname)               \
-    __mktupledecl ## flavour (type, _##fname),
-#define __mktupledecl1(_ctxt, _idx, flavour, type, fname)               \
-    __mktupledecl ## flavour (type, _##fname)
+#define __mktupledecl0(_ctxt, _idx, opt, flavour, type, fname)          \
+    __mktupledecl ## flavour ## opt(type, _##fname),
+#define __mktupledecl1(_ctxt, _idx, opt, flavour, type, fname)          \
+    __mktupledecl ## flavour ## opt(type, _##fname)
 #define mktuplefields(cname, cvis)                                      \
         _ ## cname(Z, __mktuplefields, __mktuplefields)                 \
 public: cname(const quickcheck &q);                                     \
@@ -66,28 +76,38 @@ template <typename> class parser;                                       \
 namespace parsers {                                                     \
 const parser<name> &__ ##name();}
 
-#define __mktupleconstructor0(_ctxt, _idx, _flavour, _type, fname)      \
+#define __mktupleconstructor0(_ctxt, _idx, _opt, _flavour, _type, fname) \
     fname(_##fname),
-#define __mktupleconstructor1(_ctxt, _idx, _flavour, _type, fname)      \
+#define __mktupleconstructor1(_ctxt, _idx, _opt, _flavour, _type, fname) \
     fname(_##fname)
-#define __mktupleconstructorq0(_ctxt, _idx, _flavour, _type, name)      \
+#define __mktupleconstructorq0(_ctxt, _idx, _opt, _flavour, _type, name) \
     name(q),
-#define __mktupleconstructorq1(_ctxt, _idx, _flavour, _type, name)      \
+#define __mktupleconstructorq1(_ctxt, _idx, _opt, _flavour, _type, name) \
     name(q)
-#define __mktuplene(_ctxt, _idx, _flavour, _type, name)                 \
+#define __mktuplene(_ctxt, _idx, _opt,_flavour, _type, name)            \
     if (!(name == o.name)) return true;
-#define __mktupleprotodefn(_ctxt, idx, _flavour, type, name)            \
-    static const wireproto::parameter< type > name(idx);
-#define __mktupleaddparam(ctxt, _idx, _flavour, _type, name)            \
+#define __mktupleprotodefnopt(n) maybe<n>
+#define __mktupleprotodefnmand(n) n
+#define __mktupleprotodefn(_ctxt, idx, opt, _flavour, type, name)       \
+    static const wireproto::parameter<                                  \
+        __mktupleprotodefn ## opt(type) > name(idx);
+#define __mktupleaddparam(ctxt, _idx, opt, _flavour, _type, name)      \
     .addparam(proto::ctxt::name, this->name)
-#define __mktuplefromcompound0(ctxt, _idx, _flavour, _type, name)       \
-    auto name(msg.getparam(proto::ctxt::name));                         \
+#define __mktuplefromcompound3opt(name) do {} while (0);
+#define __mktuplefromcompound3mand(name)                                \
     if (name == Nothing) return Nothing;
-#define __mktuplefromcompound1(_ctxt, _idx, _flavour, _type, name)      \
-    name.just(),
-#define __mktuplefromcompound2(_ctxt, _idx, _flavour, _type, name)      \
-    name.just()
-#define __mktuplefield(_ctxt, _idx, _flavour, _type, name)              \
+#define __mktuplefromcompound0(ctxt, _idx, opt, _flavour, _type, name)  \
+    auto name(msg.getparam(proto::ctxt::name));                         \
+    __mktuplefromcompound3 ## opt (name)
+#define __mktuplefromcompound1mand(name) name.just(),
+#define __mktuplefromcompound1opt(name) name,
+#define __mktuplefromcompound2mand(name) name.just()
+#define __mktuplefromcompound2opt(name) name
+#define __mktuplefromcompound1(_ctxt, _idx, opt, _flavour, _type, name) \
+    __mktuplefromcompound1 ## opt(name)
+#define __mktuplefromcompound2(_ctxt, _idx, opt, _flavour, _type, name) \
+    __mktuplefromcompound2 ## opt(name)
+#define __mktuplefield(_ctxt, _idx, _opt, _flavour, _type, name)        \
     + " " #name ":" + fields::mk(o.name)
 #define mktupledef(cname)                                               \
 cname::cname(_ ## cname (Z, __mktupledecl0, __mktupledecl1))            \

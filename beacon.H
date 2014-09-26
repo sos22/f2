@@ -8,9 +8,9 @@
  * protocol. */
 #define _beaconconfig(ctxt, iter0, iter1)                               \
     /* What UDP port do we use for requests? */                         \
-    iter0(ctxt, 1, value, peernameport, reqport)                        \
+    iter0(ctxt, 1, mand, value, peernameport, reqport)                  \
     /* What UDP port do we use for responses? */                        \
-    iter1(ctxt, 2, value, peernameport, respport)
+    iter1(ctxt, 2, mand, value, peernameport, respport)
 class beaconconfig {
     mktuplefields(beaconconfig, public);
 public: static beaconconfig dflt; };
