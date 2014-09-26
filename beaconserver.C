@@ -64,24 +64,6 @@ beaconserver::controliface::getlistening(
     msg->addparam(proto::LISTENING::resp::beacon,
                   owner->listenfd.localname()); }
 
-beaconserver::beaconserver(thread::constoken token,
-                           const beaconserverconfig &_config,
-                           actortype type,
-                           peername::port port,
-                           controlserver *cs,
-                           udpsocket _listenfd,
-                           udpsocket _clientfd)
-    : thread(token),
-      controliface_(this, cs),
-      config(_config),
-      advertisetype(type),
-      advertiseport(port),
-      listenfd(_listenfd),
-      clientfd(_clientfd),
-      shutdown(),
-      errors(0),
-      ignored(0) {}
-
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
                     actortype type,
@@ -102,6 +84,24 @@ beaconserver::build(const beaconserverconfig &config,
         listensock.success(),
         clientsock.success())
              .go(); }
+
+beaconserver::beaconserver(thread::constoken token,
+                           const beaconserverconfig &_config,
+                           actortype type,
+                           peername::port port,
+                           controlserver *cs,
+                           udpsocket _listenfd,
+                           udpsocket _clientfd)
+    : thread(token),
+      controliface_(this, cs),
+      config(_config),
+      advertisetype(type),
+      advertiseport(port),
+      listenfd(_listenfd),
+      clientfd(_clientfd),
+      shutdown(),
+      errors(0),
+      ignored(0) {}
 
 void
 beaconserver::run(clientio io) {

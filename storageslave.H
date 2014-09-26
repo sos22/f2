@@ -52,6 +52,9 @@ private: list<storageslaveconn *> clients;
 private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
+    /* initialised very early on, before the server is unpaused, and
+     * const until the finish() method is invoked. */
+private: beaconserver *beacon;
 public:  static orerror<storageslave *> build(const storageconfig &config,
                                               controlserver *);
 private: storageslave(constoken,
@@ -88,6 +91,7 @@ public:  orerror<void> removestream(
     const jobname &jn,
     const streamname &sn) const;
 public:  void destroy(clientio);
+private: void finish(clientio) final;
 
 public:  typedef storageslavestatus status_t;
 public:  status_t status() const;

@@ -61,7 +61,8 @@ rpcserver::run(clientio io) {
             assert(found);
             rpcconn *conn = cs->conn;
             delete cs;
-            conn->join(death.just()); } } }
+            conn->join(death.just()); } }
+    finish(io); }
 
 rpcserver::rpcserver(constoken t, listenfd fd)
     : thread(t),
@@ -90,6 +91,9 @@ rpcserver::destroy(clientio io) {
     auto s(sock);
     join(io);
     s.close(); }
+
+void
+rpcserver::finish(clientio) {}
 
 const fields::field &
 fields::mk(const rpcserverstatus &s) {

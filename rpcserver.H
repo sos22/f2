@@ -45,7 +45,10 @@ private:   void operator=(const rpcserver &) = delete;
 protected: rpcserver(constoken, listenfd);
 
     /* Create a new RPC server listening on a particular peername.  @t
-       should be derived from rpcserver. */
+     * should be derived from rpcserver.  The server will be listening
+     * by the time this returns (so remote connect()s will not return
+     * ECONNREFUSED errors) but will not actually accept any incoming
+     * connections until the pausedrpcserver go() method is called. */
 public:    template <typename t, typename ... args>
     static orerror<pausedrpcserver<t> > listen(
         const peername &,
@@ -76,6 +79,14 @@ public:    status_t status() const;
      * and destroy the server. */
     /* Not a true destructor because it can wait for things. */
 public:    virtual void destroy(clientio);
+
+    /* Callback to derived classes invoked when the server is just
+     * about to shut down.  This is run once the final call to
+     * accept() is complete but before the listening socket is called
+     * (so remote peers will not see connect() return an error until
+     * after this returns, which can be important if this
+     * e.g. unregisters the server from some kind of registry). */
+private:   virtual void finish(clientio);
 
 protected: virtual ~rpcserver() {}
 };

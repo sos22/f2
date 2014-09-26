@@ -346,6 +346,18 @@ peername::setport(port p) const {
         return peername((const struct sockaddr *)&sa, sizeof(sa)); }
     default: abort(); } }
 
+peername::port
+peername::getport() const {
+    switch (sockaddr()->sa_family) {
+    case PF_LOCAL: abort();
+    case PF_INET: {
+        auto sa((const struct sockaddr_in *)sockaddr());
+        return port(ntohs(sa->sin_port)); }
+    case PF_INET6: {
+        auto sa((const struct sockaddr_in6 *)sockaddr());
+        return port(ntohs(sa->sin6_port)); }
+    default: abort(); } }
+
 const struct sockaddr *
 peername::sockaddr() const {
     return (const struct sockaddr *)sockaddr_; }

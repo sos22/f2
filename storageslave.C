@@ -128,7 +128,16 @@ storageslave::build(const storageconfig &config,
                     cs,
                     config));
     if (server.isfailure()) return server.failure();
-    else return server.success().go(); }
+    auto beacon(beaconserver::build(config.beacon,
+                                    actortype::storageslave,
+                                    server.success().unwrap()
+                                        ->localname().getport(),
+                                    cs));
+    if (beacon.isfailure()) {
+        server.success().destroy();
+        return beacon.failure(); }
+    server.success().unwrap()->beacon = beacon.success();
+    return server.success().go(); }
 
 storageslave::storageslave(constoken token,
                            listenfd fd,
@@ -385,6 +394,10 @@ storageslave::removestream(const jobname &jn,
 void
 storageslave::destroy(clientio io) {
     rpcserver::destroy(io); }
+
+void
+storageslave::finish(clientio io) {
+    beacon->destroy(io); }
 
 storageslave::status_t
 storageslave::status() const {

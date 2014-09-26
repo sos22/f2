@@ -1,5 +1,7 @@
 /* Simple thing for representing the name of the person on the other
  * end of a socket. */
+/* XXX this is a horrible mess.  Should treat UNIX-domain peernames
+ * differently from IP ones. */
 #ifndef PEERNAME_H__
 #define PEERNAME_H__
 
@@ -72,6 +74,9 @@ public:
     /* Construct a new peername which refers to the same host but on a
      * different port. */
     peername setport(port) const;
+
+    /* Extract the port part of the peername. */
+    port getport() const;
 
     /* Get the sockaddr for this peer */
     const struct sockaddr *sockaddr() const;
