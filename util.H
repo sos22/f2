@@ -26,4 +26,12 @@ min(const t &a, args ... params) {
 #define CONCAT(a, b) a##b
 #define CONCAT2(a, b) CONCAT(a, b)
 
+/* Cast to 1 rather than NULL to avoid stupid compiler crap. */
+#define containerof(thing, type, field)                                 \
+    ({  type *__res = (type *)((unsigned long)thing + 1-                \
+                               (unsigned long)&((type *)1)->field);     \
+        (void)(&__res->field == (thing));                               \
+        __res;                                                          \
+    })
+
 #endif /* !UTIL_H__ */

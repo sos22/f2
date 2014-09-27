@@ -35,6 +35,7 @@ class ratelimiterconfig;
 class ratelimiter_status;
 class registrationsecret;
 class timedelta;
+class version;
 class walltime;
 
 namespace proto {
@@ -203,39 +204,15 @@ namespace proto {
         }
     }
 
-    /* HELLO protocol, used when connecting to a remote server.  The
-     * server and client both know the cluster secret and must arrange
-     * to mutually authenticate each other. */
-    /* This is not a particularly secure protocol (in particular, the
-     * connection we authenticate isn't encrypted at all and is highly
-     * vulnerable to TCP injection), it just makes attacks a little
-     * tiny bit more difficult. */
+    /* The first request made by a client when it connects to a server
+     * must always be HELLO */
     namespace HELLO {
-        /* Server starts the protocol by sending message A with a
-         * fresh nonce. */
-        namespace A {
-            static const msgtag tag(8);
-            static const parameter<nonce> nonce(800);
+        static const msgtag tag(8);
+        namespace req {
+            static const parameter< ::slavename> name(800);
+            static const parameter< ::version> version(801);
         }
-        /* Client responds with a message B containing a digest of the
-         * A nonce and the cluster secret, plus a new nonce of its
-         * own.  The digest proves to the server that the client knows
-         * the secret. */
-        namespace B {
-            static const wireproto::msgtag tag(9);
-            /* Digest of 'B' + the nonce from message A + the cluster
-             * secret. */
-            static const parameter<digest> digest(900);
-            /* Fresh nonce */
-            static const parameter<nonce> nonce(901);
-        }
-        /* Server responds with a message containing a digest of the
-         * secret and the B nonce, proving to the client that the
-         * server knows the secret. */
-        namespace C {
-            static const wireproto::msgtag tag(10);
-            static const parameter<digest> digest(1000);
-        }
+        /* No response parameters (except possibly for an error) */
     }
 
     /* Storage slave: Create a new empty output stream.  Existing

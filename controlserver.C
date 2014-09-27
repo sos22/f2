@@ -12,14 +12,6 @@
 #include "rpcconn.tmpl"
 #include "rpcserver.tmpl"
 
-/* Cast to 1 rather than NULL to avoid stupid compiler crap. */
-#define containerof(thing, type, field)                                 \
-    ({  type *__res = (type *)((unsigned long)thing + 1-                \
-                               (unsigned long)&((type *)1)->field);     \
-        (void)(&__res->field == (thing));                               \
-        __res;                                                          \
-    })
-
 controlinterface::controlinterface(controlserver *cs)
     : inuse(true),
       invoking(),

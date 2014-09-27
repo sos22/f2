@@ -91,6 +91,8 @@ public:
     static const error notempty; /* Container not empty */
     static const error wouldblock; /* Cannot complete operation
                                     * without blocking. */
+    static const error shutdown; /* The thing which is being called is
+                                  * shutting down. */
 };
 
 namespace fields {

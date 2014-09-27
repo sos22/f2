@@ -116,6 +116,7 @@ public:
         if (isnothing()) return Nothing;
         else return f(just()); }
 };
+template <typename t> maybe<t> mkjust(const t &);
 
 /* Special case for maybe<void> */
 template <> class maybe<void> {

@@ -76,6 +76,9 @@ public:
                                      fd_t,
                                      subscriber &sub,
                                      maybe<timestamp> deadline = Nothing);
+    /* Send with blocking.  The FD must be in non-blocking mode. */
+    orerror<void> sendfast(fd_t);
+
     /* Grab some bytes from the fd and put them at the end of the
      * buffer.  Only ever makes a single read syscall, so won't block
      * if poll returns POLLIN.  Optional limit on the number of bytes

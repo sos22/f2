@@ -63,8 +63,8 @@ namespace wireproto {
             : val(o.val) {}
         ~sequencenr() {}
         static const sequencenr invalid;
-        bool operator ==(const sequencenr &o) const
-            { return val == o.val; }
+        bool operator ==(const sequencenr &o) const { return val == o.val; }
+        bool operator!=(const sequencenr &o) const { return !(*this == o); }
         sequencenr reply() const
             { return sequencenr(val | (1ul << 63)); }
         bool isreply() const {
@@ -230,6 +230,9 @@ namespace wireproto {
     private: const wireheader *msg;
     private: bool owning; /* free() msg when we're done with it */
     private: rx_message(const wireheader *, bool);
+        /* XXX would be better if this returned an allocated pointer,
+         * rather than putting it on the stack and then making the
+         * caller call steal(). */
     private: static orerror<rx_message> parse(const wireheader *,
                                               size_t sz,
                                               bool);

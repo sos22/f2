@@ -1,3 +1,4 @@
+/* XXX this API doesn't fit what we're using fds for any more */
 #ifndef FD_H__
 #define FD_H__
 
@@ -80,11 +81,10 @@ class fd_t {
     friend class spawn::process;
     friend void tests::fd();
     int fd;
-protected:
+public:
     explicit fd_t(int _fd)
         : fd(_fd)
         {}
-public:
     virtual ~fd_t() {}
     fd_t() : fd(-1) {}
     /* Construct a pollfd structure, suitable for passing off to

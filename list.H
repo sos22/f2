@@ -67,6 +67,9 @@ public:
     unsigned length() const;
     /* delete everything which is currently in the list */
     void flush();
+    /* Transfer everything from @a to the end of this list, emptying
+     * @a in the process. */
+    void transfer(list &a);
 
     /* Simple copying interface to the list, suitable for lists of
      * small items (e.g. pointers). */

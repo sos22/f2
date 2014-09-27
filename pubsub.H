@@ -118,12 +118,10 @@ public: subscriptionbase *wait(clientio, maybe<timestamp> deadline = Nothing);
      * notified. */
 public: subscriptionbase *poll();
     /* Destruct a subscriber.  Any outstanding subscriptions are
-     * automatically unsubscribed, leaving the subscription in an
-     * invalid state in which the only safe operation is to destruct
-     * it.  The caller must ensure that the subscriber destructor does
-     * not run concurrently with the destructor for any subscribed
-     * subscriptions (although running them atomically in either order
-     * is safe). */
+     * automatically unsubscribed.  The caller must ensure that the
+     * subscriber destructor does not run concurrently with the
+     * destructor for any subscribed subscriptions (although running
+     * them atomically in either order is safe). */
 public: ~subscriber();
 };
 

@@ -20,6 +20,18 @@ public:  b &right();
 public:  ~either();
 };
 
+/* Specialisation when one of the parameters is void. */
+template <typename a>
+class either<void, a> {
+public: either();
+public: either(const a &);
+public: bool isleft() const;
+public: bool isright() const;
+public: const a &right() const;
+public: a &right();
+public: ~either();
+};
+
 namespace tests {
 void either();
 }

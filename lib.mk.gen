@@ -32,6 +32,7 @@ function bits() {
     _ peername
     _ pubsub
     _ quickcheck
+    _ rpcclient
     _ rpcconn
     _ rpcserver
     _ shutdown
