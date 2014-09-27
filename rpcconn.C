@@ -29,9 +29,7 @@ tests::event<rpcconn *> tests::__rpcconn::calldestroyrace3;
 
 namespace proto {
 namespace rpcconnconfig {
-static const wireproto::parameter<unsigned> maxoutgoingbytes(1);
-static const wireproto::parameter<timedelta> pinginterval(2);
-static const wireproto::parameter<timedelta> pingdeadline(3); }
+static const wireproto::parameter<unsigned> maxoutgoingbytes(1); }
 namespace rpcconnstatus {
 static const parameter<class ::bufferstatus> outgoing(1);
 static const parameter<class ::fd_tstatus> fd(2);
@@ -42,16 +40,10 @@ static const parameter<class ::rpcconnconfig> config(6);
 static const parameter<unsigned> pendingtxcall(7);
 static const parameter<unsigned> pendingrxcall(8); } }
 
-rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes,
-                             timedelta _pinginterval,
-                             timedelta _pingdeadline)
-    : maxoutgoingbytes(_maxoutgoingbytes),
-      pinginterval(_pinginterval),
-      pingdeadline(_pingdeadline) {}
+rpcconnconfig::rpcconnconfig(unsigned _maxoutgoingbytes)
+    : maxoutgoingbytes(_maxoutgoingbytes) {}
 rpcconnconfig::rpcconnconfig(quickcheck q)
-    : maxoutgoingbytes(q),
-      pinginterval(q),
-      pingdeadline(q) {}
+    : maxoutgoingbytes(q) {}
 wireproto_wrapper_type(rpcconnconfig)
 void
 rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
@@ -59,51 +51,32 @@ rpcconnconfig::addparam(wireproto::parameter<rpcconnconfig> tmpl,
     txm.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
                  wireproto::tx_compoundparameter()
                  .addparam(proto::rpcconnconfig::maxoutgoingbytes,
-                           maxoutgoingbytes)
-                 .addparam(proto::rpcconnconfig::pinginterval, pinginterval)
-                 .addparam(proto::rpcconnconfig::pingdeadline, pingdeadline)); }
+                           maxoutgoingbytes)); }
 maybe<rpcconnconfig>
 rpcconnconfig::fromcompound(const wireproto::rx_message &p) {
 #define doparam(name)                                   \
     auto name(p.getparam(proto::rpcconnconfig::name));  \
     if (!name) return Nothing;
     doparam(maxoutgoingbytes);
-    doparam(pinginterval);
-    doparam(pingdeadline);
 #undef doparam
-    return rpcconnconfig(maxoutgoingbytes.just(),
-                         pinginterval.just(),
-                         pingdeadline.just()); }
+    return rpcconnconfig(maxoutgoingbytes.just()); }
 bool
 rpcconnconfig::operator==(const rpcconnconfig &o) const {
-    return maxoutgoingbytes == o.maxoutgoingbytes &&
-        pinginterval == o.pinginterval &&
-        pingdeadline == o.pingdeadline; }
+    return maxoutgoingbytes == o.maxoutgoingbytes; }
 const fields::field &
 fields::mk(const rpcconnconfig &c) {
     return "<rpcconnconfig:"
         " maxoutgoingbytes:" + fields::mk(c.maxoutgoingbytes) +
-        " pinginterval:" + fields::mk(c.pinginterval) +
-        " pingdeadline:" + fields::mk(c.pingdeadline) +
         ">"; }
 const parser<rpcconnconfig> &
 parsers::_rpcconnconfig() {
     return ("<rpcconnconfig:" +
             ~(" maxoutgoingbytes:" + intparser<unsigned>()) +
-            ~(" pinginterval:" + _timedelta()) +
-            ~(" pingdeadline:" + _timedelta()) +
             ">")
         .map<rpcconnconfig>(
-            [] (const pair<pair< maybe<unsigned>,
-                                 maybe<timedelta> >,
-                           maybe<timedelta> > &x) {
+            [] (const maybe<unsigned> x) {
                 return rpcconnconfig(
-                    x.first().first().dflt(
-                        rpcconnconfig::dflt.maxoutgoingbytes),
-                    x.first().second().dflt(
-                        rpcconnconfig::dflt.pinginterval),
-                    x.second().dflt(
-                        rpcconnconfig::dflt.pingdeadline)); }); }
+                    x.dflt(rpcconnconfig::dflt.maxoutgoingbytes)); } ); }
 
 wireproto_wrapper_type(rpcconn::status_t)
 void
@@ -309,13 +282,6 @@ rpcconn::run(clientio io) {
     bool outarmed;
     unsigned long history = 0;
 
-    /* Either Nothing if we're waiting to send a ping or the sequence
-       of the last ping sent if there's one outstanding. */
-    maybe<wireproto::sequencenr> pingsequence(Nothing);
-    /* Either the time to send the next ping, if pingsequence == Nothing, or
-       the deadline for receiving it, otherwise. */
-    timestamp pingtime(timestamp::now() + config.pinginterval);
-
     /* Out subscription starts armed to avoid silly races with someone
        queueing something before we start. */
     outarmed = true;
@@ -325,33 +291,10 @@ rpcconn::run(clientio io) {
     calls.send.pub.publish();
 
     while (!shutdown.ready()) {
-        subscriptionbase *ss = sub.wait(io, pingtime);
+        subscriptionbase *ss = sub.wait(io);
         tests::__rpcconn::threadawoken.trigger(this);
       gotss:
-        if (ss == NULL) {
-            history = (history << 4) | 1;
-            /* Run the ping machine. */
-            if (pingsequence.isjust()) {
-                /* Failed to receive a ping in time.  This connection
-                 * is dead. */
-                logmsg(loglevel::failure,
-                       fields::mk(peer_) + " failed to respond to ping");
-                goto done;
-            } else {
-                /* Time to send a ping. */
-                /* This can take us over the outbuffer limit.  That's
-                   fine: it's pretty arbitrary what the actual number
-                   is, and we're only ever over by a small, fixed
-                   amount. */
-                pingsequence = allocsequencenr();
-                pingtime = timestamp::now() + config.pingdeadline;
-                auto token(txlock.lock());
-                wireproto::req_message(proto::PING::tag)
-                    .serialise(outgoing, pingsequence.just());
-                if (!outarmed) outsub.rearm();
-                outarmed = true;
-                txlock.unlock(&token); }
-        } else if (ss == &callsend) {
+        if (ss == &callsend) {
             history = (history << 4) | 10;
             if (outgoing.avail() <= config.maxoutgoingbytes) {
                 txlock.locked([this] (mutex_t::token t) {sendcalls(t);}); }
@@ -376,10 +319,6 @@ rpcconn::run(clientio io) {
                 lastcontact_monotone = timestamp::now();
                 lastcontact_wall = walltime::now();
                 contactlock.unlock(&contacttoken); }
-            if (pingsequence.isjust()) {
-                pingtime = lastcontact_monotone + config.pingdeadline;
-            } else {
-                pingtime = lastcontact_monotone + config.pinginterval; }
             while (!shutdown.ready()) {
                 auto msg(wireproto::rx_message::fetch(inbuffer));
                 if (msg.isfailure()) {
@@ -391,16 +330,7 @@ rpcconn::run(clientio io) {
                         goto done; } }
                 history = (history << 4) | 12;
                 if (msg.success().isreply()) {
-                    if (msg.success().tag() == proto::PING::tag &&
-                        pingsequence.isjust() &&
-                        msg.success().sequence() ==
-                        pingsequence.just().reply()) {
-                        logmsg(loglevel::debug,
-                               "ping response from " + fields::mk(peer_));
-                        pingsequence = Nothing;
-                        pingtime = timestamp::now() + config.pinginterval;
-                    } else {
-                        receivereply(&msg.success()); }
+                    receivereply(&msg.success());
                     continue;
                 }
 
@@ -924,8 +854,4 @@ rpcconnstatus::operator == (const rpcconnstatus &o) const {
 const rpcconnconfig
 rpcconnconfig::dflt(
     /* Max outgoing bytes */
-    16384,
-    /* Ping interval */
-    timedelta::seconds(1),
-    /* Ping deadline */
-    timedelta::seconds(60));
+    16384);

@@ -30,16 +30,9 @@ class rpcconnconfig {
        then we allow any sends to add to the queue immediately, even
        if they would take us far above the limit. */
 public: unsigned maxoutgoingbytes;
-    /* Maximum connection idle time before we send a PING */
-public: timedelta pinginterval;
-    /* Once we send a ping, how long does the peer have to respond
-       before we declare them to be dead? */
-public: timedelta pingdeadline;
     /* Default configuration */
 public: static const rpcconnconfig dflt;
-public: rpcconnconfig(unsigned _maxoutgoingbytes,
-                      timedelta _pinginterval,
-                      timedelta _pingdeadline);
+public: explicit rpcconnconfig(unsigned _maxoutgoingbytes);
 public: rpcconnconfig(quickcheck);
 public: bool operator==(const rpcconnconfig &o) const;
 WIREPROTO_TYPE(rpcconnconfig);
