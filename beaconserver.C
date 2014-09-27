@@ -9,7 +9,6 @@
 #include "fields.H"
 #include "frequency.H"
 #include "logging.H"
-#include "nonce.H"
 #include "orerror.H"
 #include "peername.H"
 #include "proto.H"

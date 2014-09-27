@@ -3,7 +3,6 @@
 
 #include "clientio.H"
 #include "maybe.H"
-#include "obj.H"
 #include "orerror.H"
 #include "timestamp.H"
 #include "wireproto.H"

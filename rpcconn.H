@@ -5,7 +5,6 @@
 #include "buffer.H"
 #include "either.H"
 #include "list.H"
-#include "nonce.H"
 #include "orerror.H"
 #include "peername.H"
 #include "pubsub.H"

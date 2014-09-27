@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "error.H"
-#include "obj.H"
 
 class quickcheck;
 

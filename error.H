@@ -1,8 +1,6 @@
 #ifndef ERROR_H__
 #define ERROR_H__
 
-#include "obj.H"
-
 namespace fields {
 class field;
 };

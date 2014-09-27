@@ -18,7 +18,6 @@
 #include "parsers.H"
 #include "peername.H"
 #include "pubsub.H"
-#include "ratelimiter.H"
 #include "rpctest.H"
 #include "spawn.H"
 #include "storageconfig.H"
