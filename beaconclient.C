@@ -346,7 +346,7 @@ beaconclient::run(clientio io) {
             if (config.type != Nothing) {
                 msg.addparam(proto::BEACON::req::type, config.type.just()); }
             buffer txbuf;
-            msg.serialise(txbuf);
+            msg.serialise(txbuf, wireproto::sequencenr::invalid);
             auto r(clientfd.send(txbuf,
                                  peername::udpbroadcast(config.proto.reqport)));
             if (r.isfailure()) {
@@ -406,7 +406,8 @@ beaconclient::run(clientio io) {
                                           entry->name)
                                 .addparam(proto::BEACON::req::type,
                                           entry->result.just().type)
-                                .serialise(txbuf);
+                                .serialise(txbuf,
+                                           wireproto::sequencenr::invalid);
                             auto r(clientfd.send(txbuf,
                                                  entry->result.just().beacon));
                             if (r.isfailure()) {

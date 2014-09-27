@@ -58,9 +58,7 @@ namespace wireproto {
         uint64_t val;
         explicit sequencenr(uint64_t _val)
             : val(_val) {}
-#ifndef COVERAGESKIP
     public:
-#endif
         sequencenr(const sequencenr &o)
             : val(o.val) {}
         ~sequencenr() {}
@@ -165,11 +163,9 @@ namespace wireproto {
                                                    const t &);
         tx_message &addparam(parameter<const char *>, const char *);
         virtual ~tx_message();
-        virtual void serialise(buffer &buf) const;
+        void serialise(buffer &buf, sequencenr snr) const;
         /* Remove all of the message parameters attached so far. */
         tx_message &flush();
-    protected:
-        void serialise(buffer &buf, sequencenr snr) const;
     public: size_t serialised_size() const;
     private:
         tx_message *clone() const;
@@ -207,16 +203,14 @@ namespace wireproto {
     };
     class req_message : public tx_message {
     public:
-        const sequencenr sequence;
-        req_message(msgtag, sequencenr snr);
-        void serialise(buffer &buf) const;
+        explicit req_message(msgtag);
         template <typename t> req_message &addparam(parameter<t> p, t v)
             { tx_message::addparam(p,v); return *this; }
     };
     class resp_message : public tx_message {
     public:
         const sequencenr sequence;
-        resp_message(const rx_message &r);
+        explicit resp_message(const rx_message &r);
         void serialise(buffer &buf) const;
         template <typename t> resp_message &addparam(parameter<t> p, t v)
             { tx_message::addparam(p,v); return *this; }

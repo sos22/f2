@@ -765,12 +765,14 @@ tests::buffer(void)
             wireproto::parameter<buffer::status_t> param(7);
             wireproto::msgtag tag(99);
             {   ::buffer buf2;
-                wireproto::tx_message(tag).serialise(buf2);
+                wireproto::tx_message(tag)
+                    .serialise(buf2, wireproto::sequencenr::invalid);
                 auto r(wireproto::rx_message::fetch(buf2));
                 assert(r.issuccess());
                 assert(r.success().getparam(param) == Nothing); }
             {   ::buffer buf2;
-                wireproto::tx_message(tag).addparam(param,s).serialise(buf2);
+                wireproto::tx_message(tag).addparam(param,s)
+                    .serialise(buf2, wireproto::sequencenr::invalid);
                 auto r(wireproto::rx_message::fetch(buf2));
                 assert(r.issuccess());
                 assert(r.success().getparam(param).isjust());

@@ -195,7 +195,9 @@ rpcconn::unreference(rpcconn::reftoken) {
 /* Only ever called from the connection thread.  Returns true if it's
  * time for the connection to exit and false otherwise. */
 bool
-rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
+rpcconn::queuereply(clientio io,
+                    wireproto::tx_message &msg,
+                    wireproto::sequencenr snr) {
     /* Sending a response has to wait for buffer space, blocking RX
        while it's doing so, because otherwise we don't get the right
        backpressure. .*/
@@ -230,7 +232,7 @@ rpcconn::queuereply(clientio io, wireproto::tx_message &msg) {
     if (shutdown.ready()) {
         txlock.unlock(&txtoken);
         return true; }
-    msg.serialise(outgoing);
+    msg.serialise(outgoing, snr.reply());
     txlock.unlock(&txtoken);
     return false; }
 
@@ -344,8 +346,8 @@ rpcconn::run(clientio io) {
                 pingsequence = allocsequencenr();
                 pingtime = timestamp::now() + config.pingdeadline;
                 auto token(txlock.lock());
-                wireproto::req_message(proto::PING::tag, pingsequence.just())
-                    .serialise(outgoing);
+                wireproto::req_message(proto::PING::tag)
+                    .serialise(outgoing, pingsequence.just());
                 if (!outarmed) outsub.rearm();
                 outarmed = true;
                 txlock.unlock(&token); }
@@ -408,12 +410,14 @@ rpcconn::run(clientio io) {
                 bool out;
                 switch (res.flavour()) {
                 case messageresult::mr_success:
-                    out = queuereply(io, *res.success());
+                    out = queuereply(io,
+                                     *res.success(),
+                                     msg.success().sequence());
                     delete res.success();
                     break;
                 case messageresult::mr_failure: {
                     wireproto::err_resp_message m(msg.success(), res.failure());
-                    out = queuereply(io, m);
+                    out = queuereply(io, m, msg.success().sequence());
                     break; }
                 case messageresult::mr_posted:
                     /* postedcall constructor does all the work */
@@ -667,6 +671,7 @@ orerror<void>
 rpcconn::send(
     clientio io,
     const wireproto::tx_message &msg,
+    wireproto::sequencenr snr,
     maybe<timestamp> deadline) {
     subscriber sub;
     auto txtoken(txlock.lock());
@@ -683,7 +688,7 @@ rpcconn::send(
             if (res == NULL) return error::timeout;
             assert(res == &moretx || res == &died);
             txtoken = txlock.lock(); } }
-    msg.serialise(outgoing);
+    msg.serialise(outgoing, snr);
     txlock.unlock(&txtoken);
     outgoinggrew.publish();
     return Success; }
@@ -773,8 +778,9 @@ rpcconn::asynccall::~asynccall() {}
 
 rpcconn::asynccall *
 rpcconn::callasync(const wireproto::req_message &msg) {
-    auto res(new asynccall(msg.sequence, this));
-    calls.mux.locked([&msg, res, this] (mutex_t::token) {
+    auto snr(allocsequencenr());
+    auto res(new asynccall(snr, this));
+    calls.mux.locked([&msg, res, snr, this] (mutex_t::token) {
             if (calls.finished) {
                 res->_result =
                     maybe<orerror<const wireproto::rx_message *> >(
@@ -788,7 +794,7 @@ rpcconn::callasync(const wireproto::req_message &msg) {
                            fields::mk(peer()) +
                            "; last queued tag " +
                            fields::mk(msg.t)); }
-                msg.serialise(res->sendbuf);
+                msg.serialise(res->sendbuf, snr);
                 calls.send.pending.pushtail(res);
                 calls.send.pub.publish(); } });
     return res; }

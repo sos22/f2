@@ -3,4 +3,4 @@
 . shutil
 
 cc tests/beacon/server.C
-ld tests/beacon/server tests/beacon/server.o libR.a
+ld tests/beacon/server tests/beacon/server.o lib.a

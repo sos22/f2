@@ -123,7 +123,7 @@ beaconserver::run(clientio io) {
      * bit easier on the clients.  If this gets lost then the periodic
      * client-driven request broadcasts will eventually recover. */
     {   buffer buf;
-        response.serialise(buf);
+        response.serialise(buf, wireproto::sequencenr::invalid);
         auto r(clientfd.send(buf,
                              peername::udpbroadcast(config.proto.respport)));
         if (r.isfailure()) {
@@ -209,7 +209,7 @@ beaconserver::run(clientio io) {
             continue; }
 
         buffer outbuffer;
-        response.serialise(outbuffer);
+        response.serialise(outbuffer, wireproto::sequencenr::invalid);
         /* Note that we always send on the client fd, even for
          * requests for come in on the listen fd.  That's because the
          * client will use whichever port we send from when it wants

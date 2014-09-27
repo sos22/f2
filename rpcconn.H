@@ -347,7 +347,10 @@ public:  void unreference(reftoken);
 
     /* Queue the reply to a message, waiting for outbuf space if
      * necessary. */
-private: bool queuereply(clientio, wireproto::tx_message &msg);
+private: bool queuereply(
+    clientio,
+    wireproto::tx_message &msg,
+    wireproto::sequencenr reqsnr);
 
     /* Try to transfer messages from the outgoing call queue to the
      * main send buffer until we hit the maxoutgoingbytes limit.  Must
@@ -361,7 +364,7 @@ private: void receivereply(wireproto::rx_message *);
 
     /* Allocate a sequence number suitable for constructing a new
      * req_message */
-public: wireproto::sequencenr allocsequencenr();
+private: wireproto::sequencenr allocsequencenr();
 
     /* Get a peername for the thing on the other end of the
      * connection. */
@@ -383,9 +386,10 @@ public: peername localname() const;
      * ... */
     /* XXX unilateral sends are currently only used by the test
      * harness; should maybe come up with a simpler scheme. */
-public:   orerror<void> send(
+private: orerror<void> send(
     clientio,
     const wireproto::tx_message &msg,
+    wireproto::sequencenr snr,
     maybe<timestamp> deadline = Nothing);
 
     /* RPC interface.  Perform a remote procedure call and get back

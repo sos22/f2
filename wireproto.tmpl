@@ -79,7 +79,7 @@ roundtrip(unsigned nr = 1000) {
         ::buffer buf;
         tx_message(msgtag(1))
             .addparam(param, thing)
-            .serialise(buf);
+            .serialise(buf, sequencenr::invalid);
         auto r(rx_message::fetch(buf));
         auto rr(r.success().getparam(param));
         assert(rr.just() == thing); } }

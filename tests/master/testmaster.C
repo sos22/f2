@@ -13,7 +13,6 @@
 #include "fields.H"
 #include "filename.H"
 #include "logging.H"
-#include "masterconfig.H"
 #include "peername.H"
 #include "proto.H"
 #include "pubsub.H"

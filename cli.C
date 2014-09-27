@@ -43,10 +43,9 @@ main(int argc, const char *const argv[])
     if (!strcmp(mode, "PING")) {
         if (nrargs != 0) errx(1, "PING mode takes no arguments");
         delete c->call(
-	    clientio::CLIENTIO,
-	    wireproto::req_message(proto::PING::tag,
-                                   c->allocsequencenr()))
-	    .fatal("sending ping");
+            clientio::CLIENTIO,
+            wireproto::req_message(proto::PING::tag))
+            .fatal("sending ping");
     } else if (!strcmp(mode, "LOGS")) {
         if (nrargs) errx(1, "LOGS mode takes no arguments");
         memlog_idx cursor(memlog_idx::min);
@@ -54,8 +53,7 @@ main(int argc, const char *const argv[])
         while (1) {
             auto m = c->call(
                 clientio::CLIENTIO,
-                wireproto::req_message(proto::GETLOGS::tag,
-                                       c->allocsequencenr())
+                wireproto::req_message(proto::GETLOGS::tag)
                 .addparam(proto::GETLOGS::req::startidx, cursor)
                 .addparam(proto::GETLOGS::req::nr, nr));
             if (m.isfailure()) {
@@ -80,10 +78,9 @@ main(int argc, const char *const argv[])
     } else if (!strcmp(mode, "STATUS")) {
         using namespace proto::STATUS;
         if (nrargs) errx(1, "STATUS mode takes no arguments");
-        auto snr(c->allocsequencenr());
         auto m = c->call(
             clientio::CLIENTIO,
-            wireproto::req_message(tag, snr));
+            wireproto::req_message(tag));
         if (m.isfailure()) {
             fields::print(fields::mk(m.failure()));
         } else {
@@ -106,8 +103,7 @@ main(int argc, const char *const argv[])
         const char *message = args[1];
         delete c->call(
             clientio::CLIENTIO,
-            wireproto::req_message(proto::QUIT::tag,
-                                   c->allocsequencenr())
+            wireproto::req_message(proto::QUIT::tag)
             .addparam(proto::QUIT::req::message, message)
             .addparam(proto::QUIT::req::reason, code.success()))
             .fatal(fields::mk("sending QUIT message"));
@@ -116,8 +112,7 @@ main(int argc, const char *const argv[])
         if (nrargs) errx(1, "BUILDCONFIG mode takes no arguments");
         auto m(c->call(
                    clientio::CLIENTIO,
-                   wireproto::req_message(tag,
-                                          c->allocsequencenr()))
+                   wireproto::req_message(tag))
                .fatal("sending BUILDCONFIG message"));
         fields::print(
             fields::mk(m->getparam(resp::config)) + "\n");
@@ -127,8 +122,7 @@ main(int argc, const char *const argv[])
         if (nrargs) errx(1, "LISTENING mode takes no arguments");
         auto m(c->call(
                    clientio::CLIENTIO,
-                   wireproto::req_message(tag,
-                                          c->allocsequencenr()))
+                   wireproto::req_message(tag))
                .fatal("sending LISTENING message"));
         fields::print(
             "coordinator: " +

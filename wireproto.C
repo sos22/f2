@@ -43,8 +43,8 @@ err_resp_message::err_resp_message(const rx_message &o,
     addparam(wireproto::err_parameter, e);
 }
 
-req_message::req_message(msgtag _t, sequencenr _sequence)
-    : tx_message(_t), sequence(_sequence)
+req_message::req_message(msgtag _t)
+    : tx_message(_t)
 {}
 
 tx_message::~tx_message() {}
@@ -115,12 +115,6 @@ tx_message::clone() const
 }
 
 void
-tx_message::serialise(buffer &buffer) const
-{
-    return serialise(buffer, sequencenr::invalid);
-}
-
-void
 resp_message::serialise(buffer &buffer) const
 {
     return tx_message::serialise(buffer, sequence);
@@ -128,12 +122,6 @@ resp_message::serialise(buffer &buffer) const
 
 void
 err_resp_message::serialise(buffer &buffer) const
-{
-    return tx_message::serialise(buffer, sequence);
-}
-
-void
-req_message::serialise(buffer &buffer) const
 {
     return tx_message::serialise(buffer, sequence);
 }
@@ -316,7 +304,7 @@ tx_message::pinstance::serialise(buffer &buf) const
     default:
 #endif
     case p_compound:
-        compound->content->serialise(buf);
+        compound->content->serialise(buf, sequencenr::invalid);
         return;
     }
 #if !COVERAGE
@@ -592,7 +580,7 @@ tests::wireproto() {
     testcaseV("wireproto", "empty", [t] () {
             msgtag t2(100);
             ::buffer buf;
-            tx_message(t).serialise(buf);
+            tx_message(t).serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -604,7 +592,7 @@ tests::wireproto() {
     testcaseV("wireproto", "missing", [t] () {
             ::buffer buf;
             parameter<int> p1(5);
-            tx_message(t).serialise(buf);
+            tx_message(t).serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -618,7 +606,7 @@ tests::wireproto() {
             tx_message(t)
                 .addparam(p1, 73)
                 .addparam(p2, 3u)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -636,7 +624,7 @@ tests::wireproto() {
                 .addparam(p1, true)
                 .addparam(p2, false)
                 .addparam(parameter<unsigned char>(p3), (unsigned char)3)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -654,7 +642,7 @@ tests::wireproto() {
                 .addparam(p1, 'a')
                 .addparam(p2, (unsigned char)8)
                 .addparam(parameter<int>(p3), 7)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -670,7 +658,7 @@ tests::wireproto() {
             tx_message(t)
                 .addparam(p1, (short)-93)
                 .addparam(p2, (unsigned short)2)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -685,7 +673,7 @@ tests::wireproto() {
             tx_message(t)
                 .addparam(p1, -0x10000000000l)
                 .addparam(p2, 0xffe51340000ul)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -698,7 +686,7 @@ tests::wireproto() {
             parameter<double> p1(1);
             tx_message(t)
                 .addparam(p1, 7.)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -712,7 +700,7 @@ tests::wireproto() {
             tx_message(t)
                 .addparam(p1, 73)
                 .addparam(p2, "Hello world")
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -730,7 +718,7 @@ tests::wireproto() {
             tx_message(t)
                 .addparam(p1, 73)
                 .addparam(p2, string("Hello world"))
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().tag() == t);
@@ -750,7 +738,7 @@ tests::wireproto() {
                 l1.pushtail("Z");
                 tx_message(t)
                     .addparam(p3, l1)
-                    .serialise(buf); }
+                    .serialise(buf, sequencenr::invalid); }
             {   auto rxm(rx_message::fetch(buf).fatal("decoding"));
                 assert(rxm.tag() == t);
                 list<const char *> l2(
@@ -778,7 +766,7 @@ tests::wireproto() {
                     tx_compoundparameter())
                 .addparam(p1, 8)
                 .addparam(p2, "root")
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().getparam(p1).just() == 8);
@@ -801,7 +789,7 @@ tests::wireproto() {
                     .addparam(p2, (const char *)"nested"))
                 .addparam(p1, 8)
                 .addparam(p2, "root")
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             {   auto rxm(rx_message::fetch(buf));
                 assert(rxm.issuccess());
                 assert(rxm.success().getparam(p1).just() == 8);
@@ -817,7 +805,7 @@ tests::wireproto() {
             parameter<int> p1(12);
             sequencer s;
             auto snr(s.get());
-            req_message(t, snr).addparam(p1, 99).serialise(buf);
+            req_message(t).addparam(p1, 99).serialise(buf, snr);
             auto rxm(rx_message::fetch(buf));
             assert(buf.empty());
             assert(rxm.success().tag() == t);
@@ -838,7 +826,7 @@ tests::wireproto() {
     testcaseV("wireproto", "errresp", [t] () {
             ::buffer buf;
             auto snr(sequencer().get());
-            req_message(t, snr).serialise(buf);
+            req_message(t).serialise(buf, snr);
             auto rxm(rx_message::fetch(buf));
             err_resp_message(rxm.success(), error::ratelimit).serialise(buf);
             auto rxm2(rx_message::fetch(buf));
@@ -852,7 +840,7 @@ tests::wireproto() {
             for (int i = 0; i < 5000; i++) {
                 ss[i] = "qwertyuiopasdfghjklzxcvbnm"[(i*7)%26]; }
             ss[5000] = 0;
-            tx_message(t).addparam(s, ss).serialise(buf);
+            tx_message(t).addparam(s, ss).serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf));
             assert(buf.empty());
             assert(rxm.issuccess());
@@ -875,7 +863,7 @@ tests::wireproto() {
                     txp,
                     tx_compoundparameter()
                     .addparam(s, sss))
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf));
             assert(buf.empty());
             assert(rxm.issuccess());
@@ -900,7 +888,7 @@ tests::wireproto() {
                             txmid,
                             tx_compoundparameter()
                                 .addparam(inner, 5)))
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf));
             assert(buf.empty());
             auto outer(rxm.success().getparam(rxouter));
@@ -911,7 +899,7 @@ tests::wireproto() {
     testcaseV("wireproto", "underflow", [t] () {
             ::buffer buf;
             parameter<int> p(1);
-            tx_message(t).addparam(p, 5).serialise(buf);
+            tx_message(t).addparam(p, 5).serialise(buf, sequencenr::invalid);
             ::buffer b2;
             b2.queue(buf.linearise(0, buf.avail() - 1), buf.avail() - 1);
             auto rxm(rx_message::fetch(b2));
@@ -937,7 +925,9 @@ tests::wireproto() {
     testcaseV("wireproto", "steal", [t] () {
             ::buffer buf;
             parameter<const char *> p(1);
-            tx_message(t).addparam(p, "HELLO").serialise(buf);
+            tx_message(t)
+                .addparam(p, "HELLO")
+                .serialise(buf, sequencenr::invalid);
             rx_message *r;
             {  auto rxm(rx_message::fetch(buf));
                 r = rxm.success().steal(); }
@@ -949,7 +939,10 @@ tests::wireproto() {
             ::buffer buf;
             parameter<int> p(1);
             parameter<int> p2(73);
-            tx_message(t).addparam(p, 5).addparam(p2, 99).serialise(buf);
+            tx_message(t)
+                .addparam(p, 5)
+                .addparam(p2, 99)
+                .serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf));
             fields::fieldbuf fb;
             fields::mk(&rxm.success()).fmt(fb);
@@ -961,7 +954,7 @@ tests::wireproto() {
             for (unsigned short i = 1; i < 30; i++) {
                 parameter<char> p(i);
                 txm.addparam(p, (char)i); }
-            txm.serialise(buf);
+            txm.serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf));
             fields::fieldbuf fb;
             fields::mk(&rxm.success()).fmt(fb);
@@ -976,7 +969,9 @@ tests::wireproto() {
             snr.get();
             parameter<sequencer::status_t> p(1);
             ::buffer buf;
-            tx_message(t).addparam(p, snr.status()).serialise(buf);
+            tx_message(t)
+                .addparam(p, snr.status())
+                .serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf));
             fields::fieldbuf fb;
             fields::mk(rxm.success().getparam(p).just()).fmt(fb);
@@ -996,7 +991,7 @@ tests::wireproto() {
             txm.addparam(parameter<char>(p), 'a');
             txm.addparam(parameter<int>(p), 9);
             ::buffer buf;
-            txm.serialise(buf);
+            txm.serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf).fatal("decoding"));
             assert(rx_message::fetch(buf)
                    .fatal("decoding")
@@ -1008,7 +1003,7 @@ tests::wireproto() {
             list<msgtag> l;
             l.pushtail(msgtag(1));
             l.pushtail(msgtag(2));
-            tx_message(t).addparam(p, l).serialise(buf);
+            tx_message(t).addparam(p, l).serialise(buf, sequencenr::invalid);
             auto rxm(rx_message::fetch(buf).fatal("decoding"));
             list<msgtag> l2(rxm.getparam(p).fatal(fields::mk("decoding")));
             auto it1(l.start());
@@ -1030,7 +1025,7 @@ tests::wireproto() {
             txm.addparam(param, buf);
             free(buf);
             ::buffer b;
-            txm.serialise(b);
+            txm.serialise(b, sequencenr::invalid);
             assert(b.empty()); });
 
 #if TESTING
@@ -1048,7 +1043,7 @@ tests::wireproto() {
             buf[0x9000] = 0;
             txm.addparam(param, buf);
             ::buffer b;
-            txm.serialise(b);
+            txm.serialise(b, sequencenr::invalid);
             assert(!b.empty());
             assert(loggenerated);
             auto rxm(rx_message::fetch(b));
@@ -1062,7 +1057,7 @@ tests::wireproto() {
                     txm.addparam(parameter<bool>((unsigned short)(i+1)),
                                  true); }
                 ::buffer b;
-                txm.serialise(b);
+                txm.serialise(b, sequencenr::invalid);
                 assert(!b.empty());
                 auto rxm(rx_message::fetch(b));
                 assert(rxm.issuccess());
@@ -1076,7 +1071,7 @@ tests::wireproto() {
                     txm.addparam(parameter<bool>(
                                      (unsigned short)(i+1)), true); }
                 ::buffer b;
-                txm.serialise(b);
+                txm.serialise(b, sequencenr::invalid);
                 assert(b.empty()); } });
 
     testcaseV("wireproto", "bufparam", [t] () {
@@ -1088,7 +1083,7 @@ tests::wireproto() {
                 char bb;
                 buf.fetch(&bb, 1);
                 txm.addparam(param, buf);
-                txm.serialise(b); }
+                txm.serialise(b, sequencenr::invalid); }
             auto rxm(rx_message::fetch(b).fatal(fields::mk("dead")));
             ::buffer b2(rxm.getparam(param).fatal(fields::mk("dead")));
             assert(b2.offset() == 0);
@@ -1117,12 +1112,12 @@ tests::wireproto() {
             {   ::buffer buf;
                 tx_message(msgtag(1))
                     .addparam(param, nullcompound())
-                    .serialise(buf);
+                    .serialise(buf, sequencenr::invalid);
                 auto r(rx_message::fetch(buf));
                 assert(r.success().getparam(param).isjust()); }
             {   ::buffer buf;
                 tx_message(msgtag(1))
-                    .serialise(buf);
+                    .serialise(buf, sequencenr::invalid);
                 auto r(rx_message::fetch(buf));
                 assert(r.success().getparam(param).isnothing()); } });
 
@@ -1134,7 +1129,7 @@ tests::wireproto() {
             x.pushtail(7);
             tx_message(msgtag(1))
                 .addparam(lparam, x)
-                .serialise(buf);
+                .serialise(buf, sequencenr::invalid);
             assert(x == rx_message::fetch(buf)
                    .fatal("fetch message we just built")
                    .getparam(lparam)
@@ -1146,7 +1141,7 @@ tests::wireproto() {
 	    tx_message(msgtag(2))
 		.addparam(param, 5)
 		.flush()
-		.serialise(buf);
+		.serialise(buf, sequencenr::invalid);
 	    assert(rx_message::fetch(buf)
 		   .fatal("decoding message")
 		   .getparam(param) == Nothing); }); }
