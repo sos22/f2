@@ -21,12 +21,14 @@ class listenfd {
     friend const fields::field &fields::mk(const listenfd &);
     friend class socket_t;
     int fd;
-    explicit listenfd(int);
 public:
+    explicit listenfd(int);
     listenfd() : fd(-1) {}
     /* Accept the next incoming connection and construct a data
      * socket_t for it. */
     orerror<socket_t> accept(clientio) const;
+    /* Non-blocking version of accept. */
+    orerror<socket_t> accept() const;
     /* Get the address on which we're listening. */
     peername localname() const;
     /* Generate a struct pollfd which, when passed to poll(), will

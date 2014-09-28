@@ -35,6 +35,7 @@ function bits() {
     _ rpcclient
     _ rpcconn
     _ rpcserver
+    _ rpcservice
     _ shutdown
     _ slavename
     _ socket
@@ -54,6 +55,7 @@ function bits() {
     _ tmpheap
     _ udpsocket
     _ util
+    _ version
     _ waitbox
     _ walltime
     _ wireproto

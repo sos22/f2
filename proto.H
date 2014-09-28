@@ -209,7 +209,6 @@ namespace proto {
     namespace HELLO {
         static const msgtag tag(8);
         namespace req {
-            static const parameter< ::slavename> name(800);
             static const parameter< ::version> version(801);
         }
         /* No response parameters (except possibly for an error) */

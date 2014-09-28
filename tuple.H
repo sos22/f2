@@ -23,7 +23,7 @@
  * You can then declare the tuple like this:
 
 class T {
-mktuplefields(T)
+mktuplefields(T, public)
 };
 mktupleext(T)
 

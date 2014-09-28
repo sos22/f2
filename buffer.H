@@ -95,6 +95,8 @@ public:
                                         fd_t,
                                         subscriber &sub,
                                         maybe<timestamp> deadline = Nothing);
+    /* Receive without blocking.  The FD must be in non-blocking mode. */
+    orerror<void> receivefast(fd_t);
 
     /* Interface for setting up buffers from memory. */
     /* Copy some bytes from memory to the end of the buffer.  The

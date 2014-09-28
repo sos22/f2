@@ -5,8 +5,10 @@
 
 #include "fields.H"
 #include "peername.H"
+#include "proto.H"
 #include "thread.H"
 #include "util.H"
+#include "version.H"
 #include "wireproto.H"
 
 #include "thread.tmpl"
@@ -163,19 +165,16 @@ void
 rpcclient::workerthread::run(clientio io) {
     int fd;
     {   auto r(connect(io));
-        connector.mux.locked([r, this] (mutex_t::token) {
-                assert(connector.res == Nothing);
-                if (r.isfailure()) connector.res = r.failure();
-                else connector.res = Success; });
-        connector._pub.publish();
-        if (r.isfailure()) return;
+        if (r.isfailure()) {
+            connector.mux.locked([r, this] (mutex_t::token) {
+                    assert(connector.res == Nothing);
+                    connector.res = r.failure(); });
+            connector._pub.publish();
+            return; }
         fd = r.success(); }
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
-    maybe<subscription> newcallssub(Nothing);
-    newcallssub.mkjust(sub, newcallspub);
-    /* Avoid silly lost-wakeup deadlocks. */
-    if (!newcalls.empty()) newcallspub.publish();
+    subscription newcallssub(sub, newcallspub);
     maybe<iosubscription> outsub(Nothing);
     maybe<iosubscription> insub(Nothing);
     list<asynccall *> pendingsend;
@@ -183,11 +182,33 @@ rpcclient::workerthread::run(clientio io) {
     orerror<void> _failure(Success);
     buffer inbuffer;
     if (shutdown.ready()) _failure = error::shutdown;
+    auto hellocall(call(wireproto::req_message(proto::HELLO::tag)
+                        .addparam(proto::HELLO::req::version,
+                                  version::current)));
+    maybe<subscription> hellodone(Nothing);
+    hellodone.mkjust(sub, hellocall->pub());
     while (_failure == Success) {
         auto ss(sub.wait(io));
         if (ss == &shutdownsub) {
             if (shutdown.ready()) _failure = error::shutdown; }
-        else if (newcallssub != Nothing && ss == &newcallssub.just()) {
+        else if (hellodone != Nothing && ss == &hellodone.just()) {
+            assert(hellocall != NULL);
+            auto t(hellocall->finished());
+            if (t == Nothing) continue;
+            hellodone = Nothing;
+            auto r(hellocall->pop(t.just()));
+            hellocall = NULL;
+            connector.mux.locked([r, this] (mutex_t::token) {
+                    assert(connector.res == Nothing);
+                    if (r.isfailure()) connector.res = r.failure();
+                    else connector.res = Success; });
+            if (r.isfailure()) _failure = r.failure();
+            else delete r.success(); }
+        else if (ss == &newcallssub) {
+            /* Nobody can make calls against us until the HELLO
+             * completes, because connect() won't have returned, but
+             * we might still get a spurious wakeup.  Handle it. */
+            if (hellocall != NULL) assert(newcalls.empty());
             bool sendempty = pendingsend.empty();
             newcallsmux.locked([&pendingsend, this] (mutex_t::token) {
                     pendingsend.transfer(newcalls); });
