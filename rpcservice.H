@@ -65,9 +65,6 @@ protected: explicit rpcservice(const constoken &);
     /* Helper for the listen(). */
 private:   void startrootthread(listenfd);
 
-    /* Helper for the root thread */
-private:   worker *newworker(socket_t fd, subscriber &);
-
     /* Hook so that services can specify how to respond to particular
      * messages.  This will be called for every message received on
      * the service (except PING and HELLO, which are handled
@@ -77,11 +74,9 @@ private:   worker *newworker(socket_t fd, subscriber &);
      * that either fail() or complete() will be called on the response
      * structure, but there is no requirement that it do so before
      * returning, allowing asynchronous implementations of RPC
-     * methods.  The call() method also receives a clientio token, and
-     * so can potentially block for a long time, but note that doing
-     * so may (but is not guaranteed to) prevent other calls from the
-     * same peer from starting.  Calls on other connections are
-     * unaffected are unaffected. */
+     * methods.  Note that the call() method itself does not receive a
+     * clientio token, and so should return completely.  There is no
+     * requirement that the response be completed quickly, though. */
     /* Note that we bound the number of calls which can be outstanding
      * for each connection.  Once that limit is reached, no further
      * requests will be read from the underlying socket, and so the
@@ -125,7 +120,6 @@ public:  class response {
         /* Use complete() or fail() */
     private: ~response(); };
 private: virtual void call(
-    clientio,
     const wireproto::rx_message &req,
     response *resp) = 0;
 
@@ -133,43 +127,13 @@ private: virtual void call(
 public:  typedef rpcservicestatus status_t;
 public:  status_t status() const;
 
-    /* Start tearing down an RPC service.  Once this returns it is
-     * guaranteed that no further connections will be accepted and at
-     * most a very small (bounded) number of further invocations of
-     * call will be started.  It does not guarantee that all existing
-     * invocations of call() have finished; for that, use
-     * finishedpop().  teardown() is itself guaranteed to complete
-     * quickly, so is suitable for use when holding arbitrary locks.
-     * teardown() must be called precisely once for each service. */
-public:  class teardowntoken {
-        friend rpcservice;
-        /* Use rpcservice::teardown() instead */
-    private: teardowntoken(); };
-public:  teardowntoken teardown();
-
-    /* Check whether the last call() to the service has finished.  If
-     * it has, return a finish token.  Otherwise, return Nothing. */
-public:  class finishtoken {
-       friend rpcservice;
-    private: thread::deathtoken inner;
-       /* Used finished() instead. */
-    private: finishtoken(thread::deathtoken); };
-public:  maybe<finishtoken> finished(teardowntoken);
-
-    /* The shutdown publisher is notified shortly after finishedpop()
-     * goes from Nothing to something.  Like finishedpop(), this is
-     * only safe after calling teardown(), so requires a
-     * teardowntoken. */
-public:  const publisher &shutdown(teardowntoken) const;
-
-    /* Release an rpcservice which has finished. */
-public:  void destroy(finishtoken);
-
-    /* Convenience wrapper for the shutdown protocol: call teardown(),
-     * wait for a finish token, and then call destroy().  This can
-     * wait for invocations of the call() method to complete, and
-     * hence requires a clientio token (because call() has one). */
-public:  void destroy(clientio);
+    /* Destroy an RPC service.  This will wait for any extant
+     * invocations of the call() method to complete before running the
+     * destructor. */
+    /* Note that it waits for call()s to finish without a clientio
+     * token.  That's okay because the call() method also lacks a
+     * token. */
+public:  void destroy();
 
     /* Use finishedpop() or destroy() instead. */
 private: virtual ~rpcservice(); };

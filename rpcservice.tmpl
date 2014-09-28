@@ -1,6 +1,10 @@
 #ifndef RPCSERVICE_TMPL__
 #define RPCSERVICE_TMPL__
 
+namespace wireproto {
+template <typename> class parameter;
+extern const parameter<error> err_parameter; }
+
 template <typename t, typename ... args> orerror<t *>
 rpcservice::listen(const peername &listenon,
                    const rpcserviceconfig &config,
@@ -14,6 +18,7 @@ rpcservice::listen(const peername &listenon,
 
 template <typename t> rpcservice::response &
 rpcservice::response::addparam(wireproto::parameter<t> p, const t &v) {
+    assert(v != wireproto::err_parameter);
     inner.addparam(p, v);
     return *this; }
 

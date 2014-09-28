@@ -187,6 +187,9 @@ rpcclient::workerthread::run(clientio io) {
                                   version::current)));
     maybe<subscription> hellodone(Nothing);
     hellodone.mkjust(sub, hellocall->pub());
+    /* XXX when the connection is idle we don't have any IO
+     * subscriptions on it, so won't notice if it dies.  Is that a
+     * problem? */
     while (_failure == Success) {
         auto ss(sub.wait(io));
         if (ss == &shutdownsub) {
@@ -205,10 +208,6 @@ rpcclient::workerthread::run(clientio io) {
             if (r.isfailure()) _failure = r.failure();
             else delete r.success(); }
         else if (ss == &newcallssub) {
-            /* Nobody can make calls against us until the HELLO
-             * completes, because connect() won't have returned, but
-             * we might still get a spurious wakeup.  Handle it. */
-            if (hellocall != NULL) assert(newcalls.empty());
             bool sendempty = pendingsend.empty();
             newcallsmux.locked([&pendingsend, this] (mutex_t::token) {
                     pendingsend.transfer(newcalls); });
@@ -216,6 +215,8 @@ rpcclient::workerthread::run(clientio io) {
                 /* XXX missing an obvious optimisation here */
                 outsub.mkjust(sub, fd_t(fd).poll(POLLOUT)); } }
         else if (outsub != Nothing && ss == &outsub.just()) {
+            /* outsub is only set when we have something to send. */
+            assert(!pendingsend.empty());
             bool recvempty = pendingrecv.empty();
             for (auto it(pendingsend.start()); !it.finished(); ) {
                 auto p(*it);
@@ -233,6 +234,9 @@ rpcclient::workerthread::run(clientio io) {
                     continue; }
                 auto r(p->outbuf.sendfast(fd_t(fd)));
                 if (r.issuccess()) {
+                    /* XXX relying on Nagle's algorithm to combine
+                     * small calls.  Might be better off merging them
+                     * in userspace? */
                     if (p->outbuf.empty()) {
                         pendingrecv.pushtail(p);
                         it.next(); }
@@ -262,12 +266,12 @@ rpcclient::workerthread::run(clientio io) {
                     rxres.warn("decoding from " + fields::mk(peer));
                     _failure = msg.failure();
                     break; }
-                auto e(msg.success().getparam(wireproto::err_parameter));
                 for (auto it(pendingrecv.start()); !it.finished(); it.next()) {
                     auto p(*it);
                     if (p->sequence != msg.success().sequence()) continue;
                     typedef either<void, orerror<wireproto::rx_message *> >
                         rettype;
+                    auto e(msg.success().getparam(wireproto::err_parameter));
                     if (p->mux.locked<bool>(
                             [e, p, &msg] (mutex_t::token) {
                                 if (p->res != Nothing) {

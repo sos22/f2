@@ -20,6 +20,7 @@ const field &mk(const thread &);
 
 /* Threads are initially creted in a paused state, allowing some
    initialisation work before the thread's run() method is called. */
+/* XXX don't have much which actually makes use of this any more. */
 template <typename t> class pausedthread {
     friend class thread;
 private: pausedthread() = delete;
@@ -71,6 +72,7 @@ public:    template <typename t, typename ... args>
     /* Slightly more intricate version of spawn() which allows callers
        to specify their own token type and a mechanism for lifting
        thread constructor tokens into their token type. */
+    /* XXX don't actually need this any more. */
 public:    template <typename t, typename token, typename ... args>
     static pausedthread<t> _spawn(
         const fields::field &name,

@@ -130,6 +130,7 @@ public: orerror<wireproto::rx_message *> call(
         /* Nothing if the call is still in progress, left() if it was
          * aborted, right(error) if it failed, or right(msg) if it
          * succeeded. */
+        /* XXX consider using a waitbox for this. */
     private: maybe<either<void, orerror<wireproto::rx_message *> > > res;
         /* Notified whenever res goes from Nothing to right */
     private: publisher _pub;

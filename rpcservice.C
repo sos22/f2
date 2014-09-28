@@ -24,15 +24,9 @@ class rpcservice::rootthread : public thread {
 private: listenfd const fd;
     /* What service are we exposing? */
 private: rpcservice *const owner;
-    /* Set once its time to shut down.  The root thread guarantees to
-     * set notacepting quickly after this is set, but does not
-     * guarantee to shut down quickly.  Setting this also starts the
-     * shutdown protocol on all of the worker threads. */
+    /* Set once its time to shut down.  All threads (worker and root)
+     * must terminate quickly once this is set. */
 public:  waitbox<void> shutdown;
-    /* Set once we've gone far enough through shutdown that no further
-     * clients will be accepted.  Existing clients might still be
-     * serviced. */
-public:  waitbox<void> notaccepting;
 public:  rootthread(thread::constoken t,
                     listenfd _fd,
                     rpcservice *_owner);
@@ -75,6 +69,10 @@ rpcservice::open(const peername &listenon) {
 rpcservice::constoken::constoken(const rpcserviceconfig &_config)
     : config(_config) {}
 
+rpcservice::rpcservice(const constoken &token)
+    : root(NULL),
+      config(token.config) {}
+
 void
 rpcservice::startrootthread(listenfd fd) {
     auto t(thread::spawn<rootthread>(
@@ -84,18 +82,13 @@ rpcservice::startrootthread(listenfd fd) {
     root = t.unwrap();
     t.go(); }
 
-rpcservice::rpcservice(const constoken &token)
-    : root(NULL),
-      config(token.config) {}
-
 rpcservice::rootthread::rootthread(thread::constoken t,
                                    listenfd _fd,
                                    rpcservice *_owner)
     : thread(t),
       fd(_fd),
       owner(_owner),
-      shutdown(),
-      notaccepting() {}
+      shutdown() {}
 
 void
 rpcservice::rootthread::run(clientio io) {
@@ -117,7 +110,12 @@ rpcservice::rootthread::run(clientio io) {
                 assert(s == NULL || s == &shutdownsub);
                 incomingsub.rearm();
                 continue; }
-            workers.pushtail(owner->newworker(l.success(), sub)); }
+            auto r(thread::spawn<worker>(
+                       "S" + fields::mk(fd.localname()),
+                       owner,
+                       l.success(),
+                       sub));
+            workers.pushtail(r.go()); }
         else {
             /* Must have been a thread death subscription. */
             auto died(static_cast<worker *>(s->data));
@@ -132,21 +130,11 @@ rpcservice::rootthread::run(clientio io) {
      * the existing ones to finish.  They should already be shutting
      * down because they watch the same shutdown box as us. */
     fd.close();
-    /* Tell teardown() that we're far enough through to prevent us
-     * from accepting more connections. */
-    notaccepting.set();
+    /* Workers guarantee to shut down quickly once shutdown is set, so
+     * this doesn't need a full clientio token. */
     while (!workers.empty()) {
         auto w(workers.pophead());
-        w->join(io); } }
-
-rpcservice::worker *
-rpcservice::newworker(socket_t fd, subscriber &sub) {
-    auto res(thread::spawn<worker>(
-                 "S" + fields::mk(fd.localname()),
-                 this,
-                 fd,
-                 sub));
-    return res.go(); }
+        w->join(clientio::CLIENTIO); } }
 
 rpcservice::worker::worker(const thread::constoken &t,
                            rpcservice *_owner,
@@ -244,7 +232,27 @@ rpcservice::worker::run(clientio io) {
                 auto resp(new response(rr.success(), this));
                 incompletecalls.pushtail(resp);
                 outstanding++;
+                /* XXX we buffer up responses in outbuf before sending them.
+                 * It's not clear that that's worthwhile:
+                 *
+                 * (a) Usually, there's only one response in the batch, so we
+                 *     don't actually gain anything.
+                 * (b) It potentially makes latency worse, and I'm willing to
+                 *     guess that we're more sensitive to latency than to
+                 *     throughput.
+                 * (c) It introduces dependencies between seemingly-unrelated
+                 *     calls which happen to get bundled together.  Not passing
+                 *     call() a clientio token makes that less bad, because
+                 *     it shouldn't be waiting for complicated things, but
+                 *     it's still there.
+                 * (d) It makes things more complicated than they need to be.
+                 *
+                 * Consider moving to a model which more strongly
+                 * prioritises sending replies over receiving more
+                 * requests. */
+                /* PING is trivial */
                 if (rr.success().tag() == proto::PING::tag) resp->complete();
+                /* Special handling for HELLO */
                 else if (rr.success().tag() == proto::HELLO::tag) {
                     if (helloed) resp->fail(error::toolate);
                     else if (rr.success().getparam(proto::HELLO::req::version)
@@ -253,13 +261,16 @@ rpcservice::worker::run(clientio io) {
                     else {
                         resp->complete();
                         helloed = true; } }
+                /* Normal messages are invalid before we receive a
+                 * valid HELLO */
                 else if (!helloed) resp->fail(error::toosoon);
-                else owner->call(io, rr.success(), resp); }
+                /* Normal message, normal processing. */
+                else owner->call(rr.success(), resp); }
             if (outstanding >= owner->config.maxoutstanding) insub = Nothing;
             else insub.just().rearm(); } }
   conndead:
     fd.close();
-    /* We can't process any more calls.  Any stil outstanding will
+    /* We can't process any more calls.  Any still outstanding will
      * have their results discarded.  Stop them from accessing us
      * again. */
     attachmentlock.locked([&incompletecalls, this] (mutex_t::token) {
@@ -292,40 +303,14 @@ rpcservice::response::fail(error err) {
     inner.addparam(wireproto::err_parameter, err);
     complete(); }
 
-rpcservice::teardowntoken
-rpcservice::teardown() {
-    root->shutdown.set();
-    /* The root thread guarantees to set notaccepting quickly after
-     * shutdown gets set, so we don't need a real clientio token
-     * here. */
-    root->notaccepting.get(clientio::CLIENTIO);
-    return teardowntoken(); }
-
-maybe<rpcservice::finishtoken>
-rpcservice::finished(teardowntoken) {
-    auto t(root->hasdied());
-    if (t == Nothing) return Nothing;
-    else return finishtoken(t.just()); }
-
-const publisher &
-rpcservice::shutdown(teardowntoken) const { return root->pub(); }
-
 void
-rpcservice::destroy(finishtoken t) {
-    root->join(t.inner);
+rpcservice::destroy() {
+    root->shutdown.set();
+    /* The root thread guarantees to terminate quickly once shutdown
+     * is set, so this does not need a full clientio token. */
+    root->join(clientio::CLIENTIO);
     root = NULL;
     delete this; }
-
-void
-rpcservice::destroy(clientio io) {
-    auto t(teardown());
-    maybe<finishtoken> t2(Nothing);
-    {   subscriber sub;
-        subscription ss(sub, shutdown(t));
-        while (t2 == Nothing) {
-            sub.wait(io);
-            t2 = finished(t); } }
-    destroy(t2.just()); }
 
 rpcservice::~rpcservice() {
     assert(root == NULL); }
