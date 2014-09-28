@@ -10,6 +10,8 @@
 #include "timedelta.H"
 #include "version.H"
 
+#include "list.tmpl"
+#include "maybe.tmpl"
 #include "thread.tmpl"
 
 /* Global leaf lock to protect the mapping between outstanding calls
@@ -17,11 +19,19 @@
 static mutex_t
 attachmentlock;
 
+const rpcserviceconfig
+rpcserviceconfig::dflt(
+    /* maxoutgoingbytes */
+    8192,
+    /* maxoutstanding */
+    100);
+
 mktupledef(rpcserviceconfig)
 
 class rpcservice::rootthread : public thread {
-    /* What fd are we listening on? */
-private: listenfd const fd;
+    /* What fd are we listening on?  Accessed outside of this thread
+     * by rpcservice::localname() only. */
+public:  listenfd const fd;
     /* What service are we exposing? */
 private: rpcservice *const owner;
     /* Set once its time to shut down.  All threads (worker and root)
@@ -38,15 +48,15 @@ class rpcservice::worker : public thread {
 private: rpcservice *const owner;
     /* What fd are we doing it over? */
 private: socket_t const fd;
-    /* Connection from the root thread's subscriber block to our death
-     * publisher. */
-private: subscription const ds;
     /* List of all calls which have been completed, whether by
      * complete() or fail().  Protected by the global attachmentlock.
      * Publish completedpub when this becomes non-empty. */
 public:  list<rpcservice::response *> completedcalls;
     /* Notified when completedcalls becomes non-empty. */
 public:  publisher completedpub;
+    /* Connection from the root thread's subscriber block to our death
+     * publisher. */
+private: subscription const ds;
 public:  worker(const thread::constoken &t,
                 rpcservice *_owner,
                 socket_t _fd,
@@ -54,7 +64,7 @@ public:  worker(const thread::constoken &t,
 private: void run(clientio);
 };
 
-orerror<int>
+orerror<listenfd>
 rpcservice::open(const peername &listenon) {
     auto s(::socket(listenon.sockaddr()->sa_family,
                     SOCK_STREAM | SOCK_NONBLOCK,
@@ -64,7 +74,7 @@ rpcservice::open(const peername &listenon) {
         ::listen(s, 10) < 0) {
         ::close(s);
         return error::from_errno(); }
-    else return s; }
+    else return listenfd(s); }
 
 rpcservice::constoken::constoken(const rpcserviceconfig &_config)
     : config(_config) {}
@@ -81,6 +91,13 @@ rpcservice::startrootthread(listenfd fd) {
                this));
     root = t.unwrap();
     t.go(); }
+
+peername
+rpcservice::localname() const {
+    /* fd remains valid as long as root does, which is long enough
+     * that the caller wouldn't have invoked us if accessing fd were
+     * dangerous. */
+    return root->fd.localname(); }
 
 rpcservice::rootthread::rootthread(thread::constoken t,
                                    listenfd _fd,
@@ -129,6 +146,10 @@ rpcservice::rootthread::run(clientio io) {
     /* Time to shut down.  Stop accepting new connections and wait for
      * the existing ones to finish.  They should already be shutting
      * down because they watch the same shutdown box as us. */
+    /* We only get here once shutdown is set, and shutdown is only set
+     * from destroy(), so if localname() is still using the FD then the
+     * caller must be racing localname() and destroy(), which is already
+     * a bug, so we know that closing fd here is safe. */
     fd.close();
     /* Workers guarantee to shut down quickly once shutdown is set, so
      * this doesn't need a full clientio token. */
@@ -143,9 +164,9 @@ rpcservice::worker::worker(const thread::constoken &t,
     : thread(t),
       owner(_owner),
       fd(_fd),
-      ds(sub, pub()),
       completedcalls(),
-      completedpub() {}
+      completedpub(),
+      ds(sub, pub(), this) {}
 
 void
 rpcservice::worker::run(clientio io) {
@@ -302,6 +323,8 @@ rpcservice::response::fail(error err) {
     inner.flush();
     inner.addparam(wireproto::err_parameter, err);
     complete(); }
+
+rpcservice::response::~response() {}
 
 void
 rpcservice::destroy() {

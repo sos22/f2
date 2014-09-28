@@ -35,10 +35,8 @@ main(int argc, char *argv[])
     srandom((unsigned)now.tv_usec);
 
     tests::_actortype();
-    tests::beacon();
     tests::buffer();
     tests::cond();
-    tests::_coordinator();
     tests::either();
     tests::_error();
     tests::fd();
@@ -51,11 +49,9 @@ main(int argc, char *argv[])
     tests::parsers();
     tests::_peername();
     tests::pubsub();
-    tests::ratelimiter();
-    tests::_registrationsecret();
     tests::_rpc();
     tests::_spawn();
-    tests::_storageconfig();
+    tests::__storageconfig();
     tests::thread();
     tests::_timedelta();
     tests::_walltime();

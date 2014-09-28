@@ -48,9 +48,13 @@ public:  template <typename t, typename ... args>
         const peername &,
         const rpcserviceconfig &config,
         args &&...);
+public:  template <typename t, typename ... args>
+    static orerror<t *> listen(
+        const peername &,
+        args &&...);
 
     /* Thin wrapper around socket() and listen() */
-private: static orerror<int> open(const peername &);
+private: static orerror<listenfd> open(const peername &);
 
     /* rpcservice should only be constructed by listen(); this is
      * enforced by the constoken parameter. */
@@ -64,6 +68,12 @@ protected: explicit rpcservice(const constoken &);
 
     /* Helper for the listen(). */
 private:   void startrootthread(listenfd);
+
+    /* Find the peername on which we're listening.  Note that the host
+     * part of this is likely to be localhost; it's mostly useful for
+     * the port number. */
+    /* XXX seems error-prone. */
+public:    peername localname() const;
 
     /* Hook so that services can specify how to respond to particular
      * messages.  This will be called for every message received on
@@ -133,9 +143,11 @@ public:  status_t status() const;
     /* Note that it waits for call()s to finish without a clientio
      * token.  That's okay because the call() method also lacks a
      * token. */
+    /* Not a destructor because the base class needs to do some work
+     * before the derived class constructor runs. */
 public:  void destroy();
 
     /* Use finishedpop() or destroy() instead. */
-private: virtual ~rpcservice(); };
+protected: virtual ~rpcservice(); };
 
 #endif /* !RPCSERVICE_H__ */

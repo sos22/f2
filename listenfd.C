@@ -35,6 +35,13 @@ listenfd::accept(clientio) const
         return socket_t(n);
 }
 
+orerror<socket_t>
+listenfd::accept() const {
+    int n(::accept4(fd, NULL, NULL, SOCK_NONBLOCK));
+    if (n >= 0) return socket_t(n);
+    else if (errno == EAGAIN || errno == EWOULDBLOCK) return error::wouldblock;
+    else return error::from_errno(); }
+
 peername
 listenfd::localname() const {
     unsigned char addr[4096];

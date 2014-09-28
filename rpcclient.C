@@ -11,6 +11,10 @@
 #include "version.H"
 #include "wireproto.H"
 
+#include "either.tmpl"
+#include "list.tmpl"
+#include "maybe.tmpl"
+#include "mutex.tmpl"
 #include "thread.tmpl"
 
 class rpcclient::workerthread : public thread {
@@ -71,6 +75,8 @@ rpcclient::asyncconnect::asyncconnect()
     : mux(),
       _pub(),
       res(Nothing) {}
+
+rpcclient::asyncconnect::token::token() {}
 
 maybe<rpcclient::asyncconnect::token>
 rpcclient::asyncconnect::finished() const {
@@ -205,6 +211,7 @@ rpcclient::workerthread::run(clientio io) {
                     assert(connector.res == Nothing);
                     if (r.isfailure()) connector.res = r.failure();
                     else connector.res = Success; });
+            connector._pub.publish();
             if (r.isfailure()) _failure = r.failure();
             else delete r.success(); }
         else if (ss == &newcallssub) {
@@ -220,10 +227,12 @@ rpcclient::workerthread::run(clientio io) {
             bool recvempty = pendingrecv.empty();
             for (auto it(pendingsend.start()); !it.finished(); ) {
                 auto p(*it);
+                assert(!p->outbuf.empty());
                 /* Check whether the call's been aborted before we
-                 * send it.  It might, of course, get aborted after we
-                 * send it.  That's fine; asynchronous aborts are
-                 * always best-effort. */
+                 * send it. */
+                /* (It might, of course, get aborted after we send it.
+                 * That's fine: asynchronous aborts are always
+                 * best-effort.) */
                 if (p->mux.locked<bool>(
                         [p] (mutex_t::token) {
                             if (p->res == Nothing) return false;
@@ -236,11 +245,12 @@ rpcclient::workerthread::run(clientio io) {
                 if (r.issuccess()) {
                     /* XXX relying on Nagle's algorithm to combine
                      * small calls.  Might be better off merging them
-                     * in userspace? */
+                     * in userspace?  Not sure how worthwhile that
+                     * would be; the common case is that we do one at
+                     * a time, anyway.*/
                     if (p->outbuf.empty()) {
                         pendingrecv.pushtail(p);
-                        it.next(); }
-                    else it.remove(); }
+                        it.remove(); } }
                 else {
                     if (r == error::wouldblock) {
                         /* Socket TX buffer is full.  Go back to
@@ -272,7 +282,8 @@ rpcclient::workerthread::run(clientio io) {
                     typedef either<void, orerror<wireproto::rx_message *> >
                         rettype;
                     auto e(msg.success().getparam(wireproto::err_parameter));
-                    if (p->mux.locked<bool>(
+                    auto destroy(
+                        p->mux.locked<bool>(
                             [e, p, &msg] (mutex_t::token) {
                                 if (p->res != Nothing) {
                                     assert(p->res.just().isleft());
@@ -282,9 +293,9 @@ rpcclient::workerthread::run(clientio io) {
                                     return false; }
                                 else {
                                     p->res = rettype(e.just());
-                                    return false; }
-                                p->_pub.publish(); })) {
-                        delete p; }
+                                    return false; } }));
+                    if (destroy) delete p;
+                    else p->_pub.publish();
                     it.remove();
                     break; } }
             if (pendingrecv.empty()) insub = Nothing;
@@ -336,16 +347,19 @@ rpcclient::call(clientio io,
                 const wireproto::req_message &req,
                 maybe<timestamp> deadline) {
     auto c(call(req));
+    maybe<asynccall::token> r(Nothing);
     {   subscriber sub;
         subscription ss(sub, c->pub());
-        while (true) {
-            auto r(c->finished());
-            if (r != Nothing) return c->pop(r.just());
+        while (r == Nothing) {
+            r = c->finished();
+            if (r != Nothing) break;
             auto s(sub.wait(io, deadline));
             if (s == NULL) break;
             assert(s == &ss); } }
-    c->abort();
-    return error::timeout; }
+    if (r.isjust()) return c->pop(r.just());
+    else {
+        c->abort();
+        return error::timeout; } }
 
 rpcclient::asynccall::asynccall(
     const wireproto::req_message &m,
@@ -356,6 +370,8 @@ rpcclient::asynccall::asynccall(
       outbuf(),
       sequence(snr.reply()) {
     m.serialise(outbuf, snr); }
+
+rpcclient::asynccall::token::token() {}
 
 maybe<rpcclient::asynccall::token>
 rpcclient::asynccall::finished() const {
@@ -386,6 +402,8 @@ rpcclient::asynccall::abort() {
         assert(!res.just().isleft());
         if (res.just().right().issuccess()) delete res.just().right().success();
         delete this; } }
+
+rpcclient::asynccall::~asynccall() {}
 
 rpcclient::asynccall *
 rpcclient::call(const wireproto::req_message &m) {

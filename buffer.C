@@ -134,6 +134,12 @@ buffer::receive(clientio io,
     if (r.isfailure()) return r.failure();
     else return NULL; }
 
+orerror<void>
+buffer::receivefast(fd_t fd) {
+    /* Caller is supposed to have set O_NONBLOCK on the fd, so this
+     * should be fast and doesn't need a clientio token. */
+    return receive(clientio::CLIENTIO, fd, Nothing, Nothing); }
+
 
 orerror<subscriptionbase *>
 buffer::send(clientio io,
@@ -160,6 +166,22 @@ buffer::send(clientio io,
         if (!first) last = NULL; }
     cons += wrote.success();
     return NULL; }
+
+orerror<void>
+buffer::sendfast(fd_t fd) {
+    assert(first);
+    assert(first->prod != first->cons);
+    auto wrote(fd.writefast(first->payload + first->cons,
+                            first->prod - first->cons));
+    if (wrote.isfailure()) return wrote.failure();
+    first->cons += wrote.success();
+    cons += wrote.success();
+    if (first->cons == first->prod) {
+        auto b = first;
+        first = b->next;
+        free(b);
+        if (first == NULL) last = NULL; }
+    return Success; }
 
 void
 buffer::queue(const void *buf, size_t sz)

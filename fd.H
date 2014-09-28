@@ -101,6 +101,9 @@ public:
                           const void *buf,
                           size_t bufsz,
                           maybe<timestamp> deadline = Nothing) const;
+    /* Like write(), but specialised for non-block FDs. */
+    orerror<size_t> writefast(const void *buf,
+                              size_t bufsz) const;
     /* Read some bytes from the FD.  A very thin wrapper around
      * ::read() */
     orerror<size_t> read(clientio,

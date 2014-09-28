@@ -2,7 +2,6 @@
 #define RPCTEST_H__
 
 namespace tests {
-void _rpc();
-}
+void _rpc(); }
 
 #endif /* !RPCTEST_H__ */

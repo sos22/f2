@@ -57,12 +57,10 @@ fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
             assert(r == 0); } }
     auto s(::read(fd, buf, sz));
     if (s < 0) {
-        if (errno == EAGAIN) return error::wouldblock;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return error::wouldblock;
         else return error::from_errno(); }
-    else if (s == 0) {
-        return error::disconnected; }
-    else {
-        return (size_t)s; } }
+    else if (s == 0) return error::disconnected;
+    else return (size_t)s; }
 
 orerror<size_t>
 fd_t::readpoll(void *buf, size_t sz) const {
@@ -88,6 +86,14 @@ fd_t::write(clientio,
     assert(s != 0);
     if (s > 0) return (size_t)s;
     else if (errno == EAGAIN) return error::wouldblock;
+    else return error::from_errno(); }
+
+orerror<size_t>
+fd_t::writefast(const void *buf, size_t sz) const {
+    auto s(::write(fd, buf, sz));
+    if (s == 0) return error::disconnected;
+    else if (s > 0) return (size_t)s;
+    else if (errno == EAGAIN || errno == EWOULDBLOCK) return error::wouldblock;
     else return error::from_errno(); }
 
 orerror<void>

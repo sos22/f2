@@ -59,4 +59,32 @@ either<a,b>::~either() {
     } else {
         right().~b(); } }
 
+template <typename a>
+either<void, a>::either()
+    : isleft_(true) { }
+
+template <typename a>
+either<void, a>::either(const a &w)
+    : isleft_(false) {
+    new (content) a(w); }
+
+template <typename a> bool
+either<void, a>::isleft() const { return isleft_; }
+
+template <typename a> bool
+either<void, a>::isright() const { return !isleft(); }
+
+template <typename a> const a &
+either<void, a>::right() const {
+    assert(isright());
+    return *(const a *)content; }
+
+template <typename a> a &
+either<void, a>::right() {
+    assert(isright());
+    return *(a *)content; }
+
+template <typename a>
+either<void, a>::~either() { if (isright()) ((a *)content)->~a(); }
+
 #endif /* !EITHER_TMPL__ */

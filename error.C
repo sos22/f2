@@ -41,7 +41,8 @@ const error error::pastend(-20);
 const error error::nothing(-21);
 const error error::notempty(-22);
 const error error::wouldblock(-23);
-static const int lasterror = 23;
+const error error::shutdown(-24);
+static const int lasterror = 24;
 
 error::error(const quickcheck &q) {
     if ((bool)q) e = (unsigned)q % 300 + 1;
@@ -107,6 +108,8 @@ public:
                 buf.push("notempty");
             } else if (content == error::wouldblock) {
                 buf.push("wouldblock");
+            } else if (content == error::shutdown) {
+                buf.push("shutdown");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

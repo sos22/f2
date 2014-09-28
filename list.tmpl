@@ -65,6 +65,19 @@ list<t>::flush() {
     while (!i.finished())
         i.remove(); }
 
+template <typename t> void
+list<t>::transfer(list &src) {
+    if (src.head == NULL) return;
+    else if (head == NULL) {
+        head = src.head;
+        tail = src.tail; }
+    else {
+        src.head->prev = tail;
+        tail->next = src.head;
+        tail = src.tail; }
+    src.head = NULL;
+    src.tail = NULL; }
+
 template <typename t> bool
 list<t>::empty() const
 {

@@ -1,6 +1,8 @@
 #ifndef RPCSERVICE_TMPL__
 #define RPCSERVICE_TMPL__
 
+#include "listenfd.H"
+
 namespace wireproto {
 template <typename> class parameter;
 extern const parameter<error> err_parameter; }
@@ -15,6 +17,13 @@ rpcservice::listen(const peername &listenon,
                    std::forward<args>(params)...));
     res->startrootthread(fd.success());
     return res; }
+
+template <typename t, typename ... args> orerror<t *>
+rpcservice::listen(const peername &listenon,
+                   args && ... params) {
+    return listen<t>(listenon,
+                     rpcserviceconfig::dflt,
+                     std::forward<args>(params)...); }
 
 template <typename t> rpcservice::response &
 rpcservice::response::addparam(wireproto::parameter<t> p, const t &v) {

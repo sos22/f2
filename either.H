@@ -23,6 +23,9 @@ public:  ~either();
 /* Specialisation when one of the parameters is void. */
 template <typename a>
 class either<void, a> {
+private: void operator=(const either &) = delete;
+private: bool const isleft_;
+private: char content[sizeof(a)];
 public: either();
 public: either(const a &);
 public: bool isleft() const;

@@ -72,10 +72,11 @@ thread::join(clientio io) {
     if (!started) {
         delete this;
         return; }
-    maybe<deathtoken> token(Nothing);
-    {   subscriber sub;
+    auto token(hasdied());
+    if (token == Nothing) {
+        subscriber sub;
         subscription ds(sub, pub());
-        auto t(hasdied());
+        token = hasdied();
         while (token == Nothing) {
             auto d(sub.wait(io));
             assert(d == &ds);
