@@ -14,11 +14,6 @@
 #include "maybe.tmpl"
 #include "thread.tmpl"
 
-/* Global leaf lock to protect the mapping between outstanding calls
- * and worker threads. */
-static mutex_t
-attachmentlock;
-
 const rpcserviceconfig
 rpcserviceconfig::dflt(
     /* maxoutgoingbytes */
@@ -48,15 +43,26 @@ class rpcservice::worker : public thread {
 private: rpcservice *const owner;
     /* What fd are we doing it over? */
 private: socket_t const fd;
+    /* Small leaf lock.  Protects completedcalls. */
+public:  mutex_t completionlock;
     /* List of all calls which have been completed, whether by
-     * complete() or fail().  Protected by the global attachmentlock.
-     * Publish completedpub when this becomes non-empty. */
+     * complete() or fail(), but not yet picked up by the thread.
+     * Protected by the global attachmentlock.  Publish completedpub
+     * when this becomes non-empty. */
 public:  list<rpcservice::response *> completedcalls;
-    /* Notified when completedcalls becomes non-empty. */
+    /* Notified after completedcalls becomes non-empty. */
 public:  publisher completedpub;
     /* Connection from the root thread's subscriber block to our death
      * publisher. */
 private: subscription const ds;
+    /* Set once we're far enough through shutdown that we guarantee
+     * not to send any more responses to the remote client. */
+    /* (We can't use the root thread's shutdown box for this because
+     * rpcservice derived classes will sometimes send spurious errors
+     * once they see calls being abandoned, so we need to make sure
+     * that don't see calls as abandoned until we guarantee not to
+     * send more responses to our remote clients). */
+public:  waitbox<void> abandoncalls;
 public:  worker(const thread::constoken &t,
                 rpcservice *_owner,
                 socket_t _fd,
@@ -152,11 +158,9 @@ rpcservice::rootthread::run(clientio io) {
      * caller must be racing localname() and destroy(), which is already
      * a bug, so we know that closing fd here is safe. */
     fd.close();
-    /* Workers guarantee to shut down quickly once shutdown is set, so
-     * this doesn't need a full clientio token. */
     while (!workers.empty()) {
         auto w(workers.pophead());
-        w->join(clientio::CLIENTIO); } }
+        w->join(io); } }
 
 rpcservice::worker::worker(const thread::constoken &t,
                            rpcservice *_owner,
@@ -179,7 +183,7 @@ rpcservice::worker::run(clientio io) {
     maybe<iosubscription> outsub(Nothing);
     /* Things to send which have not yet made it into outbuf. */
     list<response *> responses;
-    /* Things which the implementation has not yet finished generating
+    /* Things which the derived class has not yet finished generating
      * a response to. */
     list<response *> incompletecalls;
     buffer outbuf;
@@ -192,8 +196,13 @@ rpcservice::worker::run(clientio io) {
         if (s == &shutdownsub) continue;
         else if (s == &completedcall) {
             list<response *> incoming;
-            attachmentlock.locked([&incoming, this] (mutex_t::token) {
+            completionlock.locked([&incoming, this] (mutex_t::token) {
                     incoming.transfer(completedcalls); });
+            /* XXX O(n) lookup is not efficient.  It's not usually too
+             * bad, because (a) n is usually small, (b) the thing
+             * we're looking for is usually near the start of the
+             * list, and (c) we're not under any locks, but it could
+             * still benefit from a bit of optimisation. */
             for (auto it(incoming.start()); !it.finished(); it.next()) {
                 for (auto it2(incompletecalls.start()); true; it2.next()) {
                     if (*it2 == *it) {
@@ -211,8 +220,8 @@ rpcservice::worker::run(clientio io) {
                 auto r(responses.pophead());
                 r->inner.serialise(outbuf);
                 /* It won't reach the responses queue until the
-                 * implementation is done with it, so this is a good
-                 * place to delete it. */
+                 * service implementation is done with it, so this is
+                 * a good place to delete it. */
                 delete r;
                 /* Things in the outgoing buffer count as complete for
                  * the purposes of applying backpressure to the
@@ -225,7 +234,7 @@ rpcservice::worker::run(clientio io) {
                 if (ss.issuccess()) r.failure().warn(
                     "sending to " + fields::mk(ss.success()));
                 else r.failure().warn("sending to unidentifiable peer?");
-                /* Give up on first error.  Most errors are
+                /* Give up after the first error.  Most errors are
                  * persistent, anyway. */
                 break; }
             if (responses.empty() && outbuf.empty()) outsub = Nothing;
@@ -292,16 +301,28 @@ rpcservice::worker::run(clientio io) {
             else insub.just().rearm(); } }
   conndead:
     fd.close();
-    /* We can't process any more calls.  Any still outstanding will
-     * have their results discarded.  Stop them from accessing us
-     * again. */
-    attachmentlock.locked([&incompletecalls, this] (mutex_t::token) {
-            for (auto it(incompletecalls.start()); !it.finished(); it.next()) {
-                assert((*it)->owner == this);
-                (*it)->owner = NULL; } });
+    /* We can't accept any more calls.  Abandon any outstanding ones
+     * and wait for them to complete. */
+    abandoncalls.set(); /* Causes all of our outstanding calls to
+                         * start failng quickly. */
+    insub = Nothing;
+    outsub = Nothing;
+    completedpub.publish();
+    while (!incompletecalls.empty()) {
+        auto s(sub.wait(io));
+        assert(s == &completedcall);
+        list<response *> incoming;
+        completionlock.locked([&incoming, this] (mutex_t::token) {
+                incoming.transfer(completedcalls); });
+        for (auto it(incoming.start()); !it.finished(); it.next()) {
+            for (auto it2(incompletecalls.start()); true; it2.next()) {
+                if (*it2 == *it) {
+                    it2.remove();
+                    break; } } }
+        responses.transfer(incoming); }
+    assert(completedcalls.empty());
     /* Discard anything which was already complete and which we
      * haven't gotten around to sending yet. */
-    responses.transfer(completedcalls);
     while (!responses.empty()) delete responses.pophead(); }
 
 rpcservice::response::response(const wireproto::rx_message &rxm,
@@ -309,15 +330,19 @@ rpcservice::response::response(const wireproto::rx_message &rxm,
     : inner(rxm),
       owner(_owner) {}
 
+const waitbox<void> &
+rpcservice::response::abandoned() const {
+    return owner->abandoncalls; }
+
 void
 rpcservice::response::complete() {
-    bool failed = attachmentlock.locked<bool>([this] (mutex_t::token) {
-            if (owner == NULL) return true;
+    /* Note that once we're in the completed calls list and we've
+     * dropped the completion lock the owner is at liberty to delete
+     * us at any time. */
+    owner->completionlock.locked([this] (mutex_t::token) {
             auto notify(owner->completedcalls.empty());
             owner->completedcalls.pushtail(this);
-            if (notify) owner->completedpub.publish();
-            return false; });
-    if (failed) delete this; }
+            if (notify) owner->completedpub.publish(); }); }
 
 void
 rpcservice::response::fail(error err) {
@@ -328,13 +353,17 @@ rpcservice::response::fail(error err) {
 rpcservice::response::~response() {}
 
 void
-rpcservice::destroy() {
+rpcservice::destroy(clientio io) {
     root->shutdown.set();
-    /* The root thread guarantees to terminate quickly once shutdown
-     * is set, so this does not need a full clientio token. */
-    root->join(clientio::CLIENTIO);
+    /* Waits for any outstanding calls to complete, so it's safe to
+     * call the derived class destructor once this finishes.. */
+    root->join(io);
     root = NULL;
+    destroying(io);
     delete this; }
+
+void
+rpcservice::destroying(clientio) {}
 
 rpcservice::~rpcservice() {
     assert(root == NULL); }
