@@ -185,9 +185,11 @@ publisher::publish() {
 publisher::~publisher() {}
 
 subscriptionbase::subscriptionbase(
-    subscriber &_sub)
+    subscriber &_sub,
+    void *_data)
     : notified(false),
-      sub(&_sub) {
+      sub(&_sub),
+      data(_data) {
     auto subtoken(sub->mux.lock());
     sub->subscriptions.pushtail(this);
     sub->mux.unlock(&subtoken); }
@@ -213,8 +215,8 @@ subscriptionbase::~subscriptionbase() {
     sub->mux.unlock(&token);
     assert(found); }
 
-subscription::subscription(subscriber &_sub, const publisher &_pub)
-    : subscriptionbase(_sub),
+subscription::subscription(subscriber &_sub, const publisher &_pub, void *_data)
+    : subscriptionbase(_sub, _data),
       pub(&_pub) {
     auto pubtoken(pub->mux.lock());
     pub->subscriptions.pushtail(this);

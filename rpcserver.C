@@ -12,17 +12,18 @@
 
 void
 rpcserver::run(clientio io) {
-    list<rpcconn::deathsubscription *> threads;
+    list<subscription> deathsubs;
     subscriber sub;
     subscription shutdownsub(sub, shutdown.pub);
     iosubscription ios(sub, sock.poll());
 
-    while (!shutdown.ready() || !threads.empty()) {
+    while (!shutdown.ready() || !deathsubs.empty()) {
         auto s = sub.wait(io);
         if (s == &shutdownsub) {
             shutdownsub.detach();
-            for (auto it(threads.start()); !it.finished(); it.next()) {
-                (*it)->conn->teardown(); }
+            for (auto it(deathsubs.start()); !it.finished(); it.next()) {
+                auto c(static_cast<rpcconn *>(it->data));
+                c->teardown(); }
         } else if (s == &ios) {
             /* Accept a new incoming connection */
             tests::rpcserver::accepting.trigger();
@@ -44,23 +45,17 @@ rpcserver::run(clientio io) {
                     "derived class rejected incoming connection");
                 newsock.success().close();
                 continue; }
-            threads.pushtail(
-                new rpcconn::deathsubscription(sub, conn.success()));
+            deathsubs.append(sub, conn.success()->pub(), conn.success());
         } else {
             /* Must have been a connection sub. */
-            auto cs(static_cast<rpcconn::deathsubscription *>(s));
-            auto death(cs->conn->hasdied());
+            auto conn(static_cast<rpcconn *>(s->data));
+            auto death(conn->hasdied());
             if (!death) continue;
             /* Connection has died.  Finish tearing it down. */
-            bool found = false;
-            for (auto it(threads.start()); !it.finished(); it.next()) {
-                if (*it == cs) {
-                    found = true;
+            for (auto it(deathsubs.start()); true; it.next()) {
+                if (&*it == s) {
                     it.remove();
                     break; } }
-            assert(found);
-            rpcconn *conn = cs->conn;
-            delete cs;
             conn->join(death.just()); } }
     finish(io); }
 

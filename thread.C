@@ -18,16 +18,12 @@
 #include "thread.tmpl"
 #include "waitbox.tmpl"
 
-static mutex_t
-detachlock;
-
 thread::thread(const thread::constoken &token)
     : thr(),
       started(false),
       tid_(),
       name(strdup(token.name.c_str())),
-      dead(false),
-      subscribers() {}
+      dead(false) {}
 
 void
 thread::go() {
@@ -49,12 +45,8 @@ thread::pthreadstart(void *_this) {
     prctl(PR_SET_NAME, (unsigned long)thr->name, 0, 0);
     thr->run(clientio::CLIENTIO);
     /* Tell subscribers that we died. */
-    auto token(detachlock.lock());
     storerelease(&thr->dead, true);
-    for (auto it(thr->subscribers.start()); !it.finished(); it.remove()) {
-        (*it)->owner = NULL;
-        (*it)->set(); }
-    detachlock.unlock(&token);
+    thr->_pub.publish();
     return NULL; }
 
 maybe<thread::deathtoken>
@@ -62,44 +54,17 @@ thread::hasdied() const {
     if (loadacquire(dead)) return deathtoken();
     else return Nothing; }
 
-thread::deathsubscription::deathsubscription(subscriber &_sub,
-                                              thread *_owner)
-    : subscriptionbase(_sub),
-      owner(_owner) {
-    auto token(detachlock.lock());
-    owner->subscribers.pushtail(this);
-    detachlock.unlock(&token);
-    if (loadacquire(_owner->dead)) set(); }
-
-void
-thread::deathsubscription::detach() {
-    auto token(detachlock.lock());
-    if (owner) {
-        bool found = false;
-        for (auto it(owner->subscribers.start()); !it.finished(); it.next()) {
-            if (*it == this) {
-                it.remove();
-                found = true;
-                break; } }
-        assert(found);
-        owner = NULL; }
-    detachlock.unlock(&token); }
-
-thread::deathsubscription::~deathsubscription() {
-    detach(); }
+const publisher &
+thread::pub() const { return _pub; }
 
 void
 thread::join(deathtoken) {
+    /* We guarantee that the thread shuts down quickly once dead is
+     * set, and that no death tokens can be created until dead is set,
+     * so this is guaranteed to finish quickly. */
     assert(loadacquire(dead));
     int r = pthread_join(thr, NULL);
     if (r) error::from_errno(r).fatal("joining thread " + fields::mk(name));
-    auto token(detachlock.lock());
-    while (!subscribers.empty()) {
-        auto i = subscribers.pophead();
-        if (i->owner == NULL) continue;
-        assert(i->owner == this);
-        i->owner = NULL; }
-    detachlock.unlock(&token);
     delete this; }
 
 void
@@ -107,17 +72,17 @@ thread::join(clientio io) {
     if (!started) {
         delete this;
         return; }
-    subscriber sub;
-    deathsubscription ds(sub, this);
-    auto d(sub.wait(io));
-    assert(d == &ds);
-    auto token(hasdied());
-    assert(token != Nothing);
+    maybe<deathtoken> token(Nothing);
+    {   subscriber sub;
+        subscription ds(sub, pub());
+        auto t(hasdied());
+        while (token == Nothing) {
+            auto d(sub.wait(io));
+            assert(d == &ds);
+            token = hasdied(); } }
     join(token.just()); }
 
-thread::~thread() {
-    assert(subscribers.empty());
-    free((void *)name); }
+thread::~thread() { free((void *)name); }
 
 const fields::field &
 fields::mk(const thread &thr) {
@@ -179,7 +144,7 @@ tests::thread() {
             assert(cntr > 97);
             /* Publisher doesn't notify while it's running. */
             subscriber sub;
-            thread::deathsubscription ds(sub, thr2);
+            subscription ds(sub, thr2->pub());
             (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
             assert(sub.wait(io, timestamp::now()) == NULL);
             assert(thr2->hasdied() == Nothing);
@@ -221,44 +186,6 @@ tests::thread() {
             thr.destroy();
             assert(constructed);
             assert(destructed); });
-
-    testcaseIO("thread", "autonotify", [] (clientio io) {
-            class testthr : public thread {
-            public: testthr(constoken token)
-                : thread(token) {}
-            public: void run(clientio) {} };
-            /* death subscriptions should auto-notify when attached to
-               things which are already dead. */
-            auto thr(thread::spawn<testthr>(fields::mk("wibble")).go());
-            while (thr->hasdied() == Nothing) pthread_yield();
-            subscriber sub;
-            assert(sub.wait(io, timestamp::now()) == NULL);
-            thread::deathsubscription ds(sub, thr);
-            assert(sub.wait(io, timestamp::now()) == &ds);
-            thr->join(clientio::CLIENTIO); });
-
-    testcaseIO("thread", "detach", [] (clientio io) {
-            class testthr : public thread {
-            public: volatile bool &shutdown;
-            public: testthr(constoken token,
-                            volatile bool &_shutdown)
-                : thread(token),
-                  shutdown(_shutdown) {}
-            public: void run(clientio) { while (!shutdown) {} } };
-            /* It should be possible to detach a death subscription to
-               stop receiving further notifications. */
-            volatile bool shutdown = false;
-            auto thr(thread::spawn<testthr>(fields::mk("foo"), shutdown).go());
-            subscriber sub;
-            thread::deathsubscription ds(sub, thr);
-            assert(sub.poll() == NULL);
-            ds.detach();
-            assert(sub.poll() == NULL);
-            shutdown = true;
-            while (thr->hasdied() == Nothing) pthread_yield();
-            assert(sub.poll() == NULL);
-            thr->join(io);
-            assert(sub.poll() == NULL); });
 
     testcaseIO("thread", "name", [] (clientio io) {
             class testthr : public thread {

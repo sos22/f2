@@ -40,15 +40,13 @@ public:  t *unwrap() const {
 
 class thread {
     template <typename t> friend class pausedthread;
-public:    class deathsubscription;
-    friend class deathsubscription;
     friend const fields::field &fields::mk(const thread &);
 private:   pthread_t thr;
 private:   bool started;
 private:   waitbox<tid> tid_;
 private:   const char *name; /* nul-terminated malloc()ed owned */
 private:   bool dead; /* Access with loadacquire() and storerelease() */
-private:   list<deathsubscription *> subscribers;
+private:   publisher _pub; /* Published after dead gets set. */
 public:    class constoken {
     friend class thread;
     private: const fields::field &name;
@@ -95,34 +93,9 @@ public:    class deathtoken {
     /* Check whether the thread has exitted.  Returns a death token if
      * it has or Nothing if it's still running. */
 public:    maybe<deathtoken> hasdied() const;
-    /* Mechanism for waiting for a thread to die.  A death
-     * subscription will be notified whenever hasdied() goes from
-     * Nothing to a valid death token.  It will also automatically be
-     * notified when added to a subscriber if the thread is already
-     * dead. */
-public:    class deathsubscription : public subscriptionbase {
-        friend class thread;
-    private: deathsubscription() = delete;
-    private: deathsubscription(const deathsubscription &) = delete;
-    private: void operator =(const deathsubscription &) = delete;
-    private: thread *owner;
-        /* Construct a new death subscription for a given thread.  The
-         * subscription will be notified shortly after the thread
-         * hasdied() method starts returning a valid death token, and
-         * also if it is attached to a subscriber while the hasdied()
-         * method will return a valid token. */
-        /* Note that this is still edge, rather than level, sensitive:
-         * each subscription will only be notified once when the
-         * thread dies. */
-    public:  deathsubscription(subscriber &sub, thread *owner);
-        /* Detach the thread death subscription from the thread.  The
-         * subscription will no longer be notified when the thread
-         * dies.  It is valid to call detach() multiple times (but
-         * pointless). */
-    public:  void detach();
-        /* Default destructor.  Will detach() first if necessary. */
-    public:  ~deathsubscription();
-    };
+    /* The publisher for a thread is published shortly after hasdied()
+     * goes from Nothing to something. */
+public:    const publisher &pub() const;
     /* Clean up a thread structure after the thread has died.  Note
      * that this deletes this.  Automatically detaches any remaining
      * death subscriptions. */

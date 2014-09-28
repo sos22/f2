@@ -38,7 +38,8 @@ class subscriptionbase {
     friend class subscriber;
 protected: bool notified;
 protected: subscriber *sub;
-protected: subscriptionbase(subscriber &_sub);
+public:    void *const data;
+protected: subscriptionbase(subscriber &_sub, void *_data = NULL);
     /* Set the notified flag on this subscription. */
 public:   void set();
     /* Called by the subscriber when it's time to unhook from the
@@ -53,7 +54,7 @@ class subscription final : public subscriptionbase {
 private:  const publisher *pub;
     /* Construct a new subscription connecting a given publisher to a
      * given subscriber. */
-public:  subscription(subscriber &, const publisher &);
+public:  subscription(subscriber &, const publisher &, void *data = NULL);
     /* Detach the subscription, disconnecting it from the publisher.
      * The subscription remains attached to the subscriber, although
      * that doesn't usually matter a great deal unless somebody calls

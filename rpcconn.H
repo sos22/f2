@@ -479,12 +479,7 @@ public:  class deathtoken : public thread::deathtoken {
         : thread::deathtoken(t) {}
     };
 public:  maybe<deathtoken> hasdied() const;
-public:  class deathsubscription : public thread::deathsubscription {
-    public: rpcconn *const conn;
-    public: deathsubscription(subscriber &_sub, rpcconn *_owner)
-        :  thread::deathsubscription(_sub, _owner),
-           conn(_owner) {}
-    };
+public:  const publisher &pub() const { return thread::pub(); }
 public:  void join(deathtoken dt) { thread::join(dt); }
 public:  void join(clientio io) { thread::join(io); }
 

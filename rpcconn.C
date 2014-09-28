@@ -607,7 +607,7 @@ rpcconn::send(
     auto txtoken(txlock.lock());
     if (outgoing.avail() > config.maxoutgoingbytes) {
         subscription moretx(sub, outgoingshrunk);
-        deathsubscription died(sub, this);
+        subscription died(sub, pub());
         while (outgoing.avail() > config.maxoutgoingbytes) {
             /* Need to drop the TX lock while we're waiting, because
                otherwise the conn thread can't pick it up to actually
