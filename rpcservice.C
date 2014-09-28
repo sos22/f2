@@ -118,6 +118,7 @@ rpcservice::rootthread::run(clientio io) {
         if (s == &shutdownsub) continue;
         else if (s == &incomingsub) {
             auto l(fd.accept());
+            incomingsub.rearm();
             if (l.isfailure()) {
                 l.failure().warn("accepting on " + fields::mk(fd.localname()));
                 /* Wait around for a bit before rearming so that a
@@ -138,10 +139,10 @@ rpcservice::rootthread::run(clientio io) {
             auto died(static_cast<worker *>(s->data));
             auto death(died->hasdied());
             if (death == Nothing) continue;
-            bool found = false;
-            for (auto it(workers.start()); !found && !it.finished(); it.next()){
-                found = *it == died; }
-            assert(found == true);
+            for (auto it(workers.start()); true; it.next()){
+                if (*it == died) {
+                    it.remove();
+                    break; } }
             died->join(death.just()); } }
     /* Time to shut down.  Stop accepting new connections and wait for
      * the existing ones to finish.  They should already be shutting
@@ -209,7 +210,7 @@ rpcservice::worker::run(clientio io) {
                    !responses.empty()) {
                 auto r(responses.pophead());
                 r->inner.serialise(outbuf);
-                /* It won't reache the responses queue until the
+                /* It won't reach the responses queue until the
                  * implementation is done with it, so this is a good
                  * place to delete it. */
                 delete r;

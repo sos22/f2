@@ -89,7 +89,7 @@ testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
 testmodule registrationsecret registrationsecret.C registrationsecret.H
-testmodule rpc rpcserver.C rpcserver.H rpcserver.tmpl rpcconn.C rpcconn.H rpcconn.tmpl
+testmodule rpc rpcservice.C rpcservice.H rpcservice.tmpl rpcclient.C rpcclient.H
 testmodule spawn spawn.C spawn.H
 testmodule storageconfig storageconfig.C storageconfig.H
 testmodule thread thread.C thread.tmpl thread.H
