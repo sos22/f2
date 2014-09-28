@@ -7,9 +7,9 @@ rpcservice::listen(const peername &listenon,
                    args && ... params) {
     auto fd(rpcservice::open(listenon));
     if (fd.isfailure()) return fd.failure();
-    auto res(new t(constoken(fd.success(), config),
+    auto res(new t(constoken(config),
                    std::forward<args>(params)...));
-    res->startrootthread();
+    res->startrootthread(fd.success());
     return res; }
 
 template <typename t> rpcservice::response &

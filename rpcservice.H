@@ -55,8 +55,10 @@ private: static orerror<int> open(const peername &);
     /* rpcservice should only be constructed by listen(); this is
      * enforced by the constoken parameter. */
 public:  class constoken {
+        friend class rpcservice;
+    private: const rpcserviceconfig &config;
         /* Use listen() */
-    private: constoken(int fd, const rpcserviceconfig &config);
+    private: explicit constoken(const rpcserviceconfig &);
     private: constoken(const constoken &) = delete; };
 protected: explicit rpcservice(const constoken &);
 
@@ -100,7 +102,8 @@ public:  class response {
         /* The response we're busy building. */
     private: wireproto::resp_message inner;
         /* The worker which will eventually transmit our results, or
-         * NULL if it's been shut down. */
+         * NULL if it's been shut down.  Protected by the global
+         * attachment lock. */
     private: worker *owner;
         /* Only allocated by the rpcserver implementation */
     private: response(const wireproto::rx_message &rxm,
@@ -159,7 +162,7 @@ public:  maybe<finishtoken> finished(teardowntoken);
      * teardowntoken. */
 public:  const publisher &shutdown(teardowntoken) const;
 
-    /* Release an rpcservice which has stopped. */
+    /* Release an rpcservice which has finished. */
 public:  void destroy(finishtoken);
 
     /* Convenience wrapper for the shutdown protocol: call teardown(),

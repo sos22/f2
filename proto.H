@@ -83,18 +83,8 @@ namespace proto {
         static const parameter<uint64_t> size(3);
     };
 
-    /* Every server implements the no-op PING interface. */
-    /* These are used to basically re-implement TCP keepalives further
-       up the stack.  Doing so has a couple of advantages over just
-       using ordinary keepalives: (1) we detect if userspace has
-       deadlocked (and can start failover) even when the kernel and
-       low-level network connection are still alive, (2) it's a lot
-       easier to test, and (3) we have more visibility into what's
-       going on, which makes the status interface more useful.  On the
-       other hand, it's more code, it's marginally less efficient, and
-       it's more likely to be screwed up by attaching gdb at the wrong
-       time. */
-    /* It'll do for now. */
+    /* Every server implements the no-op PING interface, which is
+     * mostly just there for testing. */
     namespace PING {
         static const msgtag tag(1);
         /* No request parameters */

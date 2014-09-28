@@ -6,10 +6,14 @@
 
 #include "listenfd.H"
 #include "peername.H"
+#include "proto.H"
 #include "timedelta.H"
+#include "version.H"
 
 #include "thread.tmpl"
 
+/* Global leaf lock to protect the mapping between outstanding calls
+ * and worker threads. */
 static mutex_t
 attachmentlock;
 
@@ -43,9 +47,11 @@ private: socket_t const fd;
     /* Connection from the root thread's subscriber block to our death
      * publisher. */
 private: subscription const ds;
-public:  mutex_t completionlock;
+    /* List of all calls which have been completed, whether by
+     * complete() or fail().  Protected by the global attachmentlock.
+     * Publish completedpub when this becomes non-empty. */
 public:  list<rpcservice::response *> completedcalls;
-public:  list<rpcservice::response *> incompletecalls;
+    /* Notified when completedcalls becomes non-empty. */
 public:  publisher completedpub;
 public:  worker(const thread::constoken &t,
                 rpcservice *_owner,
@@ -61,10 +67,13 @@ rpcservice::open(const peername &listenon) {
                     0));
     if (s < 0) return error::from_errno();
     if (::bind(s, listenon.sockaddr(), listenon.sockaddrsize()) < 0 ||
-        ::listen(s, 100) < 0) {
+        ::listen(s, 10) < 0) {
         ::close(s);
         return error::from_errno(); }
     else return s; }
+
+rpcservice::constoken::constoken(const rpcserviceconfig &_config)
+    : config(_config) {}
 
 void
 rpcservice::startrootthread(listenfd fd) {
@@ -74,6 +83,10 @@ rpcservice::startrootthread(listenfd fd) {
                this));
     root = t.unwrap();
     t.go(); }
+
+rpcservice::rpcservice(const constoken &token)
+    : root(NULL),
+      config(token.config) {}
 
 rpcservice::rootthread::rootthread(thread::constoken t,
                                    listenfd _fd,
@@ -143,9 +156,7 @@ rpcservice::worker::worker(const thread::constoken &t,
       owner(_owner),
       fd(_fd),
       ds(sub, pub()),
-      completionlock(),
       completedcalls(),
-      incompletecalls(),
       completedpub() {}
 
 void
@@ -158,18 +169,33 @@ rpcservice::worker::run(clientio io) {
     maybe<iosubscription> outsub(Nothing);
     /* Things to send which have not yet made it into outbuf. */
     list<response *> responses;
+    /* Things which the implementation has not yet finished generating
+     * a response to. */
+    list<response *> incompletecalls;
     buffer outbuf;
     buffer inbuf;
     unsigned outstanding = 0;
+    /* Has the client sent a valid HELLO yet? */
+    bool helloed = false;
     while (!owner->root->shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &shutdownsub) continue;
         else if (s == &completedcall) {
-            completionlock.locked([&responses, this] (mutex_t::token) {
-                    responses.transfer(completedcalls); });
+            list<response *> incoming;
+            attachmentlock.locked([&incoming, this] (mutex_t::token) {
+                    incoming.transfer(completedcalls); });
+            for (auto it(incoming.start()); !it.finished(); it.next()) {
+                for (auto it2(incompletecalls.start()); true; it2.next()) {
+                    if (*it2 == *it) {
+                        it2.remove();
+                        break; } } }
+            responses.transfer(incoming);
             if (!responses.empty() && outsub == Nothing) {
                 outsub.mkjust(sub, fd.poll(POLLOUT)); } }
         else if (outsub != Nothing && s == &outsub.just()) {
+            /* outsub is only armed when there's stuff in the
+             * responses list. */
+            assert(!responses.empty());
             while (outbuf.avail() < owner->config.maxoutgoingbytes &&
                    !responses.empty()) {
                 auto r(responses.pophead());
@@ -179,17 +205,16 @@ rpcservice::worker::run(clientio io) {
                  * place to delete it. */
                 delete r;
                 /* Things in the outgoing buffer count as complete for
-                 * the purposes of apply backpressure to the
+                 * the purposes of applying backpressure to the
                  * client. */
                 outstanding--; }
+            assert(!outbuf.empty());
             auto r(outbuf.sendfast(fd));
             if (r.isfailure()) {
                 auto ss(fd.peer());
-                if (ss.issuccess()) {
-                    r.failure().warn("sending to " +
-                                     fields::mk(ss.success())); }
-                else {
-                    r.failure().warn("sending to unidentifiable peer?"); }
+                if (ss.issuccess()) r.failure().warn(
+                    "sending to " + fields::mk(ss.success()));
+                else r.failure().warn("sending to unidentifiable peer?");
                 /* Give up on first error.  Most errors are
                  * persistent, anyway. */
                 break; }
@@ -202,29 +227,34 @@ rpcservice::worker::run(clientio io) {
             auto r(inbuf.receivefast(fd));
             if (r.isfailure()) {
                 auto ss(fd.peer());
-                if (ss.issuccess()) {
-                    r.failure().warn(
-                        "receiving from " + fields::mk(ss.success())); }
-                else {
-                    r.failure().warn("receiving from unidentifiable peer?"); }
+                if (ss.issuccess()) r.failure().warn(
+                    "receiving from " + fields::mk(ss.success()));
+                else r.failure().warn("receiving from unidentifiable peer?");
                 break; }
             while (true) {
                 auto rr(wireproto::rx_message::fetch(inbuf));
                 if (rr == error::underflowed) break;
                 if (rr.isfailure()) {
                     auto ss(fd.peer());
-                    if (ss.issuccess()) {
-                        r.failure().warn("parsing message from " +
-                                         fields::mk(ss.success())); }
-                    else {
-                        r.failure().warn(
-                            "parsing message from unidentifiable peer?"); }
+                    if (ss.issuccess()) r.failure().warn(
+                        "parsing message from " + fields::mk(ss.success()));
+                    else r.failure().warn(
+                        "parsing message from unidentifiable peer?");
                     goto conndead; }
                 auto resp(new response(rr.success(), this));
-                attachmentlock.locked([resp, this] (mutex_t::token) {
-                        incompletecalls.pushtail(resp); });
+                incompletecalls.pushtail(resp);
                 outstanding++;
-                owner->call(io, rr.success(), resp); }
+                if (rr.success().tag() == proto::PING::tag) resp->complete();
+                else if (rr.success().tag() == proto::HELLO::tag) {
+                    if (helloed) resp->fail(error::toolate);
+                    else if (rr.success().getparam(proto::HELLO::req::version)
+                             != version::current) {
+                        resp->fail(error::badversion); }
+                    else {
+                        resp->complete();
+                        helloed = true; } }
+                else if (!helloed) resp->fail(error::toosoon);
+                else owner->call(io, rr.success(), resp); }
             if (outstanding >= owner->config.maxoutstanding) insub = Nothing;
             else insub.just().rearm(); } }
   conndead:
@@ -232,7 +262,7 @@ rpcservice::worker::run(clientio io) {
     /* We can't process any more calls.  Any stil outstanding will
      * have their results discarded.  Stop them from accessing us
      * again. */
-    attachmentlock.locked([this] (mutex_t::token) {
+    attachmentlock.locked([&incompletecalls, this] (mutex_t::token) {
             for (auto it(incompletecalls.start()); !it.finished(); it.next()) {
                 assert((*it)->owner == this);
                 (*it)->owner = NULL; } });
@@ -250,19 +280,16 @@ void
 rpcservice::response::complete() {
     bool failed = attachmentlock.locked<bool>([this] (mutex_t::token) {
             if (owner == NULL) return true;
+            auto notify(owner->completedcalls.empty());
             owner->completedcalls.pushtail(this);
-            for (auto it(owner->incompletecalls.start()); true; it.next()) {
-                if (*it == this) {
-                    it.remove();
-                    break; } }
-            owner->completedpub.publish();
+            if (notify) owner->completedpub.publish();
             return false; });
     if (failed) delete this; }
 
 void
 rpcservice::response::fail(error err) {
     inner.flush();
-    inner.addparam(wireproto::err_parameter,err);
+    inner.addparam(wireproto::err_parameter, err);
     complete(); }
 
 rpcservice::teardowntoken
@@ -286,6 +313,7 @@ rpcservice::shutdown(teardowntoken) const { return root->pub(); }
 void
 rpcservice::destroy(finishtoken t) {
     root->join(t.inner);
+    root = NULL;
     delete this; }
 
 void
@@ -298,3 +326,6 @@ rpcservice::destroy(clientio io) {
             sub.wait(io);
             t2 = finished(t); } }
     destroy(t2.just()); }
+
+rpcservice::~rpcservice() {
+    assert(root == NULL); }
