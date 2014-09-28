@@ -1,5 +1,7 @@
 #include "rpctest.H"
 
+#include <sys/socket.h>
+
 #include "peername.H"
 #include "proto.H"
 #include "rpcclient.H"
@@ -41,11 +43,30 @@ void _rpc() {
             s->destroy();
             assert(rpcclient::connect(io, r) ==
                    error::from_errno(ECONNREFUSED)); });
-    testcaseV("rpc", "listenbad", [] {
+    testcaseIO("rpc", "listenbad", [] (clientio) {
             auto s(rpcservice::listen<trivserver>(
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             assert(rpcservice::listen<trivserver>(
                        peername::loopback(s->localname().getport())) ==
                    error::from_errno(EADDRINUSE));
-            s->destroy(); }); } }
+            s->destroy(); });
+    testcaseIO("rpc", "connectbad", [] (clientio io) {
+            struct sockaddr sa;
+            sa.sa_family = 9999;
+            peername p(&sa, sizeof(sa));
+            assert(rpcclient::connect(io, p) ==
+                   error::from_errno(EAFNOSUPPORT)); });
+    testcaseIO("rpc", "connectshutdown", [] (clientio) {
+            /* Try to arrange to interrupt a connect before it
+             * completes.  1000 iterations should be enough to have a
+             * decent chance of success. */
+            auto s(rpcservice::listen<trivserver>(
+                       peername::loopback(peername::port::any))
+                   .fatal("starting trivial server"));
+            auto p(s->localname());
+            for (unsigned x = 0; x < 1000; x++) {
+                rpcclient::connect(p)->abort(); }
+            s->destroy(); });
+}
+}
