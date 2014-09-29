@@ -312,31 +312,31 @@ rpcclient::workerthread::run(clientio io) {
                ? pendingrecv.pophead()
                : pendingsend.pophead());
         if (p->mux.locked<bool>([_failure, p] (mutex_t::token) {
-                    if (p->res != Nothing) {
+                    if (p->res == Nothing) {
+                        p->res = either<void, orerror<wireproto::rx_message *> >
+                            (_failure.failure());
+                        return false; }
+                    else {
                         assert(p->res.just().isleft());
-                        return true; }
-                    p->res = decltype(p->res.just())(_failure);
-                    return false; }))
-            delete p; } }
+                        return true; } } ) ) {
+                delete p; } } }
 
 rpcclient::asynccall *
 rpcclient::workerthread::call(const wireproto::req_message &m) {
-    auto res(new rpcclient::asynccall(
-                 m,
-                 seqlock.locked<wireproto::sequencenr>(
-                     [this] (mutex_t::token) {
-                         return sequencer.get(); })));
-    auto failed(
-        newcallsmux.locked<orerror<void> >(
-            [res, this] (mutex_t::token) -> orerror<void> {
-                if (failure != Success) return failure;
+    auto res(
+        new rpcclient::asynccall(
+            m,
+            seqlock.locked<wireproto::sequencenr>(
+                [this] (mutex_t::token) { return sequencer.get(); })));
+    newcallsmux.locked(
+        [res, this] (mutex_t::token) {
+            if (failure == Success) {
                 bool notify(newcalls.empty());
                 newcalls.pushtail(res);
-                if (notify) newcallspub.publish();
-                return Success; }));
-    if (failed.isfailure()) {
-        res->res = either<void, orerror<wireproto::rx_message*> >(
-            failed.failure()); }
+                if (notify) newcallspub.publish(); }
+            else {
+                res->res = either<void, orerror<wireproto::rx_message*> >(
+                    failure.failure()); } });
     return res; }
 
 rpcclient::rpcclient(workerthread *_worker)
@@ -399,7 +399,6 @@ rpcclient::asynccall::abort() {
         mux.unlock(&t); }
     else {
         mux.unlock(&t);
-        assert(!res.just().isleft());
         if (res.just().right().issuccess()) delete res.just().right().success();
         delete this; } }
 

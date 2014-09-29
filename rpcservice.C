@@ -310,6 +310,7 @@ rpcservice::worker::run(clientio io) {
     completedpub.publish();
     while (!incompletecalls.empty()) {
         auto s(sub.wait(io));
+        if (s == &shutdownsub) continue;
         assert(s == &completedcall);
         list<response *> incoming;
         completionlock.locked([&incoming, this] (mutex_t::token) {

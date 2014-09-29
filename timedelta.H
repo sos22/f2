@@ -23,7 +23,10 @@ class timedelta {
     friend timedelta operator/(double, frequency);
     long v;
 public:
+    /* Random over entire possible space */
     timedelta(const quickcheck &);
+    /* Random over a limited range. */
+    timedelta(const quickcheck &, timedelta min, timedelta max);
     static timedelta seconds(long nr) __attribute__((const));
     static timedelta milliseconds(long nr) __attribute__((const));
     static timedelta microseconds(long nr) __attribute__((const));

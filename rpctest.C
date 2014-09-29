@@ -2,14 +2,18 @@
 
 #include <sys/socket.h>
 
+#include "logging.H"
 #include "peername.H"
 #include "proto.H"
 #include "rpcclient.H"
 #include "rpcservice.H"
+#include "spark.H"
 #include "test.H"
 #include "timedelta.H"
 
+#include "list.tmpl"
 #include "rpcservice.tmpl"
+#include "spark.tmpl"
 
 namespace tests {
 
@@ -18,6 +22,24 @@ public:  trivserver(const rpcservice::constoken &t)
     : rpcservice(t) {}
 private: void call(const wireproto::rx_message &, response *resp) {
     resp->fail(error::unrecognisedmessage); } };
+
+class slowserver : public rpcservice {
+private: const timedelta mindelay;
+private: const timedelta maxdelay;
+private: list<spark<void> > running;
+public:  slowserver(const constoken &t,
+                    timedelta _mindelay,
+                    timedelta _maxdelay)
+    : rpcservice(t),
+      mindelay(_mindelay),
+      maxdelay(_maxdelay) {}
+public:  void call(const wireproto::rx_message &, response *resp) {
+    running.append([resp, this] {
+            (timestamp::now() + timedelta(quickcheck(), mindelay, maxdelay))
+                .sleep(clientio::CLIENTIO);
+            resp->complete(); }); }
+public:  void destroying(clientio) { running.flush(); }
+private: ~slowserver() { assert(running.empty()); } };
 
 void _rpc() {
     testcaseIO("rpc", "basic", [] (clientio io) {
@@ -71,5 +93,55 @@ void _rpc() {
             for (unsigned x = 0; x < 1000; x++) {
                 rpcclient::connect(p)->abort(); }
             s->destroy(io); });
+    testcaseIO("rpc", "slowcalls", [] (clientio io) {
+            initlogging("T");
+            for (unsigned mode = 0; mode < 3; mode++) {
+                auto s(rpcservice::listen<slowserver>(
+                           peername::loopback(peername::port::any),
+                           timedelta::milliseconds(0),
+                           timedelta::milliseconds(100))
+                       .fatal("starting slow server"));
+                auto p(s->localname());
+                waitbox<void> shutdown;
+                list<spark<void> > workers;
+                unsigned completed = 0;
+                for (unsigned x = 0; x < 10; x++) {
+                    workers.append([&completed, io, mode, &p, &shutdown] {
+                            auto c(rpcclient::connect(io, p)
+                                   .fatal("connecting to slow server"));
+                            list<rpcclient::asynccall *> calls;
+                            while (!shutdown.ready()) {
+                                while (calls.length() < 10) {
+                                    calls.pushtail(
+                                        c->call(wireproto::req_message(
+                                                    wireproto::msgtag(99)))); }
+                                auto cc(calls.pophead());
+                                {   subscriber sub;
+                                    subscription ss(sub, cc->pub());
+                                    subscription sss(sub, shutdown.pub);
+                                    while (!shutdown.ready() &&
+                                           cc->finished() == Nothing) {
+                                        sub.wait(io); } }
+                                if (shutdown.ready()) cc->abort();
+                                else {
+                                    auto r(cc->pop(cc->finished().just()));
+                                    if (r.issuccess()) {
+                                        completed++;
+                                        delete r.success(); }
+                                    else if (mode == 0 ||
+                                             r != error::disconnected)  {
+                                        r.fatal("finishing slow call"); } } }
+                            while (!calls.empty()) calls.pophead()->abort();
+                            delete c; } ); }
+                (timestamp::now() + timedelta::seconds(1)).sleep(io);
+                ::logmsg(loglevel::info,
+                         "completed " + fields::mk(completed) + " in mode " +
+                         fields::mk(mode));
+                if (mode == 2) s->destroy(io);
+                shutdown.set();
+                if (mode == 1) s->destroy(io);
+                workers.flush();
+                if (mode == 0) s->destroy(io); }
+            deinitlogging(); } );
 }
 }

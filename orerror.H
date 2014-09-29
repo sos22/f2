@@ -91,6 +91,10 @@ public:
         return isfailure() && failure() == e; }
     bool operator==(const t &e) const {
         return issuccess() && success() == e; }
+    bool operator!=(const error &e) const {
+        return !(*this == e); }
+    bool operator!=(const t &e) const {
+        return !(*this == e); }
 };
 
 /* Special case for things which just return an error indication.

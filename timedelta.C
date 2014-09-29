@@ -11,6 +11,9 @@
 #include "timedelta.tmpl"
 #include "wireproto.tmpl"
 
+timedelta::timedelta(const quickcheck &q, timedelta min, timedelta max)
+    : v(min.v + ((unsigned long)q % (max.v - min.v))) {}
+
 timedelta::timedelta(const quickcheck &q)
     : v(q) {}
 
