@@ -12,7 +12,9 @@
 #include "wireproto.tmpl"
 
 timedelta::timedelta(const quickcheck &q, timedelta min, timedelta max)
-    : v(min.v + ((unsigned long)q % (max.v - min.v))) {}
+    : v(min == max
+        ? min.v
+        : min.v + ((unsigned long)q % (max.v - min.v))) {}
 
 timedelta::timedelta(const quickcheck &q)
     : v(q) {}
@@ -46,6 +48,10 @@ timedelta::operator *(double d) const
 double
 timedelta::operator /(timedelta o) const {
     return (double)v / (double)o.v; }
+
+timedelta
+timedelta::operator /(double f) const {
+    return timedelta((long)((double)v / f)); }
 
 bool
 timedelta::operator <=(timedelta o) const {
@@ -91,6 +97,12 @@ const parser<timedelta> &
 parsers::_timedelta() {
     return ("<timedelta:" + intparser<long>() + "ns>")
         .map<timedelta>([] (long l) { return timedelta::nanoseconds(l); }); }
+
+timedelta
+timedelta::time(std::function<void ()> what) {
+    auto start(timestamp::now());
+    what();
+    return timestamp::now() - start; }
 
 wireproto_simple_wrapper_type(timedelta, long, v)
 

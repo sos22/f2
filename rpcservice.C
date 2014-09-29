@@ -124,7 +124,6 @@ rpcservice::rootthread::run(clientio io) {
         if (s == &shutdownsub) continue;
         else if (s == &incomingsub) {
             auto l(fd.accept());
-            incomingsub.rearm();
             if (l.isfailure()) {
                 l.failure().warn("accepting on " + fields::mk(fd.localname()));
                 /* Wait around for a bit before rearming so that a
@@ -134,6 +133,7 @@ rpcservice::rootthread::run(clientio io) {
                 assert(s == NULL || s == &shutdownsub);
                 incomingsub.rearm();
                 continue; }
+            incomingsub.rearm();
             auto r(thread::spawn<worker>(
                        "S" + fields::mk(fd.localname()),
                        owner,

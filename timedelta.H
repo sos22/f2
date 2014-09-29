@@ -37,6 +37,7 @@ public:
     double operator*(frequency) const;
     timedelta operator*(double) const;
     double operator/(timedelta) const;
+    timedelta operator/(double) const;
     bool operator>=(timedelta) const;
     bool operator==(timedelta) const;
     bool operator<=(timedelta) const;
@@ -45,13 +46,15 @@ public:
     bool operator<(const timedelta &o) const;
 
     template <typename t> static timeres<t> time(std::function<t ()>);
+    static timedelta time(std::function<void ()>);
+
     WIREPROTO_WRAPPER_TYPE(timedelta, long, private);
 };
 
 static inline timedelta operator*(double scale, timedelta v) {
     return v * scale; }
 
-template <typename t> struct timeres {
+template <typename t> class timeres {
 public: class timedelta td;
 public: t v;
 public: timeres(const timedelta &_td, const t &_v)

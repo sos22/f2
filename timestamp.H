@@ -27,6 +27,7 @@ public:
     timestamp(quickcheck);
     timedelta operator-(timestamp) const;
     timestamp operator+(timedelta) const;
+    timestamp operator-(timedelta) const;
     bool operator<(timestamp o) const { return v < o.v; }
     bool operator>(timestamp o) const { return v > o.v; }
     bool operator>=(timestamp o) const { return v >= o.v; }

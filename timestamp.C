@@ -27,6 +27,10 @@ timestamp::operator+(timedelta td) const
     return timestamp(v + td.v);
 }
 
+timestamp
+timestamp::operator-(timedelta td) const {
+    return timestamp(v - td.v); }
+
 timedelta
 timestamp::operator-(timestamp o) const
 {
