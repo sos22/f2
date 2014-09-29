@@ -7,6 +7,7 @@
 #include "mutex.H"
 #include "orerror.H"
 #include "pubsub.H"
+#include "version.H"
 #include "waitbox.H"
 
 namespace wireproto {
@@ -32,10 +33,15 @@ private: workerthread *const worker;
      * it.  Potentially blocks forever if no deadline is specified.
      * Returns error::timeout if the deadline expires before the
      * connect() completes. */
+    /* It's possible to specify a different protocol version with
+     * this, but that's only really useful for testing the version
+     * mismatch logic, since only one version is actually defined
+     * right now. */
 public: static orerror<rpcclient *> connect(
     clientio,
     const peername &,
-    maybe<timestamp> deadline = Nothing);
+    maybe<timestamp> deadline = Nothing,
+    version = version::current);
 
     /* Asynchronous connect.  Start connecting to a remote host
      * without waiting for the connect to complete.  Returns an
@@ -86,7 +92,8 @@ public: class asyncconnect {
         /* Use pop() or abort() */
     private: ~asyncconnect();
     };
-public: static asyncconnect *connect(const peername &);
+public: static asyncconnect *connect(const peername &,
+                                     version vers = version::current);
 
     /* Use connect() */
 private: explicit rpcclient(workerthread *);

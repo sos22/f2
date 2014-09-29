@@ -19,6 +19,9 @@
 
 class rpcclient::workerthread : public thread {
 public:  rpcclient::asyncconnect connector;
+    /* Protocol version to connect with. */
+private: const version vers;
+    /* Who we need to connect to. */
 public:  const peername peer;
     /* Protects newcalls and failure.  Small leaf lock. */
 private: mutex_t newcallsmux;
@@ -44,7 +47,8 @@ private: wireproto::sequencer sequencer;
 public:  rpcclient *const client;
 
 public:  workerthread(const constoken &t,
-                      const peername &_peer);
+                      const peername &_peer,
+                      version _vers);
 public:  void run(clientio);
 private: orerror<int> connect(clientio);
 public:  rpcclient::asynccall *call(const wireproto::req_message &m);
@@ -54,8 +58,9 @@ orerror<rpcclient *>
 rpcclient::connect(
     clientio io,
     const peername &peer,
-    maybe<timestamp> deadline) {
-    auto a(connect(peer));
+    maybe<timestamp> deadline,
+    version vers) {
+    auto a(connect(peer, vers));
     maybe<asyncconnect::token> t(Nothing);
     {   subscriber sub;
         subscription ss(sub, a->pub());
@@ -105,17 +110,21 @@ rpcclient::asyncconnect::abort() { delete client(); }
 rpcclient::asyncconnect::~asyncconnect() {}
 
 rpcclient::asyncconnect *
-rpcclient::connect(const peername &peer) {
+rpcclient::connect(const peername &peer,
+                   version vers) {
     auto p(thread::spawn<workerthread>(
                "C" + fields::mk(peer),
-               peer));
+               peer,
+               vers));
     auto w(p.go());
     return &w->connector; }
 
 rpcclient::workerthread::workerthread(const constoken &t,
-                                      const peername &_peer)
+                                      const peername &_peer,
+                                      version _vers)
     : thread(t),
       connector(),
+      vers(_vers),
       peer(_peer),
       newcallsmux(),
       newcalls(),
@@ -189,8 +198,7 @@ rpcclient::workerthread::run(clientio io) {
     buffer inbuffer;
     if (shutdown.ready()) _failure = error::shutdown;
     auto hellocall(call(wireproto::req_message(proto::HELLO::tag)
-                        .addparam(proto::HELLO::req::version,
-                                  version::current)));
+                        .addparam(proto::HELLO::req::version, vers)));
     maybe<subscription> hellodone(Nothing);
     hellodone.mkjust(sub, hellocall->pub());
     /* XXX when the connection is idle we don't have any IO

@@ -7,7 +7,9 @@
     iter1(ctxt, 1, mand, value, unsigned, v)
 class version {
     mktuplefields(version, public)
-public: static const version current; };
+public: static const version current;
+    /* Only really useful in unit tests */
+public: static const version invalid; };
 mktupleext(version)
 
 #endif /* !VERSION_H__ */

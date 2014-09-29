@@ -250,5 +250,13 @@ void _rpc() {
                 delete cl->pop(t.just()).fatal("late call"); }
             delete c;
             s->destroy(io); });
+    testcaseIO("rpc", "badversion", [] (clientio io) {
+            auto s(rpcservice::listen<trivserver>(
+                       peername::loopback(peername::port::any))
+                   .fatal("starting trivial server"));
+            assert(rpcclient::connect(
+                       io, s->localname(), Nothing, version::invalid)
+                   == error::badversion);
+            s->destroy(io); });
 }
 }
