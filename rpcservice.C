@@ -233,7 +233,7 @@ rpcservice::worker::run(clientio io) {
                 outstanding--; }
             assert(!outbuf.empty());
             auto r(outbuf.sendfast(fd));
-            if (r.isfailure()) {
+            if (r.isfailure() && r != error::wouldblock) {
                 r.failure().warn("sending to " + fields::mk(remotename));
                 /* Give up after the first error.  Most errors are
                  * persistent, anyway. */
