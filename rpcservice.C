@@ -191,6 +191,10 @@ rpcservice::worker::run(clientio io) {
     unsigned outstanding = 0;
     /* Has the client sent a valid HELLO yet? */
     bool helloed = false;
+    peername remotename(peername::all(peername::port::any));
+    {   auto remotename_(fd.peer());
+        if (remotename_.isfailure()) goto conndead;
+        remotename = remotename_.success(); }
     while (!owner->root->shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &shutdownsub) continue;
@@ -230,10 +234,7 @@ rpcservice::worker::run(clientio io) {
             assert(!outbuf.empty());
             auto r(outbuf.sendfast(fd));
             if (r.isfailure()) {
-                auto ss(fd.peer());
-                if (ss.issuccess()) r.failure().warn(
-                    "sending to " + fields::mk(ss.success()));
-                else r.failure().warn("sending to unidentifiable peer?");
+                r.failure().warn("sending to " + fields::mk(remotename));
                 /* Give up after the first error.  Most errors are
                  * persistent, anyway. */
                 break; }
@@ -246,19 +247,14 @@ rpcservice::worker::run(clientio io) {
             auto r(inbuf.receivefast(fd));
             if (r.isfailure()) {
                 auto ss(fd.peer());
-                if (ss.issuccess()) r.failure().warn(
-                    "receiving from " + fields::mk(ss.success()));
-                else r.failure().warn("receiving from unidentifiable peer?");
+                r.failure().warn("receiving from " + fields::mk(remotename));
                 break; }
             while (true) {
                 auto rr(wireproto::rx_message::fetch(inbuf));
                 if (rr == error::underflowed) break;
                 if (rr.isfailure()) {
-                    auto ss(fd.peer());
-                    if (ss.issuccess()) r.failure().warn(
-                        "parsing message from " + fields::mk(ss.success()));
-                    else r.failure().warn(
-                        "parsing message from unidentifiable peer?");
+                    r.failure().warn(
+                        "parsing message from " + fields::mk(remotename));
                     goto conndead; }
                 auto resp(new response(rr.success(), this));
                 incompletecalls.pushtail(resp);
