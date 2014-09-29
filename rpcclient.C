@@ -162,16 +162,24 @@ rpcclient::workerthread::connect(clientio io) {
          * allowed by the API, so handle it. */
         auto pfd(fd_t(fd).poll(POLLOUT));
         if (::poll(&pfd, 1, 0) < 0) {
+#ifndef COVERAGESKIP
             res = error::from_errno();
-            break; }
+            break;
+#endif
+            }
         if (pfd.revents & POLLOUT) break; }
     if (res.issuccess()) {
         int err;
         socklen_t sz(sizeof(err));
         if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &sz) < 0) {
+            /* Kernel implementation detail: not actually possible to
+             * get an error here. */
+#ifndef COVERAGESKIP
             res = error::from_errno();
             res.failure()
-                .warn("getting connect error for " + fields::mk(peer)); }
+                .warn("getting connect error for " + fields::mk(peer));
+#endif
+            }
         else if (err != 0) res = error::from_errno(err); }
     if (res.isfailure()) ::close(fd);
     return res; }

@@ -14,6 +14,7 @@
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "maybe.tmpl"
 #include "rpcservice.tmpl"
 #include "spark.tmpl"
 
@@ -42,6 +43,25 @@ public:  void call(const wireproto::rx_message &, response *resp) {
             resp->complete(); }); }
 public:  void destroying(clientio) { running.flush(); }
 private: ~slowserver() { assert(running.empty()); } };
+
+class waitserver : public rpcservice {
+private: waitbox<void> &started;
+private: maybe<spark<void> > worker;
+private: bool done;
+public:  waitserver(const constoken &t,
+                    waitbox<void> &_started)
+    : rpcservice(t),
+      started(_started),
+      worker(Nothing),
+      done(false) {}
+private: void call(const wireproto::rx_message &, response *resp) {
+    assert(worker == Nothing);
+    worker.mkjust([resp, this] {
+            started.set();
+            resp->abandoned().get(clientio::CLIENTIO);
+            done = true;
+            resp->fail(error::shutdown); }); }
+private: void destroying(clientio) { assert(done); } };
 
 void _rpc() {
     testcaseIO("rpc", "basic", [] (clientio io) {
@@ -258,5 +278,33 @@ void _rpc() {
                        io, s->localname(), Nothing, version::invalid)
                    == error::badversion);
             s->destroy(io); });
+    testcaseIO("rpc", "abortcalls", [] (clientio io) {
+            auto s(rpcservice::listen<trivserver>(
+                       peername::loopback(peername::port::any))
+                   .fatal("starting trivial server"));
+            auto c(rpcclient::connect(io, s->localname())
+                   .fatal("connecting to trivial server"));
+            for (unsigned x = 0; x < 10000; x++) {
+                c->call(wireproto::req_message(proto::PING::tag))
+                    ->abort(); }
+            delete c;
+            s->destroy(io); });
+    testcaseIO("rpc", "abandoncall", [] (clientio io) {
+            waitbox<void> started;
+            auto s(rpcservice::listen<waitserver>(
+                       peername::loopback(peername::port::any),
+                       started)
+                   .fatal("starting wait server"));
+            auto c(rpcclient::connect(io, s->localname())
+                   .fatal("connecting to wait server"));
+            auto cl(c->call(wireproto::req_message(wireproto::msgtag(99))));
+            started.get(io);
+            delete c;
+            assert(timedelta::time([&] { s->destroy(io); }) <
+                   timedelta::milliseconds(100));
+            /* XXX it's a little bit of a hack to access this after
+             * the conn's gone away.  Implementation details mean that
+             * it works. */
+            cl->abort(); });
 }
 }
