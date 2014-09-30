@@ -22,6 +22,8 @@ rpcserviceconfig::dflt() {
         8192,
         /* maxoutstanding */
         100,
+        /* socketrcvsize (Nothing = kernel default) */
+        Nothing,
         /* socketsendsize (Nothing = kernel default) */
         Nothing); }
 
@@ -204,6 +206,15 @@ rpcservice::worker::run(clientio io) {
         if (::setsockopt(fd.fd, SOL_SOCKET, SO_SNDBUF, &buf, sizeof(buf)) < 0) {
 #ifndef COVERAGESKIP
             error::from_errno().warn("setting send buffer for " +
+                                     fields::mk(remotename));
+            goto conndead;
+#endif
+        } }
+    if (owner->config.socketrcvsize != Nothing) {
+        int buf(owner->config.socketrcvsize.just());
+        if (::setsockopt(fd.fd, SOL_SOCKET, SO_RCVBUF, &buf, sizeof(buf)) < 0) {
+#ifndef COVERAGESKIP
+            error::from_errno().warn("setting receive buffer for " +
                                      fields::mk(remotename));
             goto conndead;
 #endif

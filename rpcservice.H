@@ -18,9 +18,12 @@ class subscriber;
     /* limit is reached we stop polling for any more messages on the */ \
     /* connection. */                                                   \
     iter0(ctxt, 2, mand, value, unsigned, maxoutstanding)               \
+    /* Socket receive buffer, in bytes.  Only really need to change */  \
+    /* this in test cases. */                                           \
+    iter0(ctxt, 3, opt, value, unsigned, socketrcvsize)                 \
     /* Socket send buffer, in bytes.  Only really need to change this */ \
     /* in test cases. */                                                \
-    iter1(ctxt, 3, opt, value, unsigned, socketsendsize)
+    iter1(ctxt, 4, opt, value, unsigned, socketsendsize)
 class rpcserviceconfig {
     mktuplefields(rpcserviceconfig, public);
 public: static rpcserviceconfig dflt(); };

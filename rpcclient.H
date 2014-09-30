@@ -16,9 +16,10 @@
 #define _rpcclientconfig(ctxt, iter0, iter1)                          \
     /* Version of protocol to use when connecting. */                 \
     iter0(ctxt, 1, mand, value, ::version, vers)                      \
-    /* Size of socket receive buffer.  Only really useful to */       \
-    /* change this in test programs. */                               \
-    iter1(ctxt, 1, opt, value, unsigned, socketrcvsize)
+    /* Size of socket receive buffer. */                              \
+    iter0(ctxt, 2, opt, value, unsigned, socketrcvsize)               \
+    /* Size of socket send buffer. */                                 \
+    iter1(ctxt, 3, opt, value, unsigned, socketsendsize)
 
 class rpcclientconfig {
     mktuplefields(rpcclientconfig, public);
@@ -185,6 +186,10 @@ public: orerror<wireproto::rx_message *> call(
          * if the remote peer has received the message.  This destroys
          * the asynccall structure. */
     public:  void abort();
+        /* Helper function: convert the asynchronous call to a
+         * synchronous one, waiting until it's finished and then
+         * returning the result. */
+    public: orerror<wireproto::rx_message *> pop(clientio);
         /* Use abort() or pop() */
     private: ~asynccall(); };
 public:  asynccall *call(const wireproto::req_message &);

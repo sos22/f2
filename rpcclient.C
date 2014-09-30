@@ -23,6 +23,8 @@ rpcclientconfig::dflt() {
         /* version */
         version::current,
         /* socketrcvsize (Nothing -> kernel default) */
+        Nothing,
+        /* socketsendsize (Nothing -> kernel default) */
         Nothing); }
 
 mktupledef(rpcclientconfig)
@@ -198,6 +200,16 @@ rpcclient::workerthread::connect(clientio io) {
             res = error::from_errno();
             res.failure()
                 .warn("setting socket receive buffer size for " +
+                      fields::mk(peer));
+#endif
+        } }
+    if (res.issuccess() && config.socketsendsize.isjust()) {
+        int sz(config.socketsendsize.just());
+        if (::setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &sz, sizeof(sz)) < 0) {
+#ifndef COVERAGESKIP
+            res = error::from_errno();
+            res.failure()
+                .warn("setting socket send buffer size for " +
                       fields::mk(peer));
 #endif
         } }
@@ -437,6 +449,17 @@ rpcclient::asynccall::abort() {
         mux.unlock(&t);
         if (res.just().right().issuccess()) delete res.just().right().success();
         delete this; } }
+
+orerror<wireproto::rx_message *>
+rpcclient::asynccall::pop(clientio io) {
+    maybe<token> t(Nothing);
+    {   subscriber sub;
+        subscription ss(sub, pub());
+        t = finished();
+        while (t == Nothing) {
+            sub.wait(io);
+            t = finished(); } }
+    return pop(t.just()); }
 
 rpcclient::asynccall::~asynccall() {}
 

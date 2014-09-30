@@ -346,5 +346,32 @@ void _rpc() {
             ac->abort();
             delete c;
             s->destroy(io); });
+    testcaseIO("rpc", "smallsendbuf2", [] (clientio io) {
+            auto sconfig(rpcserviceconfig::dflt());
+            auto cconfig(rpcclientconfig::dflt());
+            sconfig.socketrcvsize = 128;
+            cconfig.socketsendsize = 1024;
+            auto s(rpcservice::listen<trivserver>(
+                       sconfig,
+                       peername::loopback(peername::port::any))
+                   .fatal("starting trivial service"));
+            auto c(rpcclient::connect(io, s->localname(), Nothing, cconfig)
+                   .fatal("connecting to trivial server"));
+            wireproto::req_message msg(wireproto::msgtag(99));
+            ::buffer buf;
+            for (unsigned x = 0; x < 10007; x++) {
+                unsigned char b = (unsigned char )x;
+                buf.queue(&b, sizeof(b)); }
+            msg.addparam(wireproto::parameter< ::buffer>(1), buf);
+            msg.addparam(wireproto::parameter< ::buffer>(2), buf);
+            msg.addparam(wireproto::parameter< ::buffer>(3), buf);
+            msg.addparam(wireproto::parameter< ::buffer>(4), buf);
+            list<rpcclient::asynccall *> calls;
+            for (unsigned x = 0; x < 100; x++) {
+                calls.pushtail(c->call(msg)); }
+            assert(calls.pophead()->pop(io) == error::unrecognisedmessage);
+            while (!calls.empty()) calls.pophead()->abort();
+            delete c;
+            s->destroy(io); });
 }
 }
