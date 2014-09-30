@@ -63,6 +63,19 @@ private: void call(const wireproto::rx_message &, response *resp) {
             resp->fail(error::shutdown); }); }
 private: void destroying(clientio) { assert(done); } };
 
+class bigreplyserver : public rpcservice {
+public:  bigreplyserver(const constoken &t)
+    : rpcservice(t) {}
+private: void call(const wireproto::rx_message &, response *resp) {
+    ::buffer buf;
+    for (unsigned x = 0; x < 10000; x++) {
+        unsigned char b = (unsigned char)(x * 1000000123);
+        buf.queue(&b, sizeof(b)); }
+    resp->addparam(wireproto::parameter< ::buffer>(1), buf);
+    resp->addparam(wireproto::parameter< ::buffer>(2), buf);
+    resp->addparam(wireproto::parameter< ::buffer>(3), buf);
+    resp->complete(); } };
+
 void _rpc() {
     testcaseIO("rpc", "basic", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
@@ -246,7 +259,7 @@ void _rpc() {
             list<rpcclient::asynccall *> calls;
             /* +2 is jsut to give ourselves a little bit of slack. */
             for (unsigned x = 0;
-                 x < rpcserviceconfig::dflt.maxoutstanding + 2;
+                 x < rpcserviceconfig::dflt().maxoutstanding + 2;
                  x++) {
                 calls.pushtail(
                     c->call(wireproto::req_message(wireproto::msgtag(99)))); }
@@ -274,8 +287,9 @@ void _rpc() {
             auto s(rpcservice::listen<trivserver>(
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
-            assert(rpcclient::connect(
-                       io, s->localname(), Nothing, version::invalid)
+            auto c(rpcclientconfig::dflt());
+            c.vers = version::invalid;
+            assert(rpcclient::connect(io, s->localname(), Nothing, c)
                    == error::badversion);
             s->destroy(io); });
     testcaseIO("rpc", "abortcalls", [] (clientio io) {
@@ -306,5 +320,31 @@ void _rpc() {
              * the conn's gone away.  Implementation details mean that
              * it works. */
             cl->abort(); });
+    testcaseIO("rpc", "smallsendbuf", [] (clientio io) {
+            auto sconfig(rpcserviceconfig::dflt());
+            auto cconfig(rpcclientconfig::dflt());
+            sconfig.socketsendsize = 1024;
+            cconfig.socketrcvsize = 128;
+            auto s(rpcservice::listen<bigreplyserver>(
+                       sconfig,
+                       peername::loopback(peername::port::any))
+                   .fatal("starting big reply server"));
+            auto c(rpcclient::connect(io, s->localname(), Nothing, cconfig)
+                   .fatal("connecting to big reply server"));
+            auto ac(c->call(wireproto::req_message(wireproto::msgtag(99))));
+            auto r(c->call(io, wireproto::req_message(wireproto::msgtag(99)))
+                   .fatal("calling big reply server"));
+            auto rr(r->getparam(wireproto::parameter< ::buffer>(1))
+                    .fatal("response parameter missing"));
+            assert(rr.avail() == 10000);
+            const unsigned char *buf = (const unsigned char *)
+                rr.linearise(rr.offset(),
+                             rr.offset() + rr.avail());
+            for (unsigned x = 0; x < 10000; x++) {
+                assert(buf[x] == (unsigned char)(x * 1000000123)); }
+            delete r;
+            ac->abort();
+            delete c;
+            s->destroy(io); });
 }
 }

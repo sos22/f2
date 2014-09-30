@@ -1,6 +1,7 @@
 #include "pubsub.H"
 
 #include <sys/poll.h>
+#include <unistd.h>
 
 #include "buffer.H"
 #include "fields.H"

@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "listenfd.H"
+#include "logging.H"
 #include "peername.H"
 #include "proto.H"
 #include "timedelta.H"
@@ -14,12 +15,15 @@
 #include "maybe.tmpl"
 #include "thread.tmpl"
 
-const rpcserviceconfig
-rpcserviceconfig::dflt(
-    /* maxoutgoingbytes */
-    8192,
-    /* maxoutstanding */
-    100);
+rpcserviceconfig
+rpcserviceconfig::dflt() {
+    return rpcserviceconfig(
+        /* maxoutgoingbytes */
+        8192,
+        /* maxoutstanding */
+        100,
+        /* socketsendsize (Nothing = kernel default) */
+        Nothing); }
 
 mktupledef(rpcserviceconfig)
 
@@ -195,6 +199,15 @@ rpcservice::worker::run(clientio io) {
     {   auto remotename_(fd.peer());
         if (remotename_.isfailure()) goto conndead;
         remotename = remotename_.success(); }
+    if (owner->config.socketsendsize != Nothing) {
+        int buf(owner->config.socketsendsize.just());
+        if (::setsockopt(fd.fd, SOL_SOCKET, SO_SNDBUF, &buf, sizeof(buf)) < 0) {
+#ifndef COVERAGESKIP
+            error::from_errno().warn("setting send buffer for " +
+                                     fields::mk(remotename));
+            goto conndead;
+#endif
+        } }
     while (!owner->root->shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &shutdownsub) continue;
@@ -218,7 +231,7 @@ rpcservice::worker::run(clientio io) {
         else if (outsub != Nothing && s == &outsub.just()) {
             /* outsub is only armed when there's stuff in the
              * responses list. */
-            assert(!responses.empty());
+            assert(!responses.empty() || !outbuf.empty());
             while (outbuf.avail() < owner->config.maxoutgoingbytes &&
                    !responses.empty()) {
                 auto r(responses.pophead());

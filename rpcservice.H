@@ -17,10 +17,13 @@ class subscriber;
     /* Maximum number of outstanding calls per connection.  Once this*/ \
     /* limit is reached we stop polling for any more messages on the */ \
     /* connection. */                                                   \
-    iter1(ctxt, 2, mand, value, unsigned, maxoutstanding)
+    iter0(ctxt, 2, mand, value, unsigned, maxoutstanding)               \
+    /* Socket send buffer, in bytes.  Only really need to change this */ \
+    /* in test cases. */                                                \
+    iter1(ctxt, 3, opt, value, unsigned, socketsendsize)
 class rpcserviceconfig {
     mktuplefields(rpcserviceconfig, public);
-public: static const rpcserviceconfig dflt; };
+public: static rpcserviceconfig dflt(); };
 mktupleext(rpcserviceconfig);
 
 class rpcservicestatus {
@@ -45,8 +48,8 @@ private:   rpcservice();
      * be derived from rpcservice. */
 public:    template <typename t, typename ... args>
     static orerror<t *> listen(
-        const peername &,
         const rpcserviceconfig &config,
+        const peername &,
         args &&...);
 public:    template <typename t, typename ... args>
     static orerror<t *> listen(

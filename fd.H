@@ -80,8 +80,8 @@ class fd_t {
     friend class socket_t;
     friend class spawn::process;
     friend void tests::fd();
-    int fd;
 public:
+    int fd;
     explicit fd_t(int _fd)
         : fd(_fd)
         {}

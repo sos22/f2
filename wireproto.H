@@ -117,6 +117,9 @@ namespace wireproto {
     public: template<typename o> explicit parameter(parameter<o> _o)
             : id(_o.___get_id___())
             {}
+
+    public: bool operator==(parameter p) const { return id == p.id; }
+    public: bool operator!=(parameter p) const { return !(*this == p); }
     };
 
     struct index {

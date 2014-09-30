@@ -7,8 +7,23 @@
 #include "mutex.H"
 #include "orerror.H"
 #include "pubsub.H"
+#include "tuple.H"
 #include "version.H"
 #include "waitbox.H"
+
+/* Most RPC client configuration parameters are only really useful
+ * from test programs. */
+#define _rpcclientconfig(ctxt, iter0, iter1)                          \
+    /* Version of protocol to use when connecting. */                 \
+    iter0(ctxt, 1, mand, value, ::version, vers)                      \
+    /* Size of socket receive buffer.  Only really useful to */       \
+    /* change this in test programs. */                               \
+    iter1(ctxt, 1, opt, value, unsigned, socketrcvsize)
+
+class rpcclientconfig {
+    mktuplefields(rpcclientconfig, public);
+public: static rpcclientconfig dflt(); };
+mktupleext(rpcclientconfig)
 
 namespace wireproto {
 class req_message;
@@ -33,15 +48,11 @@ private: workerthread *const worker;
      * it.  Potentially blocks forever if no deadline is specified.
      * Returns error::timeout if the deadline expires before the
      * connect() completes. */
-    /* It's possible to specify a different protocol version with
-     * this, but that's only really useful for testing the version
-     * mismatch logic, since only one version is actually defined
-     * right now. */
 public: static orerror<rpcclient *> connect(
     clientio,
     const peername &,
     maybe<timestamp> deadline = Nothing,
-    version = version::current);
+    const rpcclientconfig & = rpcclientconfig::dflt());
 
     /* Asynchronous connect.  Start connecting to a remote host
      * without waiting for the connect to complete.  Returns an
@@ -90,10 +101,10 @@ public: class asyncconnect {
          * down. */
     public:  void abort();
         /* Use pop() or abort() */
-    private: ~asyncconnect();
-    };
-public: static asyncconnect *connect(const peername &,
-                                     version vers = version::current);
+    private: ~asyncconnect(); };
+public: static asyncconnect *connect(
+        const peername &,
+        const rpcclientconfig & = rpcclientconfig::dflt());
 
     /* Use connect() */
 private: explicit rpcclient(workerthread *);

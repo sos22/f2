@@ -140,7 +140,6 @@ buffer::receivefast(fd_t fd) {
      * should be fast and doesn't need a clientio token. */
     return receive(clientio::CLIENTIO, fd, Nothing, Nothing); }
 
-
 orerror<subscriptionbase *>
 buffer::send(clientio io,
              fd_t fd,
@@ -340,6 +339,10 @@ buffer::idx(size_t off) const
     }
 }
 
+/* This is logically const, because it doesn't change any
+ * externally-visible state, but making it actually const would
+ * involve either a lot of mutables or a lot of casts, so make it
+ * non-const and provide a const wrapper (immediately after it). */
 const void *
 buffer::linearise(size_t start, size_t end)
 {

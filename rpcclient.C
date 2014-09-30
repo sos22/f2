@@ -17,10 +17,20 @@
 #include "mutex.tmpl"
 #include "thread.tmpl"
 
+rpcclientconfig
+rpcclientconfig::dflt() {
+    return rpcclientconfig(
+        /* version */
+        version::current,
+        /* socketrcvsize (Nothing -> kernel default) */
+        Nothing); }
+
+mktupledef(rpcclientconfig)
+
 class rpcclient::workerthread : public thread {
 public:  rpcclient::asyncconnect connector;
-    /* Protocol version to connect with. */
-private: const version vers;
+    /* Client configuration parameters */
+private: const rpcclientconfig config;
     /* Who we need to connect to. */
 public:  const peername peer;
     /* Protects newcalls and failure.  Small leaf lock. */
@@ -48,7 +58,7 @@ public:  rpcclient *const client;
 
 public:  workerthread(const constoken &t,
                       const peername &_peer,
-                      version _vers);
+                      const rpcclientconfig &_config);
 public:  void run(clientio);
 private: orerror<int> connect(clientio);
 public:  rpcclient::asynccall *call(const wireproto::req_message &m);
@@ -59,8 +69,8 @@ rpcclient::connect(
     clientio io,
     const peername &peer,
     maybe<timestamp> deadline,
-    version vers) {
-    auto a(connect(peer, vers));
+    const rpcclientconfig &config) {
+    auto a(connect(peer, config));
     maybe<asyncconnect::token> t(Nothing);
     {   subscriber sub;
         subscription ss(sub, a->pub());
@@ -111,20 +121,20 @@ rpcclient::asyncconnect::~asyncconnect() {}
 
 rpcclient::asyncconnect *
 rpcclient::connect(const peername &peer,
-                   version vers) {
+                   const rpcclientconfig &config) {
     auto p(thread::spawn<workerthread>(
                "C" + fields::mk(peer),
                peer,
-               vers));
+               config));
     auto w(p.go());
     return &w->connector; }
 
 rpcclient::workerthread::workerthread(const constoken &t,
                                       const peername &_peer,
-                                      version _vers)
+                                      const rpcclientconfig &_config)
     : thread(t),
       connector(),
-      vers(_vers),
+      config(_config),
       peer(_peer),
       newcallsmux(),
       newcalls(),
@@ -181,6 +191,16 @@ rpcclient::workerthread::connect(clientio io) {
 #endif
             }
         else if (err != 0) res = error::from_errno(err); }
+    if (res.issuccess() && config.socketrcvsize.isjust()) {
+        int sz(config.socketrcvsize.just());
+        if (::setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &sz, sizeof(sz)) < 0) {
+#ifndef COVERAGESKIP
+            res = error::from_errno();
+            res.failure()
+                .warn("setting socket receive buffer size for " +
+                      fields::mk(peer));
+#endif
+        } }
     if (res.isfailure()) ::close(fd);
     return res; }
 
@@ -206,7 +226,7 @@ rpcclient::workerthread::run(clientio io) {
     buffer inbuffer;
     if (shutdown.ready()) _failure = error::shutdown;
     auto hellocall(call(wireproto::req_message(proto::HELLO::tag)
-                        .addparam(proto::HELLO::req::version, vers)));
+                        .addparam(proto::HELLO::req::version, config.vers)));
     maybe<subscription> hellodone(Nothing);
     hellodone.mkjust(sub, hellocall->pub());
     /* XXX when the connection is idle we don't have any IO

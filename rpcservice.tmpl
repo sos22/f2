@@ -8,8 +8,8 @@ template <typename> class parameter;
 extern const parameter<error> err_parameter; }
 
 template <typename t, typename ... args> orerror<t *>
-rpcservice::listen(const peername &listenon,
-                   const rpcserviceconfig &config,
+rpcservice::listen(const rpcserviceconfig &config,
+                   const peername &listenon,
                    args && ... params) {
     auto fd(rpcservice::open(listenon));
     if (fd.isfailure()) return fd.failure();
@@ -21,13 +21,13 @@ rpcservice::listen(const peername &listenon,
 template <typename t, typename ... args> orerror<t *>
 rpcservice::listen(const peername &listenon,
                    args && ... params) {
-    return listen<t>(listenon,
-                     rpcserviceconfig::dflt,
+    return listen<t>(rpcserviceconfig::dflt(),
+                     listenon,
                      std::forward<args>(params)...); }
 
 template <typename t> rpcservice::response &
 rpcservice::response::addparam(wireproto::parameter<t> p, const t &v) {
-    assert(v != wireproto::err_parameter);
+    assert(wireproto::parameter<error>(p) != wireproto::err_parameter);
     inner.addparam(p, v);
     return *this; }
 
