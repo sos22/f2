@@ -277,7 +277,7 @@ rpcservice::worker::run(clientio io) {
                 auto rr(wireproto::rx_message::fetch(inbuf));
                 if (rr == error::underflowed) break;
                 if (rr.isfailure()) {
-                    r.failure().warn(
+                    rr.failure().warn(
                         "parsing message from " + fields::mk(remotename));
                     goto conndead; }
                 auto resp(new response(rr.success(), this));

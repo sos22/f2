@@ -10,6 +10,7 @@
 #include "rpcclient.H"
 #include "rpcservice.H"
 #include "spark.H"
+#include "tcpsocket.H"
 #include "test.H"
 #include "timedelta.H"
 
@@ -372,6 +373,41 @@ void _rpc() {
             assert(calls.pophead()->pop(io) == error::unrecognisedmessage);
             while (!calls.empty()) calls.pophead()->abort();
             delete c;
+            s->destroy(io); });
+    testcaseIO("rpc", "fuzzserver", [] (clientio io) {
+            auto s(rpcservice::listen<trivserver>(
+                       peername::loopback(peername::port::any))
+                   .fatal("starting trivial server"));
+            waitbox<void> shutdown;
+            list<spark<void> > clients;
+            for (unsigned x = 0; x < 100; x++) {
+                clients.append([&] {
+                        unsigned cbuf[1024];
+                        while (!shutdown.ready()) {
+                            auto sock(tcpsocket::connect(clientio::CLIENTIO,
+                                                         s->localname())
+                                      .fatal("connecting to trivial server"));
+                            bool dead = false;
+                            while (!dead && !shutdown.ready()) {
+                                ::buffer buf;
+                                for (unsigned y = 0;
+                                     y < sizeof(cbuf) / sizeof(cbuf[0]);
+                                     y++) {
+                                    cbuf[y] = (unsigned)quickcheck(); }
+                                buf.queue(cbuf, random() % sizeof(cbuf));
+                                while (!buf.empty() && !dead) {
+                                    subscriber sub;
+                                    auto r(buf.send(clientio::CLIENTIO,
+                                                    sock,
+                                                    sub));
+                                    if (r.issuccess()) assert(r == NULL);
+                                    else {
+                                        assert(r == error::disconnected);
+                                        dead = true; } } }
+                            sock.close(); } }); }
+            (timestamp::now() + timedelta::seconds(2)).sleep(io);
+            shutdown.set();
+            clients.flush();
             s->destroy(io); });
 }
 }

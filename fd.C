@@ -85,7 +85,8 @@ fd_t::write(clientio,
     auto s(::write(fd, buf, sz));
     assert(s != 0);
     if (s > 0) return (size_t)s;
-    else if (errno == EAGAIN) return error::wouldblock;
+    else if (errno == EAGAIN || errno == EWOULDBLOCK) return error::wouldblock;
+    else if (errno == EPIPE || errno == ECONNRESET) return error::disconnected;
     else return error::from_errno(); }
 
 orerror<size_t>
@@ -94,6 +95,7 @@ fd_t::writefast(const void *buf, size_t sz) const {
     if (s == 0) return error::disconnected;
     else if (s > 0) return (size_t)s;
     else if (errno == EAGAIN || errno == EWOULDBLOCK) return error::wouldblock;
+    else if (errno == EPIPE || errno == ECONNRESET) return error::disconnected;
     else return error::from_errno(); }
 
 orerror<void>
@@ -308,7 +310,7 @@ tests::fd() {
                        clientio::CLIENTIO,
                        buf,
                        5));
-            assert(s == error::from_errno(EPIPE));
+            assert(s == error::disconnected);
             r.write.close(); });
     testcaseV("fd", "writetimeout", [] {
             auto r(fd_t::pipe().fatal("pipe"));
