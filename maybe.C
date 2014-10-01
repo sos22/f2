@@ -22,6 +22,12 @@ tests::_maybe()
     public: bool &d;
     public: notedestruct(bool &_d) : d(_d) { assert(d == false); }
     public: ~notedestruct() { d = true; } };
+    class cons1 {
+    public: int val1;
+    public: const char *val2;
+    public: cons1(int _val1, const char *_val2)
+        : val1(_val1),
+          val2(_val2) {} };
     testcaseV("maybe", "nothing", [] {
             ::maybe<nodestruct> x(Nothing); });
     testcaseV("maybe", "copy", [] {
@@ -66,7 +72,12 @@ tests::_maybe()
             assert(::maybe<int>(7) != ::maybe<int>(8));
             assert(::maybe<int>(Nothing) == Nothing);
             assert(Nothing == ::maybe<int>(Nothing));
-            assert(::maybe<int>(7) == ::maybe<int>(7));});
+            assert(::maybe<int>(7) == ::maybe<int>(7));
+            assert(::maybe<int>(7) != 8);
+            assert(!(::maybe<int>(7) != 7));
+            assert(7 == maybe<int>(7));
+            assert(!(7 == maybe<int>(Nothing)));
+            assert(!(8 == maybe<int>(7))); });
     testcaseV("maybe", "map", [] {
             assert(::maybe<int>(7)
                    .map<char>([] (const int &x) { return x == 7 ? 'Y' : 'N'; })
@@ -103,4 +114,16 @@ tests::_maybe()
             assert(havenothing);
             assert(haveanyjust);
             assert(havediffjust); });
+    testcaseV("maybe", "=", [] {
+            maybe<int> x(7);
+            maybe<int> y(Nothing);
+            y = x;
+            assert(y == 7); });
+    testcaseV("maybe", "mkjust", [] {
+            maybe<cons1> c(Nothing);
+            const char *s = "Hello";
+            c.mkjust(71, s);
+            assert(c.isjust());
+            assert(c.just().val1 == 71);
+            assert(c.just().val2 == s); });
 }
