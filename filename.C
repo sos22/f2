@@ -379,4 +379,7 @@ tests::_filename() {
 #endif
     testcaseV("filename", "wire", [] {
             wireproto::roundtrip<filename>(); });
+    testcaseV("filename", "str", [] {
+            assert((filename("foo") + "bar").str() ==
+                   string("foo/bar")); });
 }
