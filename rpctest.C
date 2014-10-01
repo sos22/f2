@@ -77,6 +77,31 @@ private: void call(const wireproto::rx_message &, response *resp) {
     resp->addparam(wireproto::parameter< ::buffer>(3), buf);
     resp->complete(); } };
 
+class fuzzserver : public rpcservice {
+public:  fuzzserver(const constoken &t)
+    : rpcservice(t) {}
+private: void call(const wireproto::rx_message &, response *resp) {
+    ::buffer buf;
+    for (unsigned x = 0; x < 10000; x++) {
+        unsigned char b = (unsigned char)(x * 1000000123);
+        buf.queue(&b, sizeof(b)); }
+    while (buf.sendfast(resp->__connection__()).issuccess() && !buf.empty()) {}
+    resp->fail(error::ratelimit); } };
+
+class failserver : public rpcservice {
+private: const bool mode;
+public:  failserver(const constoken &t, bool _mode)
+    : rpcservice(t),
+      mode(_mode) {}
+private: void call(const wireproto::rx_message &, response *resp) {
+    if (mode) {
+        resp->__connection__().close();
+        resp->fail(error::ratelimit); }
+    else {
+        ::shutdown(resp->__connection__().fd, SHUT_WR);
+        resp->fail(error::ratelimit); } } };
+
+
 void _rpc() {
     testcaseIO("rpc", "basic", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
@@ -409,5 +434,41 @@ void _rpc() {
             shutdown.set();
             clients.flush();
             s->destroy(io); });
+    testcaseIO("rpc", "fuzzclient", [] (clientio io ) {
+            auto s(rpcservice::listen<fuzzserver>(
+                       peername::loopback(peername::port::any))
+                   .fatal("starting fuzz server"));
+            auto c(rpcclient::connect(io, s->localname())
+                   .fatal("connecting to fuzz server"));
+            for (unsigned x = 0; x < 1000; x++) {
+                auto r(c->call(io,
+                               wireproto::req_message(wireproto::msgtag(99))));
+                assert(r == error::disconnected ||
+                       r == error::shutdown ||
+                       r == error::invalidmessage ||
+                       r == error::ratelimit);
+                if (r == error::disconnected || r == error::shutdown) {
+                    delete c;
+                    c = rpcclient::connect(io, s->localname())
+                        .fatal("reconnecting to fuzz server"); } }
+            delete c;
+            s->destroy(io); });
+    testcaseIO("rpc", "failserver", [] (clientio io) {
+            for (unsigned x = 0; x < 100; x++) {
+                auto s(rpcservice::listen<failserver>(
+                           peername::loopback(peername::port::any),
+                           x % 2 == 0)
+                       .fatal("starting fail server"));
+                auto c(rpcclient::connect(io, s->localname())
+                       .fatal("connecting to fail server"));
+                list<rpcclient::asynccall *> calls;
+                for (unsigned y = 0; y < 100; y++) {
+                    calls.pushtail(
+                        c->call(
+                            wireproto::req_message(wireproto::msgtag(99)))); }
+                while (!calls.empty()) {
+                    assert(calls.pophead()->pop(io).isfailure()); }
+                delete c;
+                s->destroy(io); } } );
 }
 }

@@ -149,7 +149,11 @@ public:    class response {
          * after this has been called. */
     public:  void fail(error);
         /* Use complete() or fail() */
-    private: ~response(); };
+    private: ~response();
+
+        /* Testing interface: extract the socket which this request
+         * came in on. */
+    public:  socket_t __connection__() const; };
 private:   virtual void call(
     const wireproto::rx_message &req,
     response *resp) = 0;

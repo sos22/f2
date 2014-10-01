@@ -401,11 +401,11 @@ rx_message::fetch(buffer &buffer) {
     uint32_t sz;
     if (buffer.avail() < sizeof(wireheader)) return error::underflowed;
     buffer.fetch(&sz, sizeof(sz));
+    if (sz >= MAXMSGSIZE || sz < sizeof(wireheader)) {
+        return error::invalidmessage; }
     if (buffer.avail() + sizeof(sz) < sz) {
         buffer.pushback(&sz, sizeof(sz));
         return error::underflowed; }
-    if (sz >= MAXMSGSIZE || sz < sizeof(wireheader)) {
-        return error::invalidmessage; }
     wireheader *msg = (wireheader *)malloc(sz);
     /* Type check */
     (void)(&sz == &msg->sz);

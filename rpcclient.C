@@ -350,9 +350,13 @@ rpcclient::workerthread::run(clientio io) {
             else insub.just().rearm(); } }
     ::close(fd);
     /* Prevent anyone from starting further calls. */
-    newcallsmux.locked([_failure, this] (mutex_t::token) {
-            failure = _failure; });
-    /* Fail any calls which have already started. */
+    newcallsmux.locked([this] (mutex_t::token) {
+            failure = error::disconnected; });
+    /* Fail any calls which have already started.  These all fail with
+     * the error which killed the connection, even if the error was
+     * actually with another message, because we can't tell which
+     * message caused the problem, and this is usually a better bet
+     * than discarding the error completely. */
     newcallsmux.locked([&pendingsend, this] (mutex_t::token) {
             pendingsend.transfer(newcalls); });
     while (!pendingsend.empty() || !pendingrecv.empty()) {
@@ -363,6 +367,7 @@ rpcclient::workerthread::run(clientio io) {
                     if (p->res == Nothing) {
                         p->res = either<void, orerror<wireproto::rx_message *> >
                             (_failure.failure());
+                        p->_pub.publish();
                         return false; }
                     else {
                         assert(p->res.just().isleft());

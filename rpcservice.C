@@ -48,7 +48,7 @@ class rpcservice::worker : public thread {
     /* What service are we exposing? */
 private: rpcservice *const owner;
     /* What fd are we doing it over? */
-private: socket_t const fd;
+public:  socket_t const fd;
     /* Small leaf lock.  Protects completedcalls. */
 public:  mutex_t completionlock;
     /* List of all calls which have been completed, whether by
@@ -372,6 +372,13 @@ rpcservice::response::fail(error err) {
     complete(); }
 
 rpcservice::response::~response() {}
+
+/* Note that this can return fd after it's been closed by the service
+ * worker.  The caller is expected to make sure that doesn't happen.
+ * In practice, this API is only sensible to use from the test
+ * harness. */
+socket_t
+rpcservice::response::__connection__() const { return owner->fd; }
 
 void
 rpcservice::destroy(clientio io) {
