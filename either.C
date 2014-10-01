@@ -67,4 +67,19 @@ tests::either() {
                 assert(!dest); }
             assert(cons);
             assert(dest); });
-}
+    testcaseV("either", "void*", [] {
+            {   ::either<void, tracklife> z;
+                assert(z.isleft());
+                assert(!z.isright()); }
+            bool cons = false;
+            bool dest = false;
+            {   ::either<void, tracklife> z(tracklife(cons, dest));
+                assert(z.isright());
+                assert(!z.isleft());
+                assert(cons);
+                dest = false;
+                cons = false;
+                z.right();
+                assert(!cons);
+                assert(!dest); }
+            assert(dest); }); }
