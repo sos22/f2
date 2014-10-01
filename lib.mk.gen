@@ -77,7 +77,6 @@ buildconfig.d:
 EOF
 
 testmodule actortype actortype.C
-testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H beacontest.C
 testmodule buffer buffer.C buffer.H
 testmodule cond cond.C cond.H
 testmodule either either.C either.H either.tmpl
