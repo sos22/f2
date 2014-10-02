@@ -132,8 +132,23 @@ tests::_timedelta() {
             assert(timedelta::seconds(2) >= timedelta::seconds(1));
             assert(!(timedelta::seconds(1) >= timedelta::seconds(2)));
             assert(timedelta::seconds(1) * 2 == timedelta::seconds(2));
+            assert(timedelta::seconds(2) / 2 == timedelta::seconds(1));
             assert(2 * timedelta::milliseconds(500) ==
                    timedelta::seconds(1)); });
+    testcaseV("timedelta", "randrange", [] {
+            for (unsigned x = 0; x < 1000; x++) {
+                timedelta a((quickcheck()));
+                timedelta b((quickcheck()));
+                if (a < b) {
+                    timedelta c(quickcheck(), a, b);
+                    assert(a <= c);
+                    assert(c < b); }
+                else {
+                    timedelta c(quickcheck(), b, a);
+                    assert(b <= c);
+                    assert(c <= a);
+                    assert((c == a) == (a == b)); }
+                assert(timedelta(quickcheck(), a, a) == a); } } );
     testcaseV("timedelta", "time", [] {
             auto t(timedelta::time<int>([] {
                         (timestamp::now()+timedelta::milliseconds(100))
@@ -141,4 +156,10 @@ tests::_timedelta() {
                         return 5; }));
             assert(t.v == 5);
             assert(timedelta::milliseconds(100) < t.td);
-            assert(t.td < timedelta::milliseconds(101)); }); }
+            assert(t.td < timedelta::milliseconds(101)); });
+    testcaseV("timedelta", "timeV", [] {
+            auto t(timedelta::time([] {
+                        (timestamp::now()+timedelta::milliseconds(100))
+                            .sleep(clientio::CLIENTIO); }));
+            assert(timedelta::milliseconds(100) < t);
+            assert(t < timedelta::milliseconds(101)); }); }
