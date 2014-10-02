@@ -140,7 +140,10 @@ fields::mk(const peername &p) {
     switch (sa->sa_family) {
     case AF_UNIX:
         if (p.sockaddrsize() == sizeof(sa_family_t)) {
-            return fields::mk("unix*:///"); }
+            /* + "" means that we use the field escape() method,
+             * rather than strfield one, which means that the parser
+             * works. */
+            return fields::mk("unix*:///") + ""; }
         else {
             return "unix://" +
             fields::mk(((const struct sockaddr_un *)sa)->sun_path).escape() +
