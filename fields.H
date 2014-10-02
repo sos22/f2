@@ -34,6 +34,7 @@ protected:
     field();
 public:
     virtual void fmt(fieldbuf &) const = 0;
+    virtual const field &escape() const;
     /* Returns a temporary heap string */
     const char *c_str() const;
 };
@@ -62,7 +63,7 @@ private: char *const content;
 private: bool const escape_;
 private: strfield(const char *, bool);
 public:  static const strfield &n(const char *);
-public:  const strfield &escape() const;
+public:  const strfield &escape() const final;
 public:  void fmt(fieldbuf &) const;
 };
 const strfield &mk(const char *);

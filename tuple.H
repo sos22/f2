@@ -108,7 +108,7 @@ const parser<name> &__ ##name();}
 #define __mktuplefromcompound2(_ctxt, _idx, opt, _flavour, _type, name) \
     __mktuplefromcompound2 ## opt(name)
 #define __mktuplefield(_ctxt, _idx, _opt, _flavour, _type, name)        \
-    + " " #name ":" + fields::mk(o.name)
+    + " " #name ":" + fields::mk(o.name).escape()
 #define mktupledef(cname)                                               \
 cname::cname(_ ## cname (Z, __mktupledecl0, __mktupledecl1))            \
     : _ ##cname (Z, __mktupleconstructor0, __mktupleconstructor1) {}    \

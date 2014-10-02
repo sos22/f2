@@ -108,6 +108,9 @@ fieldbuf::c_str(maybe<unsigned> limit)
 field::field()
 {}
 
+const field &
+field::escape() const { return *this; }
+
 const char *
 field::c_str() const {
     fieldbuf buf;
@@ -837,7 +840,9 @@ tests::fields()
 
             mk("ZZZ\xffXXX").escape().fmt(buf);
             assert(!strcmp(buf.c_str(), "\"ZZZ\\xffXXX\""));
-            buf.reset(); });
+            buf.reset();
+
+            assert(!strcmp(mk(7).escape().c_str(), "7")); });
 
     testcaseV("fields", "c_str", [] () {
             assert(!strcmp(fields::mk(5).c_str(), "5")); });
