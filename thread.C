@@ -144,20 +144,22 @@ tests::thread() {
             (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
             assert(cntr > 97);
             /* Publisher doesn't notify while it's running. */
-            subscriber sub;
-            subscription ds(sub, thr2->pub());
-            (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
-            assert(sub.wait(io, timestamp::now()) == NULL);
-            assert(thr2->hasdied() == Nothing);
-            /* Publisher does notify when it dies. */
-            shutdown = true;
-            assert(sub.wait(
-                       io,
-                       timestamp::now() + timedelta::milliseconds(10)) == &ds);
-            auto token(thr2->hasdied());
-            assert(token != Nothing);
-            /* But destructor doesn't run yet. */
-            assert(!died);
+            maybe<thread::deathtoken> token(Nothing);
+            {   subscriber sub;
+                subscription ds(sub, thr2->pub());
+                (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
+                assert(sub.wait(io, timestamp::now()) == NULL);
+                assert(thr2->hasdied() == Nothing);
+                /* Publisher does notify when it dies. */
+                shutdown = true;
+                assert(sub.wait(
+                           io,
+                           timestamp::now() + timedelta::milliseconds(10))
+                       == &ds);
+                token = thr2->hasdied();
+                assert(token != Nothing);
+                /* But destructor doesn't run yet. */
+                assert(!died); }
             /* We can join it. */
             thr2->join(token.just());
             /* And that does run the destructor. */
