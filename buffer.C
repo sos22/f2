@@ -20,6 +20,7 @@
 
 #include "list.tmpl"
 #include "spark.tmpl"
+#include "timedelta.tmpl"
 #include "wireproto.tmpl"
 
 wireproto_wrapper_type(buffer::status_t)
@@ -1130,4 +1131,32 @@ tests::buffer(void)
             buf2.transfer(buf1);
             assert(buf2.avail() == 9);
             buf2.fetch(bytes, 9);
-            assert(!memcmp(bytes, "LOGOODBYE", 9)); }); }
+            assert(!memcmp(bytes, "LOGOODBYE", 9)); });
+    testcaseV("buffer", "fastio", [] {
+            auto p(fd_t::pipe().fatal("pipe"));
+            p.read.nonblock(true).fatal("nonblock read");
+            p.write.nonblock(true).fatal("nonblock write");
+            ::buffer buf1;
+            assert(buf1.receivefast(p.read) == error::wouldblock);
+            assert(buf1.empty());
+            ::buffer buf2;
+            buf2.queue("HELLO", 5);
+            buf2.sendfast(p.write).fatal("sending fast");
+            assert(buf2.empty());
+            buf1.receivefast(p.read).fatal("receiving fast");
+            assert(buf1.avail() == 5);
+            assert(memcmp(buf1.linearise(0, 5), "HELLO", 5) == 0);
+            size_t sent = 0;
+            while (true) {
+                auto a(buf2.avail());
+                assert(a < 5);
+                buf2.queue("HELLO", 5);
+                auto r(timedelta::time<orerror<void> >([&buf2, &p] {
+                            return buf2.sendfast(p.write); }));
+                assert(r.td < timedelta::milliseconds(10));
+                if (r.v == error::wouldblock) break;
+                r.v.fatal("sending fast");
+                assert(buf2.avail() < 5 + a);
+                sent += 5 + a - buf2.avail(); }
+            assert(sent >= 8192); });
+}
