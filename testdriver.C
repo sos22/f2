@@ -5,6 +5,7 @@
 #include "actortype.H"
 #include "beacontest.H"
 #include "buffer.H"
+#include "clustername.H"
 #include "cond.H"
 #include "either.H"
 #include "error.H"
@@ -36,6 +37,7 @@ main(int argc, char *argv[])
 
     tests::_actortype();
     tests::buffer();
+    tests::__clustername();
     tests::cond();
     tests::either();
     tests::_error();
