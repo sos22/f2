@@ -992,7 +992,6 @@ tests::wireproto() {
             txm.addparam(parameter<int>(p), 9);
             ::buffer buf;
             txm.serialise(buf, sequencenr::invalid);
-            auto rxm(rx_message::fetch(buf).fatal("decoding"));
             assert(rx_message::fetch(buf)
                    .fatal("decoding")
                    .getparam(p) == Nothing); });
@@ -1144,4 +1143,34 @@ tests::wireproto() {
 		.serialise(buf, sequencenr::invalid);
 	    assert(rx_message::fetch(buf)
 		   .fatal("decoding message")
-		   .getparam(param) == Nothing); }); }
+		   .getparam(param) == Nothing); });
+
+    testcaseV("wireproto", "sequences", [] {
+            sequencer q;
+            auto s(q.get());
+            auto tt(q.get());
+            assert(s == s);
+            assert(s != tt); });
+
+    testcaseV("wireproto", "tags", [] {
+            assert(msgtag(9) != msgtag(10));
+            assert(msgtag(9) == msgtag(9));
+            assert(parameter<int>(10) ==
+                   parameter<int>(parameter<long>(10)));
+            assert(parameter<int>(10) == parameter<int>(10));
+            assert(parameter<int>(10) != parameter<int>(11)); });
+
+    testcaseV("wireproto", "maybeparam", [] {
+            ::buffer buf;
+            tx_message(msgtag(2))
+                .addparam(parameter<maybe<int> >(1), Nothing)
+                .addparam(parameter<maybe<int> >(2), 5)
+                .addparam(parameter<maybe<int> >(3), 0)
+                .addparam(parameter<maybe<int> >(4), maybe<int>(Nothing))
+                .serialise(buf, sequencenr::invalid);
+            auto r(rx_message::fetch(buf)
+                   .fatal("decoding message"));
+            assert(r.getparam(parameter<maybe<int> >(1)) == Nothing);
+            assert(r.getparam(parameter<maybe<int> >(2)) == 5);
+            assert(r.getparam(parameter<maybe<int> >(3)) == 0);
+            assert(r.getparam(parameter<maybe<int> >(4)) == Nothing); }); }

@@ -163,6 +163,8 @@ namespace wireproto {
         template <typename t> tx_message &addparam(parameter<maybe<t> >,
                                                    const maybe<t> &);
         template <typename t> tx_message &addparam(parameter<maybe<t> >,
+                                                   const _Nothing);
+        template <typename t> tx_message &addparam(parameter<maybe<t> >,
                                                    const t &);
         tx_message &addparam(parameter<const char *>, const char *);
         virtual ~tx_message();

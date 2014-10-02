@@ -67,6 +67,10 @@ tx_message::addparam(parameter<maybe<typ> > tmpl, const maybe<typ> &what) {
     else return *this; }
 
 template <typename typ> tx_message &
+tx_message::addparam(parameter<maybe<typ> >, const _Nothing) {
+    return *this; }
+
+template <typename typ> tx_message &
 tx_message::addparam(parameter<maybe<typ> > tmpl, const typ &what) {
     return addparam(parameter<typ>(tmpl), what); }
 
