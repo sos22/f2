@@ -58,7 +58,7 @@ parsers::__beaconclientconfig() {
                     x.first().first().first().first().second(),
                     x.first().first().first().second(),
                     x.first().first().second().dflt(timedelta::seconds(1)),
-                    x.first().second().dflt(timedelta::seconds(60)),
+                    x.first().second().dflt(timedelta::seconds(120)),
                     x.second().dflt(timedelta::seconds(300))); }); }
 
 beaconclientslot::beaconclientslot(const slavename &_name,

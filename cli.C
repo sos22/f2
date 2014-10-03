@@ -91,6 +91,8 @@ main(int argc, const char *const argv[])
                               fields::mk(mm->getparam(resp::beaconclient)) +
                           "\nstorageslave: " +
                               fields::mk(mm->getparam(resp::storageslave)) +
+                          "\ncontrolserver: " +
+                              fields::mk(mm->getparam(resp::controlserver)) +
                           "\n");
             delete mm; }
     } else if (!strcmp(mode, "QUIT")) {

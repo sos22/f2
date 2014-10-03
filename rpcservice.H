@@ -1,11 +1,12 @@
 #ifndef RPCSERVICE_H__
 #define RPCSERVICE_H__
 
+#include "listenfd.H"
+#include "peername.H"
 #include "thread.H"
 #include "tuple.H"
+#include "walltime.H"
 
-class listenfd;
-class peername;
 class publisher;
 class socket_t;
 class subscriber;
@@ -29,8 +30,38 @@ class rpcserviceconfig {
 public: static rpcserviceconfig dflt(); };
 mktupleext(rpcserviceconfig);
 
+#define _rpcserviceconnstatus(ctxt, iter0, iter1)                       \
+    /* Who is connected to us?  Nothing if we're in the middle of */    \
+    /* shutting down. */                                                \
+    iter0(ctxt, 1, opt, ref, ::peername, remote)                        \
+    /* When were they last active? */                                   \
+    iter0(ctxt, 2, opt, ref, ::walltime, lastactive)                    \
+    /* How many calls have they made, ever? */                          \
+    iter0(ctxt, 3, mand, value, unsigned, callsever)                    \
+    /* What state is the file descriptor in? */                         \
+    iter0(ctxt, 4, opt, ref, ::fd_tstatus, fd)                          \
+    /* Number of outstanding posted calls. */                           \
+    iter0(ctxt, 5, mand, value, unsigned, currentcalls)                 \
+    /* Bytes in the TX buffer */                                        \
+    iter1(ctxt, 6, mand, value, size_t, txbytes)
+class rpcserviceconnstatus {
+    mktuplefields(rpcserviceconnstatus, public); };
+mktupleext(rpcserviceconnstatus);
+
+#define _rpcservicestatus(ctxt, iter0, iter1)                           \
+    /* Current connections */                                           \
+    iter0(ctxt, 1, mand, ref, list< ::rpcserviceconnstatus>, connections) \
+    /* State of the listening socket */                                 \
+    iter0(ctxt, 2, mand, ref, ::listenfdstatus, listenstatus)           \
+    /* Where are we listening? */                                       \
+    iter0(ctxt, 3, mand, ref, ::peername, listenon)                     \
+    /* How many connections have we accepted, ever? */                  \
+    iter0(ctxt, 4, mand, value, unsigned, connectionsever)              \
+    /* How many connections have died with errors, ever? */             \
+    iter1(ctxt, 5, mand, value, unsigned, errorsever)
 class rpcservicestatus {
-};
+    mktuplefields(rpcservicestatus, public); };
+mktupleext(rpcservicestatus);
 
 class rpcservice {
 private: class rootthread;

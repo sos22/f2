@@ -26,6 +26,7 @@ class peernameport;
 class rpcconnconfig;
 class rpcconnstatus;
 class rpcserverstatus;
+class rpcservicestatus;
 class shutdowncode;
 class slavename;
 class storageslavestatus;
@@ -123,6 +124,7 @@ namespace proto {
             static const parameter< ::storageslavestatus> storageslave(451);
             static const parameter< ::slavename> myname(452);
             static const parameter< ::beaconclientstatus> beaconclient(453);
+            static const parameter< ::rpcservicestatus> controlserver(454);
         };
     };
 
