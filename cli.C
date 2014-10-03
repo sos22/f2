@@ -9,7 +9,7 @@
 #include "peername.H"
 #include "proto.H"
 #include "pubsub.H"
-#include "rpcconn.H"
+#include "rpcclient.H"
 #include "shutdown.H"
 #include "storageslave.H"
 #include "wireproto.H"
@@ -31,11 +31,10 @@ main(int argc, const char *const argv[])
     int nrargs = argc - 3;
     initlogging("cli");
     initpubsub();
-    auto c(rpcconn::connect<rpcconn>(
+    auto c(rpcclient::connect(
                clientio::CLIENTIO,
                peername::local(filename(sock))
-               .fatal("turning " + fields::mk(sock) + " into a peername"),
-               rpcconnconfig::dflt)
+               .fatal("turning " + fields::mk(sock) + " into a peername"))
            .fatal("connecting to " + fields::mk(sock)));
     int r;
 
@@ -137,7 +136,7 @@ main(int argc, const char *const argv[])
     else {
         printf("Unknown command %s.  Known: PING, LOGS\n", mode);
         r = 1; }
-    c->destroy(clientio::CLIENTIO);
+    delete c;
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
     return r;

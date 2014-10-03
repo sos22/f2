@@ -1,42 +1,45 @@
 #ifndef CONTROLSERVER_H__
 #define CONTROLSERVER_H__
 
-#include "rpcconn.H"
-#include "rpcserver.H"
-#include "wireproto.H"
+#include "mutex.H"
+#include "pubsub.H"
+#include "rpcservice.H"
 
 template <typename> class orerror;
 class peername;
 class shutdowncode;
 template <typename> class waitbox;
 
-class controlconn;
 class controlserver;
+class controlinvoker;
 
 class controlinterface {
     /* All fields are protected by owner->ifacelock. */
-    friend class controlconn;
-private: bool inuse; /* Starts true, remains true until we're too far
-                        through shutdown to accept further
-                        requests. */
-private: list<controlconn *> invoking; /* Inverse index for the
-                                        * controlconn @invoking
-                                        * list. */
-private: unsigned active; /* Count of control conns which are invoking
-                             us right now (which aren't in the
-                             @invoking list). */
-private: publisher idle; /* signalled whenever we enter a state where
-                            @invoking is empty and active is zero. */
+    friend class controlserver;
 private: controlserver *const owner;
-
+    /* All the places we're about to get invoked, before they
+     * increment the refcount.  Removing something from the list
+     * prevents it from bumping the refcount. */
+private: list<controlinvoker *> pendinginvoke;
+    /* Count of things other than pendinginvoke which are about to
+     * call into this interface. */
+private: unsigned refcount;
+    /* Set whenever we enter a state with pendinginvoke empty and
+     * refcount zero. */
+private: publisher idle;
+    /* Has start() been called yet? */
+private: bool started;
     /* Construct a new control interface and register it with the
-       control server.  The interface starts accepting queries as soon
-       as it is constructed. */
+     * control server.  You must call ->start() when the interface is
+     * ready to start accepting messages. */
 protected: explicit controlinterface(controlserver *cs);
+    /* Start accepting queries on this interface.  This must be called
+     * precisely once for every instance of the class. */
+protected: void start();
     /* Add parameters to a STATUS query. */
-public:    virtual void getstatus(wireproto::tx_message *msg) const = 0;
+public:    virtual void getstatus(rpcservice::response *msg) const = 0;
     /* Add parameters to a LISTENING query. */
-public:    virtual void getlistening(wireproto::resp_message *msg) const = 0;
+public:    virtual void getlistening(rpcservice::response *msg) const = 0;
     /* Destruct the interface, waiting for any extant invocations of
      * getstatus() and getlistening() to finish if necessarry.  We get
      * away with waiting from a destructor because all the getstatus()
@@ -44,47 +47,29 @@ public:    virtual void getlistening(wireproto::resp_message *msg) const = 0;
 public:    virtual ~controlinterface();
 };
 
-class controlconn : public rpcconn {
-    friend class pausedthread<controlconn>;
+class controlserver : public rpcservice {
     friend class controlinterface;
-private: list<controlinterface *> invoking; /* All the interfaces
-                                               we're about to invoke.
-                                               interfaces can only be
-                                               added to this list if
-                                               their started field is
-                                               true.  Protected by
-                                               owner->ifacelock.*/
-private: controlserver *const owner;
-public:  controlconn(const rpcconn::rpcconntoken &tok,
-                     controlserver *_owner);
-public:  messageresult message(
-    const wireproto::rx_message &,
-    messagetoken) final;
-    /* Invoke a method on the control interfaces. */
-private: void invoke(const std::function<void (controlinterface *)> &);
-public:  ~controlconn() {}
-};
-
-class controlserver : public rpcserver {
-    friend class controlconn;
-    friend class pausedthread<controlserver>;
-    friend class thread;
-    friend class controlinterface;
+    friend class rpcservice;
 private: list<controlinterface *> ifaces; /* Protected by @ifacelock */
     /* Invoked from constructors and destructors -> must be small and
      * leaf */
 private: mutex_t ifacelock;
+    /* Waitbox which we fill with a shutdown code when we receive a
+     * shutdown request from a remote peer. */
 private: waitbox<shutdowncode> &shutdown;
-private: controlserver(constoken,
-                       listenfd,
+    /* Protects shutdown */
+private: mutex_t shutdownlock;
+private: controlserver(const constoken &,
                        waitbox<shutdowncode> &_shutdown);
+    /* Map over all registered interfaces in a safe way. */
+private: void invoke(const std::function<void (controlinterface *)> &);
     /* Create a new control server and start serving requests.  The
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you
        call destroy(). */
 public:  static orerror<controlserver *> build(const peername &listenon,
                                                waitbox<shutdowncode> &s);
-private: virtual orerror<rpcconn *> accept(socket_t);
+private: void call(const wireproto::rx_message &, response *) final;
 };
 
 #endif /* !CONTROLSERVER_H__ */

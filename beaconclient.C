@@ -9,6 +9,7 @@
 #include "maybe.tmpl"
 #include "mutex.tmpl"
 #include "parsers.tmpl"
+#include "rpcservice.tmpl"
 #include "thread.tmpl"
 #include "wireproto.tmpl"
 
@@ -131,14 +132,15 @@ beaconclientstatus::~beaconclientstatus() {
 beaconclient::controliface::controliface(beaconclient *_owner,
                                          controlserver *cs)
     : controlinterface(cs),
-      owner(_owner) {}
+      owner(_owner) {
+      start(); }
 
 void
-beaconclient::controliface::getstatus(wireproto::tx_message *msg) const {
-    msg->addparam(proto::STATUS::resp::beaconclient, owner->status()); }
+beaconclient::controliface::getstatus(rpcservice::response *resp) const {
+    resp->addparam(proto::STATUS::resp::beaconclient, owner->status()); }
 
 void
-beaconclient::controliface::getlistening(wireproto::resp_message *) const { }
+beaconclient::controliface::getlistening(rpcservice::response *) const { }
 
 beaconclient::beaconclient(const thread::constoken &token,
                            const beaconclient::config_t &_config,
@@ -147,11 +149,11 @@ beaconclient::beaconclient(const thread::constoken &token,
                            udpsocket _clientfd)
     : thread(token),
       config(_config),
-      _controliface(Nothing),
       listenfd(_listenfd),
       clientfd(_clientfd),
       errors(0),
-      ignored(0) {
+      ignored(0),
+      _controliface(Nothing) {
       if (cs != NULL) _controliface.mkjust(this, cs); }
 
 orerror<beaconclient *>

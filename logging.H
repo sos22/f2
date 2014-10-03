@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "mutex.H"
+#include "rpcservice.H"
 #include "wireproto.H"
 
 class loglevel;
@@ -112,10 +113,8 @@ void deinitlogging(void);
 
 namespace wireproto {
 class rx_message;
-class resp_message;
 }
-orerror<void> getlogs(const wireproto::rx_message &,
-                      wireproto::resp_message *res);
+orerror<void> getlogs(const wireproto::rx_message &, rpcservice::response *res);
 
 namespace tests {
 template <typename> class event;

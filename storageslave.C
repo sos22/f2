@@ -14,6 +14,7 @@
 #include "parsers.tmpl"
 #include "rpcconn.tmpl"
 #include "rpcserver.tmpl"
+#include "rpcservice.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -112,13 +113,19 @@ storageslaveconn::endconn(clientio) {
             break; } }
     owner->mux.unlock(&token); }
 
-void
-storageslave::controliface::getstatus(wireproto::tx_message *msg) const {
-    msg->addparam(proto::STATUS::resp::storageslave, owner->status()); }
+storageslave::controliface::controliface(storageslave *_owner,
+                                         controlserver *cs)
+    : controlinterface(cs),
+      owner(_owner) {
+    start(); }
 
 void
-storageslave::controliface::getlistening(wireproto::resp_message *msg) const {
-    msg->addparam(proto::LISTENING::resp::storageslave, owner->localname()); }
+storageslave::controliface::getstatus(rpcservice::response *resp) const {
+    resp->addparam(proto::STATUS::resp::storageslave, owner->status()); }
+
+void
+storageslave::controliface::getlistening(rpcservice::response *resp) const {
+    resp->addparam(proto::LISTENING::resp::storageslave, owner->localname()); }
 
 orerror<storageslave *>
 storageslave::build(const storageconfig &config,
@@ -144,10 +151,10 @@ storageslave::storageslave(constoken token,
                            controlserver *cs,
                            const storageconfig &_config)
     : rpcserver(token, fd),
-      control_(this, cs),
       clients(),
       config(_config),
-      mux() {}
+      mux(),
+      control_(this, cs) {}
 
 orerror<rpcconn *>
 storageslave::accept(socket_t s) {

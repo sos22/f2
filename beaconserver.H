@@ -56,15 +56,14 @@ class beaconserver : private thread {
 private: class controliface : public controlinterface {
     private: beaconserver *owner;
     public:  controliface(beaconserver *_owner, controlserver *cs);
-    public:  void getstatus(wireproto::tx_message *) const;
-    public:  void getlistening(wireproto::resp_message *) const;
+    public:  void getstatus(rpcservice::response *) const final;
+    public:  void getlistening(rpcservice::response *) const final;
     };
 
 private: beaconserver() = delete;
 private: beaconserver(const beaconserver &) = delete;
 private: void operator=(const beaconserver &) = delete;
 
-private: controliface controliface_;
 private: beaconserverconfig config;
 private: const actortype advertisetype;
 private: const peername::port advertiseport;
@@ -74,6 +73,7 @@ private: waitbox<void> shutdown;
 private: unsigned errors; /* total number of errors, ever */
 private: unsigned ignored; /* total number of ignored requests,
                             * excluding errors, ever */
+private: controliface controliface_;
 
     /* Construct a new beacon server.  We expose listening and status
      * interfaces over the controlserver cs. */

@@ -1,155 +1,141 @@
 #include "controlserver.H"
 
 #include "buildconfig.H"
-#include "fields.H"
 #include "logging.H"
+#include "peername.H"
 #include "proto.H"
-#include "rpcconn.H"
 #include "shutdown.H"
-#include "util.H"
 
 #include "list.tmpl"
-#include "rpcconn.tmpl"
-#include "rpcserver.tmpl"
+#include "rpcservice.tmpl"
+
+class controlinvoker {
+public: list<controlinterface *> inner;
+};
 
 controlinterface::controlinterface(controlserver *cs)
-    : inuse(true),
-      invoking(),
-      active(0),
+    : owner(cs),
+      pendinginvoke(),
+      refcount(0),
       idle(),
-      owner(cs) {
+      started(false) { }
+
+void
+controlinterface::start() {
+    started = true;
     owner->ifacelock.locked([this] (mutex_t::token) {
             owner->ifaces.pushtail(this); }); }
 
 controlinterface::~controlinterface() {
+    assert(started);
     auto token(owner->ifacelock.lock());
     /* Prevent anyone else from adding us to their invoking list. */
-    inuse = false;
-    /* Remove ourselves from all of the invoking lists. */
-    while (!invoking.empty()) {
-        auto conn(invoking.pophead());
-        bool found = false;
-        for (auto it2(conn->invoking.start());
-             !it2.finished() && !found;
-             it2.next()) {
-            if (*it2 == this) {
-                it2.remove();
-                found = true; } }
-        assert(found); }
-    /* Wait for any conns which have already started invoking us to
-     * finish. */
-    if (active != 0) {
-        subscriber sub;
-        subscription ss(sub, idle);
-        while (active != 0) {
-            owner->ifacelock.unlock(&token);
-            /* running will be cleared when the getstatus() invocation
-               finishes.  getstatus() does not receive a clientio
-               token, so will complete quickly, and we do not need a
-               token for the wait here. */
-            sub.wait(clientio::CLIENTIO);
-            token = owner->ifacelock.lock(); } }
-    assert(invoking.empty());
-    /* Remove ourselves from the owner's iface list.  Once we've done
-     * this and dropped the owner ifacelock the owner can be released
-     * at any time. */
-    for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
+    for (auto it(owner->ifaces.start()); true; it.next()) {
         if (*it == this) {
             it.remove();
             break; } }
+    /* Pull ourselves out of the pending invoke lists.  We won't be
+     * re-added because this->inuse is clear. */
+    for (auto it(pendinginvoke.start()); !it.finished(); it.next()) {
+        for (auto it2((*it)->inner.start()); true; it2.next()) {
+            if (*it2 == this) {
+                refcount--;
+                it2.remove();
+                break; } } }
+    /* Wait for any remaining references to drop away.  No more can be
+     * created because we're not in the pending invoke lists.  This
+     * will only wait as long as the getstatus() and getlistening()
+     * methods do, so since they don't have a clientio token this
+     * doesn't need one either. */
+    if (refcount != 0) {
+        subscriber sub;
+        subscription ss(sub, idle);
+        unsigned lastref = refcount;
+        while (refcount != 0) {
+            assert(refcount <= lastref);
+            owner->ifacelock.unlock(&token);
+            sub.wait(clientio::CLIENTIO);
+            token = owner->ifacelock.lock();
+            lastref = refcount; } }
     owner->ifacelock.unlock(&token); }
 
-controlconn::controlconn(const rpcconn::rpcconntoken &tok,
-                         controlserver *_owner)
-    : rpcconn(tok),
-      invoking(),
-      owner(_owner) {}
+controlserver::controlserver(const constoken &token,
+                             waitbox<shutdowncode> &_shutdown)
+    : rpcservice(token),
+      ifaces(),
+      ifacelock(),
+      shutdown(_shutdown),
+      shutdownlock() {}
 
 void
-controlconn::invoke(const std::function<void (controlinterface *)> &f) {
+controlserver::invoke(const std::function<void (controlinterface *)> &f) {
     /* Complicated two-step lookup so that you can always unregister
        interface A without having to wait for operations on interface
        B to complete. */
-    auto token(owner->ifacelock.lock());
-    assert(invoking.empty());
-    for (auto it(owner->ifaces.start()); !it.finished(); it.next()) {
+    controlinvoker ci;
+    auto token(ifacelock.lock());
+    for (auto it(ifaces.start()); !it.finished(); it.next()) {
         auto iface(*it);
-        if (iface->inuse) {
-            iface->invoking.pushtail(this);
-            invoking.pushtail(iface); } }
-    while (!invoking.empty()) {
-        auto iface(invoking.pophead());
-        assert(iface->inuse);
-        iface->active++;
-        assert(iface->active != 0);
-        bool found = false;
-        for (auto it(iface->invoking.start()); !it.finished(); it.next()) {
-            if (*it == this) {
+        iface->pendinginvoke.pushtail(&ci);
+        ci.inner.pushtail(iface); }
+    while (!ci.inner.empty()) {
+        auto iface(ci.inner.pophead());
+        iface->refcount++;
+        assert(iface->refcount != 0);
+        for (auto it(iface->pendinginvoke.start()); true; it.next()) {
+            if (*it == &ci) {
                 it.remove();
-                found = true;
                 break; } }
-        assert(found);
-        /* We've bumped active, so can drop the lock without risk of
+        /* We've bumped refcount, so can drop the lock without risk of
            the interface disappearing underneath us. */
-        owner->ifacelock.unlock(&token);
+        ifacelock.unlock(&token);
 
         /* Actually invoke the desired callback. */
         f(iface);
 
-        token = owner->ifacelock.lock();
-        assert(iface->active > 0);
-        iface->active--;
-        if (iface->active == 0 && iface->invoking.empty()) {
+        token = ifacelock.lock();
+        assert(iface->refcount > 0);
+        iface->refcount--;
+        if (iface->refcount == 0 && iface->pendinginvoke.empty()) {
             iface->idle.publish(); } }
-    owner->ifacelock.unlock(&token); }
+    ifacelock.unlock(&token); }
 
-rpcconn::messageresult
-controlconn::message(const wireproto::rx_message &rxm, messagetoken token) {
-    auto res(new wireproto::resp_message(rxm));
+void
+controlserver::call(const wireproto::rx_message &rxm, response *resp) {
     if (rxm.tag() == proto::QUIT::tag) {
         auto reason(rxm.getparam(proto::QUIT::req::reason));
         auto msg(rxm.getparam(proto::QUIT::req::message));
-        if (!reason || !msg) return error::missingparameter;
-        if (!owner->shutdown.ready()) {
+        if (!reason || !msg) {
+            resp->fail(error::missingparameter);
+            return; }
+        if (shutdownlock.locked<bool>([this, &reason] (mutex_t::token) {
+                    if (shutdown.ready()) return false;
+                    else {
+                        shutdown.set(reason.just());
+                        return true; } } ) ) {
             logmsg(loglevel::notice,
-                   "received a quit message: " + fields::mk(msg.just()) +
-                   " from " + fields::mk(peer()));
-            owner->shutdown.set(reason.just());
-        } else {
+                   "received a quit message: " + fields::mk(msg.just()));
+            resp->complete(); }
+        else {
             logmsg(loglevel::notice,
-                   "reject too-late shutdown from " + fields::mk(peer())); } }
+                   "reject too-late shutdown " + fields::mk(msg.just()));
+            resp->fail(error::toolate); } }
     else if (rxm.tag() == proto::STATUS::tag) {
-        invoke([res] (controlinterface *si) { si->getstatus(res); }); }
+        invoke([resp] (controlinterface *si) { si->getstatus(resp); });
+        resp->complete(); }
     else if (rxm.tag() == proto::GETLOGS::tag) {
-        auto r(::getlogs(rxm, res));
-        if (r.isfailure()) {
-            delete res;
-            return r.failure(); } }
+        auto r(::getlogs(rxm, resp));
+        if (r.isfailure()) resp->fail(r.failure());
+        else resp->complete(); }
     else if (rxm.tag() == proto::BUILDCONFIG::tag) {
-        res->addparam(proto::BUILDCONFIG::resp::config, buildconfig::us); }
+        resp->addparam(proto::BUILDCONFIG::resp::config, buildconfig::us);
+        resp->complete();}
     else if (rxm.tag() == proto::LISTENING::tag) {
-        res->addparam(proto::LISTENING::resp::control, owner->localname());
-        invoke([res] (controlinterface *si) { si->getlistening(res); }); }
-    else {
-        delete res;
-        return rpcconn::message(rxm, token); }
-    return res; }
-
-controlserver::controlserver(constoken token,
-                             listenfd fd,
-                             waitbox<shutdowncode> &_shutdown)
-    : rpcserver(token, fd),
-      shutdown(_shutdown) {}
-
-orerror<rpcconn *>
-controlserver::accept(socket_t s) {
-    return rpcconn::fromsocket<controlconn>(
-        s,
-        rpcconnconfig::dflt,
-        this); }
+        resp->addparam(proto::LISTENING::resp::control, localname());
+        invoke([resp] (controlinterface *si) { si->getlistening(resp); });
+        resp->complete(); }
+    else resp->fail(error::unrecognisedmessage); }
 
 orerror<controlserver *>
 controlserver::build(const peername &p, waitbox<shutdowncode> &s) {
-    return rpcserver::listen<controlserver>(p, s)
-        .map<controlserver *>([] (pausedrpcserver<controlserver> ss) {
-                return ss.go(); }); }
+    return rpcservice::listen<controlserver>(p, s); }

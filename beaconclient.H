@@ -20,6 +20,7 @@
 #include "tuple.H"
 #include "udpsocket.H"
 #include "util.H"
+#include "walltime.H"
 #include "wireproto.H"
 
 class clientio;
@@ -140,13 +141,12 @@ class beaconclient : private thread {
     friend class pausedthread<beaconclient>;
     friend class thread;
     friend class iterator;
-private: const beaconclientconfig config;
 private: class controliface : public controlinterface {
     private: beaconclient *const owner;
     public:  controliface(beaconclient *, controlserver *);
-    private: void getstatus(wireproto::tx_message *) const final;
-    private: void getlistening(wireproto::resp_message *) const final; };
-private: maybe<controliface> _controliface;
+    private: void getstatus(rpcservice::response *) const final;
+    private: void getlistening(rpcservice::response *) const final; };
+private: const beaconclientconfig config;
     /* Protects @cache.  The locks on individual entries nest inside
      * this one.  mutable because it's acquired from status(). */
 private: mutable mutex_t cachelock;
@@ -162,6 +162,7 @@ private: udpsocket listenfd;
 private: udpsocket clientfd;
 private: int errors;
 private: int ignored;
+private: maybe<controliface> _controliface;
     /* Use ::build instead */
 private: beaconclient(const thread::constoken &token,
                       const beaconclientconfig &,

@@ -36,16 +36,6 @@ class storageslave : rpcserver {
     friend class storageslaveconn;
     friend class pausedthread<storageslave>;
     friend class thread;
-private: class controliface : public controlinterface {
-    private: storageslave *const owner;
-    public:  controliface(storageslave *_owner,
-                         controlserver *cs)
-        : controlinterface(cs),
-          owner(_owner) {}
-    private: void getstatus(wireproto::tx_message *msg) const;
-    private: void getlistening(wireproto::resp_message *) const;
-    };
-private: controliface control_;
     /* XXX only used for status interface; maybe move all of that to
      * rpcserver layer? */
 private: list<storageslaveconn *> clients;
@@ -55,6 +45,14 @@ private: mutable mutex_t mux;
     /* initialised very early on, before the server is unpaused, and
      * const until the finish() method is invoked. */
 private: beaconserver *beacon;
+private: class controliface : public controlinterface {
+    private: storageslave *const owner;
+    public:  controliface(storageslave *_owner,
+                          controlserver *cs);
+    private: void getstatus(rpcservice::response *) const final;
+    private: void getlistening(rpcservice::response *) const final;
+    };
+private: controliface control_;
 public:  static orerror<storageslave *> build(const storageconfig &config,
                                               controlserver *);
 private: storageslave(constoken,

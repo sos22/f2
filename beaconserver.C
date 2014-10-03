@@ -18,6 +18,7 @@
 #include "waitbox.H"
 
 #include "parsers.tmpl"
+#include "rpcservice.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 #include "wireproto.tmpl"
@@ -50,18 +51,17 @@ parsers::__beaconserverconfig() {
 beaconserver::controliface::controliface(beaconserver *server,
                                          controlserver *cs)
     : ::controlinterface(cs),
-      owner(server) {}
+      owner(server) {
+      start(); }
 
 void
-beaconserver::controliface::getstatus(
-    wireproto::tx_message *msg) const {
-    msg->addparam(proto::STATUS::resp::beacon, owner->status()); }
+beaconserver::controliface::getstatus(rpcservice::response *resp) const {
+    resp->addparam(proto::STATUS::resp::beacon, owner->status()); }
 
 void
-beaconserver::controliface::getlistening(
-    wireproto::resp_message *msg) const {
-    msg->addparam(proto::LISTENING::resp::beacon,
-                  owner->listenfd.localname()); }
+beaconserver::controliface::getlistening(rpcservice::response *resp) const {
+    resp->addparam(proto::LISTENING::resp::beacon,
+                   owner->listenfd.localname()); }
 
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
@@ -92,7 +92,6 @@ beaconserver::beaconserver(thread::constoken token,
                            udpsocket _listenfd,
                            udpsocket _clientfd)
     : thread(token),
-      controliface_(this, cs),
       config(_config),
       advertisetype(type),
       advertiseport(port),
@@ -100,7 +99,8 @@ beaconserver::beaconserver(thread::constoken token,
       clientfd(_clientfd),
       shutdown(),
       errors(0),
-      ignored(0) {}
+      ignored(0),
+      controliface_(this, cs) {}
 
 void
 beaconserver::run(clientio io) {

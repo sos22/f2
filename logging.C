@@ -22,8 +22,8 @@
 #include "walltime.H"
 
 #include "list.tmpl"
+#include "rpcservice.tmpl"
 #include "test.tmpl"
-#include "wireproto.tmpl"
 
 const loglevel
 loglevel::emergency(5);
@@ -378,8 +378,7 @@ fields::mk(const memlog_entry &e) {
         "=" + fields::mk(e.msg) + ">"; }
 
 orerror<void>
-getlogs(const wireproto::rx_message &msg,
-        wireproto::resp_message *m) {
+getlogs(const wireproto::rx_message &msg, rpcservice::response *resp) {
     auto start(msg.getparam(proto::GETLOGS::req::startidx).
                dflt(memlog_idx::min));
     auto nr(msg.getparam(proto::GETLOGS::req::nr).dflt(200));
@@ -389,9 +388,9 @@ getlogs(const wireproto::rx_message &msg,
            " for " + fields::mk(nr));
     list<memlog_entry> results;
     auto resume(policy.memlog.fetch(start, nr, results));
-    m->addparam(proto::GETLOGS::resp::msgs, results.steal());
+    resp->addparam(proto::GETLOGS::resp::msgs, results.steal());
     if (resume.isjust()) {
-        m->addparam(proto::GETLOGS::resp::resume, resume.just()); }
+        resp->addparam(proto::GETLOGS::resp::resume, resume.just()); }
     return Success; }
 
 void
