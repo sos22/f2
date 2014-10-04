@@ -82,11 +82,13 @@ private:   rpcservice();
      * be derived from rpcservice. */
 public:    template <typename t, typename ... args>
     static orerror<t *> listen(
+        clientio,
         const rpcserviceconfig &config,
         const peername &,
         args &&...);
 public:    template <typename t, typename ... args>
     static orerror<t *> listen(
+        clientio,
         const peername &,
         args &&...);
 
@@ -103,8 +105,16 @@ public:    class constoken {
     private: constoken(const constoken &) = delete; };
 protected: explicit rpcservice(const constoken &);
 
-    /* Helper for the listen(). */
-private:   void startrootthread(listenfd);
+    /* Helper for listen(). */
+private:   orerror<void> _initialise(clientio, listenfd);
+
+    /* Initialisation callback.  This is called after we start
+     * listening but before call() is invoked for the first time.  If
+     * it returns an error then the service is torn back down again
+     * (without calling destroying()) and listen() returns an error.
+     * Otherwise, the server starts properly and will begin processing
+     * remote calls.  The default implementation does nothing. */
+private:  virtual orerror<void> initialise(clientio);
 
     /* Find the peername on which we're listening.  Note that the host
      * part of this is likely to be localhost; it's mostly useful for
@@ -179,6 +189,9 @@ public:    class response {
          * The local caller must not touch the response structure
          * after this has been called. */
     public:  void fail(error);
+        /* Wrapper around complete() and fail(): call the former if
+         * passed Success and the latter otherwise. */
+    public:  void complete(orerror<void>);
         /* Use complete() or fail() */
     private: ~response();
 

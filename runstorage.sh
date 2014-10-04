@@ -3,4 +3,4 @@
 set -e
 
 make -j8 storage
-./storage '<storageconfig: beacon=<beaconclientconfig: rs=<registrationsecret:password>> name=<slavename:storagename>>'
+./storage '<storageconfig: beacon:<beaconserverconfig: cluster:<clustername:foo> name:<slavename:storage>>>'

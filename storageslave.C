@@ -1,117 +1,64 @@
 #include "storageslave.H"
 
-#include "beaconclient.H"
-#include "filename.H"
-#include "parsers.H"
 #include "jobname.H"
-#include "storageconfig.H"
+#include "logging.H"
+#include "parsers.H"
+#include "proto.H"
 #include "streamname.H"
 #include "streamstatus.H"
-#include "tcpsocket.H"
 
-#include "filename.tmpl"
 #include "list.tmpl"
 #include "parsers.tmpl"
-#include "rpcconn.tmpl"
-#include "rpcserver.tmpl"
 #include "rpcservice.tmpl"
-#include "wireproto.tmpl"
 
-#include "fieldfinal.H"
-
-wireproto_wrapper_type(storageslave::status_t);
-
-namespace proto {
-namespace storageslavestatus {
-static const parameter<class ::rpcserverstatus> server(1);
-static const parameter<list< ::rpcconnstatus> > clientconns(2); } }
-
-class storageslaveconn : public rpcconn {
-    friend class thread;
-    friend class pausedthread<storageslaveconn>;
-private: storageslave *const owner;
-private: storageslaveconn(const rpcconn::rpcconntoken &tok,
-                          storageslave *_owner);
-private: messageresult message(const wireproto::rx_message &,
-                               messagetoken) final;
-private: void endconn(clientio);
-};
-
-storageslaveconn::storageslaveconn(
-    const rpcconn::rpcconntoken &tok,
-    storageslave *_owner)
-    : rpcconn(tok),
-      owner(_owner) {
-    auto token(owner->mux.lock());
-    owner->clients.pushtail(this);
-    owner->mux.unlock(&token); }
-
-rpcconn::messageresult
-storageslaveconn::message(const wireproto::rx_message &rxm, messagetoken token) {
+void
+storageslave::call(const wireproto::rx_message &rxm, response *resp) {
     if (rxm.tag() == proto::CREATEEMPTY::tag) {
         auto job(rxm.getparam(proto::CREATEEMPTY::req::job));
         auto stream(rxm.getparam(proto::CREATEEMPTY::req::stream));
-        if (!job || !stream) return error::missingparameter;
-        auto res(owner->createempty(job.just(), stream.just()));
-        if (res.isfailure()) return res.failure();
-        else return new wireproto::resp_message(rxm);
-    } else if (rxm.tag() == proto::APPEND::tag) {
+        if (!job || !stream) resp->fail(error::missingparameter);
+        else resp->complete(createempty(job.just(), stream.just())); }
+    else if (rxm.tag() == proto::APPEND::tag) {
         auto job(rxm.getparam(proto::APPEND::req::job));
         auto stream(rxm.getparam(proto::APPEND::req::stream));
         auto bytes(rxm.getparam(proto::APPEND::req::bytes));
-        if (!job || !stream || !bytes) return error::missingparameter;
-        if (bytes.just().empty()) return error::invalidparameter;
-        auto res(owner->append(job.just(), stream.just(), bytes.just()));
-        if (res.isfailure()) return res.failure();
-        else return new wireproto::resp_message(rxm);
-    } else if (rxm.tag() == proto::FINISH::tag) {
+        if (!job || !stream || !bytes) resp->fail(error::missingparameter);
+        else if (bytes.just().empty()) resp->fail(error::invalidparameter);
+        else resp->complete(append(job.just(), stream.just(), bytes.just())); }
+    else if (rxm.tag() == proto::FINISH::tag) {
         auto job(rxm.getparam(proto::FINISH::req::job));
         auto stream(rxm.getparam(proto::FINISH::req::stream));
-        if (!job || !stream) return error::missingparameter;
-        auto res(owner->finish(job.just(), stream.just()));
-        if (res.isfailure()) return res.failure();
-        else return new wireproto::resp_message(rxm);
-    } else if (rxm.tag() == proto::READ::tag) {
+        if (!job || !stream) resp->fail(error::missingparameter);
+        else resp->complete(finish(job.just(), stream.just())); }
+    else if (rxm.tag() == proto::READ::tag) {
         auto job(rxm.getparam(proto::READ::req::job));
         auto stream(rxm.getparam(proto::READ::req::stream));
-        if (!job || !stream) return error::missingparameter;
-        else return owner->read(
-            rxm,
+        if (!job || !stream) resp->fail(error::missingparameter);
+        else read(
+            resp,
             job.just(),
             stream.just(),
             rxm.getparam(proto::READ::req::start).dflt(0),
-            rxm.getparam(proto::READ::req::end).dflt(UINT64_MAX));
-    } else if (rxm.tag() == proto::LISTJOBS::tag) {
-        return owner->listjobs(
-            rxm,
+            rxm.getparam(proto::READ::req::end).dflt(UINT64_MAX)); }
+    else if (rxm.tag() == proto::LISTJOBS::tag) {
+        listjobs(
+            resp,
             rxm.getparam(proto::LISTJOBS::req::cursor),
-            rxm.getparam(proto::LISTJOBS::req::limit));
-    } else if (rxm.tag() == proto::LISTSTREAMS::tag) {
+            rxm.getparam(proto::LISTJOBS::req::limit)); }
+    else if (rxm.tag() == proto::LISTSTREAMS::tag) {
         auto jn(rxm.getparam(proto::LISTSTREAMS::req::job));
-        if (!jn) return error::missingparameter;
-        return owner->liststreams(
-            rxm,
+        if (!jn) resp->fail(error::missingparameter);
+        else liststreams(
+            resp,
             jn.just(),
             rxm.getparam(proto::LISTSTREAMS::req::cursor),
-            rxm.getparam(proto::LISTSTREAMS::req::limit));
-    } else if (rxm.tag() == proto::REMOVESTREAM::tag) {
+            rxm.getparam(proto::LISTSTREAMS::req::limit)); }
+    else if (rxm.tag() == proto::REMOVESTREAM::tag) {
         auto jn(rxm.getparam(proto::REMOVESTREAM::req::job));
         auto sn(rxm.getparam(proto::REMOVESTREAM::req::stream));
-        if (!jn || !sn) return error::missingparameter;
-        auto res(owner->removestream(jn.just(), sn.just()));
-        if (res.isfailure()) return res.failure();
-        else return new wireproto::resp_message(rxm);
-    } else {
-        return rpcconn::message(rxm, token); } }
-
-void
-storageslaveconn::endconn(clientio) {
-    auto token(owner->mux.lock());
-    for (auto it(owner->clients.start()); true; it.next()) {
-        if (*it == this) {
-            it.remove();
-            break; } }
-    owner->mux.unlock(&token); }
+        if (!jn || !sn) resp->fail(error::missingparameter);
+        else resp->complete(removestream(jn.just(), sn.just())); }
+    else resp->fail(error::unrecognisedmessage); }
 
 storageslave::controliface::controliface(storageslave *_owner,
                                          controlserver *cs)
@@ -127,46 +74,41 @@ void
 storageslave::controliface::getlistening(rpcservice::response *resp) const {
     resp->addparam(proto::LISTENING::resp::storageslave, owner->localname()); }
 
-orerror<storageslave *>
-storageslave::build(const storageconfig &config,
-                    controlserver *cs) {
-    auto server(rpcserver::listen<storageslave>(
-                    peername::all(peername::port::any),
-                    cs,
-                    config));
-    if (server.isfailure()) return server.failure();
-    auto beacon(beaconserver::build(config.beacon,
-                                    actortype::storageslave,
-                                    server.success().unwrap()
-                                        ->localname().getport(),
-                                    cs));
-    if (beacon.isfailure()) {
-        server.success().destroy();
-        return beacon.failure(); }
-    server.success().unwrap()->beacon = beacon.success();
-    return server.success().go(); }
 
-storageslave::storageslave(constoken token,
-                           listenfd fd,
-                           controlserver *cs,
+orerror<storageslave *>
+storageslave::build(clientio io,
+                    const storageconfig &config,
+                    controlserver *cs) {
+    return rpcservice::listen<storageslave>(
+        io,
+        peername::all(peername::port::any),
+        cs,
+        config); }
+
+orerror<void>
+storageslave::initialise(clientio) {
+    auto b(beaconserver::build(config.beacon,
+                               actortype::storageslave,
+                               localname().getport(),
+                               cs));
+    if (b.isfailure()) return b.failure();
+    beacon = b.success();
+    return Success; }
+
+storageslave::storageslave(const constoken &token,
+                           controlserver *_cs,
                            const storageconfig &_config)
-    : rpcserver(token, fd),
-      clients(),
+    : rpcservice(token),
       config(_config),
       mux(),
-      control_(this, cs) {}
-
-orerror<rpcconn *>
-storageslave::accept(socket_t s) {
-    return rpcconn::fromsocket<storageslaveconn>(
-        s,
-        config.connconfig,
-        this); }
+      beacon(NULL),
+      cs(_cs),
+      control_(this, cs) { }
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */
 orerror<void>
-storageslave::createempty(const jobname &t, const streamname &sn) const {
+storageslave::createempty(const jobname &t, const streamname &sn) {
     logmsg(loglevel::debug,
            "create empty output " + fields::mk(t) + " " + fields::mk(sn));
     filename jobdir(config.poolpath + t.asfilename());
@@ -199,7 +141,7 @@ orerror<void>
 storageslave::append(
     const jobname &jn,
     const streamname &sn,
-    buffer &b) const {
+    buffer &b) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     auto finished((dirname + "finished").exists());
     if (finished.isfailure()) return finished.failure();
@@ -239,7 +181,7 @@ storageslave::append(
 orerror<void>
 storageslave::finish(
     const jobname &jn,
-    const streamname &sn) const {
+    const streamname &sn) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     {   auto content((dirname + "content").exists());
         if (content.isfailure()) return content.failure();
@@ -250,41 +192,54 @@ storageslave::finish(
     else if (exists == true) return error::already;
     return finished.createfile(); }
 
-rpcconn::messageresult
+void
 storageslave::read(
-    const wireproto::rx_message &rxm,
+    response *resp,
     const jobname &jn,
     const streamname &sn,
     uint64_t start,
     uint64_t end) const {
-    if (start > end) return error::invalidparameter;
+    if (start > end) {
+        resp->fail(error::invalidparameter);
+        return; }
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     {   auto finished((dirname + "finished").exists());
-        if (finished.isfailure()) return finished.failure();
-        else if (finished == false) return error::toosoon; }
+        if (finished.isfailure()) {
+            resp->fail(finished.failure());
+            return; }
+        else if (finished == false) {
+            resp->fail(error::toosoon);
+            return; } }
     auto content(dirname + "content");
     {   auto r(content.exists());
-        if (r.isfailure()) return r.failure();
-        else if (r == false) return error::toosoon; }
+        if (r.isfailure()) {
+            resp->fail(r.failure());
+            return; }
+        else if (r == false) {
+            resp->fail(error::toosoon);
+            return; } }
     auto sz(content.size());
-    if (sz.isfailure()) return sz.failure();
+    if (sz.isfailure()) {
+        resp->fail(sz.failure());
+        return; }
     if (start > sz.success()) start = sz.success();
     if (end > sz.success()) end = sz.success();
-    auto resp(new wireproto::resp_message(rxm));
     resp->addparam(proto::READ::resp::size, sz.success());
     auto b(content.read(start, end));
     if (b.isfailure()) {
-        delete resp;
-        return b.failure(); }
+        resp->fail(b.failure());
+        return; }
     resp->addparam(proto::READ::resp::bytes, b.success().steal());
-    return resp; }
+    resp->complete(); }
 
-rpcconn::messageresult
+void
 storageslave::listjobs(
-    const wireproto::rx_message &rxm,
+    response *resp,
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit) const {
-    if (limit == 0) return error::invalidparameter;
+    if (limit == 0) {
+        resp->fail(error::invalidparameter);
+        return; }
     auto &parser(parsers::_jobname());
     list<jobname> res;
     {   filename::diriter it(config.poolpath);
@@ -305,7 +260,8 @@ storageslave::listjobs(
             res.pushtail(jn.success()); }
         if (it.isfailure()) {
             it.failure().warn("listing " + fields::mk(config.poolpath));
-            return it.failure(); } }
+            resp->fail(it.failure());
+            return; } }
     sort(res);
     maybe<jobname> newcursor(Nothing);
     if (limit != Nothing) {
@@ -314,19 +270,19 @@ storageslave::listjobs(
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
         if (!it.finished()) newcursor = *it;
         while (!it.finished()) it.remove(); }
-    auto resp(new wireproto::resp_message(rxm));
-    if (newcursor != Nothing) {
-        resp->addparam(proto::LISTJOBS::resp::cursor, newcursor.just()); }
+    resp->addparam(proto::LISTJOBS::resp::cursor, newcursor);
     resp->addparam(proto::LISTJOBS::resp::jobs, res);
-    return resp; }
+    resp->complete(); }
 
-rpcconn::messageresult
+void
 storageslave::liststreams(
-    const wireproto::rx_message &rxm,
+    response *resp,
     const jobname &jn,
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit) const {
-    if (limit == 0) return error::invalidparameter;
+    if (limit == 0) {
+        resp->fail(error::invalidparameter);
+        return; }
     auto dir(config.poolpath + jn.asfilename());
     const parser<streamname> &parser(parsers::_streamname());
     list<streamstatus> res;
@@ -349,13 +305,15 @@ storageslave::liststreams(
             if (size.isfailure()) {
                 size.failure().warn("getting size of " +
                                     fields::mk(fname + "content"));
-                return size.failure(); }
+                resp->fail(size.failure());
+                return; }
             auto finished((fname + "finished").exists());
             if (finished.isfailure()) {
                 finished.failure().warn("checking whether " + fields::mk(jn) +
                                         "::" + fields::mk(it.filename()) +
                                         " finished");
-                return finished.failure(); }
+                resp->fail(finished.failure());
+                return; }
             if (finished == true) {
                 res.pushtail(streamstatus::finished(sn.success(),
                                                     size.success())); }
@@ -364,7 +322,8 @@ storageslave::liststreams(
                                                    size.success())); } }
         if (it.isfailure()) {
             it.failure().warn("listing " + fields::mk(dir));
-            return it.failure(); } }
+            resp->fail(it.failure());
+            return; } }
     sort(res);
     maybe<streamname> newcursor(Nothing);
     if (limit != Nothing) {
@@ -373,15 +332,13 @@ storageslave::liststreams(
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
         if (!it.finished()) newcursor = it->name;
         while (!it.finished()) it.remove(); }
-    auto resp(new wireproto::resp_message(rxm));
-    if (newcursor != Nothing) {
-        resp->addparam(proto::LISTSTREAMS::resp::cursor, newcursor.just()); }
+    resp->addparam(proto::LISTSTREAMS::resp::cursor, newcursor);
     resp->addparam(proto::LISTSTREAMS::resp::streams, res);
-    return resp; }
+    resp->complete(); }
 
 orerror<void>
 storageslave::removestream(const jobname &jn,
-                           const streamname &sn) const {
+                           const streamname &sn) {
     auto jobdir(config.poolpath + jn.asfilename());
     auto streamdir(jobdir + sn.asfilename());
     bool already;
@@ -399,42 +356,6 @@ storageslave::removestream(const jobname &jn,
     else return Success; }
 
 void
-storageslave::destroy(clientio io) {
-    rpcserver::destroy(io); }
-
-void
-storageslave::finish(clientio io) {
-    beacon->destroy(io); }
-
-storageslave::status_t
-storageslave::status() const {
-    auto s(rpcserver::status());
-    auto token(mux.lock());
-    list<rpcconn::status_t> cl(clients.map<rpcconn::status_t>(
-                                   [&token] (storageslaveconn *const &conn) {
-                                       return conn->status(); }));
-    mux.unlock(&token);
-    return status_t(s, cl); }
-
-void
-storageslave::status_t::addparam(
-    wireproto::parameter<storageslave::status_t> tmpl,
-    wireproto::tx_message &tx_msg) const {
-    tx_msg.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
-                    wireproto::tx_compoundparameter()
-                    .addparam(proto::storageslavestatus::server, server)
-                    .addparam(
-                        proto::storageslavestatus::clientconns,
-                        clientconns)); }
-
-maybe<storageslave::status_t>
-storageslave::status_t::fromcompound(const wireproto::rx_message &msg) {
-    auto s(msg.getparam(proto::storageslavestatus::server));
-    auto clientconns(msg.getparam(proto::storageslavestatus::clientconns));
-    if (!s || !clientconns) return Nothing;
-    else return storageslave::status_t(s.just(),
-                                       clientconns.just()); }
-const fields::field &
-fields::mk(const storageslave::status_t &o) {
-    return "<storageslave: server=" + mk(o.server) +
-        " clients=" + mk(o.clientconns) + ">"; }
+storageslave::destroying(clientio io) {
+    beacon->destroy(io);
+    beacon = NULL; }

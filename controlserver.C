@@ -138,5 +138,5 @@ controlserver::call(const wireproto::rx_message &rxm, response *resp) {
     else resp->fail(error::unrecognisedmessage); }
 
 orerror<controlserver *>
-controlserver::build(const peername &p, waitbox<shutdowncode> &s) {
-    return rpcservice::listen<controlserver>(p, s); }
+controlserver::build(clientio io, const peername &p, waitbox<shutdowncode> &s) {
+    return rpcservice::listen<controlserver>(io, p, s); }

@@ -10,8 +10,7 @@
 #define _storageconfig(ctxt, iter0, iter1)                    \
     iter0(ctxt, 1, mand, ref, peername, controlsock)          \
     iter0(ctxt, 2, mand, ref, filename, poolpath)             \
-    iter0(ctxt, 3, mand, ref, beaconserverconfig, beacon)     \
-    iter1(ctxt, 4, mand, ref, rpcconnconfig, connconfig)
+    iter1(ctxt, 3, mand, ref, beaconserverconfig, beacon)
 class storageconfig {
     mktuplefields(storageconfig, public); };
 mktupleext(storageconfig);

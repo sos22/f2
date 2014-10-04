@@ -14,22 +14,19 @@ parsers::__storageconfig() {
             ~(" controlsock:" + _peername()) +
             ~(" poolpath:" + _filename()) +
             " beacon:" + __beaconserverconfig() +
-            ~(" connconfig:" + _rpcconnconfig()) +
             ">")
         .map<storageconfig>(
             []
-            (const pair<pair<pair<maybe<peername>,
-                                  maybe<filename> >,
-                             beaconserverconfig>,
-                        maybe<rpcconnconfig> > &x) {
+            (const pair<pair<maybe<peername>,
+                             maybe<filename> >,
+                        beaconserverconfig> &x) {
             return storageconfig(
-                x.first().first().first().dflt(
+                x.first().first().dflt(
                     peername::local(filename("storageslave"))
                     .fatal("peername storageslave")),
-                x.first().first().second().dflt(
+                x.first().second().dflt(
                     filename("storagepool")),
-                x.first().second(),
-                x.second().dflt(rpcconnconfig::dflt)); }); }
+                x.second()); }); }
 
 void
 tests::__storageconfig() {

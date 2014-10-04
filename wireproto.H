@@ -211,6 +211,8 @@ namespace wireproto {
         explicit req_message(msgtag);
         template <typename t> req_message &addparam(parameter<t> p, t v)
             { tx_message::addparam(p,v); return *this; }
+        template <typename t> req_message &addparam(parameter<maybe<t> > p, t v)
+            { tx_message::addparam(p,v); return *this; }
     };
     class resp_message : public tx_message {
     public:

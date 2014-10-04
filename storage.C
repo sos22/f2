@@ -36,9 +36,9 @@ main(int argc, char *argv[])
 
     waitbox<shutdowncode> s;
     config.controlsock.evict();
-    auto c(controlserver::build(config.controlsock, s)
+    auto c(controlserver::build(clientio::CLIENTIO, config.controlsock, s)
            .fatal("build control interface"));
-    auto slave(storageslave::build(config, c)
+    auto slave(storageslave::build(clientio::CLIENTIO, config, c)
                .fatal("build storage slave"));
 
     auto r = s.get(clientio::CLIENTIO);

@@ -126,14 +126,26 @@ rpcservice::rpcservice(const constoken &token)
     : root(NULL),
       config(token.config) {}
 
-void
-rpcservice::startrootthread(listenfd fd) {
+orerror<void>
+rpcservice::_initialise(clientio io, listenfd fd) {
     auto t(thread::spawn<rootthread>(
                "R" + fields::mk(fd.localname()),
                fd,
                this));
     root = t.unwrap();
-    t.go(); }
+    auto r(initialise(io));
+    if (r.isfailure()) {
+        t.destroy();
+        fd.close();
+        root = NULL;
+        delete this;
+        return r.failure(); }
+    else {
+        t.go();
+        return Success; } }
+
+orerror<void>
+rpcservice::initialise(clientio) { return Success; }
 
 peername
 rpcservice::localname() const {
@@ -441,6 +453,11 @@ rpcservice::response::fail(error err) {
     inner.flush();
     inner.addparam(wireproto::err_parameter, err);
     complete(); }
+
+void
+rpcservice::response::complete(orerror<void> e) {
+    if (e.isfailure()) fail(e.failure());
+    else complete(); }
 
 rpcservice::response::~response() {}
 

@@ -92,6 +92,7 @@ testcaseCS(const char *c_name,
                   unlink("testcontroller");
                   initpubsub();
                   auto cs(controlserver::build(
+                              clientio::CLIENTIO,
                               peername::local(filename("testcontroller"))
                               .fatal("peername testcontroller"),
                               s));

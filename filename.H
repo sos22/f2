@@ -68,7 +68,8 @@ public:  class diriter {
     public:  error failure() const;
     public:  bool finished() const;
     public:  void next();
-        /* Returns strings in the temporary heap. */
+        /* Returns strings in the temporary heap.  The string does not
+         * include the directory name. */
     public:  const char *filename() const;
     public:  ~diriter();
     };

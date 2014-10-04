@@ -8,20 +8,24 @@ template <typename> class parameter;
 extern const parameter<error> err_parameter; }
 
 template <typename t, typename ... args> orerror<t *>
-rpcservice::listen(const rpcserviceconfig &config,
+rpcservice::listen(clientio io,
+                   const rpcserviceconfig &config,
                    const peername &listenon,
                    args && ... params) {
     auto fd(rpcservice::open(listenon));
     if (fd.isfailure()) return fd.failure();
     auto res(new t(constoken(config),
                    std::forward<args>(params)...));
-    res->startrootthread(fd.success());
-    return res; }
+    auto r(res->_initialise(io, fd.success()));
+    if (r.isfailure()) return r.failure();
+    else return res; }
 
 template <typename t, typename ... args> orerror<t *>
-rpcservice::listen(const peername &listenon,
+rpcservice::listen(clientio io,
+                   const peername &listenon,
                    args && ... params) {
-    return listen<t>(rpcserviceconfig::dflt(),
+    return listen<t>(io,
+                     rpcserviceconfig::dflt(),
                      listenon,
                      std::forward<args>(params)...); }
 

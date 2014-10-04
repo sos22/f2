@@ -54,9 +54,9 @@ ${obj/.o/-t.o}: $src config
 ${obj/.o/-c.o}: $src config
 	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
 $dep: $src config
-	@\$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
+	@\$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::
-	rm -f $dep $obj ${obj}.tmp
+	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
 	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
 EOF

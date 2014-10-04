@@ -67,7 +67,8 @@ private: void invoke(const std::function<void (controlinterface *)> &);
        server will put a shutdown code in @s when it receives a QUIT
        message, but will continue serving incoming requests until you
        call destroy(). */
-public:  static orerror<controlserver *> build(const peername &listenon,
+public:  static orerror<controlserver *> build(clientio,
+                                               const peername &listenon,
                                                waitbox<shutdowncode> &s);
 private: void call(const wireproto::rx_message &, response *) final;
 };

@@ -2,49 +2,22 @@
 #define STORAGESLAVE_H__
 
 #include "controlserver.H"
-#include "filename.H"
-#include "rpcconn.H"
-#include "rpcserver.H"
+#include "rpcservice.H"
 #include "storageconfig.H"
 
 class clientio;
-class controlserver;
 template <typename> class orerror;
-class registrationsecret;
-class storageslave;
 class streamname;
 class jobname;
 
-class storageslavestatus {
-public:  rpcserver::status_t server;
-public:  list<rpcconn::status_t> clientconns;
-public:  storageslavestatus(const rpcserver::status_t &_server,
-                            const list<rpcconn::status_t> &_clientconns)
-    : server(_server),
-      clientconns(_clientconns) {}
-WIREPROTO_TYPE(storageslavestatus);
-};
+class storageslave : public rpcservice {
+    friend class rpcservice;
 
-namespace fields {
-class field;
-const field &mk(const storageslavestatus &);
-}
-
-class storageslaveconn;
-
-class storageslave : rpcserver {
-    friend class storageslaveconn;
-    friend class pausedthread<storageslave>;
-    friend class thread;
-    /* XXX only used for status interface; maybe move all of that to
-     * rpcserver layer? */
-private: list<storageslaveconn *> clients;
 private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
-    /* initialised very early on, before the server is unpaused, and
-     * const until the finish() method is invoked. */
 private: beaconserver *beacon;
+private: controlserver *const cs;
 private: class controliface : public controlinterface {
     private: storageslave *const owner;
     public:  controliface(storageslave *_owner,
@@ -53,50 +26,42 @@ private: class controliface : public controlinterface {
     private: void getlistening(rpcservice::response *) const final;
     };
 private: controliface control_;
-public:  static orerror<storageslave *> build(const storageconfig &config,
+public:  static orerror<storageslave *> build(clientio,
+                                              const storageconfig &config,
                                               controlserver *);
-private: storageslave(constoken,
-                      listenfd,
+private: storageslave(const constoken &,
                       controlserver *cs,
                       const storageconfig &config);
-private: orerror<rpcconn *> accept(socket_t);
+private: orerror<void> initialise(clientio) final;
+private: void call(const wireproto::rx_message &, response *) final;
 public:  orerror<void> createempty(
     const jobname &t,
-    const streamname &sn) const;
+    const streamname &sn);
 public:  orerror<void> append(
     const jobname &t,
     const streamname &sn,
-    buffer &b) const;
+    buffer &b);
 public:  orerror<void> finish(
     const jobname &t,
-    const streamname &sn) const;
-private: rpcconn::messageresult read(
-    const wireproto::rx_message &rxm,
+    const streamname &sn);
+private: void read(
+    response *resp,
     const jobname &jn,
     const streamname &sn,
     uint64_t start,
     uint64_t end) const;
-private: rpcconn::messageresult listjobs(
-    const wireproto::rx_message &rxm,
+private: void listjobs(
+    response *resp,
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit) const;
-private: rpcconn::messageresult liststreams(
-    const wireproto::rx_message &rxm,
+private: void liststreams(
+    response *resp,
     const jobname &jn,
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit) const;
 public:  orerror<void> removestream(
     const jobname &jn,
-    const streamname &sn) const;
-public:  void destroy(clientio);
-private: void finish(clientio) final;
-
-public:  typedef storageslavestatus status_t;
-public:  status_t status() const;
-};
-
-namespace fields {
-const field &mk(const storageslave::status_t &);
-}
+    const streamname &sn);
+private: void destroying(clientio) final; };
 
 #endif /* !STORAGESLAVE_H__ */

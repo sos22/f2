@@ -185,7 +185,7 @@ intparser_<typ, signd>::parse(const char *_what) const {
             what += 3; }
         else if (isdigit(what[2]) && what[3] == '}') {
             nbase = (what[1] - '0') * 10 + (what[2] - '0');
-            if (nbase >= 36) return error::noparse;
+            if (nbase > 36) return error::noparse;
             what += 4;
         } else {
             return error::noparse; } }
@@ -582,7 +582,13 @@ tests::parsers() {
             assert(intparser<unsigned short>().match("{16}ffff")
                    == 0xfffful);
             assert(intparser<unsigned short>().match("{16}1,0000")
-                   == error::overflowed); });
+                   == error::overflowed);
+
+            /* Base 36 is acceptable, base 37 isn't. */
+            assert(intparser<unsigned>().match("{36}Za")
+                   == 1270);
+            assert(intparser<unsigned>().match("{37}Za")
+                   == error::noparse); });
 
     testcaseV("parsers", "double", [] {
             assert(doubleparser.match("7.25") == 7.25);

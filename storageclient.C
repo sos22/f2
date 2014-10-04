@@ -9,14 +9,14 @@
 #include "logging.H"
 #include "parsers.H"
 #include "peername.H"
+#include "proto.H"
 #include "pubsub.H"
-#include "rpcconn.H"
+#include "rpcclient.H"
 #include "streamname.H"
 #include "streamstatus.H"
 
 #include "list.tmpl"
 #include "parsers.tmpl"
-#include "rpcconn.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"
@@ -30,10 +30,9 @@ main(int argc, char *argv[]) {
     auto peer(parsers::_peername()
               .match(argv[1])
               .fatal("parsing peername " + fields::mk(argv[1])));
-    auto conn(rpcconn::connect<rpcconn>(
+    auto conn(rpcclient::connect(
                   clientio::CLIENTIO,
-                  peer,
-                  rpcconnconfig::dflt)
+                  peer)
               .fatal("connecting to " + fields::mk(peer)));
     if (!strcmp(argv[2], "STALL")) {
         if (argc != 3) errx(1, "STALL takes no additional arguments");
@@ -143,12 +142,12 @@ main(int argc, char *argv[]) {
             req.addparam(proto::LISTJOBS::req::cursor,
                          parsers::_jobname()
                          .match(argv[3])
-                         .fatal("parsing job name " + fields::mk(argv[4]))); }
+                         .fatal("parsing job name " + fields::mk(argv[3]))); }
         if (argc > 4) {
             req.addparam(proto::LISTJOBS::req::limit,
                          parsers::intparser<unsigned>()
                          .match(argv[4])
-                         .fatal("parsing limit " + fields::mk(argv[5]))); }
+                         .fatal("parsing limit " + fields::mk(argv[4]))); }
         auto m = conn->call(clientio::CLIENTIO, req)
             .fatal(fields::mk("cannot list jobs"));
         fields::print("cursor: " +
@@ -166,7 +165,7 @@ main(int argc, char *argv[]) {
         req.addparam(proto::LISTSTREAMS::req::job,
                      parsers::_jobname()
                      .match(argv[3])
-                     .fatal("parsing job name " + fields::mk(argv[4])));
+                     .fatal("parsing job name " + fields::mk(argv[3])));
         if (argc > 4) {
             req.addparam(proto::LISTSTREAMS::req::cursor,
                          parsers::_streamname()
@@ -206,6 +205,6 @@ main(int argc, char *argv[]) {
     } else {
         errx(1, "unknown mode %s", argv[2]); }
 
-    conn->destroy(clientio::CLIENTIO);
+    delete conn;
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging(); }

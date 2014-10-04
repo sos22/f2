@@ -29,7 +29,6 @@ class rpcserverstatus;
 class rpcservicestatus;
 class shutdowncode;
 class slavename;
-class storageslavestatus;
 class streamname;
 class streamstatus;
 class ratelimiterconfig;
@@ -121,7 +120,7 @@ namespace proto {
         /* no request parameters */
         namespace resp {
             static const parameter< ::beaconserverstatus> beacon(450);
-            static const parameter< ::storageslavestatus> storageslave(451);
+            static const parameter< ::rpcservicestatus> storageslave(451);
             static const parameter< ::slavename> myname(452);
             static const parameter< ::beaconclientstatus> beaconclient(453);
             static const parameter< ::rpcservicestatus> controlserver(454);
@@ -278,16 +277,16 @@ namespace proto {
         namespace req {
             /* Optional cursor from which to start returning results.
              * If not present, start from the beginning. */
-            static const parameter< ::jobname> cursor(1600);
+            static const parameter<maybe< ::jobname> > cursor(1600);
             /* Optional limit on number of results to return.  If not
              * present, return all of them. */
-            static const parameter< unsigned> limit(1601);
+            static const parameter<maybe<unsigned> > limit(1601);
         }
         namespace resp {
             /* Cursor from which client can restart iteration to get
              * the rest of the results, or Nothing if there are no
              * more. */
-            static const parameter< ::jobname> cursor(1650);
+            static const parameter<maybe< ::jobname> > cursor(1650);
             static const parameter<list< ::jobname> > jobs(1651);
         }
     }
@@ -299,16 +298,16 @@ namespace proto {
             static const parameter< ::jobname> job(1700);
             /* Optional cursor from which to start returning results.
              * If not present, start from the beginning. */
-            static const parameter< ::streamname> cursor(1701);
+            static const parameter<maybe< ::streamname > > cursor(1701);
             /* Optional limit on number of results to return.  If not
              * present, return all of them. */
-            static const parameter< unsigned> limit(1702);
+            static const parameter<maybe<unsigned> > limit(1702);
         }
         namespace resp {
             /* Cursor from which client can restart iteration to get
              * the rest of the results, or Nothing if there are no
              * more. */
-            static const parameter< ::streamname> cursor(1750);
+            static const parameter<maybe< ::streamname> > cursor(1750);
             static const parameter<list< ::streamstatus> > streams(1751);
         }
     }
