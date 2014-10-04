@@ -105,6 +105,7 @@ private: void call(const wireproto::rx_message &, response *resp) {
 void _rpc() {
     testcaseIO("rpc", "basic", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             auto r(s->localname());
@@ -128,9 +129,11 @@ void _rpc() {
                    error::from_errno(ECONNREFUSED)); });
     testcaseIO("rpc", "listenbad", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             assert(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(s->localname().getport())) ==
                    error::from_errno(EADDRINUSE));
             s->destroy(io); });
@@ -148,6 +151,7 @@ void _rpc() {
              * completes.  1000 iterations should be enough to have a
              * decent chance of success. */
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             auto p(s->localname());
@@ -157,6 +161,7 @@ void _rpc() {
     testcaseIO("rpc", "slowcalls", [] (clientio io) {
             for (unsigned mode = 0; mode < 3; mode++) {
                 auto s(rpcservice::listen<slowserver>(
+                           io,
                            peername::loopback(peername::port::any),
                            timedelta::milliseconds(0),
                            timedelta::milliseconds(100))
@@ -206,6 +211,7 @@ void _rpc() {
             /* Reduce the FD limit and deliberately run into it, to
              * make sure that we recover when expected. */
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             struct rlimit oldlimit;
@@ -274,6 +280,7 @@ void _rpc() {
     testcaseIO("rpc", "backpressure", [] (clientio io) {
             const timedelta lagtime(timedelta::seconds(1));
             auto s(rpcservice::listen<slowserver>(
+                       io,
                        peername::loopback(peername::port::any),
                        lagtime,
                        lagtime)
@@ -311,6 +318,7 @@ void _rpc() {
             s->destroy(io); });
     testcaseIO("rpc", "badversion", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             auto c(rpcclientconfig::dflt());
@@ -320,6 +328,7 @@ void _rpc() {
             s->destroy(io); });
     testcaseIO("rpc", "abortcalls", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             auto c(rpcclient::connect(io, s->localname())
@@ -332,6 +341,7 @@ void _rpc() {
     testcaseIO("rpc", "abandoncall", [] (clientio io) {
             waitbox<void> started;
             auto s(rpcservice::listen<waitserver>(
+                       io,
                        peername::loopback(peername::port::any),
                        started)
                    .fatal("starting wait server"));
@@ -352,6 +362,7 @@ void _rpc() {
             sconfig.socketsendsize = 1024;
             cconfig.socketrcvsize = 128;
             auto s(rpcservice::listen<bigreplyserver>(
+                       io,
                        sconfig,
                        peername::loopback(peername::port::any))
                    .fatal("starting big reply server"));
@@ -378,6 +389,7 @@ void _rpc() {
             sconfig.socketrcvsize = 128;
             cconfig.socketsendsize = 1024;
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        sconfig,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial service"));
@@ -401,6 +413,7 @@ void _rpc() {
             s->destroy(io); });
     testcaseIO("rpc", "fuzzserver", [] (clientio io) {
             auto s(rpcservice::listen<trivserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting trivial server"));
             waitbox<void> shutdown;
@@ -436,6 +449,7 @@ void _rpc() {
             s->destroy(io); });
     testcaseIO("rpc", "fuzzclient", [] (clientio io ) {
             auto s(rpcservice::listen<fuzzserver>(
+                       io,
                        peername::loopback(peername::port::any))
                    .fatal("starting fuzz server"));
             auto c(rpcclient::connect(io, s->localname())
@@ -456,6 +470,7 @@ void _rpc() {
     testcaseIO("rpc", "failserver", [] (clientio io) {
             for (unsigned x = 0; x < 100; x++) {
                 auto s(rpcservice::listen<failserver>(
+                           io,
                            peername::loopback(peername::port::any),
                            x % 2 == 0)
                        .fatal("starting fail server"));
