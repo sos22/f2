@@ -222,12 +222,6 @@ namespace wireproto {
         template <typename t> resp_message &addparam(parameter<t> p, t v)
             { tx_message::addparam(p,v); return *this; }
     };
-    class err_resp_message : public tx_message {
-    public:
-        const sequencenr sequence;
-        err_resp_message(const rx_message &r, const error &e);
-        void serialise(buffer &buf) const;
-    };
     class rx_message {
         friend const fields::field &fields::mk(const wireproto::rx_message *);
     private: rx_message() = delete;

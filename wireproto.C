@@ -35,14 +35,6 @@ resp_message::resp_message(const rx_message &o)
     : tx_message(o.tag()), sequence(o.sequence().reply())
 {}
 
-err_resp_message::err_resp_message(const rx_message &o,
-                                   const error &e)
-    : tx_message(o.tag()),
-      sequence(o.sequence().reply())
-{
-    addparam(wireproto::err_parameter, e);
-}
-
 req_message::req_message(msgtag _t)
     : tx_message(_t)
 {}
@@ -116,12 +108,6 @@ tx_message::clone() const
 
 void
 resp_message::serialise(buffer &buffer) const
-{
-    return tx_message::serialise(buffer, sequence);
-}
-
-void
-err_resp_message::serialise(buffer &buffer) const
 {
     return tx_message::serialise(buffer, sequence);
 }
@@ -822,16 +808,6 @@ tests::wireproto() {
             assert(rxm2.success().getparam(p1) == Nothing);
             assert(rxm2.success().getparam(p2).isjust());
             assert(rxm2.success().getparam(p2).just() == 11); });
-
-    testcaseV("wireproto", "errresp", [t] () {
-            ::buffer buf;
-            auto snr(sequencer().get());
-            req_message(t).serialise(buf, snr);
-            auto rxm(rx_message::fetch(buf));
-            err_resp_message(rxm.success(), error::ratelimit).serialise(buf);
-            auto rxm2(rx_message::fetch(buf));
-            auto errparam(rxm2.success().getparam(wireproto::err_parameter));
-            assert(errparam == error::ratelimit); });
 
     testcaseV("wireproto", "external", [t] () {
             ::buffer buf;
