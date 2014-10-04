@@ -4,19 +4,3 @@
 
 cc tests/abort/abort.c
 ld tests/abort/abort tests/abort/abort.o
-
-cc tests/pingserver/server.C
-ld tests/pingserver/server tests/pingserver/server.o lib.a
-target tests/pingserver/server
-
-cc tests/pingclient/client.C
-ld tests/pingclient/client tests/pingclient/client.o lib.a
-target tests/pingclient/client
-
-cc tests/quitclient/client.C
-ld tests/quitclient/client tests/quitclient/client.o lib.a
-target tests/quitclient/client
-
-cc tests/master/testmaster.C
-ld tests/master/testmaster tests/master/testmaster.o lib.a
-target tests/master/testmaster
