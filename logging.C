@@ -12,12 +12,12 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "beaconclient.H"
 #include "error.H"
 #include "fields.H"
 #include "maybe.H"
 #include "mutex.H"
 #include "proto.H"
-#include "rpcconn.H"
 #include "test.H"
 #include "walltime.H"
 

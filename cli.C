@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "beaconclient.H"
 #include "beaconserver.H"
 #include "buildconfig.H"
 #include "fields.H"
@@ -15,7 +16,6 @@
 #include "wireproto.H"
 
 #include "list.tmpl"
-#include "rpcconn.tmpl"
 #include "wireproto.tmpl"
 
 #include "fieldfinal.H"

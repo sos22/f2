@@ -32,8 +32,6 @@ function bits() {
     _ pubsub
     _ quickcheck
     _ rpcclient
-    _ rpcconn
-    _ rpcserver
     _ rpcservice
     _ shutdown
     _ slavename

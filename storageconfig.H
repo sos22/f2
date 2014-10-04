@@ -3,7 +3,6 @@
 
 #include "beaconserver.H"
 #include "filename.H"
-#include "rpcconn.H"
 #include "slavename.H"
 #include "tuple.H"
 
