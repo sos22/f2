@@ -429,6 +429,25 @@ beaconclient::run(clientio io) {
     listenfd.close();
     clientfd.close(); }
 
+maybe<beaconclientresult>
+beaconclient::poll(const slavename &sn) {
+    return cachelock.locked<maybe<beaconclientresult> >(
+        [this, &sn]
+        (mutex_t::token) -> maybe<beaconclientresult> {
+            for (auto it(cache.start()); !it.finished(); it.next()) {
+                auto e(*it);
+                if (e->name == sn) return e->result; }
+            return Nothing; }); }
+
+beaconclientresult
+beaconclient::query(clientio io, const slavename &sn) {
+    subscriber sub;
+    subscription ss(sub, changed);
+    while (true) {
+        auto res(poll(sn));
+        if (res != Nothing) return res.just();
+        sub.wait(io); } }
+
 beaconclient::iterator::entry::entry(const slavename &_name,
                                      actortype _type,
                                      const peername &_peer)

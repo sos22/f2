@@ -150,6 +150,8 @@ private: const beaconclientconfig config;
     /* Protects @cache.  The locks on individual entries nest inside
      * this one.  mutable because it's acquired from status(). */
 private: mutable mutex_t cachelock;
+    /* Never NULL.  Only a pointer because the things need to live
+     * after they get removed from the list. */
 private: list<beaconclientslot *> cache;
 private: waitbox<void> shutdown;
     /* Notified whenever someone other that the cache thread adds
@@ -182,27 +184,13 @@ private: void run(clientio);
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */
 public:  maybe<beaconclientresult> poll(const slavename &);
-    /* Find the peername and actortype associated with a given
-     * slavename, sending additional queries if we don't already know
-     * it.  If given, the deadline gives the maximum time for which we
-     * will wait for responses, which is otherwise infinite.  Note
-     * that this is not the same thing as the query interval, which is
-     * the interval between re-sending queries if the first one
-     * receives no reply.  The deadline, when given, should always be
-     * at least one queryinterval in the future.  Returns Nothing on
-     * timeout or a beaconclientresult otherwise. */
-public:  maybe<beaconclientresult> query(
-    clientio,
-    const slavename &,
-    maybe<timestamp> deadline = Nothing);
-    /* A variant of query() which also monitors a caller-supplied
-     * subscriber block, returning if any of the subscriptions becomes
-     * notified. */
-public:  maybe<either<beaconclientresult, subscription *> > query(
-    clientio,
-    const slavename &,
-    subscriber &,
-    maybe<timestamp> deadline = Nothing);
+    /* Convenience function: query for a slavename, waiting as long as
+     * necessary to get a result.  This is only really useful from
+     * command line tools: if the remote machine has crashed, it'll
+     * wait forever for it to come back, which is only really sensible
+     * in a context where the user will control-C you if you're taking
+     * an unreasonable amount of time. */
+public:  beaconclientresult query(clientio, const slavename &);
     /* Iterator for enumerating all of the entries in the cache.  If
      * given, the actortype restricts the enumeration to only return
      * entries of a particular type.  Otherwise, all entries are
