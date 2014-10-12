@@ -50,4 +50,11 @@ thread::_spawn(
     (void)rr;
     return res; }
 
+template <typename t, typename ... args> t *
+thread::start(
+    const fields::field &name,
+    args && ... params) {
+    auto p(spawn<t, args...>(name, std::forward<args>(params)...));
+    return p.go(); }
+
 #endif /* !THREAD_TMPL__ */

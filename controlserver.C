@@ -26,6 +26,9 @@ controlinterface::start() {
     owner->ifacelock.locked([this] (mutex_t::token) {
             owner->ifaces.pushtail(this); }); }
 
+void
+controlinterface::getlistening(rpcservice::response *) const { }
+
 controlinterface::~controlinterface() {
     assert(started);
     auto token(owner->ifacelock.lock());

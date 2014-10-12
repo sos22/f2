@@ -32,6 +32,8 @@ public: void publish();
     /* Destruct a publisher.  It must not have any subscriptions when
      * this is called. */
 public: ~publisher();
+    /* Special publisher which is never notified. */
+public: static const publisher dummy;
 };
 
 class subscriptionbase {

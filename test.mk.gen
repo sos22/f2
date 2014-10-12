@@ -2,9 +2,10 @@
 
 . shutil
 
+cc connpooltest.C
 cc either.C
 cc rpctest.C
 cc testdriver.C
-ld test either.o rpctest.o testdriver.o lib.a
+ld test connpooltest.o either.o rpctest.o testdriver.o lib.a
 
 target test

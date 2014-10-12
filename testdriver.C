@@ -7,6 +7,7 @@
 #include "buffer.H"
 #include "clustername.H"
 #include "cond.H"
+#include "connpool.H"
 #include "either.H"
 #include "error.H"
 #include "fd.H"
@@ -39,6 +40,7 @@ main(int argc, char *argv[])
     tests::buffer();
     tests::__clustername();
     tests::cond();
+    tests::_connpool();
     tests::either();
     tests::_error();
     tests::fd();

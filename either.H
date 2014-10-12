@@ -17,6 +17,8 @@ public:  const a &left() const;
 public:  a &left();
 public:  const b &right() const;
 public:  b &right();
+public:  void mkright(const b &);
+public:  void mkleft(const a &);
 public:  ~either();
 };
 

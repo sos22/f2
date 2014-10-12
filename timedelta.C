@@ -25,69 +25,11 @@ timedelta::operator+(timestamp ts) const
     return ts + *this;
 }
 
-timedelta
-timedelta::operator+(timedelta d) const {
-    return timedelta(v + d.v); }
-
-timedelta
-timedelta::operator-(timedelta d) const {
-    return timedelta(v - d.v); }
-
 double
 timedelta::operator *(frequency f) const
 {
     return (double)v * f.hz_ / 1e9;
 }
-
-timedelta
-timedelta::operator *(double d) const
-{
-    return timedelta((long)((double)v * d));
-}
-
-double
-timedelta::operator /(timedelta o) const {
-    return (double)v / (double)o.v; }
-
-timedelta
-timedelta::operator /(double f) const {
-    return timedelta((long)((double)v / f)); }
-
-bool
-timedelta::operator <=(timedelta o) const {
-    return v <= o.v; }
-
-bool
-timedelta::operator ==(timedelta o) const {
-    return v == o.v; }
-
-bool
-timedelta::operator >=(timedelta o) const {
-    return v >= o.v; }
-
-timedelta
-timedelta::seconds(long nr) {
-    return timedelta(nr * 1000000000l); }
-
-timedelta
-timedelta::milliseconds(long nr) {
-    return timedelta(nr * 1000000l); }
-
-timedelta
-timedelta::microseconds(long nr) {
-    return timedelta(nr * 1000l); }
-
-timedelta
-timedelta::nanoseconds(long nr) {
-    return timedelta(nr); }
-
-long
-timedelta::as_milliseconds() const {
-    return (v + 500000) / 1000000; }
-
-bool
-timedelta::operator <(const timedelta &d) const {
-    return v < d.v; }
 
 const fields::field &
 fields::mk(const timedelta &td) {

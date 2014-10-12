@@ -25,6 +25,9 @@ mutex_t::lock()
     return token();
 }
 
+mutex_t::token
+mutex_t::DUMMY() { return token(); }
+
 void
 mutex_t::unlock(token *tok)
 {

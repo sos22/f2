@@ -24,6 +24,7 @@ private: string content;
 private: void operator=(const slavename &) = delete;
 private: slavename() = delete;
 public:  slavename(const slavename &);
+public:  slavename steal();
 public:  slavename(const quickcheck &);
 public:  bool operator==(const slavename &) const;
 public:  bool operator!=(const slavename &) const;

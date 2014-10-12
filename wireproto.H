@@ -172,8 +172,8 @@ namespace wireproto {
         /* Remove all of the message parameters attached so far. */
         tx_message &flush();
     public: size_t serialised_size() const;
+    public: tx_message *clone() const;
     private:
-        tx_message *clone() const;
         class pinstance {
             friend class tx_message;
         private: uint16_t id;
@@ -213,6 +213,8 @@ namespace wireproto {
             { tx_message::addparam(p,v); return *this; }
         template <typename t> req_message &addparam(parameter<maybe<t> > p, t v)
             { tx_message::addparam(p,v); return *this; }
+        req_message *clone() const {
+            return static_cast<req_message *>(tx_message::clone()); }
     };
     class resp_message : public tx_message {
     public:

@@ -43,6 +43,11 @@ public:
     template <typename t> t locked(const std::function<t (token)> &);
     void locked(const std::function<void (token)> &);
 
+    /* Generate a dummy token without acquiring the lock.  Useful if
+     * we know that the lock has somehow become private to the calling
+     * thread. */
+    token DUMMY();
+
     void unlock(token *);
 };
 

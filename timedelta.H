@@ -27,23 +27,25 @@ public:
     timedelta(const quickcheck &);
     /* Random over a limited range. */
     timedelta(const quickcheck &, timedelta min, timedelta max);
-    static timedelta seconds(long nr) __attribute__((const));
-    static timedelta milliseconds(long nr) __attribute__((const));
-    static timedelta microseconds(long nr) __attribute__((const));
-    static timedelta nanoseconds(long nr) __attribute__((const));
+    static timedelta seconds(long nr) { return timedelta(nr * 1000000000l); }
+    static timedelta milliseconds(long nr) { return timedelta(nr * 1000000l); }
+    static timedelta microseconds(long nr) { return timedelta(nr * 1000l); }
+    static timedelta nanoseconds(long nr) { return timedelta(nr); }
     timestamp operator+(timestamp) const;
-    timedelta operator+(timedelta) const;
-    timedelta operator-(timedelta) const;
+    timedelta operator+(timedelta d) const { return timedelta(v+d.v); }
+    timedelta operator-(timedelta d) const { return timedelta(v-d.v); }
     double operator*(frequency) const;
-    timedelta operator*(double) const;
-    double operator/(timedelta) const;
-    timedelta operator/(double) const;
-    bool operator>=(timedelta) const;
-    bool operator==(timedelta) const;
-    bool operator<=(timedelta) const;
+    timedelta operator*(double d) const {
+        return timedelta((long)((double)v * d)); }
+    double operator/(timedelta d) const { return (double)v/(double)d.v; }
+    timedelta operator/(double d) const { return *this * (1.0/d); }
+    bool operator>(timedelta o) const { return v > o.v; }
+    bool operator>=(timedelta o) const { return v >= o.v; }
+    bool operator==(timedelta o) const { return v == o.v; }
+    bool operator<=(timedelta o) const { return v <= o.v; }
+    bool operator<(timedelta o) const { return v < o.v; }
 
-    long as_milliseconds() const;
-    bool operator<(const timedelta &o) const;
+    long as_milliseconds() const { return (v + 500000) / 1000000; }
 
     template <typename t> static timeres<t> time(std::function<t ()>);
     static timedelta time(std::function<void ()>);

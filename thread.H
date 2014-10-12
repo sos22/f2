@@ -78,6 +78,10 @@ public:    template <typename t, typename token, typename ... args>
         const fields::field &name,
         const std::function<token (const constoken &)> &wraptoken,
         args &&... params);
+    /* Wrapper around spawn(): create a thread and immediately unpause it. */
+public:    template <typename t, typename ... args> static t *start(
+        const fields::field &name,
+        args &&...params);
 private:   void go();
 private:   static void *pthreadstart(void *);
     /* The main thread run method.  Derived classes should override

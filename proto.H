@@ -12,6 +12,7 @@ class buffer;
 class bufferstatus;
 class buildconfig;
 class clustername;
+class connpoolstatus;
 class digest;
 class fd_tstatus;
 class frequency;
@@ -124,6 +125,7 @@ namespace proto {
             static const parameter< ::slavename> myname(452);
             static const parameter< ::beaconclientstatus> beaconclient(453);
             static const parameter< ::rpcservicestatus> controlserver(454);
+            static const parameter< ::connpoolstatus> connpool(455);
         };
     };
 

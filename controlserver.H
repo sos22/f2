@@ -38,8 +38,9 @@ protected: explicit controlinterface(controlserver *cs);
 protected: void start();
     /* Add parameters to a STATUS query. */
 public:    virtual void getstatus(rpcservice::response *msg) const = 0;
-    /* Add parameters to a LISTENING query. */
-public:    virtual void getlistening(rpcservice::response *msg) const = 0;
+    /* Add parameters to a LISTENING query.  Default is to assume
+     * we're not listening anywhere. */
+public:    virtual void getlistening(rpcservice::response *msg) const;
     /* Destruct the interface, waiting for any extant invocations of
      * getstatus() and getlistening() to finish if necessarry.  We get
      * away with waiting from a destructor because all the getstatus()
