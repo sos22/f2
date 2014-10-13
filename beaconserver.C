@@ -17,6 +17,7 @@
 #include "udpsocket.H"
 #include "waitbox.H"
 
+#include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "rpcservice.tmpl"
 #include "test.tmpl"
@@ -27,6 +28,14 @@
 
 mktupledef(beaconserverconfig);
 mktupledef(beaconserverstatus);
+
+beaconserverconfig
+beaconserverconfig::dflt(const clustername &_cluster,
+                         const slavename &_slave) {
+    return beaconserverconfig(beaconconfig::dflt,
+                              _cluster,
+                              _slave,
+                              timedelta::seconds(60)); }
 
 const parser<beaconserverconfig> &
 parsers::__beaconserverconfig() {
@@ -51,8 +60,7 @@ parsers::__beaconserverconfig() {
 beaconserver::controliface::controliface(beaconserver *server,
                                          controlserver *cs)
     : ::controlinterface(cs),
-      owner(server) {
-      start(); }
+      owner(server) { start(); }
 
 void
 beaconserver::controliface::getstatus(rpcservice::response *resp) const {
@@ -100,7 +108,7 @@ beaconserver::beaconserver(thread::constoken token,
       shutdown(),
       errors(0),
       ignored(0),
-      controliface_(this, cs) {}
+      controliface_(Nothing) { if (cs) controliface_.mkjust(this, cs); }
 
 void
 beaconserver::run(clientio io) {

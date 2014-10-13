@@ -31,7 +31,9 @@ class clientio;
     /* is this plus one network delay. */                               \
     iter1(ctxt, 4, mand, value, timedelta, cachetime)
 class beaconserverconfig {
-    mktuplefields(beaconserverconfig, public); };
+    mktuplefields(beaconserverconfig, public);
+public: static beaconserverconfig dflt(const clustername &,
+                                       const slavename &); };
 mktupleext(beaconserverconfig);
 
 #define _beaconserverstatus(ctxt, iter0, iter1)                         \
@@ -73,14 +75,14 @@ private: waitbox<void> shutdown;
 private: unsigned errors; /* total number of errors, ever */
 private: unsigned ignored; /* total number of ignored requests,
                             * excluding errors, ever */
-private: controliface controliface_;
+private: maybe<controliface> controliface_;
 
     /* Construct a new beacon server.  We expose listening and status
-     * interfaces over the controlserver cs. */
+     * interfaces over the controlserver cs, if it's non-NULL. */
 public:  static orerror<beaconserver *> build(const beaconserverconfig &,
                                               actortype type,
                                               peername::port port,
-                                              controlserver *cs);
+                                              controlserver *cs = NULL);
     /* Use build() */
 private: beaconserver(thread::constoken,
                       const beaconserverconfig &config,

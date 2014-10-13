@@ -27,6 +27,8 @@ class clientio;
 template <typename> class orerror;
 class quickcheck;
 
+class beaconclientslot;
+
 #define _beaconclientconfig(ctxt, iter0, iter1)                         \
     iter0(ctxt, 1, mand, ref, ::beaconconfig, proto)                    \
     /* What cluster are we tracking? */                                 \
@@ -69,67 +71,22 @@ mktupleext(beaconclientresult);
 #define _beaconclientslotstatus(ctxt, iter0, iter1)                     \
     /* name of remote system */                                         \
     iter0(ctxt, 1, mand, ref, ::slavename, name)                        \
-    /* Nothing if we've not gotten a beacon response yet or the */      \
-    /* response details otherwise. */                                   \
-    iter0(ctxt, 2, opt, ref, ::beaconclientresult, result)              \
+    /* Result of the query. */                                          \
+    iter0(ctxt, 2, mand, ref, ::beaconclientresult, result)             \
     /* When did we last send a request to the beacon?  Nothing if */    \
     /* either we've never sent a request or if the last request we */   \
     /* sent has already received a response. */                         \
     iter0(ctxt, 3, opt, value, ::walltime, lastbeaconrequestwall)       \
     /* When we this entry last used?  We only bother to refresh things*/ \
     /* which have been used recently. */                                \
-    iter0(ctxt, 4, mand, value, ::walltime, lastusedwall)               \
-    /* Simple reference count for the slot.  The slot is deleted if */  \
-    /* this reaches zero.  Being in the beaconclient cache list counts*/\
-    /* as a reference. */                                               \
-    iter1(ctxt, 5, mand, value, unsigned, refcount)
+    iter1(ctxt, 4, mand, value, ::walltime, lastusedwall)
 class beaconclientslotstatus {
     mktuplefields(beaconclientslotstatus, public); };
 mktupleext(beaconclientslotstatus);
 
-class beaconclientslot {
-    _beaconclientslotstatus(Z, __mktuplefields, __mktuplefields);
-public: maybe<timestamp> lastbeaconrequest;
-public: timestamp lastused;
-    /* Set if we've decided to let this slot expire rather than
-     * refreshing it. */
-public:  bool dead;
-    /* When will the entry expire if we fail to refresh it?  Only set
-     * if result is non-Nothing (and can't be in the beaconcientresult
-     * itself because that's a wire type and class timestamp is only
-     * meaningful host-local).*/
-public: maybe<timestamp> expiry;
-    /* When did we receive content of result?  Only set of result is
-     * non-Nothing. */
-public: maybe<timestamp> lastbeaconresponse;
-    /* Protects all of our fields except pub (and mux itself).  Nests
-     * inside the beaconclient cachelock.  Mutable because we acquire
-     * it from beaconclient::status(), which is const. */
-public:  mutable mutex_t mux;
-    /* Notified whenever result goes from Nothing to non-Nothing and
-     * whenever dead goes from false to true. */
-public:  publisher pub;
-public:  explicit beaconclientslot(const slavename &,
-                                   walltime,
-                                   timestamp);
-public:  beaconclientslot(const slavename &,
-                          const beaconclientresult &,
-                          walltime,
-                          timestamp,
-                          timestamp);
-    /* Increment the reference count.  Caller must eventually call
-     * deref(). */
-public:  void ref();
-    /* Decrement the reference count, deleting the slot if it reaches
-     * zero. */
-public:  void deref();
-    /* status interface */
-public:  typedef beaconclientslotstatus status_t;
-public:  status_t status() const; };
-
 #define _beaconclientstatus(ctxt, iter0, iter1)                         \
     iter0(ctxt, 1, mand, ref, ::beaconclientconfig, config)             \
-    iter0(ctxt, 2, mand, ref, ::list< ::beaconclientslot::status_t>, cache) \
+    iter0(ctxt, 2, mand, ref, ::list< ::beaconclientslotstatus>, cache) \
     iter1(ctxt, 3, mand, value, int, errors)
 class beaconclientstatus {
     mktuplefields(beaconclientstatus, public);
@@ -154,12 +111,11 @@ private: mutable mutex_t cachelock;
      * after they get removed from the list. */
 private: list<beaconclientslot *> cache;
 private: waitbox<void> shutdown;
-    /* Notified whenever someone other that the cache thread adds
-     * something to @cache. */
+    /* Notified whenever something new gets added to the cache. */
 private: publisher newslave;
     /* Notified whenever the cache thread alters the content of the
      * cache. /*/
-public:  publisher changed;
+private: publisher _changed;
 private: udpsocket listenfd;
 private: udpsocket clientfd;
 private: int errors;
@@ -228,6 +184,12 @@ public:  class iterator {
     public:  void next();
     public:  ~iterator(); };
 public:  iterator start(maybe<actortype> = Nothing);
+
+    /* Notified whenever the set of entries reported by the iterator
+     * increases and whenever any result from poll() goes from Nothing
+     * to something. */
+public:  const publisher &changed() const;
+
     /* status interface */
 public:  typedef beaconclientstatus status_t;
 public:  status_t status() const;

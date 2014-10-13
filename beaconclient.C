@@ -15,6 +15,34 @@
 
 #include "fieldfinal.H"
 
+class beaconclientslot {
+    _beaconclientslotstatus(Z, __mktuplefields, __mktuplefields);
+public: maybe<timestamp> lastbeaconrequest;
+public: timestamp lastused;
+    /* When will the entry expire if we fail to refresh it?  Only set
+     * if result is non-Nothing (and can't be in the beaconcientresult
+     * itself because that's a wire type and class timestamp is only
+     * meaningful host-local).*/
+public: maybe<timestamp> expiry;
+    /* When did we receive content of result?  Only set of result is
+     * non-Nothing. */
+public: maybe<timestamp> lastbeaconresponse;
+    /* Protects all of our fields except pub (and mux itself).  Nests
+     * inside the beaconclient cachelock.  Mutable because we acquire
+     * it from beaconclient::status(), which is const. */
+public:  mutable mutex_t mux;
+    /* Notified whenever result goes from Nothing to non-Nothing and
+     * whenever dead goes from false to true. */
+public:  publisher pub;
+public:  beaconclientslot(const slavename &,
+                          const beaconclientresult &,
+                          walltime,
+                          timestamp,
+                          timestamp);
+    /* status interface */
+public:  typedef beaconclientslotstatus status_t;
+public:  status_t status() const; };
+
 beaconclientconfig
 beaconclientconfig::dflt(const clustername &_cluster,
                          maybe<actortype> _type,
@@ -61,22 +89,6 @@ parsers::__beaconclientconfig() {
                     x.first().second().dflt(timedelta::seconds(120)),
                     x.second().dflt(timedelta::seconds(300))); }); }
 
-beaconclientslot::beaconclientslot(const slavename &_name,
-                                   walltime whenwall,
-                                   timestamp when)
-    : name(_name),
-      result(Nothing),
-      lastbeaconrequestwall(Nothing),
-      lastusedwall(whenwall),
-      refcount(1),
-      lastbeaconrequest(Nothing),
-      lastused(when),
-      dead(false),
-      expiry(Nothing),
-      lastbeaconresponse(Nothing),
-      mux(),
-      pub() {}
-
 beaconclientslot::beaconclientslot(const slavename &sn,
                                    const beaconclientresult &bcr,
                                    walltime whenwall,
@@ -86,25 +98,12 @@ beaconclientslot::beaconclientslot(const slavename &sn,
       result(bcr),
       lastbeaconrequestwall(Nothing),
       lastusedwall(whenwall),
-      refcount(1),
       lastbeaconrequest(Nothing),
       lastused(when),
-      dead(false),
       expiry(_expiry),
       lastbeaconresponse(when),
       mux(),
       pub() {}
-
-void
-beaconclientslot::ref() {
-    mux.locked([this] (mutex_t::token) { refcount++; }); }
-
-void
-beaconclientslot::deref() {
-    if (mux.locked<bool>([this] (mutex_t::token) {
-                refcount--;
-                return refcount == 0; })) {
-        delete this; } }
 
 beaconclientslot::status_t
 beaconclientslot::status() const {
@@ -116,8 +115,7 @@ beaconclientslot::status() const {
             return status_t(name,
                             result,
                             lastbeaconrequestwall,
-                            lastusedwall,
-                            refcount); } ); }
+                            lastusedwall); }); }
 
 beaconclientstatus::beaconclientstatus(
     const beaconclientconfig &_config,
@@ -195,15 +193,6 @@ beaconclient::run(clientio io) {
                     auto entry(*it);
                     nextactivity =
                         min(nextactivity, entry->lastused + config.gctimeout);
-                    if (entry->result == Nothing) {
-                        /* Don't know where to send this one to -> next
-                         * query should be a broadcast. */
-                        broadcast = true;
-                        if (entry->lastbeaconrequest == Nothing) {
-                            /* No knowledge and no outstanding request
-                             * -> send it now. */
-                            nextactivity = timestamp::now();
-                            break; } }
                     if (entry->lastbeaconrequest != Nothing) {
                         /* Waiting for a request to come back with a
                          * response -> resend after a short
@@ -310,14 +299,9 @@ beaconclient::run(clientio io) {
                          it.next()) {
                         auto entry(*it);
                         if (entry->name == respname) {
-                            auto publish(entry->mux.locked<bool>(
-                                             [&bcr, entry] (mutex_t::token) {
-                                                 auto res(
-                                                     entry->result == Nothing);
-                                                 entry->result = bcr;
-                                                 return res; } ) );
+                            entry->mux.locked([&bcr, entry] (mutex_t::token) {
+                                    entry->result = bcr; });
                             entry->pub.publish();
-                            if (publish) changed.publish();
                             found = true;
                             break; } }
                     if (!found) {
@@ -330,7 +314,7 @@ beaconclient::run(clientio io) {
                                 walltime::now(),
                                 timestamp::now(),
                                 respcachetime.just() + timestamp::now()));
-                        changed.publish(); } });
+                        _changed.publish(); } });
             continue; }
         /* Must have hit the timeout.  Figure out what we're doing
          * about it. */
@@ -364,23 +348,12 @@ beaconclient::run(clientio io) {
                     if (entry->lastused + config.gctimeout < timestamp::now()) {
                         /* Entry expired */
                         it.remove();
-                        entry->dead = true;
                         entry->pub.publish();
                         return true; }
                     else if (broadcast) {
                         /* Sending a broadcast counts as a query on
                          * all peers. */
                         entry->lastbeaconrequest = timestamp::now(); }
-                    else if (entry->result == Nothing) {
-                        /* Can't send directed request; don't know
-                         * where to send it to.  Wait for broadcasts
-                         * to do their thing. */
-                        /* Most of the time, ignorant entries will set
-                         * the broadcast slot, so we won't get here,
-                         * but it's possible that we might sometimes
-                         * if we race with someone querying for a
-                         * fresh slave from another thread.  Just go
-                         * around again; we'll broadcast next time. */ }
                     else {
                         auto deadline =
                             entry->lastbeaconrequest == Nothing
@@ -407,11 +380,10 @@ beaconclient::run(clientio io) {
                                 .addparam(proto::BEACON::req::name,
                                           entry->name)
                                 .addparam(proto::BEACON::req::type,
-                                          entry->result.just().type)
+                                          entry->result.type)
                                 .serialise(txbuf,
                                            wireproto::sequencenr::invalid);
-                            auto r(clientfd.send(txbuf,
-                                                 entry->result.just().beacon));
+                            auto r(clientfd.send(txbuf, entry->result.beacon));
                             if (r.isfailure()) {
                                 r.warn("sending beacon directed request");
                                 errors++; }
@@ -421,7 +393,7 @@ beaconclient::run(clientio io) {
                             entry->lastbeaconrequest =
                                 timestamp::now(); } }
                     return false; } );
-                if (release) entry->deref();
+                if (release) delete entry;
                 else it.next(); } } ); }
     /* Control interface is still runnng so this has to be under the
      * cache lock. */
@@ -442,7 +414,7 @@ beaconclient::poll(const slavename &sn) {
 beaconclientresult
 beaconclient::query(clientio io, const slavename &sn) {
     subscriber sub;
-    subscription ss(sub, changed);
+    subscription ss(sub, changed());
     while (true) {
         auto res(poll(sn));
         if (res != Nothing) return res.just();
@@ -463,12 +435,10 @@ beaconclient::iterator::iterator(beaconclient *what,
         for (auto it2(what->cache.start()); !it2.finished(); it2.next()) {
             auto entry2(*it2);
             entry2->mux.locked([this, entry2, _type] (mutex_t::token) {
-                if (entry2->result != Nothing) {
-                    auto &r(entry2->result.just());
-                    if (_type == Nothing || _type == r.type) {
+                    if (_type == Nothing || _type == entry2->result.type) {
                         content.append(entry2->name,
-                                       r.type,
-                                       r.server); } } } ); } } );
+                                       entry2->result.type,
+                                       entry2->result.server); } } ); } } );
     it.mkjust(const_cast<const list<entry> *>(&content)->start()); }
 
 const slavename &
@@ -496,6 +466,9 @@ beaconclient::start(maybe<actortype> type) {
                " on a client which only tracks those of type " +
                fields::mk(config.type)); }
     return iterator(this, type); }
+
+const publisher &
+beaconclient::changed() const { return _changed; }
 
 beaconclient::status_t
 beaconclient::status() const {

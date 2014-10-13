@@ -2,10 +2,11 @@
 
 . shutil
 
+cc beacontest.C
 cc connpooltest.C
 cc either.C
 cc rpctest.C
 cc testdriver.C
-ld test connpooltest.o either.o rpctest.o testdriver.o lib.a
+ld test beacontest.o connpooltest.o either.o rpctest.o testdriver.o lib.a
 
 target test

@@ -240,7 +240,7 @@ connpoolmaintenance::run(clientio io) {
     subscriber sub;
     subscription ss(sub, owner->shutdown.pub);
     subscription conns(sub, owner->connchanged);
-    subscription beacon(sub, owner->bc->changed);
+    subscription beacon(sub, owner->bc->changed());
     /* Check the conn list and beacon list as soon as we start. */
     conns.set();
     beacon.set();
