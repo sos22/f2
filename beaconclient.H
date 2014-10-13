@@ -43,10 +43,7 @@ class beaconclientslot;
     iter0(ctxt, 5, mand, value, ::timedelta, queryinterval)             \
     /* How often should we send broadcast queries to discover new */    \
     /* peers? */                                                        \
-    iter0(ctxt, 6, mand, value, ::timedelta, broadcastinterval)         \
-    /* How long should we keep cached entries around for if they're */  \
-    /* not being used? */                                               \
-    iter1(ctxt, 7, mand, value, ::timedelta, gctimeout)
+    iter1(ctxt, 6, mand, value, ::timedelta, broadcastinterval)
 class beaconclientconfig {
     mktuplefields(beaconclientconfig, public);
 public: static beaconclientconfig dflt(const clustername &,
@@ -76,10 +73,7 @@ mktupleext(beaconclientresult);
     /* When did we last send a request to the beacon?  Nothing if */    \
     /* either we've never sent a request or if the last request we */   \
     /* sent has already received a response. */                         \
-    iter0(ctxt, 3, opt, value, ::walltime, lastbeaconrequestwall)       \
-    /* When we this entry last used?  We only bother to refresh things*/ \
-    /* which have been used recently. */                                \
-    iter1(ctxt, 4, mand, value, ::walltime, lastusedwall)
+    iter1(ctxt, 3, opt, value, ::walltime, lastbeaconrequestwall)
 class beaconclientslotstatus {
     mktuplefields(beaconclientslotstatus, public); };
 mktupleext(beaconclientslotstatus);
@@ -101,15 +95,12 @@ class beaconclient : private thread {
 private: class controliface : public controlinterface {
     private: beaconclient *const owner;
     public:  controliface(beaconclient *, controlserver *);
-    private: void getstatus(rpcservice::response *) const final;
-    private: void getlistening(rpcservice::response *) const final; };
+    private: void getstatus(rpcservice::response *) const final; };
 private: const beaconclientconfig config;
     /* Protects @cache.  The locks on individual entries nest inside
      * this one.  mutable because it's acquired from status(). */
 private: mutable mutex_t cachelock;
-    /* Never NULL.  Only a pointer because the things need to live
-     * after they get removed from the list. */
-private: list<beaconclientslot *> cache;
+private: list<beaconclientslot> cache;
 private: waitbox<void> shutdown;
     /* Notified whenever something new gets added to the cache. */
 private: publisher newslave;

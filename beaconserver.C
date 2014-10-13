@@ -15,6 +15,7 @@
 #include "test.H"
 #include "timedelta.H"
 #include "udpsocket.H"
+#include "version.H"
 #include "waitbox.H"
 
 #include "maybe.tmpl"
@@ -120,7 +121,7 @@ beaconserver::run(clientio io) {
     /* Response is always the same, so pre-populate it. */
     wireproto::tx_message response(proto::BEACON::resp::tag);
     response
-        .addparam(proto::BEACON::resp::version, 1u)
+        .addparam(proto::BEACON::resp::version, version::current)
         .addparam(proto::BEACON::resp::type, advertisetype)
         .addparam(proto::BEACON::resp::name, config.name)
         .addparam(proto::BEACON::resp::cluster, config.cluster)
@@ -179,27 +180,30 @@ beaconserver::run(clientio io) {
             errors++;
             continue; }
 
+        auto reqversion(msg.getparam(proto::BEACON::req::version));
+        /* Low logging level until we've confirmed it's the right
+         * version, to avoid spamming the logs on old systems when we
+         * introduce version 2. */
+        if (reqversion != version::current) {
+            logmsg(loglevel::debug,
+                   fields::mk("BEACON request from " + fields::mk(rr.success())
+                              + " asked for bad version "
+                              + fields::mk(reqversion)));
+            errors++;
+            continue; }
         logmsg(loglevel::info,
                "received beacon message from " +
                fields::mk(rr.success()));
-        auto reqversion(msg.getparam(proto::BEACON::req::version));
         auto reqcluster(msg.getparam(proto::BEACON::req::cluster));
-        auto reqname(msg.getparam(proto::BEACON::req::name));
-        auto reqtype(msg.getparam(proto::BEACON::req::type));
-        if (!reqversion || !reqcluster) {
-            logmsg(loglevel::info,
-                   fields::mk("BEACON request missing a mandatory parameter"));
-            continue; }
-
-        if (reqversion.just() != 1) {
-            logmsg(loglevel::info,
-                   "slave " +
-                   fields::mk(rr.success()) +
-                   " requested bad protocol version " +
-                   fields::mk(reqversion.just()) +
-                   " in BEACON request message");
+        if (!reqcluster) {
+            logmsg(loglevel::failure,
+                   "BEACON request from " + fields::mk(rr.success()) +
+                   "missing mandatory parameter");
             errors++;
             continue; }
+        auto reqname(msg.getparam(proto::BEACON::req::name));
+        auto reqtype(msg.getparam(proto::BEACON::req::type));
+
         if (reqcluster != config.cluster ||
             (reqname != Nothing && reqname != config.name) ||
             (reqtype != Nothing && reqtype != advertisetype)) {

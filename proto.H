@@ -168,19 +168,19 @@ namespace proto {
         namespace req {
             static const msgtag tag(700);
             /* Protocol version */
-            static const parameter<unsigned> version(800);
+            static const parameter< ::version> version(800);
             /* Filter on who should respond: */
             /* Always filter by cluster */
             static const parameter<clustername> cluster(801);
             /* Optionally filter by slavename */
-            static const parameter<slavename> name(802);
+            static const parameter<maybe<slavename> > name(802);
             /* Optionally filter by type */
-            static const parameter<actortype> type(803);
+            static const parameter<maybe<actortype> > type(803);
         }
         namespace resp {
             static const msgtag tag(750);
             /* Protocol version */
-            static const parameter<unsigned> version(750);
+            static const parameter< ::version> version(750);
             /* What interface do we expose? */
             static const parameter<actortype> type(751);
             /* Persistent identifier for this slave */
