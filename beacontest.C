@@ -19,15 +19,13 @@ tests::beacon() {
                        actortype::test,
                        port)
                    .fatal("starting beacon server"));
-            auto c(beaconclient::build(
-                       beaconclientconfig::dflt(cluster,
-                                                actortype::test,
-                                                slave))
+            auto c(beaconclient::build(beaconclientconfig(cluster,
+                                                          actortype::test,
+                                                          slave))
                    .fatal("starting beacon client"));
             auto r(c->query(io, slave));
             assert(r.type == actortype::test);
-            assert(r.server.samehost(r.beacon));
-            assert(r.server.getport() == port);
+            assert(r.name.getport() == port);
             c->destroy(io);
             s->destroy(io); });
     testcaseV("beacon", "clientconfig", [] {

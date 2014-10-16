@@ -27,9 +27,13 @@ public:
     timedelta(const quickcheck &);
     /* Random over a limited range. */
     timedelta(const quickcheck &, timedelta min, timedelta max);
-    static timedelta seconds(long nr) { return timedelta(nr * 1000000000l); }
-    static timedelta milliseconds(long nr) { return timedelta(nr * 1000000l); }
-    static timedelta microseconds(long nr) { return timedelta(nr * 1000l); }
+    static timedelta weeks(long nr) { return days(nr * 7l); }
+    static timedelta days(long nr) { return hours(nr * 24l); }
+    static timedelta hours(long nr) { return minutes(nr * 60l); }
+    static timedelta minutes(long nr) { return seconds(nr * 60l); }
+    static timedelta seconds(long nr) { return milliseconds(nr * 1000l); }
+    static timedelta milliseconds(long nr) { return microseconds(nr * 1000l); }
+    static timedelta microseconds(long nr) { return nanoseconds(nr * 1000l); }
     static timedelta nanoseconds(long nr) { return timedelta(nr); }
     timestamp operator+(timestamp) const;
     timedelta operator+(timedelta d) const { return timedelta(v+d.v); }

@@ -346,7 +346,7 @@ connpoolmaintenance::run(clientio io) {
             auto p(owner->bc->poll(conn->name));
             if (p == Nothing) continue;
             /* Got a peername -> start the connect() proper. */
-            auto inner(rpcclient::connect(p.just().server));
+            auto inner(rpcclient::connect(p.just().name));
             conn->mux.locked(
                 [conn, inner, &needconnectpoll, &sub]
                 (mutex_t::token) {

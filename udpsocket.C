@@ -140,3 +140,6 @@ udpsocket::localname() const {
     auto res(::getsockname(fd, (struct sockaddr *)addr, &addrlen));
     if (res < 0) error::from_errno().fatal("getting socket local name");
     return peername((const struct sockaddr *)addr, addrlen).canonicalise(); }
+
+const fields::field &
+fields::mk(udpsocket s) { return mk(fd_t(s.fd)); }

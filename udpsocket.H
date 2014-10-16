@@ -1,7 +1,6 @@
 #ifndef UDPSOCKET_H__
 #define UDPSOCKET_H__
 
-#include "maybe.H"
 #include "peername.H"
 #include "timestamp.H"
 
@@ -9,10 +8,17 @@ class buffer;
 class clientio;
 class error;
 class fd_t;
+template <typename> class maybe;
 template <typename> class orerror;
-class peername;
+
+class udpsocket;
+
+namespace fields {
+class field;
+const field &mk(udpsocket); }
 
 class udpsocket {
+    friend const fields::field &fields::mk(udpsocket);
     int fd;
     udpsocket(int _fd) : fd(_fd) {}
 public:

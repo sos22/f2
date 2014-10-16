@@ -13,7 +13,7 @@ tests::_connpool() {
             /* Tests of what happens when there's nothing to connect
              * to. */
             auto bc(beaconclient::build(
-                        beaconclientconfig::dflt(
+                        beaconclientconfig(
                             clustername::mk("cluster to which noone connects")
                             .fatal("dummy clustername")))
                     .fatal("building beacon client"));

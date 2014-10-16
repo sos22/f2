@@ -37,6 +37,7 @@ main(int argc, char *argv[])
     srandom((unsigned)now.tv_usec);
 
     tests::_actortype();
+    tests::beacon();
     tests::buffer();
     tests::__clustername();
     tests::cond();
