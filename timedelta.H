@@ -46,6 +46,7 @@ public:
     bool operator>(timedelta o) const { return v > o.v; }
     bool operator>=(timedelta o) const { return v >= o.v; }
     bool operator==(timedelta o) const { return v == o.v; }
+    bool operator!=(timedelta o) const { return v != o.v; }
     bool operator<=(timedelta o) const { return v <= o.v; }
     bool operator<(timedelta o) const { return v < o.v; }
 

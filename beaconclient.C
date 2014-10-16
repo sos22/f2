@@ -105,16 +105,16 @@ parsers::__beaconclientconfig() {
 
 bool
 beaconclientconfig::operator==(const beaconclientconfig &o) const {
-    return _cluster == o._cluster &&
-        _type == o._type &&
-        _name == o._name &&
-        _proto == o._proto &&
-        _queryinterval == o._queryinterval &&
-        _broadcastinterval == o._broadcastinterval; }
+    return !(*this != o); }
 
 bool
 beaconclientconfig::operator!=(const beaconclientconfig &o) const {
-    return !(*this == o); }
+    return _cluster != o._cluster ||
+        _type != o._type ||
+        _name != o._name ||
+        _proto != o._proto ||
+        _queryinterval != o._queryinterval ||
+        _broadcastinterval != o._broadcastinterval; }
 
 const fields::field &
 beaconclientconfig::field() const {
