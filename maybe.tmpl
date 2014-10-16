@@ -1,6 +1,8 @@
 #ifndef MAYBE_TMPL__
 #define MAYBE_TMPL__
 
+#include "parsers.H"
+
 template <typename t>
 maybe<t>::maybe(const quickcheck &o)
     : r(o) {
@@ -11,5 +13,12 @@ maybe<t>::mkjust(args &&...params) {
     if (!r) just().~t();
     r = false;
     ::new (content) t(std::forward<args>(params)...); }
+
+namespace parsers {
+template <typename t> const parser<maybe<t> > &
+_maybe(const parser<t> &underlying) {
+    return strmatcher("Nothing", maybe<t>(Nothing)) ||
+        ("<" + underlying + ">").map<maybe<t> >(
+            [] (const t &x) { return maybe<t>(x); }); } }
 
 #endif /* !MAYBE_TMPL__ */

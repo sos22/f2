@@ -76,8 +76,8 @@ const parser<beaconclientconfig> &
 parsers::__beaconclientconfig() {
     return ("<beaconclientconfig:"
             " cluster:" + __clustername() +
-            ~(" type:" + _actortype()) +
-            ~(" name:" + _slavename()) +
+            ~(" type:" + _maybe(_actortype())) +
+            ~(" name:" + _maybe(_slavename())) +
             ~(" proto:" + __beaconconfig()) +
             ~(" queryinterval:" + _timedelta()) +
             ~(" broadcastinterval:" + _timedelta()) +
@@ -85,15 +85,17 @@ parsers::__beaconclientconfig() {
         .maperr<beaconclientconfig>(
             []
             (const pair<pair<pair<pair<pair<clustername,
-                                            maybe<actortype> >,
-                                       maybe<slavename> >,
+                                            maybe<maybe<actortype> > >,
+                                       maybe<maybe<slavename> > >,
                                   maybe<beaconconfig> >,
                              maybe<timedelta> >,
                         maybe<timedelta> > &x) {
                 return  beaconclientconfig::mk(
                         x.first().first().first().first().first(),
-                        x.first().first().first().first().second(),
-                        x.first().first().first().second(),
+                        x.first().first().first().first().second()
+                            .dflt(Nothing),
+                        x.first().first().first().second()
+                            .dflt(Nothing),
                         x.first().first().second()
                             .dflt(beaconconfig::dflt),
                         x.first().second()
