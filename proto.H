@@ -119,14 +119,7 @@ namespace proto {
     namespace STATUS {
         static const msgtag tag(4);
         /* no request parameters */
-        namespace resp {
-            static const parameter< ::beaconserverstatus> beacon(450);
-            static const parameter< ::rpcservicestatus> storageslave(451);
-            static const parameter< ::slavename> myname(452);
-            static const parameter< ::beaconclientstatus> beaconclient(453);
-            static const parameter< ::rpcservicestatus> controlserver(454);
-            static const parameter< ::connpoolstatus> connpool(455);
-        };
+        /* no response parameters: it all goes in the logs */
     };
 
     namespace BUILDCONFIG {

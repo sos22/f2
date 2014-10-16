@@ -124,8 +124,8 @@ controlserver::call(const wireproto::rx_message &rxm, response *resp) {
                    "reject too-late shutdown " + fields::mk(msg.just()));
             resp->fail(error::toolate); } }
     else if (rxm.tag() == proto::STATUS::tag) {
-        resp->addparam(proto::STATUS::resp::controlserver, status());
-        invoke([resp] (controlinterface *si) { si->getstatus(resp); });
+        logmsg(loglevel::info, fields::mk(status()));
+        invoke([] (controlinterface *si) { si->getstatus(); });
         resp->complete(); }
     else if (rxm.tag() == proto::GETLOGS::tag) {
         auto r(::getlogs(rxm, resp));

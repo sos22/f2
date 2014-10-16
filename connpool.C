@@ -2,6 +2,7 @@
 
 #include "beaconclient.H"
 #include "fields.H"
+#include "logging.H"
 #include "proto.H"
 
 #include "list.tmpl"
@@ -206,8 +207,8 @@ connpool::controliface::controliface(controlserver *cs,
       owner(_owner) { start(); }
 
 void
-connpool::controliface::getstatus(rpcservice::response *resp) const {
-    resp->addparam(proto::STATUS::resp::connpool, owner->status()); }
+connpool::controliface::getstatus() const {
+    logmsg(loglevel::info, fields::mk(owner->status())); }
 
 connpool::connpool(beaconclient *_bc,
                    controlserver *_cs,

@@ -108,8 +108,8 @@ beaconclient::controliface::controliface(beaconclient *_owner,
       start(); }
 
 void
-beaconclient::controliface::getstatus(rpcservice::response *resp) const {
-    resp->addparam(proto::STATUS::resp::beaconclient, owner->status()); }
+beaconclient::controliface::getstatus() const {
+    logmsg(loglevel::info, fields::mk(owner->status())); }
 
 beaconclient::beaconclient(const thread::constoken &token,
                            const beaconclient::config_t &_config,

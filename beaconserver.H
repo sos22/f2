@@ -58,7 +58,7 @@ class beaconserver : private thread {
 private: class controliface : public controlinterface {
     private: beaconserver *owner;
     public:  controliface(beaconserver *_owner, controlserver *cs);
-    public:  void getstatus(rpcservice::response *) const final;
+    public:  void getstatus() const final;
     public:  void getlistening(rpcservice::response *) const final;
     };
 

@@ -95,7 +95,7 @@ class beaconclient : private thread {
 private: class controliface : public controlinterface {
     private: beaconclient *const owner;
     public:  controliface(beaconclient *, controlserver *);
-    private: void getstatus(rpcservice::response *) const final; };
+    private: void getstatus() const final; };
 private: const beaconclientconfig config;
     /* Protects @cache.  The locks on individual entries nest inside
      * this one.  mutable because it's acquired from status(). */

@@ -37,7 +37,7 @@ protected: explicit controlinterface(controlserver *cs);
      * precisely once for every instance of the class. */
 protected: void start();
     /* Add parameters to a STATUS query. */
-public:    virtual void getstatus(rpcservice::response *msg) const = 0;
+public:    virtual void getstatus() const = 0;
     /* Add parameters to a LISTENING query.  Default is to assume
      * we're not listening anywhere. */
 public:    virtual void getlistening(rpcservice::response *msg) const;

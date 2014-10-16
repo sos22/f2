@@ -64,8 +64,8 @@ beaconserver::controliface::controliface(beaconserver *server,
       owner(server) { start(); }
 
 void
-beaconserver::controliface::getstatus(rpcservice::response *resp) const {
-    resp->addparam(proto::STATUS::resp::beacon, owner->status()); }
+beaconserver::controliface::getstatus() const {
+    logmsg(loglevel::info, fields::mk(owner->status())); }
 
 void
 beaconserver::controliface::getlistening(rpcservice::response *resp) const {

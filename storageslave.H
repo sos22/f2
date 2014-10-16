@@ -22,7 +22,7 @@ private: class controliface : public controlinterface {
     private: storageslave *const owner;
     public:  controliface(storageslave *_owner,
                           controlserver *cs);
-    private: void getstatus(rpcservice::response *) const final;
+    private: void getstatus() const final;
     private: void getlistening(rpcservice::response *) const final;
     };
 private: controliface control_;

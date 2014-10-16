@@ -67,8 +67,8 @@ storageslave::controliface::controliface(storageslave *_owner,
     start(); }
 
 void
-storageslave::controliface::getstatus(rpcservice::response *resp) const {
-    resp->addparam(proto::STATUS::resp::storageslave, owner->status()); }
+storageslave::controliface::getstatus() const {
+    logmsg(loglevel::info, fields::mk(owner->status())); }
 
 void
 storageslave::controliface::getlistening(rpcservice::response *resp) const {

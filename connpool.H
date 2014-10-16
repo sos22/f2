@@ -224,7 +224,7 @@ private: class controliface : public controlinterface {
     private: connpool *const owner;
     public:  controliface(controlserver *cs,
                           connpool *owner);
-    public:  void getstatus(rpcservice::response *) const final; };
+    public:  void getstatus() const final; };
 private: maybe<controliface> control;
 
     /* Constructor for connpool. The beaconclient is used to perform

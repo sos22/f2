@@ -77,24 +77,10 @@ main(int argc, const char *const argv[])
     } else if (!strcmp(mode, "STATUS")) {
         using namespace proto::STATUS;
         if (nrargs) errx(1, "STATUS mode takes no arguments");
-        auto m = c->call(
+        delete c->call(
             clientio::CLIENTIO,
-            wireproto::req_message(tag));
-        if (m.isfailure()) {
-            fields::print(fields::mk(m.failure()));
-        } else {
-            auto mm(m.success());
-            fields::print("beacon: " + fields::mk(mm->getparam(resp::beacon)) +
-                          "\nmyname: " +
-                              fields::mk(mm->getparam(resp::myname)) +
-                          "\nbeaconclient: " +
-                              fields::mk(mm->getparam(resp::beaconclient)) +
-                          "\nstorageslave: " +
-                              fields::mk(mm->getparam(resp::storageslave)) +
-                          "\ncontrolserver: " +
-                              fields::mk(mm->getparam(resp::controlserver)) +
-                          "\n");
-            delete mm; }
+            wireproto::req_message(tag))
+            .fatal("STATUS call");
     } else if (!strcmp(mode, "QUIT")) {
         if (nrargs != 2) {
             errx(1, "QUIT mode takes code and explanation arguments"); }
