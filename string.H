@@ -26,7 +26,6 @@ public:  static string steal(char *&);
 public:  string(const char *);
 public:  string(const string &);
 public:  string(string &&);
-public:  string(quickcheck &q);
 public:  void operator=(const string &);
 public:  string operator+(const string &) const;
 public:  bool operator==(const string &) const;

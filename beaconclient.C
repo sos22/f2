@@ -142,10 +142,6 @@ private: peername server;
 private: peername beacon;
     /* When did we last get a beacon response for this slave? */
 private: walltime lastbeaconresponsewall;
-    /* When did we last send a request to the beacon?  Nothing if
-       either we've never sent a request or if the last request we
-       sent has already received a response. */
-private: maybe<walltime> lastbeaconrequestwall;
 
     /* All mutable fields are protected by the main beaconclient
      * lock. */
@@ -177,7 +173,6 @@ beaconclientslot::beaconclientslot(const slavename &sn,
       server(_server),
       beacon(_beacon),
       lastbeaconresponsewall(now),
-      lastbeaconrequestwall(Nothing),
       lastbeaconrequest(Nothing),
       expiry(_expiry),
       lastbeaconresponse(when) {}
@@ -190,7 +185,9 @@ beaconclientslot::status(mutex_t::token /* beacon client lock */) const {
            " server: " + fields::mk(server) +
            " beacon: " + fields::mk(beacon) +
            " lastbeaconresponsewall: " + fields::mk(lastbeaconresponsewall) +
-           " lastbeaconrequestwall: " + fields::mk(lastbeaconrequestwall)); }
+           " lastbeaconrequest: " + fields::mk(lastbeaconrequest) +
+           " expiry: " + fields::mk(expiry) +
+           " lastbeaconresponse: " + fields::mk(lastbeaconresponse)); }
 
 beaconclient::controliface::controliface(beaconclient *_owner,
                                          controlserver *cs)
@@ -249,8 +246,13 @@ beaconclient::run(clientio io) {
          * bit, */
         auto nextactivity(nextbroadcast);
         bool broadcast = false;
-        cachelock.locked([&broadcast, &nextactivity, this] (mutex_t::token) {
+        logmsg(loglevel::info,
+               "client awake at " + fields::mk(timestamp::now()));
+        cachelock.locked(
+            [&broadcast, &nextactivity, this]
+            (mutex_t::token token) {
                 for (auto it(cache.start()); !it.finished(); it.next()) {
+                    it->status(token);
                     nextactivity = min(nextactivity, it->expiry);
                     if (it->lastbeaconrequest != Nothing) {
                         /* Waiting for a request to come back with a

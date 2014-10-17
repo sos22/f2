@@ -54,18 +54,40 @@ quickcheck::operator double() const {
 
 quickcheck::operator const char *() const {
     unsigned long r = (unsigned long)random();
-    if (r % 4 == 0) return "";
-    r /= 4;
-    unsigned long len;
-    len = (1 << (r % 16)) + ((random() % 256) - 128);
-    while ((long)len <= 0) {
-        r = (unsigned long)random();
-        len = (1 << (r % 16)) + (((r / 16) % 256) - 128); }
-    char *buf = (char *)tmpheap::_alloc(len+1);
-    for (unsigned x = 0; x < len - 1; x++) {
-        buf[x] = (char)((random() % 255) + 1); }
-    buf[len] = '\0';
-    return (const char *)buf; }
+    switch (r % 64) {
+        /* A couple of interesting fixed strings. */
+    case 0: return "";
+    case 1: return " ";
+    case 2: return "<";
+    case 3: return ":";
+    case 4: return "\"";
+    case 5: return "'";
+    case 6: return "\t";
+    case 7: return "\r";
+    case 8: return "\n";
+    case 9: return "\r\n";
+    case 10: return "0";
+    case 11: return "x";
+    case 12: return "_";
+    case 13: return "-";
+    default:
+        unsigned long len;
+        if (r % 64 < 60) {
+            /* Small strings */
+            len = (r / 64) % 16 + 1; }
+        else {
+            /* Big strings */
+            r /= 64;
+            len = (1 << (r % 16)) + (((r >> 21) % 256) - 128);
+            while ((long)len <= 0) {
+                r = (unsigned long)random();
+                len = (1 << (r % 16)) + (((r / 16) % 256) - 128); } }
+        char *buf = (char *)tmpheap::_alloc(len+1);
+        for (unsigned x = 0; x < len - 1; x++) {
+            buf[x] = (char)((random() % 255) + 1); }
+        buf[len] = '\0';
+        return (const char *)buf; }
+    abort(); }
 
 const char *
 quickcheck::filename() const {
