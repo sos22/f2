@@ -158,37 +158,30 @@ beaconserver::run(clientio io) {
                                timestamp::now() + timedelta::milliseconds(100));
             continue; }
         auto rrr(wireproto::rx_message::fetch(inbuffer));
+        /* Low logging level until we've confirmed it's the right
+         * version, to avoid spamming the logs on old systems when we
+         * introduce version 2. */
         if (rrr.isfailure()) {
-            /* Message severity is low so that this doesn't screw us
-             * when we try to introduce a new version of the
-             * protocol. */
-            logmsg(loglevel::info,
+            logmsg(loglevel::debug,
                    "parsing beacon message: " + fields::mk(rrr.failure()));
             errors++;
             continue; }
         auto &msg(rrr.success());
         if (msg.tag() != proto::BEACON::req::tag) {
-            logmsg(loglevel::info,
-                   "unexpected message tag " +
-                   fields::mk(msg.tag()) +
+            logmsg(loglevel::debug,
+                   "unexpected message tag " + fields::mk(msg.tag()) +
                    " on beacon interface");
             errors++;
             continue; }
 
         auto reqversion(msg.getparam(proto::BEACON::req::version));
-        /* Low logging level until we've confirmed it's the right
-         * version, to avoid spamming the logs on old systems when we
-         * introduce version 2. */
         if (reqversion != version::current) {
             logmsg(loglevel::debug,
-                   fields::mk("BEACON request from " + fields::mk(rr.success())
-                              + " asked for bad version "
-                              + fields::mk(reqversion)));
+                   "BEACON request from " + fields::mk(rr.success())
+                   + " asked for bad version "
+                   + fields::mk(reqversion));
             errors++;
             continue; }
-        logmsg(loglevel::info,
-               "received beacon message from " +
-               fields::mk(rr.success()));
         auto reqcluster(msg.getparam(proto::BEACON::req::cluster));
         if (!reqcluster) {
             logmsg(loglevel::failure,
@@ -196,6 +189,9 @@ beaconserver::run(clientio io) {
                    "missing mandatory parameter");
             errors++;
             continue; }
+        logmsg(loglevel::info,
+               "received beacon message from " +
+               fields::mk(rr.success()));
         auto reqname(msg.getparam(proto::BEACON::req::name));
         auto reqtype(msg.getparam(proto::BEACON::req::type));
 

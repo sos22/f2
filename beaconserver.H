@@ -8,6 +8,7 @@
 
 #include "actortype.H"
 #include "beacon.H"
+#include "beacontest.H"
 #include "clustername.H"
 #include "controlserver.H"
 #include "peername.H"
@@ -54,6 +55,7 @@ mktupleext(beaconserverstatus);
 class beaconserver : private thread {
     friend class thread;
     friend class pausedthread<beaconserver>;
+    friend void tests::beacon();
 
 private: class controliface : public controlinterface {
     private: beaconserver *owner;

@@ -23,7 +23,7 @@ class digest {
     unsigned long val;
     WIREPROTO_WRAPPER_TYPE(digest, unsigned long, private);
 public:
-    digest(const fields::field &);
+    explicit digest(const fields::field &);
     bool operator==(const digest &o) const;
     bool operator!=(const digest &o) const;
 

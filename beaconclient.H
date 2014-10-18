@@ -10,6 +10,7 @@
 
 #include "actortype.H"
 #include "beacon.H"
+#include "beacontest.H"
 #include "clustername.H"
 #include "controlserver.H"
 #include "peername.H"
@@ -88,8 +89,6 @@ const field &mk(const beaconclientconfig &); }
 template <typename t> class parser;
 namespace parsers {
 const parser<beaconclientconfig> &__beaconclientconfig(); }
-
-namespace tests { void beacon(); }
 
 class beaconclient : private thread {
     friend class pausedthread<beaconclient>;
