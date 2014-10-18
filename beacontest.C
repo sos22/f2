@@ -360,6 +360,19 @@ tests::beacon() {
             assert(recover - start <= timedelta::milliseconds(1100));
             c->destroy(io);
             s->destroy(io); });
+    testcaseIO("beacon", "sillyiterator", [] (clientio io) {
+            auto c(beaconclient::build(
+                       beaconclientconfig(quickcheck(),
+                                          actortype::test))
+                   .fatal("creating beacon client"));
+            unsigned nr = 0;
+            eventwaiter< ::loglevel> waiter(
+                tests::logmsg,
+                [&nr] (loglevel level) { if (level >= loglevel::error) nr++; });
+            auto it(c->start(actortype::storageslave));
+            assert(nr > 0);
+            assert(it.finished());
+            c->destroy(io); });
     testcaseIO("beacon", "clientspam", [] (clientio io) {
             /* Send crap over the client's listening port and make
              * sure it (a) generates low-level logging messages, (b)
@@ -383,6 +396,20 @@ tests::beacon() {
             auto sock(udpsocket::client()
                       .fatal("UDP socket"));
             auto sendto(peername::loopback(ports.respport));
+            /* Send a couple of reasonable-ish ones first. */
+            {   ::buffer b;
+                wireproto::req_message(proto::PING::tag)
+                    .serialise(b, wireproto::sequencenr::invalid);
+                sock.send(b, sendto).fatal("sending ping"); }
+            {   ::buffer b;
+                wireproto::req_message(proto::BEACON::resp::tag)
+                    .serialise(b, wireproto::sequencenr::invalid);
+                sock.send(b, sendto).fatal("sending resp"); }
+            {   ::buffer b;
+                wireproto::req_message(proto::BEACON::resp::tag)
+                    .addparam(proto::BEACON::resp::version, version::current)
+                    .serialise(b, wireproto::sequencenr::invalid);
+                sock.send(b, sendto).fatal("sending resp good version"); }
             for (unsigned x = 0; x < 100; x++) {
                 ::buffer b;
                 unsigned len((unsigned)(random() % 1500 + 1));
@@ -392,7 +419,9 @@ tests::beacon() {
                 b.queue(buf, len);
                 sock.send(b, sendto).fatal("sending spam"); }
             assert(nrlow != 0);
-            assert(nrhigh == 0);
+            /* Only the one with version == current is allowed to
+               generate a high-priority message. */
+            assert(nrhigh == 1);
             slavename name((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
