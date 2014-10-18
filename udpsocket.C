@@ -13,6 +13,15 @@
 #include "peername.H"
 #include "timedelta.H"
 
+#include "test.tmpl"
+
+tests::hookpoint<orerror<udpsocket>, udpsocket >
+udpsocket::_client(
+    [] (udpsocket c) -> orerror<udpsocket> { return c; });
+
+tests::hookpoint<orerror<void> >
+udpsocket::_receive([] () -> orerror<void> { return Success; });
+
 orerror<udpsocket>
 udpsocket::listen(peername::port p) {
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -57,7 +66,7 @@ udpsocket::client()
         ::close(fd);
         return error::from_errno(); }
     
-    return udpsocket(fd); }
+    return _client(udpsocket(fd)); }
 
 struct pollfd
 udpsocket::poll() const {
@@ -78,6 +87,9 @@ udpsocket::close() const {
 
 orerror<peername>
 udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
+    auto inject(_receive());
+    if (inject.isfailure()) return inject.failure();
+
     ssize_t recved;
     unsigned char sockaddr[4096];
     socklen_t sockaddr_size;

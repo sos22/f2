@@ -89,3 +89,6 @@ storerelease(t *where, t what) {
 template int loadacquire(const int &);
 template bool loadacquire(const bool &);
 template void storerelease(bool *, bool);
+
+void
+mb() { asm volatile("mfence\n"); }

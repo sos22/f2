@@ -2,6 +2,7 @@
 #define UDPSOCKET_H__
 
 #include "peername.H"
+#include "test.H"
 #include "timestamp.H"
 
 class buffer;
@@ -60,6 +61,10 @@ public:
 
     /* Close the underlying FD. */
     void close() const;
+
+    /* Fault injection hooks: */
+    static tests::hookpoint<orerror<udpsocket>, udpsocket > _client;
+    static tests::hookpoint<orerror<void> > _receive;
 };
 
 #endif /* !UDPSOCKET_H__ */

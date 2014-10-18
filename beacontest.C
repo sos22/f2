@@ -6,8 +6,10 @@
 #include "proto.H"
 #include "rpcclient.H"
 #include "test.H"
+#include "udpsocket.H"
 
 #include "parsers.tmpl"
+#include "test.tmpl"
 
 void
 tests::beacon() {
@@ -222,5 +224,40 @@ tests::beacon() {
             delete cc->call(io, wireproto::req_message(proto::STATUS::tag))
                 .fatal("STATUS call");
             delete cc;
+            s->destroy(io);
+            c->destroy(io); });
+    testcaseIO("beacon", "clientfailure1", [] (clientio) {
+            hook<orerror<udpsocket>, udpsocket> h(
+                udpsocket::_client, [] (udpsocket u) {
+                    u.close();
+                    return error::pastend; });
+            assert(beaconclient::build(
+                       beaconclientconfig(clustername(quickcheck())))
+                   == error::pastend); });
+    testcaseIO("beacon", "clientfailure2", [] (clientio io) {
+            unsigned errcount = 0;
+            hook<orerror<void> > h(
+                udpsocket::_receive,
+                [&errcount] () -> orerror<void> {
+                    if (errcount++ < 3) return error::pastend;
+                    else return Success; });
+            clustername cluster((quickcheck()));
+            slavename slave((quickcheck()));
+            peername::port port((quickcheck()));
+            auto s(beaconserver::build(
+                       beaconserverconfig::dflt(cluster, slave),
+                       actortype::test,
+                       port)
+                   .fatal("starting beacon server"));
+            auto c(beaconclient::build(beaconclientconfig(cluster))
+                   .fatal("contructing beacon"));
+            auto tv(timedelta::time(
+                        [c, port, &slave] {
+                            assert(c->query(clientio::CLIENTIO, slave)
+                                   .name
+                                   .getport() == port); }));
+            assert(errcount >= 3);
+            assert(tv >= timedelta::milliseconds(200));
+            assert(tv <= timedelta::milliseconds(400));
             s->destroy(io);
             c->destroy(io); }); }

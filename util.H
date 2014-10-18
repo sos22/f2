@@ -34,4 +34,6 @@ min(const t &a, args ... params) {
         __res;                                                          \
     })
 
+void mb();
+
 #endif /* !UTIL_H__ */

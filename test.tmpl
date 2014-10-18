@@ -53,4 +53,46 @@ tests::eventwaiter<t>::~eventwaiter() {
     while (refcount != 0) sub.wait(clientio::CLIENTIO); }
 #endif /* !TESTING */
 
+template <typename rettype, typename ... args>
+tests::hookpoint<rettype, args...>::hookpoint(
+    const std::function<rettype (args &&...)> &_dflt)
+    : mux(),
+      hooked(Nothing),
+      refcount(0),
+      idle(mux),
+      dflt(_dflt) {}
+
+template <typename rettype, typename ... args> rettype
+tests::hookpoint<rettype, args...>::slowpath(args &&... params) const {
+    auto token(mux.lock());
+    if (hooked == Nothing) {
+        mux.unlock(&token);
+        return dflt(std::forward<args>(params)...); }
+    refcount++;
+    mux.unlock(&token);
+    auto res(hooked.just()->impl(std::forward<args>(params)...));
+    token = mux.lock();
+    refcount--;
+    if (refcount == 0) idle.broadcast(token);
+    mux.unlock(&token);
+    return res; }
+
+template <typename rettype, typename ... args>
+tests::hookpoint<rettype, args...>::~hookpoint() {
+    reinterpret_cast<hookpoint<void> *>(this)->wait(); }
+
+template <typename rettype, typename ... args>
+tests::hook<rettype, args...>::hook(
+    hookpoint<rettype, args...> &_owner,
+    const std::function<rettype (args&&...) > &_impl)
+    : impl(_impl),
+      owner(&_owner) {
+    reinterpret_cast<hookpoint<void> *>(owner)->set(
+        reinterpret_cast<hook<void> *>(this)); }
+
+template <typename rettype, typename ... args>
+tests::hook<rettype, args...>::~hook() {
+    reinterpret_cast<hookpoint<void> *>(owner)->set(NULL); }
+
+
 #endif /* !TEST_TMPL__ */
