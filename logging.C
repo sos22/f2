@@ -19,6 +19,7 @@
 #include "mutex.H"
 #include "proto.H"
 #include "test.H"
+#include "thread.H"
 #include "walltime.H"
 
 #include "list.tmpl"
@@ -275,6 +276,9 @@ logpolicy::logmsg(loglevel level, const fields::field &fld)
     (fields::padright(fields::mk(timestamp::now()), 30)  +
      " pid=" + fields::padright(fields::mk(getpid()).nosep(), 5) +
      " tid=" + fields::padright(fields::mk(tid::me()), 7) +
+     " thread=" + fields::trunc(
+         fields::padright(fields::mk(thread::myname()), 15),
+         15) +
      " level=" + fields::padright(fields::mk(level), 7) +
      " " + fld).fmt(buf);
     const char *res(buf.c_str());

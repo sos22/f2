@@ -113,6 +113,11 @@ public:     void join(clientio);
      * with a private destructor.  Can be overridden by child
      * classes. */
 protected: virtual ~thread();
+
+    /* Get the name of the current thread, as passed into the spawn
+     * name.  The returned pointer remains valid for at least as long
+     * as the thread is running. */
+public:    static const char *myname();
 };
 
 namespace tests {

@@ -18,6 +18,8 @@
 #include "thread.tmpl"
 #include "waitbox.tmpl"
 
+static __thread const char *this_name;
+
 thread::thread(const thread::constoken &token)
     : thr(),
       started(false),
@@ -42,7 +44,8 @@ thread::pthreadstart(void *_this) {
     /* pthread API doesn't give a good way of getting tid from parent
        process, so do it from here instead. */
     thr->tid_.set(tid::me());
-    prctl(PR_SET_NAME, (unsigned long)thr->name, 0, 0);
+    this_name = thr->name;
+    prctl(PR_SET_NAME, (unsigned long)this_name, 0, 0);
     thr->run(clientio::CLIENTIO);
     /* Tell subscribers that we died. */
     storerelease(&thr->dead, true);
@@ -97,6 +100,9 @@ fields::mk(const thread &thr) {
     if (loadacquire(thr.dead)) acc = &(*acc + " dead");
     if (!thr.started) acc = &(*acc + " unstarted");
     return *acc + ">"; }
+
+const char *
+thread::myname() { return this_name ?: "<unknown thread>"; }
 
 void
 tests::thread() {
