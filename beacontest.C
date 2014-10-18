@@ -236,9 +236,11 @@ tests::beacon() {
                    == error::pastend); });
     testcaseIO("beacon", "clientfailure2", [] (clientio io) {
             unsigned errcount = 0;
-            hook<orerror<void> > h(
+            beaconclient *c;
+            hook<orerror<void>, const udpsocket &> h(
                 udpsocket::_receive,
-                [&errcount] () -> orerror<void> {
+                [&c, &errcount] (const udpsocket &s) -> orerror<void> {
+                    if (c == NULL || s != c->listenfd) return Success;
                     if (errcount++ < 3) return error::pastend;
                     else return Success; });
             clustername cluster((quickcheck()));
@@ -249,8 +251,8 @@ tests::beacon() {
                        actortype::test,
                        port)
                    .fatal("starting beacon server"));
-            auto c(beaconclient::build(beaconclientconfig(cluster))
-                   .fatal("contructing beacon"));
+            c = beaconclient::build(beaconclientconfig(cluster))
+                .fatal("contructing beacon");
             auto tv(timedelta::time(
                         [c, port, &slave] {
                             assert(c->query(clientio::CLIENTIO, slave)
@@ -260,4 +262,149 @@ tests::beacon() {
             assert(tv >= timedelta::milliseconds(200));
             assert(tv <= timedelta::milliseconds(400));
             s->destroy(io);
-            c->destroy(io); }); }
+            c->destroy(io); });
+    testcaseIO("beacon", "clientbroadcastfailure", [] (clientio io) {
+            /* Client should be able to recover if its first few
+             * broadcasts fail. */
+            /* Start server first so that the server broadcast doesn't
+             * save the client. */
+            clustername cluster((quickcheck()));
+            slavename slave((quickcheck()));
+            peername::port port((quickcheck()));
+            auto s(beaconserver::build(beaconserverconfig::dflt(cluster, slave),
+                                       actortype::test,
+                                       port)
+                   .fatal("starting beacon server"));
+            unsigned cntr = 0;
+            hook<orerror<void>, const udpsocket &, const peername &> h(
+                udpsocket::_send,
+                [&cntr]
+                (const udpsocket &, const peername &p) -> orerror<void> {
+                    if (!p.isbroadcast()) return Success;
+                    if (cntr++ > 3) return Success;
+                    return error::pastend; });
+            auto c(beaconclient::build(
+                       beaconclientconfig::mk(
+                           cluster,
+                           Nothing,
+                           Nothing,
+                           beaconconfig::dflt,
+                           timedelta::seconds(1),
+                           timedelta::milliseconds(100))
+                       .fatal("beaconclientconfig::mk"))
+                   .fatal("beaconclient::build"));
+            auto tv(timedelta::time([c, &slave, port, io] {
+                        assert(c->query(io, slave).name.getport() == port); }));
+            assert(cntr >= 3);
+            /* First three broadcasts fail, and we do one every 100ms,
+             * so it should take at least 200ms to complete
+             * (fencepost). */
+            assert(tv >= timedelta::milliseconds(200));
+            /* Should complete fairly quickly after that. */
+            assert(tv <= timedelta::milliseconds(400));
+            s->destroy(io);
+            c->destroy(io); });
+    testcaseIO("beacon", "clientdirectfailure", [] (clientio io) {
+            /* If we stop the client from doing directed calls then
+             * things should drop out of the cache at the expiry time
+             * and come back at the broadcast time. */
+            clustername cluster((quickcheck()));
+            slavename slave((quickcheck()));
+            peername::port port((quickcheck()));
+            auto s(beaconserver::build(
+                       beaconserverconfig(beaconconfig::dflt,
+                                          cluster,
+                                          slave,
+                                          timedelta::milliseconds(500)),
+                       actortype::test,
+                       port)
+                   .fatal("beaconserver::build"));
+            auto c(beaconclient::build(beaconclientconfig::mk(
+                                           cluster,
+                                           Nothing,
+                                           Nothing,
+                                           beaconconfig::dflt,
+                                           timedelta::milliseconds(100),
+                                           timedelta::seconds(1))
+                                       .fatal("beaconclientconfig::mk"))
+                   .fatal("beaconclient::build"));
+            c->query(io, slave);
+            bool blocksends = true;
+            unsigned cntr = 0;
+            hook<orerror<void>, const udpsocket &, const peername &> h(
+                udpsocket::_send,
+                [&blocksends, c, &cntr]
+                (const udpsocket &sock, const peername &p) -> orerror<void> {
+                    if (sock != c->listenfd && sock != c->clientfd) {
+                        return Success; }
+                    else if (p.isbroadcast()) return Success;
+                    else if (!blocksends) return Success;
+                    cntr++;
+                    return error::pastend; });
+            /* Poll to see when it drops out. */
+            auto start(timestamp::now());
+            while (c->poll(slave) != Nothing) {
+                (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
+            auto drop(timestamp::now());
+            /* Should be near the expiry time. */
+            assert(drop - start >= timedelta::milliseconds(400));
+            assert(drop - start <= timedelta::milliseconds(600));
+            /* Should have made about 5 attempts. */
+            assert(cntr >= 3);
+            assert(cntr <= 7);
+            /* Poll to see when it comes back. */
+            while (c->poll(slave) == Nothing) {
+                (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
+            auto recover(timestamp::now());
+            assert(recover - start >= timedelta::milliseconds(900));
+            assert(recover - start <= timedelta::milliseconds(1100));
+            c->destroy(io);
+            s->destroy(io); });
+    testcaseIO("beacon", "clientspam", [] (clientio io) {
+            /* Send crap over the client's listening port and make
+             * sure it (a) generates low-level logging messages, (b)
+             * doesn't generate any high-level ones, and (c) can
+             * recover when we stop. */
+            beaconconfig ports((quickcheck()));
+            clustername cluster((quickcheck()));
+            auto c(beaconclient::build(
+                       beaconclientconfig(cluster,
+                                          Nothing,
+                                          Nothing,
+                                          ports))
+                   .fatal("creating beacon client"));
+            unsigned nrlow = 0;
+            unsigned nrhigh = 0;
+            eventwaiter< ::loglevel> waiter(
+                tests::logmsg,
+                [&nrlow, &nrhigh] (loglevel level) {
+                    if (level >= loglevel::info) nrhigh++;
+                    else nrlow++; });
+            auto sock(udpsocket::client()
+                      .fatal("UDP socket"));
+            auto sendto(peername::loopback(ports.respport));
+            for (unsigned x = 0; x < 100; x++) {
+                ::buffer b;
+                unsigned len((unsigned)(random() % 1500 + 1));
+                unsigned char buf[len];
+                for (unsigned y = 0; y < len; y++) {
+                    buf[y] = (unsigned char)random(); }
+                b.queue(buf, len);
+                sock.send(b, sendto).fatal("sending spam"); }
+            assert(nrlow != 0);
+            assert(nrhigh == 0);
+            slavename name((quickcheck()));
+            peername::port port((quickcheck()));
+            auto s(beaconserver::build(
+                       beaconserverconfig(
+                           ports,
+                           cluster,
+                           name,
+                           timedelta::seconds(120)),
+                       actortype::test,
+                       port)
+                   .fatal("creating server"));
+            assert(c->query(io, name).name.getport() == port);
+            s->destroy(io);
+            c->destroy(io); });
+}

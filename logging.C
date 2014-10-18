@@ -272,9 +272,9 @@ logpolicy::logmsg(loglevel level, const fields::field &fld)
         return;
 
     fields::fieldbuf buf;
-    (fields::mk(walltime::now()) +
-     " pid=" + fields::mk(getpid()).nosep() +
-     " tid=" + fields::mk(tid::me()) +
+    (fields::padright(fields::mk(timestamp::now()), 30)  +
+     " pid=" + fields::padright(fields::mk(getpid()).nosep(), 5) +
+     " tid=" + fields::padright(fields::mk(tid::me()), 7) +
      " level=" + fields::padright(fields::mk(level), 7) +
      " " + fld).fmt(buf);
     const char *res(buf.c_str());

@@ -21,9 +21,12 @@ const field &mk(udpsocket); }
 class udpsocket {
     friend const fields::field &fields::mk(udpsocket);
     int fd;
-    udpsocket(int _fd) : fd(_fd) {}
+    explicit udpsocket(int _fd) : fd(_fd) {}
 public:
     udpsocket() : fd(-1) {}
+
+    bool operator==(const udpsocket &o) const { return fd == o.fd; }
+    bool operator!=(const udpsocket &o) const { return fd != o.fd; }
 
     /* UDP sockets don't really listen, as such.  This creates a
        socket bound to a particular port (on 0.0.0.0) which receives
@@ -64,7 +67,10 @@ public:
 
     /* Fault injection hooks: */
     static tests::hookpoint<orerror<udpsocket>, udpsocket > _client;
-    static tests::hookpoint<orerror<void> > _receive;
+    static tests::hookpoint<orerror<void>, const udpsocket &> _receive;
+    static tests::hookpoint<orerror<void>,
+                            const udpsocket &,
+                            const peername &> _send;
 };
 
 #endif /* !UDPSOCKET_H__ */

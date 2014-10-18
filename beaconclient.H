@@ -89,10 +89,13 @@ template <typename t> class parser;
 namespace parsers {
 const parser<beaconclientconfig> &__beaconclientconfig(); }
 
+namespace tests { void beacon(); }
+
 class beaconclient : private thread {
     friend class pausedthread<beaconclient>;
     friend class thread;
     friend class iterator;
+    friend void tests::beacon();
 private: class controliface : public controlinterface {
     private: beaconclient *const owner;
     public:  controliface(beaconclient *, controlserver *);
@@ -103,8 +106,6 @@ private: const beaconclientconfig config;
 private: mutable mutex_t cachelock;
 private: list<beaconclientslot> cache;
 private: waitbox<void> shutdown;
-    /* Notified whenever something new gets added to the cache. */
-private: publisher newslave;
     /* Notified whenever a new thing gets added to the cache. */
 private: publisher _changed;
     /* Used to listen to broadcast messages. */
@@ -133,6 +134,8 @@ public:  static orerror<beaconclient *> build(
     const beaconclientconfig &config,
     controlserver *cs = NULL);
 private: void run(clientio);
+private: void sendbroadcast();
+private: void handletimeouts(mutex_t::token);
 public:  class result {
         friend class beaconclient;
     private: result(const peername &, actortype);

@@ -19,8 +19,11 @@ tests::hookpoint<orerror<udpsocket>, udpsocket >
 udpsocket::_client(
     [] (udpsocket c) -> orerror<udpsocket> { return c; });
 
-tests::hookpoint<orerror<void> >
-udpsocket::_receive([] () -> orerror<void> { return Success; });
+tests::hookpoint<orerror<void>, const udpsocket &>
+udpsocket::_receive([] (const udpsocket&) -> orerror<void> { return Success; });
+
+tests::hookpoint<orerror<void>, const udpsocket &, const peername &>
+udpsocket::_send([] (const udpsocket &, const peername &) { return Success; });
 
 orerror<udpsocket>
 udpsocket::listen(peername::port p) {
@@ -87,7 +90,7 @@ udpsocket::close() const {
 
 orerror<peername>
 udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
-    auto inject(_receive());
+    auto inject(_receive(*this));
     if (inject.isfailure()) return inject.failure();
 
     ssize_t recved;
@@ -128,6 +131,8 @@ udpsocket::receive(clientio, buffer &buf, maybe<timestamp> deadline) const {
 
 orerror<void>
 udpsocket::send(buffer &buf, const peername &p) const {
+    auto fault(_send(*this, p));
+    if (fault.isfailure()) return fault.failure();
     size_t bytes(buf.avail());
     ssize_t sent(::sendto(fd,
                           buf.linearise(buf.offset(), buf.offset() + bytes),
