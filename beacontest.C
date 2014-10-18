@@ -390,6 +390,7 @@ tests::beacon() {
             assert(recover - start <= timedelta::milliseconds(1100));
             c->destroy(io);
             s->destroy(io); });
+#if TESTING
     testcaseIO("beacon", "sillyiterator", [] (clientio io) {
             auto c(beaconclient::build(
                        beaconclientconfig(quickcheck(),
@@ -466,6 +467,7 @@ tests::beacon() {
             assert(c->query(io, name).name.getport() == port);
             s->destroy(io);
             c->destroy(io); });
+#endif
     testcaseIO("beacon", "serverfailure1", [] (clientio) {
             hook<orerror<udpsocket>, udpsocket> h(
                 udpsocket::_client,
@@ -475,6 +477,7 @@ tests::beacon() {
                                        actortype::test,
                                        quickcheck())
                    == error::pastend); });
+#if TESTING
     testcaseIO("beacon", "serverfailure2", [] (clientio io) {
             bool fail = false;
             hook<orerror<void>, const udpsocket &> h(
@@ -521,6 +524,7 @@ tests::beacon() {
             assert(c->query(io, slave).name.getport() == port);
             c->destroy(io);
             s->destroy(io); });
+#endif
     testcaseIO("beacon", "serverfailure3", [] (clientio io) {
             clustername cluster((quickcheck()));
             slavename slave((quickcheck()));
@@ -562,6 +566,7 @@ tests::beacon() {
                 <= timedelta::milliseconds(300));
             c->destroy(io);
             s->destroy(io); });
+#if TESTING
     testcaseIO("beacon", "serverspam", [] (clientio io) {
             /* Like clientspam, but sending to the server instead. */
             beaconconfig ports((quickcheck()));
@@ -624,4 +629,5 @@ tests::beacon() {
             assert(c->query(io, name).name.getport() == port);
             s->destroy(io);
             c->destroy(io); });
+#endif
 }
