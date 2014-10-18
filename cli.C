@@ -117,9 +117,7 @@ main(int argc, const char *const argv[])
             "storageslave: " +
                 fields::mk(m->getparam(resp::storageslave)) + "\n"
             "control:" +
-                fields::mk(m->getparam(resp::control)) + "\n"
-            "beacon:" +
-                fields::mk(m->getparam(resp::beacon)) + "\n");
+                fields::mk(m->getparam(resp::control)) + "\n");
         delete m; }
     else {
         printf("Unknown command %s.  Known: PING, LOGS\n", mode);

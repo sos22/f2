@@ -67,11 +67,6 @@ void
 beaconserver::controliface::getstatus() const {
     logmsg(loglevel::info, fields::mk(owner->status())); }
 
-void
-beaconserver::controliface::getlistening(rpcservice::response *resp) const {
-    resp->addparam(proto::LISTENING::resp::beacon,
-                   owner->listenfd.localname()); }
-
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
                     actortype type,

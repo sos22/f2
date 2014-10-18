@@ -140,7 +140,6 @@ namespace proto {
         static const msgtag tag(6);
         /* no request parameters */
         namespace resp {
-            static const parameter< ::peername> beacon(650);
             static const parameter< ::peername> control(651);
             static const parameter< ::peername> coordinator(652);
             static const parameter< ::peername> storageslave(653);
