@@ -121,7 +121,7 @@ function testmodule()
     reports=$(echo $@ | sed "s/\(\$\| \)/.gcov\1/g;s,\(^\| \),\1${newprefix}/,g" )
     cat <<EOF
 ${targ}-cov-report: test-c
-	@rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.c ../*.gcno ../*.H ../*.tmpl . ; gcov *.gcda) > /dev/null && cat ${reports} | fgrep -v ':/*EOF*/' | sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/s/#####/@@@@@/;s/#####\\(.*abort();\\)/@@@@@\\1/;/\.\.\./s/#####/@@@@@/'> \$@
+	@rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.c ../*.gcno ../*.H ../*.tmpl . ; \$(GCOV) *.gcda) > /dev/null && cat ${reports} | fgrep -v ':/*EOF*/' | sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/s/#####/@@@@@/;s/#####\\(.*abort();\\)/@@@@@\\1/;/\.\.\./s/#####/@@@@@/'> \$@
 .PHONY: ${targ}-cov
 ${targ}-cov: ${targ}-cov-report
 	@if grep -q '#####' ${targ}-cov-report; then echo "${targ} FAILED"; false; else echo "${targ} passed"; true; fi
