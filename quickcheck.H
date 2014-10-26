@@ -15,6 +15,8 @@ public: operator unsigned() const;
 public: operator int() const;
 public: operator unsigned short() const;
 public: operator short() const;
+public: operator unsigned char() const;
+public: operator char() const;
 public: operator bool() const;
     /* Cauchy distributed with location 0 and scale 1 */
 public: operator double() const;
@@ -28,9 +30,8 @@ public: operator const char *() const;
      * characters excluding /, is at most 255 characters long, is
      * never empty, and is never . or .. . */
 public: const char *filename() const;
-    /* Flush the quickcheck heap, releasing all strings (etc)
-     * allocated by this thread. */
-public: static void flush();
+
+public: template <typename t> t mk();
 };
 
 #endif /* !QUICKCHECK_H__ */

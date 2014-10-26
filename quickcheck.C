@@ -45,6 +45,15 @@ quickcheck::operator int() const {
 quickcheck::operator unsigned short() const {
     return (unsigned short)(unsigned long)*this; }
 
+quickcheck::operator short() const {
+    return (short)(unsigned long)*this; }
+
+quickcheck::operator char() const {
+    return (char)(unsigned long)*this; }
+
+quickcheck::operator unsigned char() const {
+    return (unsigned char)(unsigned long)*this; }
+
 quickcheck::operator bool() const {
     return random() % 2 == 0; }
 

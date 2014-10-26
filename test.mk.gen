@@ -7,6 +7,7 @@ cc connpooltest.C
 cc either.C
 cc rpctest.C
 cc testdriver.C
-ld test beacontest.o connpooltest.o either.o rpctest.o testdriver.o lib.a
+cc testserialise.C
+ld test beacontest.o connpooltest.o either.o rpctest.o testdriver.o testserialise.o lib.a
 
 target test

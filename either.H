@@ -22,6 +22,12 @@ public:  void mkleft(const a &);
 public:  ~either();
 };
 
+template <typename r, typename a> either <a, r> left(const a &what) {
+    return either<a, r>::left(what); }
+
+template <typename l, typename a> either <l, a> right(const a &what) {
+    return either<l, a>::right(what); }
+
 /* Specialisation when one of the parameters is void. */
 template <typename a>
 class either<void, a> {

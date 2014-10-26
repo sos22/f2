@@ -1,0 +1,39 @@
+#ifndef SERIALISE_TMPL__
+#define SERIALISE_TMPL__
+
+#include "version.H"
+
+template <typename t> orerror<t>
+deserialise(buffer &buf) {
+    deserialise1 ds(buf);
+    short vers(ds);
+    if (vers == 1) {
+        t res(ds);
+        if (ds.status().isfailure()) return ds.status().failure();
+        else return res; }
+    else if (vers == -1) {
+        deserialiseT dsT(buf);
+        t res(dsT);
+        if (dsT.status().isfailure()) return dsT.status().failure();
+        else return res; }
+    else return error::badversion; }
+
+template <typename t, typename serialiser = serialise1> void
+serialise(quickcheck &q, unsigned nr) {
+    deserialise1 ds(q);
+    for (unsigned x = 0; x < nr; x++) {
+        auto val(mkrandom<t>(q));
+        buffer buf;
+        serialiser s(buf);
+        val.serialise(s);
+        auto r(deserialise<t>(buf));
+        assert(r.issuccess());
+        assert(r == val);
+        assert(buf.empty()); } }
+
+template <typename t> t
+mkrandom(quickcheck &q) {
+    deserialise1 ds(q);
+    return (t)ds; }
+
+#endif /* !SERIALISE_TMPL__ */
