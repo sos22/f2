@@ -1,6 +1,7 @@
 #ifndef SERIALISE_TMPL__
 #define SERIALISE_TMPL__
 
+#include "error.H"
 #include "version.H"
 
 template <typename t> orerror<t>
@@ -18,8 +19,19 @@ deserialise(buffer &buf) {
         else return res; }
     else return error::badversion; }
 
+template <typename t> t
+deserialise1::poprange(t min, t max) {
+    if (src.isright()) {
+        return min + ((t)*src.right() % (max - min + 1)); }
+    else {
+        t res(*this);
+        if (res < min || res > max) {
+            fail(error::invalidmessage);
+            res = min; }
+        return res; } }
+
 template <typename t, typename serialiser = serialise1> void
-serialise(quickcheck &q, unsigned nr) {
+serialise(quickcheck &q, unsigned nr = 1000) {
     deserialise1 ds(q);
     for (unsigned x = 0; x < nr; x++) {
         auto val(mkrandom<t>(q));
@@ -33,7 +45,9 @@ serialise(quickcheck &q, unsigned nr) {
 
 template <typename t> t
 mkrandom(quickcheck &q) {
-    deserialise1 ds(q);
-    return (t)ds; }
+    while (true) {
+        deserialise1 ds(q);
+        t res(ds);
+        if (ds.status().issuccess()) return res; } }
 
 #endif /* !SERIALISE_TMPL__ */

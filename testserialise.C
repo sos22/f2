@@ -29,13 +29,13 @@ public: testcompound1(int f1, long f2)
 public: testcompound1(deserialise1 &ds)
     : field1(ds),
       field2(ds) {}
-public: void serialise(serialise1 &ctxt) {
+public: void serialise(serialise1 &ctxt) const {
     ctxt.push(field1);
     ctxt.push(field2); }
 public: testcompound1(deserialiseT &ds) {
     field2 = ds;
     field1 = ds; }
-public: void serialise(serialiseT &ctxt) {
+public: void serialise(serialiseT &ctxt) const {
     ctxt.push(field2);
     ctxt.push(field1); }
 public: bool operator==(const testcompound1 &o) const {

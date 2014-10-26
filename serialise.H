@@ -46,6 +46,14 @@ public:  operator unsigned long();
     /* Extract something by just copying the raw bits.  Only used to
      * implement the conversion operators. */
 private: template <typename t> t pop();
+    /* Extract something and validate that it falls into a particular
+     * range.  This is usually better than doing the validation
+     * yourself because it acts as a hint to the quickcheck
+     * implementation that it should concentrate on valid values.  min
+     * and max are both inclusive.  Type t needs to support the usual
+     * arithmetic operations. */
+public:  template <typename t> t poprange(t min, t max);
+
     /* Mark the deserialiser as failed, if it hasn't already been
      * marked. */
 public:  void fail(::error);
@@ -76,7 +84,6 @@ public: explicit serialiseT(buffer &_src); };
 
 namespace tests { void _serialise(); }
 
-template <typename> void serialise(quickcheck &, unsigned nr = 1000);
 template <typename t> t mkrandom(quickcheck &);
 
 #endif /* !SERIALISE_H__ */
