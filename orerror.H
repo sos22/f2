@@ -8,6 +8,9 @@
 #include "error.H"
 #include "maybe.H"
 
+class serialise1;
+class deserialise1;
+
 template <typename t> class orerror {
     bool errored;
     union {
@@ -16,6 +19,10 @@ template <typename t> class orerror {
     };
     orerror() = delete;
 public:
+    orerror(deserialise1 &ds)
+        : errored(ds) {
+        if (errored) new (&err) error(ds);
+        else new (buf) t(ds); }
     orerror(const t &v)
         : errored(false)
         {
@@ -95,6 +102,8 @@ public:
         return !(*this == e); }
     bool operator!=(const t &e) const {
         return !(*this == e); }
+
+    void serialise(serialise1 &s) const;
 };
 
 /* Special case for things which just return an error indication.
@@ -105,6 +114,8 @@ class _Success {
 extern const _Success Success;
 template <> class orerror<void> {
 private: maybe<error> content;
+public:  orerror(deserialise1 &ds)
+    : content(ds) {}
 public:  orerror(_Success) : content(Nothing) {}
 public:  orerror(const error &e) : content(e) {}
 public:  void operator=(const orerror<void> &e) {
@@ -127,6 +138,7 @@ public:  bool operator==(error e) const { return content == e; }
 public:  bool operator!=(error e) const { return content != e; }
 public:  bool operator==(_Success) const { return issuccess(); }
 public:  bool operator!=(_Success) const { return !issuccess(); }
+public:  void serialise(serialise1 &s) const { content.serialise(s); }
 };
 
 #endif /* !ORERROR_H__ */

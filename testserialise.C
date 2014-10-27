@@ -5,7 +5,7 @@
 #include "serialise.tmpl"
 
 deserialiseT::deserialiseT(buffer &_src) : deserialise1(_src) {}
-serialiseT::serialiseT(buffer &_dest) : serialise1(-1, _dest) {}
+serialiseT::serialiseT(buffer &_dest) : serialise1(_dest) {}
 
 template <typename t> void
 serialisefundamental(quickcheck &q, unsigned nr = 1000) {
@@ -15,7 +15,6 @@ serialisefundamental(quickcheck &q, unsigned nr = 1000) {
         serialise1 s(buf);
         s.push(val);
         deserialise1 ds(buf);
-        assert((short)ds == 1);
         assert((t)ds == val);
         assert(!ds.status().isfailure());
         assert(buf.empty()); } }
@@ -92,26 +91,28 @@ tests::_serialise() {
                 b.queue("Z", 1);
                 deserialise1 ds(b);
                 assert((unsigned long)ds == 0);
-                assert(ds.status() == error::underflowed); }
-            {   ::buffer b;
-                b.queue("ZZ", 2);
-                assert(deserialise<unsigned>(b) == error::badversion); } });
+                assert(ds.status() == error::underflowed); } });
     testcaseV("serialise", "compound", [] {
             quickcheck q;
-            serialise<testcompound1, serialise1>(q, 1000); });
+            serialise<testcompound1>(q, 1000); });
     testcaseV("serialise", "upgrade", [] {
             for (unsigned x = 0; x < 1000; x++) {
                 quickcheck q;
                 auto val(mkrandom<testcompound1>(q));
-                {   ::buffer b;
+                ::buffer b;
+                if (random() % 2) {
                     serialise1 s(b);
-                    val.serialise(s);
-                    assert(deserialise<testcompound1>(b) == val);
-                    assert(b.empty()); }
-                {   ::buffer b;
+                    version::current.serialise(s);
+                    val.serialise(s); }
+                else {
                     serialiseT s(b);
-                    val.serialise(s);
-                    assert(deserialise<testcompound1>(b) == val);
-                    assert(b.empty()); } } });
-
+                    version::invalid.serialise(s);
+                    val.serialise(s); }
+                deserialise1 ds(b);
+                if ((version)ds == version::current) {
+                    assert(testcompound1(ds) == val); }
+                else {
+                    deserialiseT dsT(b);
+                    assert(testcompound1(dsT) == val); }
+                assert(b.empty()); } });
 }

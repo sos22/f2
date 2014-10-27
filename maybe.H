@@ -9,7 +9,9 @@
 
 #include "error.H"
 
+class deserialise1;
 class quickcheck;
+class serialise1;
 
 template <typename> class maybe;
 class _Nothing {
@@ -25,6 +27,7 @@ class maybe {
     unsigned char content[sizeof(t)];
     maybe() = delete;
 public:
+    maybe(deserialise1 &);
     maybe(const quickcheck &);
     maybe(const maybe &o)
         : r(o.r)
@@ -115,6 +118,8 @@ public:
     template <typename o> maybe<o> map(const std::function<o (const t&)> &f) {
         if (isnothing()) return Nothing;
         else return f(just()); }
+
+    void serialise(serialise1 &) const;
 };
 template <typename t> maybe<t> mkjust(const t &);
 

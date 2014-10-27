@@ -34,6 +34,7 @@ function bits() {
     _ pubsub
     _ quickcheck
     _ rpcclient
+    _ rpcclient2
     _ rpcservice
     _ serialise
     _ shutdown

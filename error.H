@@ -11,6 +11,8 @@ namespace wireproto {
     class rx_message;
 };
 
+class deserialise1;
+class serialise1;
 template <typename t> class orerror;
 template <> class orerror<void>;
 class quickcheck;
@@ -36,6 +38,7 @@ public:
     static orerror<void> getparam(wireproto::parameter<error>,
                                   const wireproto::rx_message &);
 
+    error(deserialise1 &);
     error() : e(unknown.e) {}
     error(const quickcheck &q);
 
@@ -49,6 +52,8 @@ public:
     /* Print out a warning based on an error. */
     void warn(const fields::field &) const;
     void warn(const char *) const;
+
+    void serialise(serialise1 &) const;
 
     /* Construct an error from the current value of @errno.  This
        clobbers @errno. */

@@ -45,26 +45,30 @@ deserialise1::fail(::error e) { if (error == Success) error = e; }
 orerror<void>
 deserialise1::status() const { return error; }
 
-serialisebase::serialisebase(buffer &_dest) : dest(_dest) {}
-
-serialise1::serialise1(buffer &_dest) : serialisebase(_dest) { push<short>(1); }
-
-serialise1::serialise1(short version, buffer &_dest)
-    : serialisebase(_dest) { push(version); }
+serialise1::serialise1(buffer &_dest) : dest(_dest) {}
 
 template <typename t> void
-serialisebase::push(t what) { dest.queue(&what, sizeof(what)); }
-
+serialise1::pushfundamental(t what) { dest.queue(&what, sizeof(what)); }
 template <> void
-serialisebase::push(bool b) {
-    if (b) push<char>(1);
-    else push<char>(0); }
+serialise1::pushfundamental(bool b) {
+    if (b) pushfundamental<char>(1);
+    else pushfundamental<char>(0); }
 
-template void serialisebase::push(long);
-template void serialisebase::push(int);
-template void serialisebase::push(short);
-template void serialisebase::push(char);
-template void serialisebase::push(unsigned long);
-template void serialisebase::push(unsigned int);
-template void serialisebase::push(unsigned short);
-template void serialisebase::push(unsigned char);
+void
+serialise1::push(bool x) { pushfundamental(x); }
+void
+serialise1::push(char x) { pushfundamental(x); }
+void
+serialise1::push(unsigned char x) { pushfundamental(x); }
+void
+serialise1::push(short x) { pushfundamental(x); }
+void
+serialise1::push(unsigned short x) { pushfundamental(x); }
+void
+serialise1::push(int x) { pushfundamental(x); }
+void
+serialise1::push(unsigned int x) { pushfundamental(x); }
+void
+serialise1::push(long x) { pushfundamental(x); }
+void
+serialise1::push(unsigned long x) { pushfundamental(x); }

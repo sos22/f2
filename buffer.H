@@ -159,7 +159,12 @@ public:
      * or the relevant bytes of the buffer are consumed by fetch() or
      * discard(), or linearise() is called again. */
     const void *linearise(size_t start, size_t end) const;
-    const void *linearise(size_t start, size_t end);
+    void *linearise(size_t start, size_t end);
+
+    template <typename t> t *linearise(size_t start) {
+        return (t *)linearise(start, start + sizeof(t)); }
+    template <typename t> const t *linearise(size_t start) const {
+        return (const t *)linearise(start, start + sizeof(t)); }
 
     /* Fetch a byte from the buffer.  @i is a count of the number of
      * bytes extracted from the buffer before the returned one i.e. it

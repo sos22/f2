@@ -16,7 +16,8 @@ public:  static maybe<nnp<t> > mk(t *x) {
 public:  bool operator==(const nnp &o) const { return inner == o.inner; }
 public:  bool operator!=(const nnp &o) const { return inner != o.inner; }
 public:  t *operator->() const { return inner; }
-public:  t &operator *() const { return *inner; } };
+public:  t &operator *() const { return *inner; }
+public:  operator t*() const { return inner; } };
 
 template <typename t> nnp<t> _nnp(t &x) { return nnp<t>(x); }
 

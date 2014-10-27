@@ -16,9 +16,6 @@
 class buffer;
 class quickcheck;
 
-/* Caution: this consumes part of the buffer even when it fails. */
-template <typename t> orerror<t> deserialise(buffer &);
-
 /* Deserialisation context for version 1 of the protocol. */
 class deserialise1 {
     /* Either the buffer we're deserialising or a quickcheck instance
@@ -62,18 +59,21 @@ public:  void fail(::error);
 public:  orerror<void> status() const; };
 
 /* Version-less serialiser. */
-class serialisebase {
+class serialise1 {
 private:   buffer &dest;
-protected: serialisebase(int version, buffer &_dest);
-public:    explicit serialisebase(buffer &_dest);
-    /* Push a fundamental type; mirror image of deserialise1::pop() */
-public:    template <typename t> void push(t); };
-
-/* Serialisation context for version 1. */
-class serialise1 : public serialisebase {
-protected: serialise1(short version, buffer &_dest);
 public:    explicit serialise1(buffer &_dest);
-public:    template <typename t> void push(t x) { serialisebase::push(x); } };
+    /* Push a fundamental type; mirror image of deserialise1::pop() */
+public:    void push(bool);
+public:    void push(char);
+public:    void push(unsigned char);
+public:    void push(short);
+public:    void push(unsigned short);
+public:    void push(int);
+public:    void push(unsigned int);
+public:    void push(long);
+public:    void push(unsigned long);
+    /* Only used to implement the push methods. */
+private:   template <typename t> void pushfundamental(t); };
 
 /* Hooks for testing upgrade before we have another version to upgrade
  * to. */

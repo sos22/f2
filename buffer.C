@@ -344,7 +344,7 @@ buffer::idx(size_t off) const
  * externally-visible state, but making it actually const would
  * involve either a lot of mutables or a lot of casts, so make it
  * non-const and provide a const wrapper (immediately after it). */
-const void *
+void *
 buffer::linearise(size_t start, size_t end)
 {
     subbuf *prev;
