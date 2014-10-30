@@ -43,6 +43,12 @@ mutex_t::locked(const std::function<void (mutex_t::token)> &f) {
     unlock(&_token); }
 
 void
+mutex_t::locked(const std::function<void (void)> &f) {
+    auto _token(lock());
+    f();
+    unlock(&_token); }
+
+void
 tests::mutex() {
     testcaseV("mutex", "basic", [] () {
             /* Spawn a bunch of threads and confirm that only one can

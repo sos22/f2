@@ -41,7 +41,9 @@ public:
     ~mutex_t();
     token lock();
     template <typename t> t locked(const std::function<t (token)> &);
+    template <typename t> t locked(const std::function<t (void)> &);
     void locked(const std::function<void (token)> &);
+    void locked(const std::function<void (void)> &);
 
     /* Generate a dummy token without acquiring the lock.  Useful if
      * we know that the lock has somehow become private to the calling

@@ -8,4 +8,11 @@ mutex_t::locked(const std::function<t (mutex_t::token)> &f) {
     unlock(&_token);
     return res; }
 
+template <typename t> t
+mutex_t::locked(const std::function<t (void)> &f) {
+    auto _token(lock());
+    auto res(f());
+    unlock(&_token);
+    return res; }
+
 #endif /* !MUTEX_TMPL__ */
