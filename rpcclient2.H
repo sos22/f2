@@ -2,6 +2,7 @@
 #define RPCCLIENT2_H__
 
 #include "mutex.H"
+#include "proto2.H"
 #include "pubsub.H"
 
 class deserialise1;
@@ -11,18 +12,6 @@ template <typename> class nnp;
 template <typename> class orerror;
 class peername;
 class serialise1;
-
-namespace proto {
-class sequencenr {
-private: sequencenr() = delete;
-private: unsigned long val;
-public:  sequencenr(deserialise1 &);
-public:  explicit sequencenr(unsigned long);
-public:  void operator++(int);
-public:  void serialise(serialise1 &) const;
-public:  bool operator==(sequencenr o) const { return val == o.val; }
-};
-}
 
 class rpcclient2 {
 public:  template <typename> class asynccall;
@@ -90,7 +79,7 @@ public: template <typename t> class asynccall final : private _asynccall {
         friend class rpcclient2;
     private: asynccall() = delete;
     private: asynccall(const asynccall &) = delete;
-    private: maybe<orerror<t> > resZZZ;
+    private: maybe<orerror<t> > res;
     private: std::function<orerror<t> (class asynccall<t> &,
                                        orerror<nnp<deserialise1> >,
                                        onconnectionthread)> deserialise;
@@ -106,7 +95,7 @@ public: template <typename t> class asynccall final : private _asynccall {
     public:  maybe<token> finished() const { return _asynccall::finished(); }
     public:  const publisher &pub() const { return _pub; }
     public:  orerror<t> pop(token);
-    public:  maybe<orerror<t> > abort();
+    public:  maybe<orerror<t> > abort(clientio);
     public:  orerror<t> pop(clientio io) { return pop(wait(io)); }
     private: ~asynccall() {} };
 public:  template <typename t> nnp<asynccall<t> > call(

@@ -9,48 +9,13 @@
 #include "logging.H"
 #include "nnp.H"
 #include "peername.H"
+#include "proto2.H"
 #include "serialise.H"
 #include "thread.H"
 #include "util.H"
 #include "version.H"
 
 #include "thread.tmpl"
-
-namespace proto {
-class header {
-private: header() = delete;
-public:  version vers;
-public:  unsigned size;
-public:  sequencenr seq;
-public:  header(version _vers, unsigned _size, sequencenr _seq)
-    : vers(_vers),
-      size(_size),
-      seq(_seq) {}
-public:  header(deserialise1 &ds)
-    : vers(ds),
-      size(ds),
-      seq(ds) {}
-public:  void serialise(serialise1 &s) {
-    vers.serialise(s);
-    s.push(size);
-    seq.serialise(s); } };
-
-/* Arbitrarily limit message size, to catch silliness. */
-const size_t maxmsgsize = 128ul << 20;
-
-/* Special type for empty messages.  Occasionally useful for making
- * API more symmetrical. */
-class empty {
-public: empty() {}
-public: empty(deserialise1 &) {}
-public: void serialise(serialise1 &) {} };
-
-namespace hello {
-typedef empty req;
-typedef orerror<void> resp;
-}
-
-}
 
 class rpcclient2::workerthread : public thread {
     /* Interfaces exposed to the rest of the system. */
@@ -130,7 +95,7 @@ rpcclient2::asyncconnect::token::token() {}
 maybe<rpcclient2::asyncconnect::token>
 rpcclient2::asyncconnect::finished() const {
     return owner()->connectlock.locked<maybe<token> >(
-        [this] (mutex_t::token) -> maybe<token> {
+        [this] () -> maybe<token> {
             if (owner()->connectres == Nothing) return Nothing;
             else return token(); }); }
 
@@ -187,7 +152,7 @@ maybe<rpcclient2::_asynccall::token>
 rpcclient2::_asynccall::finished() const {
     assert(!aborted);
     return mux.locked<maybe<token> >(
-        [this] (mutex_t::token) -> maybe<token> {
+        [this] () -> maybe<token> {
             if (_finished) return token();
             else return Nothing; } ); }
 
@@ -204,9 +169,9 @@ rpcclient2::_asynccall::wait(clientio io) const {
 
 template <typename t> void
 rpcclient2::asynccall<t>::complete(deserialise1 &ds, onconnectionthread oct) {
-    auto dead(mux.locked<bool>([this, &ds, oct] (mutex_t::token) {
+    auto dead(mux.locked<bool>([this, &ds, oct] {
                 if (!aborted) {
-                    resZZZ = deserialise(*this, _nnp(ds), oct);
+                    res = deserialise(*this, _nnp(ds), oct);
                     _finished = true;
                     _pub.publish();
                     return false; }
@@ -215,9 +180,9 @@ rpcclient2::asynccall<t>::complete(deserialise1 &ds, onconnectionthread oct) {
 
 template <typename t> void
 rpcclient2::asynccall<t>::fail(error e, onconnectionthread oct) {
-    auto dead(mux.locked<bool>([this, e, oct] (mutex_t::token) {
+    auto dead(mux.locked<bool>([this, e, oct] {
                 if (!aborted) {
-                    resZZZ = deserialise(*this, e, oct);
+                    res = deserialise(*this, e, oct);
                     _finished = true;
                     _pub.publish();
                     return false; }
@@ -226,20 +191,24 @@ rpcclient2::asynccall<t>::fail(error e, onconnectionthread oct) {
 
 template <typename t> orerror<t>
 rpcclient2::asynccall<t>::pop(token) {
-    auto _res(resZZZ.just());
+    auto _res(res.just());
     delete this;
     return _res; }
 
+/* This gets a clientio token because it can wait for the deserialise
+ * method.  That's a bit of an abuse (the deserialise method doesn't
+ * get one), but it should be safe, and it's easier than having yet
+ * another tag type to represent the actual relationship. */
 template <typename t> maybe<orerror<t> >
-rpcclient2::asynccall<t>::abort() {
+rpcclient2::asynccall<t>::abort(clientio) {
     assert(!aborted);
     auto dead(mux.locked<bool>(
-                  [this] (mutex_t::token) {
+                  [this] {
                       aborted = true;
-                      return resZZZ != Nothing; }));
+                      return res != Nothing; }));
     if (dead) {
         assert(_finished);
-        auto _res(resZZZ);
+        auto _res(res);
         delete this;
         return _res; }
     else return Nothing; }
@@ -249,7 +218,7 @@ rpcclient2::asynccall<t>::abort() {
 orerror<void>
 rpcclient2::workerthread::queuerx(nnp<_asynccall> call) {
     return rxlock.locked<orerror<void> >(
-        [this, call] (mutex_t::token) -> orerror<void> {
+        [this, call] () -> orerror<void> {
             if (rxstopped) return error::shutdown;
             call->seqnr = nextseqnr;
             nextseqnr++;
@@ -268,12 +237,12 @@ rpcclient2::workerthread::queuetx(
                 auto startoff(txbuffer.offset());
                 serialise1 s(txbuffer);
                 /* size gets filled in later */
-                proto::header(version::current, -1, seqnr).serialise(s);
+                proto::reqheader(-1, version::current, seqnr).serialise(s);
                 serialise(s, txtoken);
                 /* Set size in header. */
                 auto sz = txbuffer.offset() - startoff;
                 assert(sz < proto::maxmsgsize);
-                txbuffer.linearise<proto::header>(startoff)->size = (int)sz;
+                *txbuffer.linearise<unsigned>(startoff) = (unsigned)sz;
                 /* Try a fast synchronous send rather than waking the
                  * worker thread.  No point if there was stuff in the
                  * buffer before we started: whoever put it there
@@ -361,13 +330,13 @@ void
 rpcclient2::workerthread::run(clientio io) {
     {   auto r(connect(io));
         if (r.isfailure()) {
-            connectlock.locked([r, this] (mutex_t::token) {
+            connectlock.locked([r, this] {
                     assert(connectres == Nothing);
                     connectres = r.failure(); });
             connectpub.publish();
             return; }
         assert(r.success() >= 0);
-        txlock.locked([this, &r] (mutex_t::token) { fd = r.success(); } ); }
+        txlock.locked([this, &r] { fd = r.success(); } ); }
     orerror<void> _failure(Success);
     subscriber sub;
 
@@ -375,13 +344,15 @@ rpcclient2::workerthread::run(clientio io) {
     subscription shutdownsub(sub, shutdown.pub);
     if (shutdown.ready()) _failure = error::shutdown;
 
-    /* Only have an outsub if there's something in the TX queue. */
-    maybe<iosubscription> outsub(Nothing);
-
     /* Keep an input subscription outstanding at all times, even when
      * we're not expecting any replies, so that we notice quickly when
      * connections drop. */
     iosubscription insub(sub, fd_t(fd).poll(POLLIN));
+
+    /* Always have an outsub, but only arm it when there's stuff in
+     * the TX queue. */
+    iosubscription outsub(sub, fd_t(fd).poll(POLLOUT));
+    bool outsubarmed = true;
 
     /* Watch for more stuff arriving in the TX queue. */
     subscription txgrewsub(sub, txgrew);
@@ -397,7 +368,12 @@ rpcclient2::workerthread::run(clientio io) {
              orerror<nnp<deserialise1> > d,
              onconnectionthread) -> orerror<void> {
                 if (d.isfailure()) return d.failure();
-                else return proto::hello::resp(*d.success()); }));
+                auto &ds(*d.success());
+                proto::hello::resp r(ds);
+                if (ds.isfailure()) return ds.failure();
+                if (r.min > version::current || r.max < version::current) {
+                    return error::badversion; }
+                return Success; }));
     maybe<subscription> hellosub(Nothing);
     hellosub.mkjust(sub, hellocall.just()->pub());
     /* Only this thread can finish the call, so usual subscribe race
@@ -409,100 +385,95 @@ rpcclient2::workerthread::run(clientio io) {
     while (_failure == Success) {
         auto ss(sub.wait(io));
         if (ss == &txgrewsub) {
-            if (txbuffer.empty() || outsub != Nothing) continue;
+            if (txbuffer.empty() || outsubarmed) continue;
             /* No point in trying a sendfast() here because whoever
              * added the stuff to the TX queue will have already done
              * one.  Just wait for the iosubscription to fire. */
-            outsub.mkjust(sub, fd_t(fd).poll(POLLOUT));
-            continue; }
-        if (outsub.isjust() && ss == &outsub.just()) {
-            auto txtoken(txlock.lock());
-            auto res(txbuffer.sendfast(fd_t(fd)));
-            auto drained = txbuffer.empty();
-            txlock.unlock(&txtoken);
+            outsub.rearm();
+            outsubarmed = true; }
+        else if (ss == &outsub) {
+            assert(!txbuffer.empty());
+            assert(outsubarmed);
+            outsubarmed = false;
+            auto res(txlock.locked<orerror<void> >([this] {
+                        return txbuffer.sendfast(fd_t(fd)); }) );
             if (res.isfailure() && res != error::wouldblock) {
                 _failure = res.failure(); }
-            if (drained) outsub = Nothing;
-            else outsub.just().rearm();
-            continue; }
-        if (ss == &insub) {
+            else if (!txbuffer.empty()) outsub.rearm(); }
+        else if (ss == &insub) {
             auto res(rxbuffer.receivefast(fd_t(fd)));
             insub.rearm();
             if (res.isfailure()) {
                 if (res != error::wouldblock) _failure = res.failure();
                 continue; }
-            auto startoff(rxbuffer.offset());
-            /* Deserialisers aren't resumable -> check that we have
-             * enough of the message before starting. */
-            if (rxbuffer.avail() < sizeof(proto::header) ||
-                rxbuffer.linearise<proto::header>(startoff)->size >
-                    rxbuffer.avail()) {
-                continue; }
-            /* Have whole message -> can deserialise and process
-             * it. */
-            deserialise1 ds(rxbuffer);
-            proto::header hdr(ds);
-            if (ds.status().isfailure()) {
-                _failure = ds.status();
-                continue; }
-            if (hdr.vers != version::current) {
-                /* Only V1 supported right now. */
-                _failure = error::badversion;
-                continue; }
-            /* Size must be sensible. */
-            if (hdr.size < sizeof(hdr) || hdr.size > proto::maxmsgsize) {
-                _failure = error::invalidmessage;
-                continue; }
-            auto completed(
-                rxlock.locked<_asynccall *>(
-                    [this, &hdr] (mutex_t::token) -> _asynccall * {
-                        for (auto it(rxqueue.start());
-                             !it.finished();
-                             it.next()) {
-                            if ((*it)->seqnr == hdr.seq) {
-                                auto r(*it);
-                                it.remove();
-                                return r; } }
-                        return NULL; } ) );
-            if (completed != NULL) {
-                completed->complete(ds, onconnectionthread()); }
-            else {
-                logmsg(loglevel::debug,
-                       "peer completed call after it was locally aborted"); }
-            /* The deserialiser taking more than we allowed for is
-             * unrecoverable and we drop the connection.  It taking
-             * less than the message header size is acceptable and we
-             * just drop the excess. */
-            if (rxbuffer.offset() > startoff + hdr.size) {
-                _failure = error::invalidmessage; }
-            else if (rxbuffer.offset() < startoff + hdr.size) {
-                rxbuffer.discard(startoff + hdr.size - rxbuffer.offset()); }
-            continue; }
-        if (ss == &shutdownsub) {
-            if (shutdown.ready()) _failure = error::shutdown;
-            continue; }
-        if (hellocall.isjust() && ss == &hellosub.just()) {
+            while (true) {
+                auto startoff(rxbuffer.offset());
+                if (rxbuffer.avail() < sizeof(proto::respheader)) break;
+                deserialise1 ds(rxbuffer);
+                proto::respheader hdr(ds);
+                if (ds.isfailure()) {
+                    _failure = ds.failure();
+                    break; }
+                if (hdr.size > rxbuffer.avail()) break;
+                /* Have whole message -> can deserialise and process
+                 * it. */
+                auto completed(
+                    rxlock.locked<_asynccall *>(
+                        [this, &hdr] () -> _asynccall * {
+                            for (auto it(rxqueue.start());
+                                 !it.finished();
+                                 it.next()) {
+                                if ((*it)->seqnr == hdr.seq) {
+                                    auto r(*it);
+                                    it.remove();
+                                    return r; } }
+                            return NULL; } ) );
+                if (completed != NULL) {
+                    if (hdr.status.isfailure()) {
+                        completed->fail(
+                            hdr.status.failure(),
+                            onconnectionthread()); }
+                    else {
+                        completed->complete(
+                            ds,
+                            onconnectionthread()); }
+                    if (ds.offset() != startoff + hdr.size) {
+                        logmsg(loglevel::error,
+                               "expected reply to run from " +
+                               fields::mk(startoff) + " to " +
+                               fields::mk(startoff + hdr.size) +
+                               "; actually went to " +
+                               fields::mk(ds.offset()));
+                        _failure = error::invalidmessage; } }
+                else {
+                    logmsg(
+                        loglevel::debug,
+                        "peer completed call after it was locally aborted"); }
+                rxbuffer.discard(hdr.size); }
+            insub.rearm(); }
+        else if (ss == &shutdownsub) {
+            if (shutdown.ready()) _failure = error::shutdown; }
+        else if (hellocall.isjust() && ss == &hellosub.just()) {
             auto token(hellocall.just()->finished());
             if (token == Nothing) continue;
             hellosub = Nothing;
             auto res(hellocall.just()->pop(token.just()));
             hellocall = Nothing;
-            connectlock.locked([this, res] (mutex_t::token) {
+            connectlock.locked([this, res] {
                     assert(connectres == Nothing);
                     connectres = res; });
-            connectpub.publish();
-            continue; }
-        abort(); }
+            connectpub.publish(); }
+        else abort(); }
 
     /* If we haven't connected yet then we certainly won't now. */
     if (connectres == Nothing) {
-        connectlock.locked([this, _failure] (mutex_t::token) {
+        connectlock.locked([this, _failure] {
                 connectres = _failure.failure(); });
         connectpub.publish(); }
 
     /* No longer processing messages.  Stop anyone making further
      * calls. */
-    rxlock.locked([this] (mutex_t::token) { rxstopped = true; });
+    rxlock.locked([this] { rxstopped = true; });
 
     /* Abort any calls already in progress.  Don't need the lock for
      * this because rxstopped is set and that stops any other threads
@@ -513,7 +484,7 @@ rpcclient2::workerthread::run(clientio io) {
     /* Stop fast TX.  Slow TX is already stopped because we're the
      * only thread which can do it.  */
     int _fd = fd;
-    txlock.locked([this] (mutex_t::token) { fd = -1; });
+    txlock.locked([this] { fd = -1; });
 
     /* Close the socket. */
     ::close(_fd);

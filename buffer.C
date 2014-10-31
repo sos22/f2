@@ -240,12 +240,7 @@ buffer::~buffer(void)
 size_t
 buffer::avail() const
 {
-    size_t ack;
-    ack = 0;
-    for (auto it(first); it; it = it->next) {
-        assert(it->cons < it->prod);
-        ack += it->prod - it->cons; }
-    return ack;
+    return prod - cons;
 }
 
 void

@@ -14,16 +14,19 @@
 #include "orerror.H"
 
 class buffer;
+class error;
 class quickcheck;
 
 /* Deserialisation context for version 1 of the protocol. */
 class deserialise1 {
     /* Either the buffer we're deserialising or a quickcheck instance
      * if we're trying to generate random instances of the type. */
-private: either<nnp<buffer>, nnp<quickcheck> > src;
+private: either<nnp<const buffer>, nnp<quickcheck> > src;
     /* Either Success or the first first error we encountered. */
 private: orerror<void> error;
-public:  explicit deserialise1(buffer &_src);
+    /* Offset in buffer to start decoding the next field. */
+private: unsigned long _offset;
+public:  explicit deserialise1(const buffer &_src);
 public:  explicit deserialise1(quickcheck &_src);
     /* Deserialisers for fundamental types.  Other types have unary
      * constructors which do similar conversions.  Note that on error
@@ -51,12 +54,18 @@ private: template <typename t> t pop();
      * arithmetic operations. */
 public:  template <typename t> t poprange(t min, t max);
 
+public: unsigned long offset() const { return _offset; }
+
     /* Mark the deserialiser as failed, if it hasn't already been
      * marked. */
 public:  void fail(::error);
     /* Check for errors.  Should only usually be necessary at the
      * very end of the deserialisation. */
-public:  orerror<void> status() const; };
+public:  orerror<void> status() const;
+    /* Convenience wrappers for status() */
+public:  bool issuccess() const { return status().issuccess(); }
+public:  bool isfailure() const { return status().isfailure(); }
+public:  ::error failure() const { return status().failure(); } };
 
 /* Version-less serialiser. */
 class serialise1 {

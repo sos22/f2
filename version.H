@@ -14,7 +14,9 @@ public: version(deserialise1 &);
 public: void serialise(serialise1 &) const;
 public: static const version current;
     /* Only really useful in unit tests */
-public: static const version invalid; };
+public: static const version invalid;
+public: bool operator<(version) const;
+public: bool operator>(version) const; };
 mktupleext(version)
 
 #endif /* !VERSION_H__ */

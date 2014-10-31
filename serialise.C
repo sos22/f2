@@ -4,13 +4,15 @@
 
 #include "either.tmpl"
 
-deserialise1::deserialise1(buffer &_src)
+deserialise1::deserialise1(const buffer &_src)
     : src(left<nnp<quickcheck> >(_nnp(_src))),
-      error(Success) {}
+      error(Success),
+      _offset(0) {}
 
 deserialise1::deserialise1(quickcheck &_src)
-    : src(right<nnp<buffer> >(_nnp(_src))),
-      error(Success) {}
+    : src(right<nnp<const buffer> >(_nnp(_src))),
+      error(Success),
+      _offset(0) {}
 
 deserialise1::operator bool() {
     char c(*this);
@@ -31,12 +33,12 @@ deserialise1::operator unsigned long() { return pop<unsigned long>(); }
 template <typename t> t
 deserialise1::pop() {
     if (src.isright()) return t(*src.right());
-    else if (src.left()->avail() < sizeof(t)) {
+    else if (_offset + sizeof(t) > src.left()->offset() + src.left()->avail()) {
         fail(::error::underflowed);
         return t(0); }
     else {
-        t res;
-        src.left()->fetch(&res, sizeof(res));
+        t res(*src.left()->linearise<t>(_offset));
+        _offset += sizeof(t);
         return res; } }
 
 void

@@ -36,6 +36,7 @@ function bits() {
     _ rpcclient
     _ rpcclient2
     _ rpcservice
+    _ rpcservice2
     _ serialise
     _ shutdown
     _ slavename

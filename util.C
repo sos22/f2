@@ -86,6 +86,15 @@ storerelease(t *where, t what) {
     default:
         abort(); } }
 
+template <typename t> t
+atomicloaddec(t &what) { return __sync_fetch_and_sub(&what, 1); }
+
+template <typename t> void
+atomicinc(t &what) { __sync_fetch_and_add(&what, 1); }
+
+template <typename t> t
+atomicload(const t &what) { return __sync_fetch_and_add(&what, 0); }
+
 template int loadacquire(const int &);
 template bool loadacquire(const bool &);
 template void storerelease(bool *, bool);
