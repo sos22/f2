@@ -56,6 +56,7 @@ main(int argc, char *argv[])
     tests::_peername();
     tests::pubsub();
     tests::_rpc();
+    tests::rpctest2();
     tests::_serialise();
     tests::_spawn();
     tests::__storageconfig();

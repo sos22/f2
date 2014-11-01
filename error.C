@@ -12,6 +12,7 @@
 #include "test.H"
 
 #include "list.tmpl"
+#include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
 #include "wireproto.tmpl"
@@ -173,6 +174,19 @@ error::warn(const char *msg) const
 }
 
 wireproto_simple_wrapper_type(error, int, e);
+
+template void maybe<error>::serialise(serialise1 &) const;
+template maybe<error>::maybe(deserialise1 &);
+
+void
+error::serialise(serialise1 &s) const { s.push(e); }
+
+error::error(deserialise1 &ds) {
+    int _e(ds);
+    if ((_e < 0 && _e < lasterror) || _e >= 4096) {
+        _e = error::unknown.e;
+        ds.fail(error::invalidmessage); }
+    e = _e; }
 
 void
 tests::_error() {

@@ -7,7 +7,9 @@
 
 #include "wireproto.H"
 
+class deserialise1;
 class quickcheck;
+class serialise1;
 class string;
 
 namespace fields {
@@ -26,6 +28,7 @@ public:  static string steal(char *&);
 public:  string(const char *);
 public:  string(const string &);
 public:  string(string &&);
+public:  explicit string(deserialise1 &);
 public:  void operator=(const string &);
 public:  string operator+(const string &) const;
 public:  bool operator==(const string &) const;
@@ -34,6 +37,8 @@ public:  bool operator<(const string &) const;
 public:  bool operator>(const string &) const;
 public:  size_t len() const;
 public:  ~string();
+
+public:  void serialise(serialise1 &);
 
     /* Return the string pointer embedded in the string.  Remains
        valid as long as this does. */

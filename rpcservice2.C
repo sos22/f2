@@ -11,26 +11,21 @@
 #include "timedelta.H"
 #include "util.H"
 
-#include "fieldfinal.H"
+#include "list.tmpl"
+#include "mutex.tmpl"
+#include "thread.tmpl"
 
-class rpcservice2::constoken {
-private: constoken() = delete;
-private: constoken(const constoken &) = delete;
-public:  listenfd fd;
-public:  const peername &pn;
-public:  const rpcservice2config &config;
-public:  constoken(listenfd _fd,
-                   const peername &_pn,
-                   const rpcservice2config &_config)
-    : fd(_fd),
-      pn(_pn),
-      config(_config) {} };
+#include "fieldfinal.H"
 
 class rpcservice2::rootthread : public thread {
 public: rpcservice2 &owner;
 public: listenfd const fd;
 public: waitbox<void> shutdown;
-public: rootthread();
+public: rootthread(const constoken &token, rpcservice2 &_owner, listenfd _fd)
+    : thread(token),
+      owner(_owner),
+      fd(_fd),
+      shutdown() {}
 public: void run(clientio) final; };
 
 class rpcservice2::connworker : public thread {
@@ -42,7 +37,16 @@ public: rootthread &owner;
 public: socket_t const fd;
 public: publisher completedcall;
 
-public: connworker();
+public: connworker(const constoken &token, rootthread &_owner, socket_t _fd)
+    : thread(token),
+      shutdown(),
+      txlock(),
+      txbuffer(),
+      outstandingcalls(0),
+      owner(_owner),
+      fd(_fd),
+      completedcall() {}
+
 public: void run(clientio) final;
 public: void complete(
     const std::function<void (serialise1 &, mutex_t::token)> &,
@@ -55,7 +59,7 @@ public: void complete(
     onconnectionthread oct,
     proto::sequencenr);
 public: void fail(error err, onconnectionthread oct, proto::sequencenr);
-public: void txcomplete(unsigned long, unsigned long, mutex_t::token);
+public: void txcomplete(unsigned long, mutex_t::token);
 public: void txcomplete(unsigned long, mutex_t::token, onconnectionthread);
 public: orerror<void> calledhello(
         clientio,
@@ -63,6 +67,18 @@ public: orerror<void> calledhello(
         deserialise1 &ds,
         nnp<incompletecall> ic); };
 
+rpcservice2config::rpcservice2config(unsigned _maxoutstandingcalls,
+                                     unsigned _txbufferlimit)
+    : maxoutstandingcalls(_maxoutstandingcalls),
+      txbufferlimit(_txbufferlimit) {}
+
+rpcservice2config
+rpcservice2config::dflt() {
+    return rpcservice2config(
+        /* maxoutstandingcalls */
+        64,
+        /* bufferlimit */
+        512 << 10); }
 
 orerror<listenfd>
 rpcservice2::open(const peername &pn) {
@@ -76,25 +92,26 @@ rpcservice2::open(const peername &pn) {
         return error::from_errno(); }
     else return listenfd(s); }
 
-template <typename t, typename ... args> orerror<t *>
-rpcservice2::listen(
-    const peername &pn,
-    args && ... params) {
-    auto fd(open(pn));
-    if (fd.isfailure()) return fd.failure();
-    else return new t(constoken(fd.success(), pn),
-                      std::forward<args>(params)...); }
-
 rpcservice2::rpcservice2(const constoken &ct)
     : config(ct.config),
       root(thread::start<rootthread>(
                "R:" + fields::mk(ct.pn),
+               *this,
                ct.fd)) {}
+
+peername::port
+rpcservice2::port() const { return root->fd.localname().getport(); }
 
 rpcservice2::onconnectionthread::onconnectionthread() {}
 
 const waitbox<void> &
 rpcservice2::incompletecall::abandoned() const { return owner.shutdown; }
+
+rpcservice2::incompletecall::incompletecall(
+    connworker &_owner,
+    proto::sequencenr _seqnr)
+    : owner(_owner),
+      seqnr(_seqnr) {}
 
 void
 rpcservice2::incompletecall::complete(
@@ -111,21 +128,30 @@ rpcservice2::incompletecall::complete(
     owner.complete(doit, oct, seqnr);
     delete this; }
 
+void
+rpcservice2::incompletecall::fail(error e) {
+    owner.fail(e, seqnr);
+    delete this; }
+
+void
+rpcservice2::incompletecall::fail(error e, onconnectionthread oct) {
+    owner.fail(e, oct, seqnr);
+    delete this; }
+
 /* Tail end of transmitting a reply.  Set the size in the reply,
  * remove it from the outstandingcalls quota, try a fast send, and
  * kick the connection thread, if necessary.  There's another variant
  * for when we're already on the conn thread. */
 void
-rpcservice2::connworker::txcomplete(unsigned long startoff,
-                                    unsigned long oldavail,
+rpcservice2::connworker::txcomplete(unsigned long oldavail,
                                     mutex_t::token /* txlock */) {
     auto &config(owner.owner.config);
-    auto sz = txbuffer.offset() - startoff;
+    auto sz = txbuffer.avail() - oldavail;
     assert(sz < proto::maxmsgsize);
-    *txbuffer.linearise<unsigned>(startoff) = (unsigned)sz;
+    *txbuffer.linearise<unsigned>(oldavail + txbuffer.offset()) = (unsigned)sz;
 
     auto oldnroutstanding(atomicloaddec(outstandingcalls));
- 
+
     /* Try a fast synchronous send rather than waking the worker
      * thread.  No point if there was stuff in the buffer before we
      * started: whoever put it there would have tried a sync send when
@@ -147,31 +173,29 @@ rpcservice2::connworker::complete(
     const std::function<void (serialise1 &, mutex_t::token)> &doit,
     proto::sequencenr seqnr) {
     txlock.locked([this, &doit, seqnr] (mutex_t::token txtoken) {
-            auto startoff(txbuffer.offset());
             auto oldavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, Success).serialise(s);
             doit(s, txtoken);
-            txcomplete(startoff, oldavail, txtoken); }); }
+            txcomplete(oldavail, txtoken); }); }
 
 void
 rpcservice2::connworker::fail(error err, proto::sequencenr seqnr) {
     txlock.locked([this, err, seqnr] (mutex_t::token txtoken) {
-            auto startoff(txbuffer.offset());
             auto oldavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, err).serialise(s);
-            txcomplete(startoff, oldavail, txtoken); }); }
+            txcomplete(oldavail, txtoken); }); }
 
 /* txcomplete() specialised for when we already happen to be on the
  * conn thread. */
 void
-rpcservice2::connworker::txcomplete(unsigned long startoff,
+rpcservice2::connworker::txcomplete(unsigned long oldavail,
                                     mutex_t::token /* txlock */,
                                     onconnectionthread) {
-    auto sz = txbuffer.offset() - startoff;
+    auto sz = txbuffer.avail() - oldavail;
     assert(sz < proto::maxmsgsize);
-    *txbuffer.linearise<unsigned>(startoff) = (unsigned)sz;
+    *txbuffer.linearise<unsigned>(oldavail + txbuffer.offset()) = (unsigned)sz;
     /* No fast transmit: the conn thread will check for TX as soon as
      * we return, and it's not worth the loss of batching to transmit
      * early when we've already paid the scheduling costs. */
@@ -192,21 +216,21 @@ rpcservice2::connworker::complete(
     onconnectionthread oct,
     proto::sequencenr seqnr) {
     txlock.locked([this, &doit, seqnr, oct] (mutex_t::token txtoken) {
-            auto startoff(txbuffer.offset());
+            auto startavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, Success).serialise(s);
             doit(s, txtoken, oct);
-            txcomplete(startoff, txtoken, oct); }); }
+            txcomplete(startavail, txtoken, oct); }); }
 
 void
 rpcservice2::connworker::fail(error err,
                               onconnectionthread oct,
                               proto::sequencenr seqnr) {
     txlock.locked([this, err, seqnr, oct] (mutex_t::token txtoken) {
-            auto startoff(txbuffer.offset());
+            auto startavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, err).serialise(s);
-            txcomplete(startoff, txtoken, oct); }); }
+            txcomplete(startavail, txtoken, oct); }); }
 
 void
 rpcservice2::rootthread::run(clientio io) {
@@ -231,7 +255,7 @@ rpcservice2::rootthread::run(clientio io) {
             if (newfd.isfailure()) continue;
             auto r(thread::start<connworker>(
                        "S:" + fields::mk(fd.localname()),
-                       this,
+                       *this,
                        newfd.success()));
             workers.append(sub, r->pub(), r); }
         else {
@@ -366,7 +390,7 @@ rpcservice2::connworker::run(clientio io) {
             assert(outsubarmed);
             outsubarmed = false;
             trysend = true; }
-        if (trysend) {
+        if (trysend && !txbuffer.empty()) {
             auto res(txlock.locked<orerror<void> >([this] {
                         return txbuffer.sendfast(fd); }));
             if (res.isfailure() && res != error::wouldblock) failed = true; } }
@@ -382,7 +406,7 @@ rpcservice2::connworker::run(clientio io) {
                        "waiting to shut down service to " +
                        fields::mk(fd.peer()) +
                        "; " +
-                       fields::mk(atomicload(&outstandingcalls)) +
+                       fields::mk(atomicload(outstandingcalls)) +
                        " left");
                 laststatus = timestamp::now(); } } }
     /* We're done */

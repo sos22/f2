@@ -27,7 +27,7 @@ class maybe {
     unsigned char content[sizeof(t)];
     maybe() = delete;
 public:
-    maybe(deserialise1 &);
+    explicit maybe(deserialise1 &);
     maybe(const quickcheck &);
     maybe(const maybe &o)
         : r(o.r)

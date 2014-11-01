@@ -31,6 +31,7 @@ function bits() {
     _ parsers
     _ peername
     _ probability
+    _ proto2
     _ pubsub
     _ quickcheck
     _ rpcclient

@@ -1,0 +1,106 @@
+#ifndef RPCCLIENT2_TMPL__
+#define RPCCLIENT2_TMPL__
+
+#include "mutex.tmpl"
+
+template <typename t> orerror<t>
+rpcclient2::call(
+    clientio io,
+    const std::function<void (serialise1 &,
+                              mutex_t::token txlock)> &serialise,
+    const std::function<orerror<t> (deserialise1 &,
+                                    onconnectionthread)> &deserialise,
+    maybe<timestamp> deadline) {
+    auto c(call<t>(serialise,
+                   [&deserialise]
+                   (asynccall<t> &,
+                    orerror<nnp<deserialise1> > ds,
+                    onconnectionthread oct) -> orerror<t> {
+                       if (ds.isfailure()) return ds.failure();
+                       else return deserialise(*ds.success(), oct); }));
+    auto tok(c->finished());
+    if (tok == Nothing) {
+        subscriber sub;
+        subscription ss(sub, c->pub());
+        tok = c->finished();
+        while (tok == Nothing) {
+            if (sub.wait(io, deadline) == NULL) goto timeout;
+            tok = c->finished(); } }
+    return c->pop(tok.just());
+  timeout:
+    c->abort(io);
+    return error::timeout; }
+
+template <typename t>
+rpcclient2::asynccall<t>::asynccall(
+    const std::function<orerror<t> (class asynccall<t> &,
+                                    orerror<nnp<deserialise1> >,
+                                    onconnectionthread)> &_deserialise)
+    : _asynccall(),
+      res(Nothing),
+      deserialise(_deserialise) {}
+
+template <typename t> void
+rpcclient2::asynccall<t>::complete(deserialise1 &ds, onconnectionthread oct) {
+    auto dead(mux.locked<bool>([this, &ds, oct] {
+                if (!aborted) {
+                    res = deserialise(*this, _nnp(ds), oct);
+                    _finished = true;
+                    _pub.publish();
+                    return false; }
+                else return true; }));
+    if (dead) delete this; }
+
+template <typename t> void
+rpcclient2::asynccall<t>::fail(error e, onconnectionthread oct) {
+    auto dead(mux.locked<bool>([this, e, oct] {
+                if (!aborted) {
+                    res = deserialise(*this, e, oct);
+                    _finished = true;
+                    _pub.publish();
+                    return false; }
+                else return true; }));
+    if (dead) delete this; }
+
+template <typename t> orerror<t>
+rpcclient2::asynccall<t>::pop(token) {
+    auto _res(res.just());
+    delete this;
+    return _res; }
+
+/* This gets a clientio token because it can wait for the deserialise
+ * method.  That's a bit of an abuse (the deserialise method doesn't
+ * get one), but it should be safe, and it's easier than having yet
+ * another tag type to represent the actual relationship. */
+template <typename t> maybe<orerror<t> >
+rpcclient2::asynccall<t>::abort(clientio) {
+    assert(!aborted);
+    auto dead(mux.locked<bool>(
+                  [this] {
+                      aborted = true;
+                      return res != Nothing; }));
+    if (dead) {
+        assert(_finished);
+        auto _res(res);
+        delete this;
+        return _res; }
+    else return Nothing; }
+
+template <typename t> nnp<rpcclient2::asynccall<t> >
+rpcclient2::call(
+    const std::function<void (serialise1 &, mutex_t::token)> &serialise,
+    const std::function<orerror<t> (asynccall<t> &,
+                                    orerror<nnp<deserialise1> >,
+                                    onconnectionthread)> &deserialise) {
+    nnp<asynccall<t> > res(*(new asynccall<t>(deserialise)));
+    auto toolate((queuerx(*res)));
+    /* We're not on the connection thread here, but if queuerx()
+     * failed then the connection thread is shutting down and will
+     * never know about this message, so we can safely pretend to
+     * be. */
+    if (toolate.isfailure()) res->fail(toolate.failure(),
+                                       onconnectionthread());
+    else queuetx(serialise, res->seqnr);
+    return res; }
+
+#endif /* !RPCCLIENT2_TMPL__ */

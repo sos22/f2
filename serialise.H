@@ -46,6 +46,8 @@ public:  operator unsigned long();
     /* Extract something by just copying the raw bits.  Only used to
      * implement the conversion operators. */
 private: template <typename t> t pop();
+    /* Fill a buffer by simplying copying bytes out of the input. */
+public:  void bytes(void *out, size_t sz);
     /* Extract something and validate that it falls into a particular
      * range.  This is usually better than doing the validation
      * yourself because it acts as a hint to the quickcheck
@@ -82,7 +84,9 @@ public:    void push(unsigned int);
 public:    void push(long);
 public:    void push(unsigned long);
     /* Only used to implement the push methods. */
-private:   template <typename t> void pushfundamental(t); };
+private:   template <typename t> void pushfundamental(t);
+    /* Copy some raw bytes into the buffer. */
+public:    void bytes(const void *, size_t); };
 
 /* Hooks for testing upgrade before we have another version to upgrade
  * to. */

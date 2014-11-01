@@ -16,6 +16,7 @@ class serialise1;
 class rpcclient2 {
 public:  template <typename> class asynccall;
 public:  class asyncconnect;
+private: class _asynccall;
 private: class workerthread;
 
 private: rpcclient2(const rpcclient2 &) = delete;
@@ -51,6 +52,10 @@ public: class onconnectionthread {
         friend class rpcclient2;
     private: onconnectionthread(); };
 
+private: orerror<void> queuerx(nnp<_asynccall> call);
+private: void queuetx(const std::function<void (serialise1 &,
+                                                mutex_t::token)> &serialise,
+                      proto::sequencenr seqnr);
 public: template <typename t> orerror<t> call(
     clientio,
     const std::function<void (serialise1 &,
@@ -67,6 +72,7 @@ private: class _asynccall {
     public:    bool _finished;
     public:    publisher _pub;
     public:    proto::sequencenr seqnr;
+    public:    _asynccall();
     public:    virtual void complete(deserialise1 &, onconnectionthread) = 0;
     public:    virtual void fail(error, onconnectionthread) = 0;
     public:    class token {
@@ -84,14 +90,13 @@ public: template <typename t> class asynccall final : private _asynccall {
                                        orerror<nnp<deserialise1> >,
                                        onconnectionthread)> deserialise;
 
-    private: asynccall(
+    private: explicit asynccall(
         const std::function<orerror<t> (class asynccall<t> &,
                                         orerror<nnp<deserialise1> >,
                                         onconnectionthread)> &);
 
     private: void complete(deserialise1 &, onconnectionthread oct);
     private: void fail(error, onconnectionthread oct);
-    public:  typedef _asynccall::token token;
     public:  maybe<token> finished() const { return _asynccall::finished(); }
     public:  const publisher &pub() const { return _pub; }
     public:  orerror<t> pop(token);
@@ -104,9 +109,7 @@ public:  template <typename t> nnp<asynccall<t> > call(
                                         orerror<nnp<deserialise1> >,
                                         onconnectionthread)> &deserialise);
 
-public:  ~rpcclient2(); };
-
-template <> maybe<rpcclient2::asynccall<void>::token>
-    rpcclient2::asynccall<void>::finished() const;
+public:  void destroy();
+private: ~rpcclient2(); };
 
 #endif /* !RPCCLIENT2_H__ */

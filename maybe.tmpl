@@ -2,6 +2,7 @@
 #define MAYBE_TMPL__
 
 #include "parsers.H"
+#include "serialise.H"
 
 template <typename t>
 maybe<t>::maybe(const quickcheck &o)
@@ -13,6 +14,16 @@ maybe<t>::mkjust(args &&...params) {
     if (!r) just().~t();
     r = false;
     ::new (content) t(std::forward<args>(params)...); }
+
+template <typename t> void
+maybe<t>::serialise(serialise1 &s) const {
+    s.push(r);
+    if (isjust()) just().serialise(s); }
+
+template <typename t>
+maybe<t>::maybe(deserialise1 &ds)
+    : r(ds) {
+    if (!r) new (content) t(ds); }
 
 namespace parsers {
 template <typename t> const parser<maybe<t> > &

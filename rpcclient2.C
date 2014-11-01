@@ -15,6 +15,9 @@
 #include "util.H"
 #include "version.H"
 
+#include "list.tmpl"
+#include "mutex.tmpl"
+#include "rpcclient2.tmpl"
 #include "thread.tmpl"
 
 class rpcclient2::workerthread : public thread {
@@ -51,15 +54,9 @@ public: workerthread(const constoken &tok, const peername &p);
 
 public: void run(clientio);
 
-public: orerror<void> queuerx(nnp<rpcclient2::_asynccall> call);
-public: void queuetx(const std::function<void (serialise1 &,
-                                               mutex_t::token)> &serialise,
-                     proto::sequencenr seqnr);
-
     /* Simple wrapper aroudn getsockopt(SO_ERROR) */
 public: static orerror<void> socketerr(int fd, const peername &peer);
-public: orerror<int> connect(clientio io);
-};
+public: orerror<int> connect(clientio io); };
 
 /* Dummy type, just to give us somewhere to expose a nicer API. */
 rpcclient2::rpcclient2() {}
@@ -86,6 +83,8 @@ rpcclient2::connect(
     ac->abort();
     return error::timeout; }
 
+rpcclient2::asyncconnect::asyncconnect() {}
+
 nnp<rpcclient2::workerthread>
 rpcclient2::asyncconnect::owner() const {
     return *containerof(this, workerthread, connector); }
@@ -107,12 +106,12 @@ rpcclient2::asyncconnect::pop(token) {
     assert(owner()->connectres.isjust());
     if (owner()->connectres.just().isfailure()) {
         auto res(owner()->connectres.just().failure());
-        delete owner();
+        owner()->api.destroy();
         return res; }
     else return _nnp(owner()->api); }
 
 void
-rpcclient2::asyncconnect::abort() { delete owner(); }
+rpcclient2::asyncconnect::abort() { owner()->api.destroy(); }
 
 rpcclient2::asyncconnect::~asyncconnect() {}
 
@@ -120,33 +119,16 @@ nnp<rpcclient2::asyncconnect>
 rpcclient2::connect(const peername &pn) {
     return thread::start<workerthread>("C:" + fields::mk(pn), pn)->connector; }
 
-template <typename t> orerror<t>
-rpcclient2::call(
-    clientio io,
-    const std::function<void (serialise1 &,
-                              mutex_t::token txlock)> &serialise,
-    const std::function<orerror<t> (deserialise1 &,
-                                    onconnectionthread)> &deserialise,
-    maybe<timestamp> deadline) {
-    auto c(call(serialise,
-                [&deserialise]
-                (asynccall<t> &,
-                 orerror<nnp<deserialise1> > ds,
-                 onconnectionthread oct) {
-                    if (ds.isfailure()) return ds.failure();
-                    else return deserialise(ds.success(), oct); }));
-    auto tok(c->finished());
-    if (tok == Nothing) {
-        subscriber sub;
-        subscription ss(sub, c->pub());
-        tok = c->finished();
-        while (tok == Nothing) {
-            if (sub.wait(io, deadline) == NULL) goto timeout;
-            tok = c->finished(); } }
-    return c->pop(tok.just());
-  timeout:
-    c->abort();
-    return error::timeout; }
+rpcclient2::onconnectionthread::onconnectionthread() {}
+
+rpcclient2::_asynccall::_asynccall()
+    : mux(),
+      aborted(false),
+      _finished(false),
+      _pub(),
+      seqnr(99 /* filled in later */) {}
+
+rpcclient2::_asynccall::~_asynccall() { assert(aborted || _finished); }
 
 maybe<rpcclient2::_asynccall::token>
 rpcclient2::_asynccall::finished() const {
@@ -167,111 +149,71 @@ rpcclient2::_asynccall::wait(clientio io) const {
             t = finished(); } }
     return t.just(); }
 
-template <typename t> void
-rpcclient2::asynccall<t>::complete(deserialise1 &ds, onconnectionthread oct) {
-    auto dead(mux.locked<bool>([this, &ds, oct] {
-                if (!aborted) {
-                    res = deserialise(*this, _nnp(ds), oct);
-                    _finished = true;
-                    _pub.publish();
-                    return false; }
-                else return true; }));
-    if (dead) delete this; }
-
-template <typename t> void
-rpcclient2::asynccall<t>::fail(error e, onconnectionthread oct) {
-    auto dead(mux.locked<bool>([this, e, oct] {
-                if (!aborted) {
-                    res = deserialise(*this, e, oct);
-                    _finished = true;
-                    _pub.publish();
-                    return false; }
-                else return true; }));
-    if (dead) delete this; }
-
-template <typename t> orerror<t>
-rpcclient2::asynccall<t>::pop(token) {
-    auto _res(res.just());
-    delete this;
-    return _res; }
-
-/* This gets a clientio token because it can wait for the deserialise
- * method.  That's a bit of an abuse (the deserialise method doesn't
- * get one), but it should be safe, and it's easier than having yet
- * another tag type to represent the actual relationship. */
-template <typename t> maybe<orerror<t> >
-rpcclient2::asynccall<t>::abort(clientio) {
-    assert(!aborted);
-    auto dead(mux.locked<bool>(
-                  [this] {
-                      aborted = true;
-                      return res != Nothing; }));
-    if (dead) {
-        assert(_finished);
-        auto _res(res);
-        delete this;
-        return _res; }
-    else return Nothing; }
+rpcclient2::workerthread::workerthread(
+    const constoken &token,
+    const peername &_peer)
+    : thread(token),
+      api(),
+      connector(),
+      connectlock(),
+      connectres(Nothing),
+      connectpub(),
+      peer(_peer),
+      rxlock(),
+      rxqueue(),
+      rxstopped(false),
+      /* Something recognisable and large enough to flush out 32 bit
+       * truncation bugs. */
+      nextseqnr(0x156782345ul),
+      txlock(),
+      txbuffer(),
+      txgrew(),
+      fd(-1),
+      shutdown() {}
 
 /* Allocate a sequence number for a call and put it on the pending-RX
  * list.  The call can't be on the RX list already. */
 orerror<void>
-rpcclient2::workerthread::queuerx(nnp<_asynccall> call) {
-    return rxlock.locked<orerror<void> >(
-        [this, call] () -> orerror<void> {
-            if (rxstopped) return error::shutdown;
-            call->seqnr = nextseqnr;
-            nextseqnr++;
-            rxqueue.pushtail(call);
+rpcclient2::queuerx(nnp<_asynccall> cll) {
+    auto w((worker()));
+    return w->rxlock.locked<orerror<void> >(
+        [cll, w] () -> orerror<void> {
+            if (w->rxstopped) return error::shutdown;
+            cll->seqnr = w->nextseqnr;
+            w->nextseqnr++;
+            w->rxqueue.pushtail(cll);
             return Success; } ); }
 
 void
-rpcclient2::workerthread::queuetx(
+rpcclient2::queuetx(
     const std::function<void (serialise1 &, mutex_t::token)> &serialise,
     proto::sequencenr seqnr) {
+    auto w((worker()));
     auto notify(
-        txlock.locked<bool>(
-            [this, seqnr, &serialise]
+        w->txlock.locked<bool>(
+            [seqnr, &serialise, w]
             (mutex_t::token txtoken) {
-                auto wasempty(txbuffer.empty());
-                auto startoff(txbuffer.offset());
-                serialise1 s(txbuffer);
+                auto startavail(w->txbuffer.avail());
+                serialise1 s(w->txbuffer);
                 /* size gets filled in later */
                 proto::reqheader(-1, version::current, seqnr).serialise(s);
                 serialise(s, txtoken);
                 /* Set size in header. */
-                auto sz = txbuffer.offset() - startoff;
+                auto sz = w->txbuffer.avail() - startavail;
                 assert(sz < proto::maxmsgsize);
-                *txbuffer.linearise<unsigned>(startoff) = (unsigned)sz;
-                /* Try a fast synchronous send rather than waking the
-                 * worker thread.  No point if there was stuff in the
-                 * buffer before we started: whoever put it there
-                 * would have tried a sync send when they did it and
-                 * that must have failed, so our sync send will almost
-                 * certainly also fail. */
-                if (wasempty && fd >= 0) (void)txbuffer.sendfast(fd_t(fd));
-                /* Only notify if there's stuff left in the buffer for
-                 * the worker thread to do.  This'll also cover the
-                 * case where sendfast fails. */
-                return wasempty && !txbuffer.empty(); } ) );
-    if (notify) txgrew.publish(); }
-
-template <typename t> nnp<rpcclient2::asynccall<t> >
-rpcclient2::call(
-    const std::function<void (serialise1 &, mutex_t::token)> &serialise,
-    const std::function<orerror<t> (asynccall<t> &,
-                                    orerror<nnp<deserialise1> >,
-                                    onconnectionthread)> &deserialise) {
-    nnp<asynccall<t> > res(*(new asynccall<t>(deserialise)));
-    auto toolate(worker()->queuerx(*res));
-    /* We're not on the connection thread here, but if queuerx()
-     * failed then the connection thread is shutting down and will
-     * never know about this message, so we can safely pretend to
-     * be. */
-    if (toolate.isfailure()) res->fail(toolate.failure(),
-                                       onconnectionthread());
-    else worker()->queuetx(serialise, res->seqnr);
-    return res; }
+                *w->txbuffer.linearise<unsigned>(
+                    startavail + w->txbuffer.offset()) = (unsigned)sz;
+                /* If there was stuff in the buffer before we started
+                 * then the worker thread is already live and there's
+                 * no need to wake it. */
+                if (startavail != 0) return false;
+                /* Try a fast synchronous send before waking the
+                 * worker. */
+                if (w->fd >= 0) (void)w->txbuffer.sendfast(fd_t(w->fd));
+                /* Wake worker if and only if that didn't clear the
+                 * backlog. */
+                return !w->txbuffer.empty(); } ) );
+    if (notify) w->txgrew.publish(); }
 
 orerror<void>
 rpcclient2::workerthread::socketerr(int sock, const peername &_peer) {
@@ -392,14 +334,14 @@ rpcclient2::workerthread::run(clientio io) {
             outsub.rearm();
             outsubarmed = true; }
         else if (ss == &outsub) {
-            assert(!txbuffer.empty());
             assert(outsubarmed);
             outsubarmed = false;
-            auto res(txlock.locked<orerror<void> >([this] {
-                        return txbuffer.sendfast(fd_t(fd)); }) );
-            if (res.isfailure() && res != error::wouldblock) {
-                _failure = res.failure(); }
-            else if (!txbuffer.empty()) outsub.rearm(); }
+            if (!txbuffer.empty()) {
+                auto res(txlock.locked<orerror<void> >([this] {
+                            return txbuffer.sendfast(fd_t(fd)); }) );
+                if (res.isfailure() && res != error::wouldblock) {
+                    _failure = res.failure(); } }
+            if (!txbuffer.empty()) outsub.rearm(); }
         else if (ss == &insub) {
             auto res(rxbuffer.receivefast(fd_t(fd)));
             insub.rearm();
@@ -408,11 +350,11 @@ rpcclient2::workerthread::run(clientio io) {
                 continue; }
             while (true) {
                 auto startoff(rxbuffer.offset());
-                if (rxbuffer.avail() < sizeof(proto::respheader)) break;
                 deserialise1 ds(rxbuffer);
                 proto::respheader hdr(ds);
                 if (ds.isfailure()) {
-                    _failure = ds.failure();
+                    if (ds.failure() != error::underflowed) {
+                        _failure = ds.failure(); }
                     break; }
                 if (hdr.size > rxbuffer.avail()) break;
                 /* Have whole message -> can deserialise and process
@@ -449,8 +391,7 @@ rpcclient2::workerthread::run(clientio io) {
                     logmsg(
                         loglevel::debug,
                         "peer completed call after it was locally aborted"); }
-                rxbuffer.discard(hdr.size); }
-            insub.rearm(); }
+                rxbuffer.discard(hdr.size); } }
         else if (ss == &shutdownsub) {
             if (shutdown.ready()) _failure = error::shutdown; }
         else if (hellocall.isjust() && ss == &hellosub.just()) {
@@ -491,9 +432,11 @@ rpcclient2::workerthread::run(clientio io) {
 
     /* We're done. */ }
 
-rpcclient2::~rpcclient2() {
-    auto w(worker());
-    w->shutdown.set();
+void
+rpcclient2::destroy() {
+    worker()->shutdown.set();
     /* Worker thread always shuts down quickly once shutdown is
      * set. */
-    w->join(clientio::CLIENTIO); }
+    worker()->join(clientio::CLIENTIO); }
+
+rpcclient2::~rpcclient2() {}

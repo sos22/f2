@@ -8,8 +8,8 @@ class sequencenr {
 private: sequencenr() = delete;
 private: unsigned long val;
 public:  sequencenr(deserialise1 &);
-public:  explicit sequencenr(unsigned long);
-public:  void operator++(int);
+public:  explicit sequencenr(unsigned long _val) : val(_val) {}
+public:  void operator++(int) { val++; }
 public:  void serialise(serialise1 &) const;
 public:  bool operator==(sequencenr o) const { return val == o.val; } };
 

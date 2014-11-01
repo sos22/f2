@@ -14,8 +14,8 @@ orerror<long> parselong(const char *);
 template <typename t> t loadacquire(const t &what);
 template <typename t> void storerelease(t *where, t what);
 template <typename t> t atomicload(const t &what);
-template <typename t> t atomicloaddec(const t &what);
-template <typename t> t atomicinc(const t &what);
+template <typename t> t atomicloaddec(t &what);
+template <typename t> void atomicinc(t &what);
 
 template <typename t> t
 min(const t &a) {

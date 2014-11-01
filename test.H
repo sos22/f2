@@ -154,6 +154,9 @@ void testcaseCS(
 void listcomponents();
 void listtests(const char *component);
 void runtest(const char *component, const char *test);
+
+
+void rpctest2();
 }
 
 #endif

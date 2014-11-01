@@ -7,7 +7,7 @@
 deserialise1::deserialise1(const buffer &_src)
     : src(left<nnp<quickcheck> >(_nnp(_src))),
       error(Success),
-      _offset(0) {}
+      _offset(_src.offset()) {}
 
 deserialise1::deserialise1(quickcheck &_src)
     : src(right<nnp<const buffer> >(_nnp(_src))),
@@ -30,16 +30,25 @@ deserialise1::operator unsigned int() { return pop<unsigned int>(); }
 deserialise1::operator long() { return pop<long>(); }
 deserialise1::operator unsigned long() { return pop<unsigned long>(); }
 
+void
+deserialise1::bytes(void *buf, size_t s) {
+    if (src.isright()) {
+        auto c = (unsigned char *)buf;
+        for (size_t x = 0; x < s; x++) c[x] = *src.right(); }
+    else if (_offset + s > src.left()->offset() + src.left()->avail()) {
+        fail(::error::underflowed);
+        memset(buf, 0, s); }
+    else {
+        memcpy(buf,
+               src.left()->linearise(_offset, _offset + s),
+               s);
+        _offset += s; } }
+
 template <typename t> t
 deserialise1::pop() {
-    if (src.isright()) return t(*src.right());
-    else if (_offset + sizeof(t) > src.left()->offset() + src.left()->avail()) {
-        fail(::error::underflowed);
-        return t(0); }
-    else {
-        t res(*src.left()->linearise<t>(_offset));
-        _offset += sizeof(t);
-        return res; } }
+    t res;
+    bytes(&res, sizeof(res));
+    return res; }
 
 void
 deserialise1::fail(::error e) { if (error == Success) error = e; }
@@ -49,8 +58,12 @@ deserialise1::status() const { return error; }
 
 serialise1::serialise1(buffer &_dest) : dest(_dest) {}
 
+void
+serialise1::bytes(const void *buf, size_t sz) { dest.queue(buf, sz); }
+
 template <typename t> void
-serialise1::pushfundamental(t what) { dest.queue(&what, sizeof(what)); }
+serialise1::pushfundamental(t what) { bytes(&what, sizeof(what)); }
+
 template <> void
 serialise1::pushfundamental(bool b) {
     if (b) pushfundamental<char>(1);

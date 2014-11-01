@@ -5,6 +5,7 @@
 
 #include "listenfd.H"
 #include "mutex.H"
+#include "peername.H"
 #include "proto2.H"
 
 class clientio;
@@ -13,7 +14,6 @@ class fd_t;
 template <typename> class orerror;
 template <typename> class maybe;
 template <typename> class nnp;
-class peername;
 class serialise1;
 template <typename> class waitbox;
 
@@ -21,7 +21,8 @@ class rpcservice2config {
 public: unsigned maxoutstandingcalls;
 public: unsigned txbufferlimit;
 public: rpcservice2config(unsigned _maxoutstandingcalls,
-                          unsigned _txbufferlimit); };
+                          unsigned _txbufferlimit);
+public: static rpcservice2config dflt(); };
 
 class rpcservice2 {
 private:   class rootthread;
@@ -39,8 +40,23 @@ public:    template <typename t, typename ... args> static orerror<t *> listen(
         const peername &,
         args &&...);
 
-public:    class constoken;
+public:    class constoken {
+        friend class rpcservice2;
+    private: constoken() = delete;
+    private: constoken(const constoken &) = delete;
+    private: listenfd fd;
+    private: const peername &pn;
+    private: const rpcservice2config &config;
+    private: constoken(listenfd _fd,
+                       const peername &_pn,
+                       const rpcservice2config &_config)
+        : fd(_fd),
+          pn(_pn),
+          config(_config) {} };
+
 protected: explicit rpcservice2(const constoken &);
+
+public:    peername::port port() const;
 
 public:    class onconnectionthread {
         friend class rpcservice2;
@@ -78,5 +94,6 @@ public:    void destroy(clientio);
     /* Logically private (only called from destroy()) but needs to be
      * protected to keep gcc happy. */
 protected: virtual ~rpcservice2(); };
+
 
 #endif /* !RPCSERVICE2_H__ */
