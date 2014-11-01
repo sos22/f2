@@ -183,7 +183,7 @@ error::serialise(serialise1 &s) const { s.push(e); }
 
 error::error(deserialise1 &ds) {
     int _e(ds);
-    if ((_e < 0 && _e < lasterror) || _e >= 4096) {
+    if ((_e < -lasterror) || _e >= 4096) {
         _e = error::unknown.e;
         ds.fail(error::invalidmessage); }
     e = _e; }
