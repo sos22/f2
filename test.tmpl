@@ -94,5 +94,32 @@ template <typename rettype, typename ... args>
 tests::hook<rettype, args...>::~hook() {
     reinterpret_cast<hookpoint<void> *>(owner)->set(NULL); }
 
+template <typename ... args>
+tests::hookpoint<void, args...>::hookpoint(
+    const std::function<void (args &&...)> &_dflt)
+    : mux(),
+      hooked(Nothing),
+      refcount(0),
+      idle(mux),
+      dflt(_dflt) {}
+
+template <typename ... args> void
+tests::hookpoint<void, args...>::slowpath(args &&... params) const {
+    auto token(mux.lock());
+    if (hooked == Nothing) {
+        mux.unlock(&token);
+        return dflt(std::forward<args>(params)...); }
+    refcount++;
+    mux.unlock(&token);
+    hooked.just()->impl(std::forward<args>(params)...);
+    token = mux.lock();
+    refcount--;
+    if (refcount == 0) idle.broadcast(token);
+    mux.unlock(&token); }
+
+template <typename ... args>
+tests::hookpoint<void, args...>::~hookpoint() {
+    reinterpret_cast<hookpoint<void> *>(this)->wait(); }
+
 
 #endif /* !TEST_TMPL__ */

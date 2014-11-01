@@ -7,12 +7,14 @@
 #include "logging.H"
 #include "proto2.H"
 #include "serialise.H"
+#include "test.H"
 #include "thread.H"
 #include "timedelta.H"
 #include "util.H"
 
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "test.tmpl"
 #include "thread.tmpl"
 
 #include "fieldfinal.H"
@@ -166,6 +168,9 @@ rpcservice2::destroy(clientio io) {
 
 rpcservice2::~rpcservice2() {}
 
+tests::hookpoint<void>
+rpcservice2::clientdisconnected([] { } );
+
 void
 rpcservice2::rootthread::run(clientio io) {
     /* Wait for service derived class constructor to finish before
@@ -197,7 +202,9 @@ rpcservice2::rootthread::run(clientio io) {
                        "S:" + fields::mk(fd.localname()),
                        *this,
                        newfd.success()));
-            workers.append(sub, r->pub(), r); }
+            workers.append(sub, r->pub(), r)
+                /* Avoid silliness if the client disconnects quickly. */
+                .set(); }
         else {
             /* One of our worker threads died. */
             auto died(static_cast<connworker *>(s->data));
@@ -207,7 +214,8 @@ rpcservice2::rootthread::run(clientio io) {
                 if (it->data == died) {
                     it.remove();
                     break; } };
-            died->join(death.just()); } }
+            died->join(death.just());
+            rpcservice2::clientdisconnected(); } }
     /* Time to die.  Wait for our client connections to drop.  Should
      * be quick because they watch our shutdown box. */
     while (!workers.empty()) {
@@ -321,8 +329,9 @@ rpcservice2::connworker::run(clientio io) {
             auto res(txlock.locked<orerror<void> >([this] {
                         return txbuffer.sendfast(fd); }));
             if (res.isfailure() && res != error::wouldblock) failed = true; } }
-    /* Tell outstanding calls to abort. */
-    shutdown.set();
+    /* Tell outstanding calls to abort.  Under the TX lock to avoid a
+     * race with fast TX. */
+    txlock.locked([this] { shutdown.set(); });
     /* Wait for them to finish. */
     {   auto laststatus(timestamp::now());
         subscriber smallsub;

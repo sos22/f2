@@ -14,6 +14,7 @@
 #include "rpcclient2.tmpl"
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"
+#include "test.tmpl"
 #include "timedelta.tmpl"
 
 namespace tests {
@@ -282,4 +283,17 @@ rpctest2() {
                    timedelta::milliseconds(100));
             assert(timedelta::time([clnt] { clnt->destroy(); }) <
                    timedelta::milliseconds(100)); });
+    testcaseIO("rpctest2", "clientdisco", [] (clientio io) {
+            waitbox<void> died;
+            hook<void> h(rpcservice2::clientdisconnected,
+                         [&died] { died.set(); });
+            auto srv(rpcservice2::listen<echoservice>(
+                         peername::loopback(peername::port::any))
+                     .fatal("starting echo service"));
+            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+                      .fatal("connecting to echo service"));
+            clnt->destroy();
+            assert(timedelta::time([&died, io] { died.get(io); })
+                   < timedelta::milliseconds(100));
+            srv->destroy(io); });
 } }

@@ -11,9 +11,10 @@
 class clientio;
 class deserialise1;
 class fd_t;
-template <typename> class orerror;
+namespace tests { template <typename, typename ...> class hookpoint; }
 template <typename> class maybe;
 template <typename> class nnp;
+template <typename> class orerror;
 class serialise1;
 template <typename> class waitbox;
 
@@ -190,7 +191,11 @@ public:    void destroy(clientio);
 
     /* Logically private (only called from destroy()) but needs to be
      * protected to keep gcc happy. */
-protected: virtual ~rpcservice2(); };
+protected: virtual ~rpcservice2();
+
+    /* Test interface. */
+public:    static tests::hookpoint<void> clientdisconnected;
+};
 
 
 #endif /* !RPCSERVICE2_H__ */
