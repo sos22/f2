@@ -35,6 +35,10 @@ public:
     timespec as_timespec() const;
     walltime aswalltime() const;
 
+    /* Simple wrappers. */
+    bool infuture() const { return *this > now(); }
+    bool inpast() const { return *this < now(); }
+
     /* Sleep until the represented time has passed. */
     void sleep(clientio) const;
 

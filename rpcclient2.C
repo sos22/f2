@@ -379,11 +379,13 @@ rpcclient2::workerthread::run(clientio io) {
             list<nnp<_asynccall> > aborted;
             rxlock.locked(
                 [this, &aborted] {
-                    for (auto it(rxqueue.start()); !it.finished(); it.next()) {
+                    bool r;
+                    for (auto it(rxqueue.start());
+                         !it.finished();
+                         r ? it.remove() : it.next()) {
                         auto c(*it);
-                        if (c->aborted) {
-                            it.remove();
-                            aborted.pushtail(c); } } });
+                        r = c->aborted;
+                        if (c->aborted) aborted.pushtail(c); } } );
             for (auto it(aborted.start()); !it.finished(); it.next()) {
                 auto c(*it);
                 /* Acquire and release lock as a kind of barrier to

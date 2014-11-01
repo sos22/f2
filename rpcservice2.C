@@ -31,6 +31,8 @@ public: rootthread(const constoken &token, rpcservice2 &_owner, listenfd _fd)
 public: void run(clientio) final; };
 
 class rpcservice2::connworker : public thread {
+    /* Shutdown box used by the conn thread to request shutdown of
+     * outstanding incomplete calls. */
 public: waitbox<void> shutdown;
 public: mutex_t txlock;
 public: buffer txbuffer;
@@ -405,7 +407,7 @@ rpcservice2::connworker::txcomplete(unsigned long oldavail,
      * don't gain anything by doing another one here, or they weren't,
      * in which case their send must have failed (or the buffer would
      * now be empty) and ours probably would as well. */
-    if (oldavail == 0) (void)txbuffer.sendfast(fd);
+    if (oldavail == 0 && !shutdown.ready()) (void)txbuffer.sendfast(fd);
     /* Need to kick if either we've moved the TX to non-empty (because
      * TX sub might be disarmed), or if we've moved sufficiently clear
      * of the RX quota, or if we're shutting down and this is the last

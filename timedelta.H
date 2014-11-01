@@ -5,10 +5,12 @@
 
 #include "wireproto.H"
 
+class deserialise1;
+class frequency;
 class quickcheck;
+class serialise1;
 class timedelta;
 class timestamp;
-class frequency;
 
 template <typename> struct timeres;
 
@@ -27,6 +29,7 @@ public:
     timedelta(const quickcheck &);
     /* Random over a limited range. */
     timedelta(const quickcheck &, timedelta min, timedelta max);
+    explicit timedelta(deserialise1 &);
     static timedelta weeks(long nr) { return days(nr * 7l); }
     static timedelta days(long nr) { return hours(nr * 24l); }
     static timedelta hours(long nr) { return minutes(nr * 60l); }
@@ -54,6 +57,8 @@ public:
 
     template <typename t> static timeres<t> time(std::function<t ()>);
     static timedelta time(std::function<void ()>);
+
+    void serialise(serialise1 &) const;
 
     WIREPROTO_WRAPPER_TYPE(timedelta, long, private);
 };

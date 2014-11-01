@@ -4,6 +4,7 @@
 #include "quickcheck.H"
 #include "fields.H"
 #include "frequency.H"
+#include "serialise.H"
 #include "test.H"
 #include "timestamp.H"
 
@@ -18,6 +19,9 @@ timedelta::timedelta(const quickcheck &q, timedelta min, timedelta max)
 
 timedelta::timedelta(const quickcheck &q)
     : v(q) {}
+
+timedelta::timedelta(deserialise1 &ds)
+    : v(ds) {}
 
 timestamp
 timedelta::operator+(timestamp ts) const
@@ -45,6 +49,9 @@ timedelta::time(std::function<void ()> what) {
     auto start(timestamp::now());
     what();
     return timestamp::now() - start; }
+
+void
+timedelta::serialise(serialise1 &s) const { s.push(v); }
 
 wireproto_simple_wrapper_type(timedelta, long, v)
 
