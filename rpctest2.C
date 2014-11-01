@@ -36,7 +36,6 @@ public: orerror<void> called(
 void
 rpctest2() {
     testcaseIO("rpctest2", "echo", [] (clientio io) {
-            initlogging("T");
             auto srv(rpcservice2::listen<echoservice>(
                          peername::all(peername::port::any))
                      .fatal("starting echo service"));
@@ -44,7 +43,6 @@ rpctest2() {
                           io,
                           peername::loopback(srv->port()))
                       .fatal("connecting to echo service"));
-
             clnt->call<void>(
                 io,
                 [] (serialise1 &s, mutex_t::token) {

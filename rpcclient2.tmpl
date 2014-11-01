@@ -35,10 +35,12 @@ template <typename t>
 rpcclient2::asynccall<t>::asynccall(
     const std::function<orerror<t> (class asynccall<t> &,
                                     orerror<nnp<deserialise1> >,
-                                    onconnectionthread)> &_deserialise)
-    : _asynccall(),
+                                    onconnectionthread)> &_deserialise,
+    publisher &_aborted)
+    : _asynccall(_aborted),
       res(Nothing),
       deserialise(_deserialise) {}
+
 
 template <typename t> void
 rpcclient2::asynccall<t>::complete(deserialise1 &ds, onconnectionthread oct) {
@@ -78,6 +80,7 @@ rpcclient2::asynccall<t>::abort(clientio) {
     auto dead(mux.locked<bool>(
                   [this] {
                       aborted = true;
+                      if (res == Nothing) abortedpub.publish();
                       return res != Nothing; }));
     if (dead) {
         assert(_finished);
@@ -92,7 +95,7 @@ rpcclient2::call(
     const std::function<orerror<t> (asynccall<t> &,
                                     orerror<nnp<deserialise1> >,
                                     onconnectionthread)> &deserialise) {
-    nnp<asynccall<t> > res(*(new asynccall<t>(deserialise)));
+    nnp<asynccall<t> > res(*(new asynccall<t>(deserialise, abortedpub())));
     auto toolate((queuerx(*res)));
     /* We're not on the connection thread here, but if queuerx()
      * failed then the connection thread is shutting down and will

@@ -46,6 +46,7 @@ public: mutex_t txlock;
 public: buffer txbuffer;
 public: publisher txgrew;
 public: int fd;
+public: publisher abortedpub;
 
     /* Shutdown machine. */
 public: waitbox<void> shutdown;
@@ -58,121 +59,12 @@ public: void run(clientio);
 public: static orerror<void> socketerr(int fd, const peername &peer);
 public: orerror<int> connect(clientio io); };
 
-/* Dummy type, just to give us somewhere to expose a nicer API. */
-rpcclient2::rpcclient2() {}
-
 nnp<rpcclient2::workerthread>
 rpcclient2::worker() const { return *containerof(this, workerthread, api); }
 
-orerror<nnp<rpcclient2> >
-rpcclient2::connect(
-    clientio io,
-    const peername &pn,
-    maybe<timestamp> deadline) {
-    auto ac(connect(pn));
-    auto t(ac->finished());
-    if (t == Nothing) {
-        subscriber sub;
-        subscription ss(sub, ac->pub());
-        t = ac->finished();
-        while (t == Nothing) {
-            if (sub.wait(io, deadline) == NULL) goto timeout;
-            t = ac->finished(); } }
-    return ac->pop(t.just());
-  timeout:
-    ac->abort();
-    return error::timeout; }
-
-rpcclient2::asyncconnect::asyncconnect() {}
-
-nnp<rpcclient2::workerthread>
-rpcclient2::asyncconnect::owner() const {
-    return *containerof(this, workerthread, connector); }
-
-rpcclient2::asyncconnect::token::token() {}
-
-maybe<rpcclient2::asyncconnect::token>
-rpcclient2::asyncconnect::finished() const {
-    return owner()->connectlock.locked<maybe<token> >(
-        [this] () -> maybe<token> {
-            if (owner()->connectres == Nothing) return Nothing;
-            else return token(); }); }
-
-const publisher &
-rpcclient2::asyncconnect::pub() const { return owner()->connectpub; }
-
-orerror<nnp<rpcclient2> >
-rpcclient2::asyncconnect::pop(token) {
-    assert(owner()->connectres.isjust());
-    if (owner()->connectres.just().isfailure()) {
-        auto res(owner()->connectres.just().failure());
-        owner()->api.destroy();
-        return res; }
-    else return _nnp(owner()->api); }
-
-void
-rpcclient2::asyncconnect::abort() { owner()->api.destroy(); }
-
-rpcclient2::asyncconnect::~asyncconnect() {}
-
-nnp<rpcclient2::asyncconnect>
-rpcclient2::connect(const peername &pn) {
-    return thread::start<workerthread>("C:" + fields::mk(pn), pn)->connector; }
-
-rpcclient2::onconnectionthread::onconnectionthread() {}
-
-rpcclient2::_asynccall::_asynccall()
-    : mux(),
-      aborted(false),
-      _finished(false),
-      _pub(),
-      seqnr(99 /* filled in later */) {}
-
-rpcclient2::_asynccall::~_asynccall() { assert(aborted || _finished); }
-
-maybe<rpcclient2::_asynccall::token>
-rpcclient2::_asynccall::finished() const {
-    assert(!aborted);
-    return mux.locked<maybe<token> >(
-        [this] () -> maybe<token> {
-            if (_finished) return token();
-            else return Nothing; } ); }
-
-rpcclient2::_asynccall::token
-rpcclient2::_asynccall::wait(clientio io) const {
-    auto t(finished());
-    if (t == Nothing) {
-        subscriber sub;
-        subscription ss(sub, _pub);
-        while (t == Nothing) {
-            sub.wait(io);
-            t = finished(); } }
-    return t.just(); }
-
-rpcclient2::workerthread::workerthread(
-    const constoken &token,
-    const peername &_peer)
-    : thread(token),
-      api(),
-      connector(),
-      connectlock(),
-      connectres(Nothing),
-      connectpub(),
-      peer(_peer),
-      rxlock(),
-      rxqueue(),
-      rxstopped(false),
-      /* Something recognisable and large enough to flush out 32 bit
-       * truncation bugs. */
-      nextseqnr(0x156782345ul),
-      txlock(),
-      txbuffer(),
-      txgrew(),
-      fd(-1),
-      shutdown() {}
-
 /* Allocate a sequence number for a call and put it on the pending-RX
- * list.  The call can't be on the RX list already. */
+ * list.  The call can't be on the RX list already.  Returns
+ * error::shutdown if we've already started a shutdown sequence. */
 orerror<void>
 rpcclient2::queuerx(nnp<_asynccall> cll) {
     auto w((worker()));
@@ -184,6 +76,10 @@ rpcclient2::queuerx(nnp<_asynccall> cll) {
             w->rxqueue.pushtail(cll);
             return Success; } ); }
 
+/* Queue something for transmit.  This can sometimes race with a
+ * shutdown sequence, if the other side goes away while we're working,
+ * in which case the stuff still goes in the TX queue but will never
+ * be sent.  Cannot race with the local side being torn down. */
 void
 rpcclient2::queuetx(
     const std::function<void (serialise1 &, mutex_t::token)> &serialise,
@@ -215,58 +111,128 @@ rpcclient2::queuetx(
                 return !w->txbuffer.empty(); } ) );
     if (notify) w->txgrew.publish(); }
 
-orerror<void>
-rpcclient2::workerthread::socketerr(int sock, const peername &_peer) {
-    int err;
-    socklen_t sz(sizeof(err));
-    orerror<void> res(Success);
-    if (::getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &sz) < 0) {
-            /* Kernel implementation detail: not actually possible to
-             * get an error here. */
-#ifndef COVERAGESKIP
-            res = error::from_errno();
-            res.failure()
-                .warn("getting connect error for " + fields::mk(_peer));
-#endif
-            }
-    else if (err != 0) res = error::from_errno(err);
-    return res; }
+publisher &
+rpcclient2::abortedpub() { return worker()->abortedpub; }
 
-orerror<int>
-rpcclient2::workerthread::connect(clientio io) {
-    auto sock(::socket(peer.sockaddr()->sa_family,
-                       SOCK_STREAM | SOCK_NONBLOCK,
-                       0));
-    if (sock < 0) return error::from_errno();
-    if (::connect(sock, peer.sockaddr(), peer.sockaddrsize()) < 0 &&
-        errno != EINPROGRESS) {
-        ::close(sock);
-        return error::from_errno(); }
-    subscriber sub;
-    subscription sssub(sub, shutdown.pub);
-    iosubscription completesub(sub, fd_t(sock).poll(POLLOUT));
-    orerror<int> res(sock);
-    while (!shutdown.ready()) {
-        auto ss(sub.wait(io));
-        if (ss == &sssub) continue;
-        assert(ss == &completesub);
-        /* Check for spurious events on the iosub.  Never actually
-         * happens, because of implementation details, but it's
-         * allowed by the API, so handle it. */
-        auto pfd(fd_t(sock).poll(POLLOUT));
-        if (::poll(&pfd, 1, 0) < 0) {
-#ifndef COVERAGESKIP
-            res = error::from_errno();
-            break;
-#endif
-        }
-        if (pfd.revents & POLLOUT) break; }
-    if (shutdown.ready()) res = error::shutdown;
-    else if (res.issuccess()) {
-        auto r2(socketerr(sock, peer));
-        if (r2.isfailure()) res = r2.failure(); }
-    if (res.isfailure()) ::close(sock);
-    return res; }
+rpcclient2::_asynccall::_asynccall(publisher &_abortedpub)
+    : mux(),
+      aborted(false),
+      _finished(false),
+      _pub(),
+      abortedpub(_abortedpub),
+      seqnr(99 /* filled in later */) {}
+
+maybe<rpcclient2::_asynccall::token>
+rpcclient2::_asynccall::finished() const {
+    assert(!aborted);
+    return mux.locked<maybe<token> >(
+        [this] () -> maybe<token> {
+            if (_finished) return token();
+            else return Nothing; } ); }
+
+rpcclient2::_asynccall::token
+rpcclient2::_asynccall::wait(clientio io) const {
+    auto t(finished());
+    if (t == Nothing) {
+        subscriber sub;
+        subscription ss(sub, _pub);
+        while (t == Nothing) {
+            sub.wait(io);
+            t = finished(); } }
+    return t.just(); }
+
+rpcclient2::_asynccall::~_asynccall() { assert(aborted || _finished); }
+
+rpcclient2::rpcclient2() {}
+
+nnp<rpcclient2::asyncconnect>
+rpcclient2::connect(const peername &pn) {
+    return thread::start<workerthread>("C:" + fields::mk(pn), pn)->connector; }
+
+nnp<rpcclient2::workerthread>
+rpcclient2::asyncconnect::owner() const {
+    return *containerof(this, workerthread, connector); }
+
+rpcclient2::asyncconnect::asyncconnect() {}
+
+rpcclient2::asyncconnect::token::token() {}
+
+maybe<rpcclient2::asyncconnect::token>
+rpcclient2::asyncconnect::finished() const {
+    return owner()->connectlock.locked<maybe<token> >(
+        [this] () -> maybe<token> {
+            if (owner()->connectres == Nothing) return Nothing;
+            else return token(); }); }
+
+const publisher &
+rpcclient2::asyncconnect::pub() const { return owner()->connectpub; }
+
+orerror<nnp<rpcclient2> >
+rpcclient2::asyncconnect::pop(token) {
+    assert(owner()->connectres.isjust());
+    if (owner()->connectres.just().isfailure()) {
+        auto res(owner()->connectres.just().failure());
+        owner()->api.destroy();
+        return res; }
+    else return _nnp(owner()->api); }
+
+void
+rpcclient2::asyncconnect::abort() { owner()->api.destroy(); }
+
+rpcclient2::asyncconnect::~asyncconnect() {}
+
+orerror<nnp<rpcclient2> >
+rpcclient2::connect(
+    clientio io,
+    const peername &pn,
+    maybe<timestamp> deadline) {
+    auto ac(connect(pn));
+    auto t(ac->finished());
+    if (t == Nothing) {
+        subscriber sub;
+        subscription ss(sub, ac->pub());
+        t = ac->finished();
+        while (t == Nothing) {
+            if (sub.wait(io, deadline) == NULL) goto timeout;
+            t = ac->finished(); } }
+    return ac->pop(t.just());
+  timeout:
+    ac->abort();
+    return error::timeout; }
+
+rpcclient2::onconnectionthread::onconnectionthread() {}
+
+void
+rpcclient2::destroy() {
+    worker()->shutdown.set();
+    /* Worker thread always shuts down quickly once shutdown is
+     * set. */
+    worker()->join(clientio::CLIENTIO); }
+
+rpcclient2::~rpcclient2() {}
+
+rpcclient2::workerthread::workerthread(
+    const constoken &token,
+    const peername &_peer)
+    : thread(token),
+      api(),
+      connector(),
+      connectlock(),
+      connectres(Nothing),
+      connectpub(),
+      peer(_peer),
+      rxlock(),
+      rxqueue(),
+      rxstopped(false),
+      /* Something recognisable and large enough to flush out 32 bit
+       * truncation bugs. */
+      nextseqnr(0x156782345ul),
+      txlock(),
+      txbuffer(),
+      txgrew(),
+      fd(-1),
+      abortedpub(),
+      shutdown() {}
 
 void
 rpcclient2::workerthread::run(clientio io) {
@@ -299,6 +265,10 @@ rpcclient2::workerthread::run(clientio io) {
     /* Watch for more stuff arriving in the TX queue. */
     subscription txgrewsub(sub, txgrew);
     if (!txbuffer.empty()) txgrewsub.set();
+
+    /* And for things getting aborted. */
+    subscription aborts(sub, abortedpub);
+    aborts.set();
 
     /* Start by sending a HELLO call. */
     maybe<nnp<asynccall<void> > > hellocall(
@@ -404,6 +374,23 @@ rpcclient2::workerthread::run(clientio io) {
                     assert(connectres == Nothing);
                     connectres = res; });
             connectpub.publish(); }
+        else if (ss == &aborts) {
+            /* Go and GC anything which has been aborted. */
+            list<nnp<_asynccall> > aborted;
+            rxlock.locked(
+                [this, &aborted] {
+                    for (auto it(rxqueue.start()); !it.finished(); it.next()) {
+                        auto c(*it);
+                        if (c->aborted) {
+                            it.remove();
+                            aborted.pushtail(c); } } });
+            for (auto it(aborted.start()); !it.finished(); it.next()) {
+                auto c(*it);
+                /* Acquire and release lock as a kind of barrier to
+                 * make sure that the call's abort() really has
+                 * finished with it. */
+                c->mux.locked([c] { assert(c->aborted); });
+                delete *it; } }
         else abort(); }
 
     /* If we haven't connected yet then we certainly won't now. */
@@ -432,11 +419,55 @@ rpcclient2::workerthread::run(clientio io) {
 
     /* We're done. */ }
 
-void
-rpcclient2::destroy() {
-    worker()->shutdown.set();
-    /* Worker thread always shuts down quickly once shutdown is
-     * set. */
-    worker()->join(clientio::CLIENTIO); }
+orerror<void>
+rpcclient2::workerthread::socketerr(int sock, const peername &_peer) {
+    int err;
+    socklen_t sz(sizeof(err));
+    orerror<void> res(Success);
+    if (::getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &sz) < 0) {
+            /* Kernel implementation detail: not actually possible to
+             * get an error here. */
+#ifndef COVERAGESKIP
+            res = error::from_errno();
+            res.failure()
+                .warn("getting connect error for " + fields::mk(_peer));
+#endif
+            }
+    else if (err != 0) res = error::from_errno(err);
+    return res; }
 
-rpcclient2::~rpcclient2() {}
+orerror<int>
+rpcclient2::workerthread::connect(clientio io) {
+    auto sock(::socket(peer.sockaddr()->sa_family,
+                       SOCK_STREAM | SOCK_NONBLOCK,
+                       0));
+    if (sock < 0) return error::from_errno();
+    if (::connect(sock, peer.sockaddr(), peer.sockaddrsize()) < 0 &&
+        errno != EINPROGRESS) {
+        ::close(sock);
+        return error::from_errno(); }
+    subscriber sub;
+    subscription sssub(sub, shutdown.pub);
+    iosubscription completesub(sub, fd_t(sock).poll(POLLOUT));
+    orerror<int> res(sock);
+    while (!shutdown.ready()) {
+        auto ss(sub.wait(io));
+        if (ss == &sssub) continue;
+        assert(ss == &completesub);
+        /* Check for spurious events on the iosub.  Never actually
+         * happens, because of implementation details, but it's
+         * allowed by the API, so handle it. */
+        auto pfd(fd_t(sock).poll(POLLOUT));
+        if (::poll(&pfd, 1, 0) < 0) {
+#ifndef COVERAGESKIP
+            res = error::from_errno();
+            break;
+#endif
+        }
+        if (pfd.revents & POLLOUT) break; }
+    if (shutdown.ready()) res = error::shutdown;
+    else if (res.issuccess()) {
+        auto r2(socketerr(sock, peer));
+        if (r2.isfailure()) res = r2.failure(); }
+    if (res.isfailure()) ::close(sock);
+    return res; }

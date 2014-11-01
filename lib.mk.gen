@@ -99,6 +99,7 @@ testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
 testmodule registrationsecret registrationsecret.C registrationsecret.H
 testmodule rpc rpcservice.C rpcservice.H rpcservice.tmpl rpcclient.C rpcclient.H
+testmodule rpctest2 rpcservice2.C rpcservice2.tmpl rpcservice2.H rpcclient2.C rpcclient2.tmpl rpcclient2.H
 testmodule serialise serialise.C serialise.H serialise.tmpl
 testmodule spawn spawn.C spawn.H
 testmodule storageconfig storageconfig.C storageconfig.H
