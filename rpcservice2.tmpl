@@ -1,13 +1,24 @@
 #ifndef RPCSERVICE2_TMPL__
 #define RPCSERVICE2_TMPL__
 
-template <typename t, typename ... args> orerror<t *>
+template <typename t, typename ... args> orerror<nnp<t> >
 rpcservice2::listen(
+    const peername &pn,
+    args && ... params) {
+    return listen<t>(rpcservice2config::dflt(),
+                     pn,
+                     std::forward<args>(params)...); }
+
+template <typename t, typename ... args> orerror<nnp<t> >
+rpcservice2::listen(
+    const rpcservice2config &config,
     const peername &pn,
     args && ... params) {
     auto fd(open(pn));
     if (fd.isfailure()) return fd.failure();
-    else return new t(constoken(fd.success(), pn, rpcservice2config::dflt()),
-                      std::forward<args>(params)...); }
+    auto res(new t(constoken(fd.success(), pn, config),
+                   std::forward<args>(params)...));
+    res->start();
+    return _nnp(*res); }
 
 #endif /* RPCSERVICE2_TMPL__ */

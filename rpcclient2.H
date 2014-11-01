@@ -128,6 +128,10 @@ public:  class onconnectionthread {
      * return value of @deserialise will provide the return value of
      * the asynccall pop() method, when it's called.
      *
+     * deserialise must always consume the entire message, and no
+     * more.  Anything else is an error which will render the
+     * connection unusable.
+     *
      * The deserialise method also receives a reference to the
      * asynccall structure associated with the call.  This should be
      * treated with care: most asynccall methods, including abort()
@@ -173,12 +177,12 @@ public:  template <typename t> class asynccall final : private _asynccall {
     public:  orerror<t> pop(token);
         /* Attempt to abort a call.  If deserialise() has not yet been
          * called, this returns Nothing (and prevents deserialise()
-         * from being called).  If deserialise() has been called then
-         * this returns whatever deserialise() did.  If deserialise()
-         * is still running then this waits until deserialise()
-         * finishes and then returns whatever it returned.  In any
-         * case, the asynccall structure is released and may not be
-         * used again. */
+         * from ever being called on this asynccall).  If
+         * deserialise() has been called then this returns whatever
+         * deserialise() did.  If deserialise() is still running then
+         * this waits until deserialise() finishes and then returns
+         * whatever it returned.  In any case, the asynccall structure
+         * is released and may not be used again. */
     public:  maybe<orerror<t> > abort(clientio);
         /* Convenience wrapper around finished(), pub(), and pop():
          * wait for finished() to become non-Nothing and then pop()
