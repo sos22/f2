@@ -1,5 +1,7 @@
 #include "test.H"
 
+#include <arpa/inet.h>
+
 #include "logging.H"
 #include "nnp.H"
 #include "rpcclient2.H"
@@ -83,8 +85,46 @@ public: orerror<void> called(
                     sub.wait(clientio::CLIENTIO, deadline); } }
             ic->complete([key] (serialise1 &s, mutex_t::token) {
                     s.push(key); }); });
-    return Success; }
-};
+    return Success; } };
+
+class largerespservice : public rpcservice2 {
+public: string largestring;
+public: largerespservice(const constoken &t)
+    : rpcservice2(t),
+      largestring("Hello world, this is a test pattern") {
+    /* Make it about eight megs. */
+    for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
+public: orerror<void> called(
+    clientio,
+    onconnectionthread oct,
+    deserialise1 &,
+    nnp<incompletecall> ic) {
+    ic->complete(
+        [this] (serialise1 &s, mutex_t::token, onconnectionthread) {
+            largestring.serialise(s); },
+        oct);
+    return Success; } };
+
+class largereqservice : public rpcservice2 {
+public: string largestring;
+public: largereqservice(const constoken &t)
+    : rpcservice2(t),
+      largestring("Hello world, this is another test pattern") {
+    for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
+public: orerror<void> called(
+    clientio io,
+    onconnectionthread oct,
+    deserialise1 &ds,
+    nnp<incompletecall> ic) {
+    string s(ds);
+    assert(s == largestring);
+    /* Slow down thread to make it a bit easier for the client to fill their
+     * TX buffer. */
+    (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
+    ic->complete(
+        [this] (serialise1 &, mutex_t::token, onconnectionthread) {},
+        oct);
+    return Success; } };
 
 void
 rpctest2() {
@@ -257,7 +297,7 @@ rpctest2() {
             assert(completed.pophead() == call1);
             clnt->destroy();
             srv->destroy(io); });
-    testcaseIO("rpctest2", "slowabort", [] (clientio io) {
+    testcaseIO("rpctest2", "slowabandon", [] (clientio io) {
             auto srv(rpcservice2::listen<slowservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
@@ -283,17 +323,132 @@ rpctest2() {
                    timedelta::milliseconds(100));
             assert(timedelta::time([clnt] { clnt->destroy(); }) <
                    timedelta::milliseconds(100)); });
-    testcaseIO("rpctest2", "clientdisco", [] (clientio io) {
-            waitbox<void> died;
-            hook<void> h(rpcservice2::clientdisconnected,
-                         [&died] { died.set(); });
+    testcaseIO("rpctest2", "abortcompleted", [] (clientio io) {
             auto srv(rpcservice2::listen<echoservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
                       .fatal("connecting to echo service"));
+            ::logmsg(loglevel::info, "send call");
+            auto call(clnt->call<int>(
+                          [] (serialise1 &s, mutex_t::token) {
+                              string("foo").serialise(s); },
+                          [] (rpcclient2::asynccall<int> &,
+                              orerror<nnp<deserialise1> > d,
+                              rpcclient2::onconnectionthread) -> orerror<int> {
+                              assert(string(*d.success()) == "foo");
+                              return 1023; }));
+            while (call->finished() == Nothing) {
+                (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
+            ::logmsg(loglevel::info, "aborting");
+            assert(call->abort(io).just() == 1023);
+            ::logmsg(loglevel::info, "aborted");
             clnt->destroy();
+            srv->destroy(io); });
+    testcaseIO("rpctest2", "clientdisco", [] (clientio io) {
+            waitbox<void> died;
+            hook<void> h(rpcservice2::clientdisconnected,
+                         [&died] { if (!died.ready()) died.set(); });
+            auto srv(rpcservice2::listen<echoservice>(
+                         peername::loopback(peername::port::any))
+                     .fatal("starting echo service"));
+            auto clnt1(rpcclient2::connect(io, peername::loopback(srv->port()))
+                       .fatal("connecting to echo service"));
+            auto clnt2(rpcclient2::connect(io, peername::loopback(srv->port()))
+                       .fatal("connecting to echo service"));
+            clnt2->destroy();
             assert(timedelta::time([&died, io] { died.get(io); })
                    < timedelta::milliseconds(100));
+            clnt1->destroy();
             srv->destroy(io); });
+    testcaseIO("rpctest2", "largeresp", [] (clientio io) {
+            auto config(rpcservice2config::dflt());
+            /* Use a small TX buffer limit to make things a bit
+             * easier. */
+            config.txbufferlimit = 100;
+            /* Bump up call limit a bit so that we don't hit that
+             * first. */
+            config.maxoutstandingcalls = 1000000;
+            auto srv(rpcservice2::listen<largerespservice>(
+                         config,
+                         peername::loopback(peername::port::any))
+                     .fatal("starting large response service"));
+            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+                      .fatal("connecting to large response service"));
+            list<nnp<rpcclient2::asynccall<void> > > outstanding;
+            for (unsigned x = 0; x < 10; x++) {
+                outstanding.pushtail(
+                    clnt->call<void>(
+                        [] (serialise1 &, mutex_t::token) {},
+                        [srv, io] (rpcclient2::asynccall<void> &,
+                                   orerror<nnp<deserialise1> > d,
+                                   rpcclient2::onconnectionthread)
+                        -> orerror<void> {
+                            assert(d.issuccess());
+                            string s(*d.success());
+                            assert(s == srv->largestring);
+                            /* Deliberately slow the client conn
+                             * thread down a bit to make it easier for
+                             * the service to fill the buffer. */
+                            (timestamp::now() + timedelta::milliseconds(1))
+                                .sleep(io);
+                            return Success; })); }
+            while (!outstanding.empty()) {
+                assert(outstanding.pophead()->pop(io) == Success); }
+            clnt->destroy();
+            srv->destroy(io); });
+    testcaseIO("rpctest2", "largereq", [] (clientio io) {
+            auto srv(rpcservice2::listen<largereqservice>(
+                         peername::loopback(peername::port::any))
+                     .fatal("starting large request service"));
+            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+                      .fatal("connecting to large request service"));
+            list<nnp<rpcclient2::asynccall<void> > > outstanding;
+            for (unsigned x = 0; x < 10; x++) {
+                outstanding.pushtail(
+                    clnt->call<void>(
+                        [srv] (serialise1 &s, mutex_t::token) {
+                            srv->largestring.serialise(s); },
+                        [srv, io] (rpcclient2::asynccall<void> &,
+                                   orerror<nnp<deserialise1> > d,
+                                   rpcclient2::onconnectionthread)
+                        -> orerror<void> {
+                            assert(d.issuccess());
+                            return Success; })); }
+            while (!outstanding.empty()) {
+                assert(outstanding.pophead()->pop(io) == Success); }
+            clnt->destroy();
+            srv->destroy(io); });
+    testcaseIO("rpctest2", "badconnect", [] (clientio io) {
+            /* Make up a peername which probably respond quickly. */
+            struct sockaddr_in sa;
+            memset(&sa, 0, sizeof(sa));
+            sa.sin_family = AF_INET;
+            sa.sin_addr.s_addr = 0x08090a0b;
+            sa.sin_port = 12345;
+            assert(rpcclient2::connect(
+                       io,
+                       peername((struct sockaddr *)&sa, sizeof(sa)),
+                       timestamp::now()) == error::timeout);
+            assert(rpcclient2::connect(
+                       io,
+                       peername::loopback(peername::port(1)))
+                   == error::from_errno(ECONNREFUSED)); });
+    testcaseIO("rpctest2", "abortconnect", [] (clientio io) {
+            /* Arrange to abort after doing the connect syscall but
+             * before we do the HELLO */
+            waitbox<void> doneconnect;
+            tests::hook<void> h(
+                rpcclient2::doneconnectsyscall,
+                [&doneconnect] () {
+                    doneconnect.set(); });
+            auto srv(rpcservice2::listen<echoservice>(
+                         peername::loopback(peername::port::any))
+                     .fatal("starting echo service"));
+            auto conn(rpcclient2::connect(peername::loopback(srv->port())));
+            doneconnect.get(io);
+            conn->abort();
+            srv->destroy(io); });
+
+
 } }

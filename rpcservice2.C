@@ -268,26 +268,37 @@ rpcservice2::connworker::run(clientio io) {
         if (!outsubarmed && !txbuffer.empty()) {
             outsub.rearm();
             outsubarmed = true; }
-        auto s(sub.wait(io));
+        subscriptionbase *s;
         bool trysend = false;
+        bool tryrecv = false;
+        if (rxbuffer.empty() ||
+            atomicload(outstandingcalls) >= config.maxoutstandingcalls ||
+            txbuffer.avail() >= config.txbufferlimit) {
+            s = sub.wait(io); }
+        else {
+            s = NULL;
+            tryrecv = true; }
         if (/* Handled by loop condition */
             s == &ss ||
             /* Handled by the rearm block above sub.wait() */
             s == &completedsub) {
             continue; }
-        /* errsub handling is really a subset of insub handling, but
-         * it doesn't do any harm to always do both. */
         if (s == &insub || s == &errsub) {
             if (s == &insub) {
                 assert(insubarmed);
                 insubarmed = false; }
-            else errsub.rearm();
+            else {
+                /* Use a quick RX check to pick up any errors, and to
+                 * filter out spurious wake-ups. */
+                errsub.rearm(); }
             {   auto res(rxbuffer.receivefast(fd));
                 if (res == error::wouldblock) continue;
                 if (res.isfailure()) {
                     /* Connection dead. */
                     failed = true;
                     continue; } }
+            tryrecv = true; }
+        if (tryrecv) {
             while (atomicload(outstandingcalls)
                        < config.maxoutstandingcalls &&
                    txbuffer.avail() < config.txbufferlimit) {
@@ -299,7 +310,12 @@ rpcservice2::connworker::run(clientio io) {
                     hdr.size > proto::maxmsgsize) {
                     failed = true;
                     break; }
-                if (hdr.size > rxbuffer.avail()) break;
+                if (hdr.size > rxbuffer.avail()) {
+                    /* Do a fast receive right now before going to
+                     * sleep.  Ignore failures here; we'll pick them
+                     * up later. */
+                    (void)rxbuffer.receivefast(fd);
+                    if (hdr.size > rxbuffer.avail()) break; }
                 atomicinc(outstandingcalls);
                 auto ic(_nnp(*new incompletecall(*this, hdr.seq)));
                 onconnectionthread oct;

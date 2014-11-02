@@ -11,6 +11,7 @@
 #include "peername.H"
 #include "proto2.H"
 #include "serialise.H"
+#include "test.H"
 #include "thread.H"
 #include "util.H"
 #include "version.H"
@@ -18,6 +19,7 @@
 #include "list.tmpl"
 #include "mutex.tmpl"
 #include "rpcclient2.tmpl"
+#include "test.tmpl"
 #include "thread.tmpl"
 
 class rpcclient2::workerthread : public thread {
@@ -211,6 +213,9 @@ rpcclient2::destroy() {
 
 rpcclient2::~rpcclient2() {}
 
+tests::hookpoint<void>
+rpcclient2::doneconnectsyscall([] { } );
+
 rpcclient2::workerthread::workerthread(
     const constoken &token,
     const peername &_peer)
@@ -245,6 +250,9 @@ rpcclient2::workerthread::run(clientio io) {
             return; }
         assert(r.success() >= 0);
         txlock.locked([this, &r] { fd = r.success(); } ); }
+
+    rpcclient2::doneconnectsyscall();
+
     orerror<void> _failure(Success);
     subscriber sub;
 
@@ -311,7 +319,9 @@ rpcclient2::workerthread::run(clientio io) {
                             return txbuffer.sendfast(fd_t(fd)); }) );
                 if (res.isfailure() && res != error::wouldblock) {
                     _failure = res.failure(); } }
-            if (!txbuffer.empty()) outsub.rearm(); }
+            if (!txbuffer.empty()) {
+                outsub.rearm();
+                outsubarmed = true; } }
         else if (ss == &insub) {
             auto res(rxbuffer.receivefast(fd_t(fd)));
             insub.rearm();

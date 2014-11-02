@@ -7,11 +7,13 @@
 
 class deserialise1;
 class error;
+namespace tests { template <typename, typename ...> class hookpoint; }
 template <typename> class maybe;
 template <typename> class nnp;
 template <typename> class orerror;
 class peername;
 class serialise1;
+template <typename> class waitbox;
 
 class rpcclient2 {
 public:  template <typename> class asynccall;
@@ -211,6 +213,10 @@ public:  template <typename t> orerror<t> call(
 public:  void destroy();
 
     /* Use destroy() instead. */
-private: ~rpcclient2(); };
+private: ~rpcclient2();
+
+    /* Test hooks. */
+public:  static tests::hookpoint<void> doneconnectsyscall;
+};
 
 #endif /* !RPCCLIENT2_H__ */
