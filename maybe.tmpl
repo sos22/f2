@@ -5,7 +5,7 @@
 #include "serialise.H"
 
 template <typename t>
-maybe<t>::maybe(const quickcheck &o)
+maybe<t>::maybe(quickcheck &o)
     : r(o) {
     if (!r) new (content) t(o); }
 
@@ -24,6 +24,20 @@ template <typename t>
 maybe<t>::maybe(deserialise1 &ds)
     : r(ds) {
     if (!r) new (content) t(ds); }
+
+template <typename t> void
+maybe<t>::operator=(deserialise1 &ds) {
+    bool newr(ds);
+    if (newr) {
+        if (r) { }
+        else {
+            ((t *)content)->~t();
+            r = true; } }
+    else {
+        if (!r) *((t *)content) = ds;
+        else {
+            new (content) t(ds);
+            r = false; } } }
 
 namespace parsers {
 template <typename t> const parser<maybe<t> > &

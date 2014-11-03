@@ -88,9 +88,8 @@ storageslave::build(clientio io,
 orerror<void>
 storageslave::initialise(clientio) {
     auto b(beaconserver::build(config.beacon,
-                               actortype::storageslave,
-                               localname().getport(),
-                               cs));
+                               interfacetype::storage,
+                               localname().getport()));
     if (b.isfailure()) return b.failure();
     beacon = b.success();
     return Success; }

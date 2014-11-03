@@ -43,15 +43,18 @@ proto::respheader::serialise(serialise1 &s) {
     seq.serialise(s);
     status.serialise(s); }
 
-proto::hello::resp::resp(version _min, version _max)
+proto::hello::resp::resp(version _min, version _max, interfacetype _type)
     : min(_min),
-      max(_max) {}
+      max(_max),
+      type(_type) {}
 
 proto::hello::resp::resp(deserialise1 &ds)
     : min(ds),
-      max(ds) {}
+      max(ds),
+      type(ds) {}
 
 void
 proto::hello::resp::serialise(serialise1 &s) {
     min.serialise(s);
-    max.serialise(s); }
+    max.serialise(s);
+    type.serialise(s); }

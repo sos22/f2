@@ -13,6 +13,8 @@ const field &mk(const clustername &); }
 class clustername {
     friend const fields::field &fields::mk(const clustername &);
 
+public:  clustername(deserialise1 &);
+public:  void serialise(serialise1 &) const;
     /* Limit cluster name size to reduce risk of hitting wireproto
      * message size limits. */
 public:  static const unsigned maxsize;

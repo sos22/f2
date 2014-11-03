@@ -2,6 +2,7 @@
 #define SERIALISE_TMPL__
 
 #include "error.H"
+#include "serialise.H"
 #include "version.H"
 
 template <typename t> t
@@ -28,7 +29,7 @@ serialise(quickcheck &q, unsigned nr = 1000) {
             t res(ds);
             assert(ds.status().issuccess());
             assert(res == val);
-            assert(buf.empty()); } } }
+            assert(buf.avail() == ds.offset()); } } }
 
 template <typename t> t
 mkrandom(quickcheck &q) {

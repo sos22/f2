@@ -6,14 +6,14 @@
 #ifndef BEACONSERVER_H__
 #define BEACONSERVER_H__
 
-#include "actortype.H"
 #include "beacon.H"
 #include "beacontest.H"
 #include "clustername.H"
-#include "controlserver.H"
 #include "peername.H"
+#include "interfacetype.H"
 #include "slavename.H"
 #include "timedelta.H"
+#include "thread.H"
 #include "tuple.H"
 #include "udpsocket.H"
 #include "wireproto.H"
@@ -37,38 +37,17 @@ public: static beaconserverconfig dflt(const clustername &,
                                        const slavename &); };
 mktupleext(beaconserverconfig);
 
-#define _beaconserverstatus(ctxt, iter0, iter1)                         \
-    iter0(ctxt, 1, mand, ref, ::beaconserverconfig, config)             \
-    /* How many errors have we encountered, ever? */                    \
-    iter0(ctxt, 2, mand, value, unsigned, errors)                       \
-    /* How many requests have we ignored due to filter mismatches, */   \
-    /* ever? */                                                         \
-    iter0(ctxt, 3, mand, value, unsigned, ignored)                      \
-    /* What type of interface are we advertising? */                    \
-    iter0(ctxt, 4, mand, value, ::actortype, type)                      \
-    /* On what port is it exposed? */                                   \
-    iter1(ctxt, 5, mand, ref, peernameport, port)
-class beaconserverstatus {
-    mktuplefields(beaconserverstatus, public); };
-mktupleext(beaconserverstatus);
-
 class beaconserver : private thread {
     friend class thread;
     friend class pausedthread<beaconserver>;
     friend void tests::beacon();
-
-private: class controliface : public controlinterface {
-    private: beaconserver *owner;
-    public:  controliface(beaconserver *_owner, controlserver *cs);
-    public:  void getstatus() const final;
-    };
 
 private: beaconserver() = delete;
 private: beaconserver(const beaconserver &) = delete;
 private: void operator=(const beaconserver &) = delete;
 
 private: beaconserverconfig config;
-private: const actortype advertisetype;
+private: const interfacetype advertisetype;
 private: const peername::port advertiseport;
 private: udpsocket listenfd;
 private: udpsocket clientfd;
@@ -76,20 +55,17 @@ private: waitbox<void> shutdown;
 private: unsigned errors; /* total number of errors, ever */
 private: unsigned ignored; /* total number of ignored requests,
                             * excluding errors, ever */
-private: maybe<controliface> controliface_;
 
     /* Construct a new beacon server.  We expose listening and status
      * interfaces over the controlserver cs, if it's non-NULL. */
 public:  static orerror<beaconserver *> build(const beaconserverconfig &,
-                                              actortype type,
-                                              peername::port port,
-                                              controlserver *cs = NULL);
+                                              interfacetype type,
+                                              peername::port port);
     /* Use build() */
 private: beaconserver(thread::constoken,
                       const beaconserverconfig &config,
-                      actortype type,
+                      interfacetype type,
                       peername::port port,
-                      controlserver *cs,
                       udpsocket listenfd,
                       udpsocket clientfd);
 private: void run(clientio);
@@ -99,9 +75,6 @@ public: void destroy(clientio);
 
     /* Use destroy() instead */
 private: ~beaconserver();
-
-public: typedef beaconserverstatus status_t;
-public: status_t status() const;
 
 public: typedef beaconserverconfig config_t; };
 

@@ -24,7 +24,7 @@ namespace tests {
 class echoservice : public rpcservice2 {
 private: unsigned cntr;
 public:  echoservice(const rpcservice2::constoken &t)
-    : rpcservice2(t),
+    : rpcservice2(t, interfacetype::test),
       cntr(73) {}
 public: orerror<void> called(
     clientio,
@@ -51,7 +51,7 @@ public: maybe<spark<void> > worker;
 public: waitbox<void> &abandoned;
 public: abandonservice(const rpcservice2::constoken &t,
                        waitbox<void> &_abandoned)
-    : rpcservice2(t),
+    : rpcservice2(t, interfacetype::test),
       worker(Nothing),
       abandoned(_abandoned) {}
 public: orerror<void> called(
@@ -68,7 +68,7 @@ public: orerror<void> called(
 class slowservice : public rpcservice2 {
 public: list<spark<void> > outstanding;
 public: slowservice(const rpcservice2::constoken &t)
-    : rpcservice2(t) {}
+    : rpcservice2(t, interfacetype::test) {}
 public: orerror<void> called(
     clientio,
     onconnectionthread,
@@ -90,7 +90,7 @@ public: orerror<void> called(
 class largerespservice : public rpcservice2 {
 public: string largestring;
 public: largerespservice(const constoken &t)
-    : rpcservice2(t),
+    : rpcservice2(t, interfacetype::test),
       largestring("Hello world, this is a test pattern") {
     /* Make it about eight megs. */
     for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
@@ -108,7 +108,7 @@ public: orerror<void> called(
 class largereqservice : public rpcservice2 {
 public: string largestring;
 public: largereqservice(const constoken &t)
-    : rpcservice2(t),
+    : rpcservice2(t, interfacetype::test),
       largestring("Hello world, this is another test pattern") {
     for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
 public: orerror<void> called(
@@ -134,6 +134,7 @@ rpctest2() {
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(
                           io,
+                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to echo service"));
             clnt->call<void>(
@@ -209,6 +210,7 @@ rpctest2() {
                      .fatal("starting abandon service"));
             auto clnt(rpcclient2::connect(
                           io,
+                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to abandon service"));
             auto call(clnt->call<void>(
@@ -232,6 +234,7 @@ rpctest2() {
                      .fatal("starting abandon service"));
             auto clnt(rpcclient2::connect(
                           io,
+                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to abandon service"));
             assert(clnt->call<void>(
@@ -250,7 +253,9 @@ rpctest2() {
             auto srv(rpcservice2::listen<slowservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
-            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io,
+                                          interfacetype::test,
+                                          peername::loopback(srv->port()))
                       .fatal("connecting to slow service"));
             maybe<timestamp> completed1(Nothing);
             maybe<timestamp> completed2(Nothing);
@@ -301,7 +306,9 @@ rpctest2() {
             auto srv(rpcservice2::listen<slowservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
-            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io,
+                                          interfacetype::test,
+                                          peername::loopback(srv->port()))
                       .fatal("connecting to slow service"));
             auto call(clnt->call<void>(
                           [] (serialise1 &s, mutex_t::token) {
@@ -327,7 +334,9 @@ rpctest2() {
             auto srv(rpcservice2::listen<echoservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
-            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io,
+                                          interfacetype::test,
+                                          peername::loopback(srv->port()))
                       .fatal("connecting to echo service"));
             ::logmsg(loglevel::info, "send call");
             auto call(clnt->call<int>(
@@ -352,9 +361,13 @@ rpctest2() {
             auto srv(rpcservice2::listen<echoservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
-            auto clnt1(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt1(rpcclient2::connect(io,
+                                           interfacetype::test,
+                                           peername::loopback(srv->port()))
                        .fatal("connecting to echo service"));
-            auto clnt2(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt2(rpcclient2::connect(io,
+                                           interfacetype::test,
+                                           peername::loopback(srv->port()))
                        .fatal("connecting to echo service"));
             clnt2->destroy();
             assert(timedelta::time([&died, io] { died.get(io); })
@@ -373,7 +386,9 @@ rpctest2() {
                          config,
                          peername::loopback(peername::port::any))
                      .fatal("starting large response service"));
-            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io,
+                                          interfacetype::test,
+                                          peername::loopback(srv->port()))
                       .fatal("connecting to large response service"));
             list<nnp<rpcclient2::asynccall<void> > > outstanding;
             for (unsigned x = 0; x < 10; x++) {
@@ -401,7 +416,9 @@ rpctest2() {
             auto srv(rpcservice2::listen<largereqservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting large request service"));
-            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io,
+                                          interfacetype::test,
+                                          peername::loopback(srv->port()))
                       .fatal("connecting to large request service"));
             list<nnp<rpcclient2::asynccall<void> > > outstanding;
             for (unsigned x = 0; x < 10; x++) {
@@ -428,10 +445,12 @@ rpctest2() {
             sa.sin_port = 12345;
             assert(rpcclient2::connect(
                        io,
+                       interfacetype::test,
                        peername((struct sockaddr *)&sa, sizeof(sa)),
                        timestamp::now()) == error::timeout);
             assert(rpcclient2::connect(
                        io,
+                       interfacetype::test,
                        peername::loopback(peername::port(1)))
                    == error::from_errno(ECONNREFUSED)); });
     testcaseIO("rpctest2", "abortconnect", [] (clientio io) {
@@ -445,7 +464,9 @@ rpctest2() {
             auto srv(rpcservice2::listen<echoservice>(
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
-            auto conn(rpcclient2::connect(peername::loopback(srv->port())));
+            auto conn(rpcclient2::connect(
+                          interfacetype::test,
+                          peername::loopback(srv->port())));
             doneconnect.get(io);
             conn->abort();
             srv->destroy(io); });

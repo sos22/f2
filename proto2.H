@@ -1,6 +1,7 @@
 #ifndef PROTO2_H__
 #define PROTO2_H__
 
+#include "interfacetype.H"
 #include "version.H"
 
 namespace proto {
@@ -54,7 +55,8 @@ class resp {
 private: resp() = delete;
 public:  version min;
 public:  version max;
-public:  resp(version _min, version _max);
+public:  interfacetype type;
+public:  resp(version _min, version _max, interfacetype _type);
 public:  explicit resp(deserialise1 &);
 public:  void serialise(serialise1 &); }; } }
 

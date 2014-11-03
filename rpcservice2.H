@@ -82,7 +82,7 @@ protected: class constoken {
           config(_config) {} };
 
     /* Use listen() instead. */
-protected: explicit rpcservice2(const constoken &);
+protected: rpcservice2(const constoken &, interfacetype);
 
     /* Extract the port we're listening on.  We deliberately don't try
      * to provide the hostname part of the address, because we don't

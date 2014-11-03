@@ -24,12 +24,17 @@ public: rpcservice2 &owner;
 public: listenfd const fd;
 public: waitbox<void> shutdown;
 public: waitbox<void> ready;
-public: rootthread(const constoken &token, rpcservice2 &_owner, listenfd _fd)
+public: interfacetype const type;
+public: rootthread(const constoken &token,
+                   rpcservice2 &_owner,
+                   listenfd _fd,
+                   interfacetype _type)
     : thread(token),
       owner(_owner),
       fd(_fd),
       shutdown(),
-      ready() {}
+      ready(),
+      type(_type) {}
 public: void run(clientio) final; };
 
 class rpcservice2::connworker : public thread {
@@ -109,12 +114,13 @@ rpcservice2::start() { root->ready.set(); }
 /* XXX this is exactly what the pausedthread structure was designed
  * for, but we can't use it here because of type issues.  Possibly
  * need to rethink API there. */
-rpcservice2::rpcservice2(const constoken &ct)
+rpcservice2::rpcservice2(const constoken &ct, interfacetype type)
     : config(ct.config),
       root(thread::start<rootthread>(
                "R:" + fields::mk(ct.pn),
                *this,
-               ct.fd)) {}
+               ct.fd,
+               type)) {}
 
 peername::port
 rpcservice2::port() const { return root->fd.localname().getport(); }
@@ -468,11 +474,13 @@ rpcservice2::connworker::calledhello(clientio,
                                      nnp<incompletecall> ic) {
     proto::hello::req h(ds);
     if (ds.issuccess()) {
-        ic->complete([] (serialise1 &s,
-                         mutex_t::token /* txlock */,
-                         onconnectionthread) {
+        ic->complete([this]
+                     (serialise1 &s,
+                      mutex_t::token /* txlock */,
+                      onconnectionthread) {
                          proto::hello::resp(version::current,
-                                            version::current)
+                                            version::current,
+                                            owner.type)
                              .serialise(s); },
                      oct); }
     return ds.status(); }

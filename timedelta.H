@@ -29,7 +29,7 @@ public:
     timedelta(const quickcheck &);
     /* Random over a limited range. */
     timedelta(const quickcheck &, timedelta min, timedelta max);
-    explicit timedelta(deserialise1 &);
+    timedelta(deserialise1 &);
     static timedelta weeks(long nr) { return days(nr * 7l); }
     static timedelta days(long nr) { return hours(nr * 24l); }
     static timedelta hours(long nr) { return minutes(nr * 60l); }

@@ -23,6 +23,7 @@ function bits() {
     _ fields
     _ filename
     _ frequency
+    _ interfacetype
     _ jobname
     _ listenfd
     _ logging

@@ -21,9 +21,10 @@ const field &mk(const slavename &);
 class slavename {
     friend const fields::field &fields::mk(const slavename &);
 private: string content;
-private: void operator=(const slavename &) = delete;
 private: slavename() = delete;
 public:  slavename(const slavename &);
+public:  slavename(deserialise1 &);
+public:  void serialise(serialise1 &) const;
 public:  slavename steal();
 public:  slavename(const quickcheck &);
 public:  bool operator==(const slavename &) const;

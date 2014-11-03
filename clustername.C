@@ -1,6 +1,8 @@
 #include "clustername.H"
 
+#include "error.H"
 #include "parsers.H"
+#include "serialise.H"
 #include "test.H"
 
 #include "parsers.tmpl"
@@ -10,6 +12,18 @@ const unsigned
 clustername::maxsize = 100;
 
 wireproto_simple_wrapper_type(clustername, string, value);
+
+clustername::clustername(deserialise1 &ds)
+    : value(ds) {
+    if (value.len() > maxsize) {
+        if (ds.random()) value.truncate(value.len() % (maxsize + 1));
+        else {
+            value = "<cluster name too long>";
+            ds.fail(error::overflowed); } } }
+
+void
+clustername::serialise(serialise1 &s) const {
+    value.serialise(s); }
 
 clustername::clustername(const quickcheck &q) {
     do {

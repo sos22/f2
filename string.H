@@ -19,7 +19,7 @@ const strfield &mk(const string &);
 
 class string {
     friend const fields::strfield &fields::mk(const string &);
-private: const char *content; /* owned malloc()ed nul-terminated */
+private: char *content; /* owned malloc()ed nul-terminated */
 public:  string();
     /* Construct a string by stealing a pointer from the caller.  The
        pointer must be malloc()ed and nul-terminated.  The string will
@@ -38,7 +38,11 @@ public:  bool operator>(const string &) const;
 public:  size_t len() const;
 public:  ~string();
 
-public:  void serialise(serialise1 &);
+public:  void serialise(serialise1 &) const;
+
+    /* Truncate the string in place to be precisely sz characters
+     * (which must be less than or equal to the current size). */
+public:  void truncate(size_t sz);
 
     /* Return the string pointer embedded in the string.  Remains
        valid as long as this does. */

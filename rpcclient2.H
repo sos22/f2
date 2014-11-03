@@ -1,6 +1,7 @@
 #ifndef RPCCLIENT2_H__
 #define RPCCLIENT2_H__
 
+#include "interfacetype.H"
 #include "mutex.H"
 #include "proto2.H"
 #include "pubsub.H"
@@ -65,7 +66,7 @@ private: rpcclient2();
      * which can be used to receive the results of the call, or to
      * abort before the connect finishes. */
 public:  class asyncconnect;
-public:  static nnp<asyncconnect> connect(const peername &);
+public:  static nnp<asyncconnect> connect(interfacetype, const peername &);
 public:  class asyncconnect {
         friend class rpcclient2;
     private: asyncconnect(const asyncconnect &) = delete;
@@ -101,6 +102,7 @@ public:  class asyncconnect {
      * result. */
 public:  static orerror<nnp<rpcclient2> > connect(
     clientio,
+    interfacetype,
     const peername &,
     maybe<timestamp> deadline = Nothing);
 

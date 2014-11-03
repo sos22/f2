@@ -7,9 +7,11 @@
 
 #include "wireproto.H"
 
+class deserialise1;
 class filename;
 class peername;
 class quickcheck;
+class serialise1;
 struct sockaddr;
 
 /* A representation of the port part of an address.  Only really
@@ -21,6 +23,8 @@ class peernameport {
 public:
     unsigned short p; /* host byte order */
     peernameport(const quickcheck &q);
+public:  peernameport(deserialise1 &);
+public:  void serialise(serialise1 &) const;
     bool operator==(const peernameport &o) const { return p == o.p; }
     /* Special port which can be used to get the OS to allocate an
        arbitrary port for you. */

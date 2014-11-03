@@ -1,7 +1,9 @@
 #include "beacon.H"
 
 #include "parsers.H"
+#include "serialise.H"
 
+#include "maybe.tmpl"
 #include "parsers.tmpl"
 
 mktupledef(beaconconfig);
@@ -21,3 +23,77 @@ beaconconfig::dflt(
     peername::port(9003),
     /* respport */
     peername::port(9004));
+
+proto::beacon::req::req(const clustername &_cluster,
+                        const maybe<slavename> &_name,
+                        maybe<interfacetype> _type)
+    : magic(magicval),
+      version(version::current),
+      cluster(_cluster),
+      name(_name),
+      type(_type) {}
+
+proto::beacon::req::req(deserialise1 &ds)
+    : magic(ds.poprange(magicval, magicval)),
+      version(ds),
+      cluster(ds),
+      name(ds),
+      type(ds) { }
+
+void
+proto::beacon::req::serialise(serialise1 &s) const {
+    s.push(magic);
+    version.serialise(s);
+    cluster.serialise(s);
+    name.serialise(s);
+    type.serialise(s); }
+
+bool
+proto::beacon::req::operator==(const req &o) const {
+    return magic == o.magic &&
+        version == o.version &&
+        cluster == o.cluster &&
+        name == o.name &&
+        type == o.type; }
+
+proto::beacon::resp::resp(const clustername &_cluster,
+                          const slavename &_name,
+                          interfacetype _type,
+                          peername::port _port,
+                          timedelta _cachetime)
+    : magic(magicval),
+      version(::version::current),
+      cluster(_cluster),
+      name(_name),
+      type(_type),
+      port(_port),
+      cachetime(_cachetime) {}
+
+proto::beacon::resp::resp(deserialise1 &ds)
+    : magic(ds.poprange(magicval, magicval)),
+      version(ds),
+      cluster(ds),
+      name(ds),
+      type(ds),
+      port(ds),
+      cachetime(ds) { }
+
+void
+proto::beacon::resp::serialise(serialise1 &s) const {
+    s.push(magic);
+    version.serialise(s);
+    cluster.serialise(s);
+    name.serialise(s);
+    type.serialise(s);
+    port.serialise(s);
+    cachetime.serialise(s); }
+
+bool
+proto::beacon::resp::operator==(const resp &o) const {
+    return magic == o.magic &&
+        version == o.version &&
+        cluster == o.cluster &&
+        name == o.name &&
+        type == o.type &&
+        port == o.port &&
+        cachetime == o.cachetime; }

@@ -30,7 +30,7 @@ beaconclientconfig::beaconclientconfig(quickcheck q)
 
 beaconclientconfig::beaconclientconfig(
     const clustername &__cluster,
-    maybe<actortype> __type,
+    maybe<interfacetype> __type,
     const maybe<slavename> &__slave,
     const beaconconfig &__beacon)
     : beaconclientconfig(__cluster,
@@ -42,7 +42,7 @@ beaconclientconfig::beaconclientconfig(
 
 orerror<beaconclientconfig>
 beaconclientconfig::mk(const clustername &cluster,
-                       maybe<actortype> type,
+                       maybe<interfacetype> type,
                        const maybe<slavename> &slave,
                        const beaconconfig &beacon,
                        timedelta queryinterval,
@@ -58,7 +58,7 @@ beaconclientconfig::mk(const clustername &cluster,
                                    broadcastinterval); }
 
 beaconclientconfig::beaconclientconfig(const clustername &__cluster,
-                                       maybe<actortype> __type,
+                                       maybe<interfacetype> __type,
                                        const maybe<slavename> &__slave,
                                        const beaconconfig &__beacon,
                                        timedelta __queryinterval,
@@ -76,7 +76,7 @@ const parser<beaconclientconfig> &
 parsers::__beaconclientconfig() {
     return ("<beaconclientconfig:"
             " cluster:" + __clustername() +
-            ~(" type:" + _maybe(_actortype())) +
+            ~(" type:" + _maybe(interfacetype::parser())) +
             ~(" name:" + _maybe(_slavename())) +
             ~(" proto:" + __beaconconfig()) +
             ~(" queryinterval:" + _timedelta()) +
@@ -85,7 +85,7 @@ parsers::__beaconclientconfig() {
         .maperr<beaconclientconfig>(
             []
             (const pair<pair<pair<pair<pair<clustername,
-                                            maybe<maybe<actortype> > >,
+                                            maybe<maybe<interfacetype> > >,
                                        maybe<maybe<slavename> > >,
                                   maybe<beaconconfig> >,
                              maybe<timedelta> >,
@@ -135,7 +135,7 @@ class beaconclientslot {
     /* Name of remote system */
 private: slavename name;
     /* Interface exposed by remote system */
-private: actortype type;
+private: interfacetype type;
     /* Where to connect to for this server? */
 private: peername server;
     /* Where is the beacon for this server? */
@@ -153,7 +153,7 @@ public: timestamp expiry;
     /* When did we receive content of result?  */
 public: timestamp lastbeaconresponse;
 public:  beaconclientslot(const slavename &,
-                          actortype,
+                          interfacetype,
                           const peername &,
                           const peername &,
                           walltime,
@@ -164,7 +164,7 @@ public:  timestamp nextsend(mutex_t::token,
                             const beaconclientconfig &) const; };
 
 beaconclientslot::beaconclientslot(const slavename &sn,
-                                   actortype _type,
+                                   interfacetype _type,
                                    const peername &_server,
                                    const peername &_beacon,
                                    walltime now,
@@ -192,18 +192,8 @@ beaconclientslot::status(mutex_t::token /* beacon client lock */,
            " expiry: " + fields::mk(expiry) +
            " lastbeaconresponse: " + fields::mk(lastbeaconresponse)); }
 
-beaconclient::controliface::controliface(beaconclient *_owner,
-                                         controlserver *cs)
-    : controlinterface(cs),
-      owner(_owner) {
-      start(); }
-
-void
-beaconclient::controliface::getstatus() const { owner->status(); }
-
 beaconclient::beaconclient(const thread::constoken &token,
                            const beaconclient::config_t &_config,
-                           controlserver *cs,
                            udpsocket _listenfd,
                            udpsocket _clientfd)
     : thread(token),
@@ -211,14 +201,10 @@ beaconclient::beaconclient(const thread::constoken &token,
       listenfd(_listenfd),
       clientfd(_clientfd),
       errors(0),
-      ignored(0),
-      _controliface(Nothing) {
-      if (cs != NULL) _controliface.mkjust(this, cs); }
+      ignored(0) {}
 
 orerror<beaconclient *>
-beaconclient::build(
-    const beaconclientconfig &config,
-    controlserver *cs) {
+beaconclient::build(const beaconclientconfig &config) {
     auto _listenfd(udpsocket::listen(config.proto().respport));
     if (_listenfd.isfailure()) return _listenfd.failure();
     auto _clientfd(udpsocket::client());
@@ -228,7 +214,6 @@ beaconclient::build(
     else return thread::spawn<beaconclient>(
         fields::mk("beaconclient"),
         config,
-        cs,
         _listenfd.success(),
         _clientfd.success())
         .go(); }
@@ -248,13 +233,10 @@ beaconclientslot::nextsend(mutex_t::token /* client lock */,
 void
 beaconclient::sendbroadcast() {
     logmsg(loglevel::verbose, "send broadcast");
-    wireproto::tx_message msg(proto::BEACON::req::tag);
-    msg.addparam(proto::BEACON::req::version, version::current);
-    msg.addparam(proto::BEACON::req::cluster, config.cluster());
-    msg.addparam(proto::BEACON::req::name, config.name());
-    msg.addparam(proto::BEACON::req::type, config.type());
+    proto::beacon::req req(config.cluster(), config.name(), config.type());
     buffer txbuf;
-    msg.serialise(txbuf, wireproto::sequencenr::invalid);
+    serialise1 s(txbuf);
+    req.serialise(s);
     auto r(clientfd.send(
                txbuf, peername::udpbroadcast(config.proto().reqport)));
     if (r.isfailure()) {
@@ -282,15 +264,8 @@ beaconclient::handletimeouts(mutex_t::token tok) {
         if (timestamp::now() < it->nextsend(tok, config)) continue;
         /* Time to send another beacon request for this slave. */
         buffer txbuf;
-        wireproto::tx_message(proto::BEACON::req::tag)
-            .addparam(proto::BEACON::req::version,
-                      version::current)
-            .addparam(proto::BEACON::req::cluster,
-                      config.cluster())
-            .addparam(proto::BEACON::req::name,
-                      it->name)
-            .serialise(txbuf,
-                       wireproto::sequencenr::invalid);
+        serialise1 s(txbuf);
+        proto::beacon::req(config.cluster(), it->name, it->type).serialise(s);
         logmsg(loglevel::verbose, "query on:");
         it->status(tok, loglevel::verbose);
         auto r(clientfd.send(txbuf, it->beacon));
@@ -355,78 +330,52 @@ beaconclient::run(clientio io) {
             (void)shutdown.get(
                 io, timestamp::now() + timedelta::milliseconds(100));
             continue; }
+        deserialise1 ds(inbuffer);
+        proto::beacon::resp resp(ds);
         /* Use relatively low-severity log messages until we've
          * checked the version number so that we can in future change
          * the protocol without changing the port or completely
          * spamming old clients' logs. */
-        auto rrr(wireproto::rx_message::fetch(inbuffer));
-        if (rrr.isfailure()) {
+        if (ds.isfailure()) {
             logmsg(loglevel::debug,
                    "parsing beacon response from" +
                    fields::mk(rr.success()) +
-                   ": " + fields::mk(rrr.failure()));
+                   ": " + fields::mk(ds.failure()));
             errors++;
             continue; }
-        auto &msg(rrr.success());
-        if (msg.tag() != proto::BEACON::resp::tag) {
-            logmsg(loglevel::debug,
-                   "unexpected message tag " +
-                   fields::mk(msg.tag()) +
-                   " from " +
-                   fields::mk(rr.success()) +
-                   " on beacon response port");
-            errors++;
-            continue; }
-        auto respversion(msg.getparam(proto::BEACON::resp::version));
-        if (respversion != version::current) {
+        if (resp.version != version::current) {
             logmsg(loglevel::debug,
                    "beacon response version " +
-                   fields::mk(respversion) +
+                   fields::mk(resp.version) +
                    " from " +
                    fields::mk(rr.success()) +
                    "; expected version " +
                    fields::mk(version::current));
             errors++;
             continue; }
-        auto resptype(msg.getparam(proto::BEACON::resp::type));
-        auto respname(msg.getparam(proto::BEACON::resp::name));
-        auto respcluster(msg.getparam(proto::BEACON::resp::cluster));
-        auto respport(msg.getparam(proto::BEACON::resp::port));
-        auto respcachetime(msg.getparam(proto::BEACON::resp::cachetime));
-        if (!resptype ||
-            !respname ||
-            !respcluster ||
-            !respport ||
-            !respcachetime) {
-            logmsg(loglevel::failure,
-                   "beacon response from " + fields::mk(rr.success()) +
-                   " missing mandatory field");
-            errors++;
-            continue; }
-        if (respcluster.just() != config.cluster() ||
-            (config.type() != Nothing && config.type() != resptype) ||
-            (config.name() != Nothing && config.name() != respname)) {
+        if (resp.cluster != config.cluster() ||
+            (config.type() != Nothing && config.type() != resp.type) ||
+            (config.name() != Nothing && config.name() != resp.name)) {
             ignored++;
             continue; }
         /* This advertisement is of interest to us.  Refresh the
          * cache. */
         cachelock.locked(
-            [this, resptype, &respname, respport, respcachetime, &rr]
+            [this, &resp, &rr]
             (mutex_t::token tok) {
                 bool found = false;
-                peername server(rr.success().setport(respport.just()));
+                peername server(rr.success().setport(resp.port));
                 for (auto it(cache.start());
                      !it.finished();
                      it.next()) {
-                    if (it->name == respname) {
-                        it->type = resptype.just();
+                    if (it->name == resp.name) {
+                        it->type = resp.type;
                         it->server = server;
                         it->beacon = rr.success();
                         it->lastbeaconresponsewall = walltime::now();
                         it->lastbeaconresponse = timestamp::now();
                         it->lastbeaconrequest = Nothing;
-                        it->expiry =
-                            respcachetime.just() + timestamp::now();
+                        it->expiry = resp.cachetime + timestamp::now();
                         logmsg(loglevel::verbose, "refreshed:");
                         it->status(tok, loglevel::verbose);
                         found = true;
@@ -435,23 +384,21 @@ beaconclient::run(clientio io) {
                     /* New peer which we've never heard of
                      * before. */
                     auto &i(cache.append(
-                                respname.just(),
-                                resptype.just(),
+                                resp.name,
+                                resp.type,
                                 server,
                                 rr.success(),
                                 walltime::now(),
                                 timestamp::now(),
-                                respcachetime.just() + timestamp::now()));
+                                resp.cachetime + timestamp::now()));
                     logmsg(loglevel::verbose, "new:");
                     i.status(tok, loglevel::verbose);
                     _changed.publish(); } }); }
-    /* Control interface is still runnng so this has to be under the
-     * cache lock. */
-    cachelock.locked([this] (mutex_t::token) { cache.flush(); });
+    cache.flush();
     listenfd.close();
     clientfd.close(); }
 
-beaconclient::result::result(const peername &_name, actortype _type)
+beaconclient::result::result(const peername &_name, interfacetype _type)
     : name(_name),
       type(_type) {}
 
@@ -474,14 +421,14 @@ beaconclient::query(clientio io, const slavename &sn) {
         sub.wait(io); } }
 
 beaconclient::iterator::entry::entry(const slavename &_name,
-                                     actortype _type,
+                                     interfacetype _type,
                                      const peername &_peer)
     : name(_name),
       type(_type),
       peer(_peer) {}
 
 beaconclient::iterator::iterator(beaconclient *what,
-                                 maybe<actortype> _type)
+                                 maybe<interfacetype> _type)
     : content(),
       it(Nothing) {
     what->cachelock.locked([this, _type, what] (mutex_t::token) {
@@ -493,7 +440,7 @@ beaconclient::iterator::iterator(beaconclient *what,
 const slavename &
 beaconclient::iterator::name() const { return it.just()->name; }
 
-actortype
+interfacetype
 beaconclient::iterator::type() const { return it.just()->type; }
 
 const peername &
@@ -508,7 +455,7 @@ beaconclient::iterator::next() { it.just().next(); }
 beaconclient::iterator::~iterator() { content.flush(); }
 
 beaconclient::iterator
-beaconclient::start(maybe<actortype> type) {
+beaconclient::start(maybe<interfacetype> type) {
     if (type != Nothing && config.type() != Nothing && config.type() != type) {
         logmsg(loglevel::error,
                "request for peers of type " + fields::mk(type) +
@@ -518,18 +465,6 @@ beaconclient::start(maybe<actortype> type) {
 
 const publisher &
 beaconclient::changed() const { return _changed; }
-
-void
-beaconclient::status() const {
-    logmsg(loglevel::info, "Beacon client " + fields::mk(config));
-    logmsg(loglevel::info, "listenfd: " + fields::mk(listenfd));
-    logmsg(loglevel::info, "clientfd: " + fields::mk(clientfd));
-    logmsg(loglevel::info, "errors: " + fields::mk(errors));
-    logmsg(loglevel::info, "ignored: " + fields::mk(ignored));
-    logmsg(loglevel::info, "Cache contents:");
-    cachelock.locked([this] (mutex_t::token tok) {
-            for (auto it(cache.start()); !it.finished(); it.next()) {
-                it->status(tok, loglevel::info); } }); }
 
 void
 beaconclient::destroy(clientio io) {

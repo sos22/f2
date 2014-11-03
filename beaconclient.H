@@ -8,12 +8,11 @@
 #ifndef BEACONCLIENT_H__
 #define BEACONCLIENT_H__
 
-#include "actortype.H"
 #include "beacon.H"
 #include "beacontest.H"
 #include "clustername.H"
-#include "controlserver.H"
 #include "peername.H"
+#include "interfacetype.H"
 #include "slavename.H"
 #include "thread.H"
 #include "timedelta.H"
@@ -36,8 +35,8 @@ class beaconclientconfig {
 private: clustername _cluster;
 public:  const clustername &cluster() const { return _cluster; }
     /* Optionally filter on the type of remote hosts to track */
-private: maybe<actortype> _type;
-public:  maybe<actortype> type() const { return _type; }
+private: maybe<interfacetype> _type;
+public:  maybe<interfacetype> type() const { return _type; }
     /* Optionally filter on the slavename of remote hosts to track.
      * This is only really useful from command line tools. */
 private: maybe<slavename> _name;
@@ -62,19 +61,19 @@ public:  beaconclientconfig(quickcheck);
      * return. */
 public:  beaconclientconfig(
     const clustername &,
-    maybe<actortype> = Nothing,
+    maybe<interfacetype> = Nothing,
     const maybe<slavename> & = Nothing,
     const beaconconfig & = beaconconfig::dflt);
 public:  static orerror<beaconclientconfig> mk(
     const clustername &,
-    maybe<actortype> = Nothing,
+    maybe<interfacetype> = Nothing,
     const maybe<slavename> & = Nothing,
     const beaconconfig & = beaconconfig::dflt,
     timedelta = timedelta::seconds(1),
     timedelta = timedelta::minutes(2));
 private: beaconclientconfig(
     const clustername &,
-    maybe<actortype>,
+    maybe<interfacetype>,
     const maybe<slavename> &,
     const beaconconfig &,
     timedelta,
@@ -95,10 +94,6 @@ class beaconclient : private thread {
     friend class thread;
     friend class iterator;
     friend void tests::beacon();
-private: class controliface : public controlinterface {
-    private: beaconclient *const owner;
-    public:  controliface(beaconclient *, controlserver *);
-    private: void getstatus() const final; };
 private: const beaconclientconfig config;
     /* Protects @cache.  Leaf lock.  mutable because it's acquired
      * from status(). */
@@ -117,11 +112,9 @@ private: unsigned errors;
     /* How many requests have we ignored because of the filter,
      * ever? */
 private: unsigned ignored;
-private: maybe<controliface> _controliface;
     /* Use ::build instead */
 private: beaconclient(const thread::constoken &token,
                       const beaconclientconfig &,
-                      controlserver *,
                       udpsocket,
                       udpsocket);
     /* Construct a new beacon client.  Note that this does not wait
@@ -129,17 +122,15 @@ private: beaconclient(const thread::constoken &token,
      * client will initially have an empty mapping.  If the @cs
      * parameter is non-NULL then we expose a status interface over
      * that control server. */
-public:  static orerror<beaconclient *> build(
-    const beaconclientconfig &config,
-    controlserver *cs = NULL);
+public:  static orerror<beaconclient *> build(const beaconclientconfig &config);
 private: void run(clientio);
 private: void sendbroadcast();
 private: void handletimeouts(mutex_t::token);
 public:  class result {
         friend class beaconclient;
-    private: result(const peername &, actortype);
+    private: result(const peername &, interfacetype);
     public:  const peername name;
-    public:  const actortype type; };
+    public:  const interfacetype type; };
     /* Query the client's current knowledge of a particular slave,
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */
@@ -176,20 +167,20 @@ public:  class iterator {
         friend class beaconclient;
     private: class entry {
         public: slavename name;
-        public: actortype type;
+        public: interfacetype type;
         public: peername peer;
-        public: entry(const slavename &, actortype, const peername &); };
+        public: entry(const slavename &, interfacetype, const peername &); };
     private: list<entry> content;
         /* Never Nothing except for a brief interval in the constructor */
     private: maybe<list<entry>::const_iter> it;
-    private: iterator(beaconclient *, maybe<actortype>);
+    private: iterator(beaconclient *, maybe<interfacetype>);
     public:  const slavename &name() const;
-    public:  actortype type() const;
+    public:  interfacetype type() const;
     public:  const peername &peer() const;
     public:  bool finished() const;
     public:  void next();
     public:  ~iterator(); };
-public:  iterator start(maybe<actortype> = Nothing);
+public:  iterator start(maybe<interfacetype> = Nothing);
 
     /* Notified whenever the set of entries reported by the iterator
      * increases and whenever any result from poll() goes from Nothing

@@ -146,49 +146,6 @@ namespace proto {
         }
     }
 
-    /* Beacon interface.  Every server in the system is expected to
-     * send periodic BEACON::resp messages to a broadcast (or in
-     * future multicast) interface advertising their capabilities and
-     * the address on which peers should connect to them.  Anything
-     * which can act as a client should listen for these messages and
-     * use them to build up a (slavename,actortype)->peername mapping.
-     * Servers should also listen for BEACON::req messages and respond
-     * to them with unicast BEACON::resp messages to whoever sent the
-     * req; these are used to populate an initial start-of-day table.
-     */
-    namespace BEACON {
-        namespace req {
-            static const msgtag tag(700);
-            /* Protocol version */
-            static const parameter< ::version> version(800);
-            /* Filter on who should respond: */
-            /* Always filter by cluster */
-            static const parameter<clustername> cluster(801);
-            /* Optionally filter by slavename */
-            static const parameter<maybe<slavename> > name(802);
-            /* Optionally filter by type */
-            static const parameter<maybe<actortype> > type(803);
-        }
-        namespace resp {
-            static const msgtag tag(750);
-            /* Protocol version */
-            static const parameter< ::version> version(750);
-            /* What interface do we expose? */
-            static const parameter<actortype> type(751);
-            /* Persistent identifier for this slave */
-            static const parameter<slavename> name(752);
-            /* Which cluster are we part of? */
-            static const parameter<clustername> cluster(753);
-            /* What TCP port do we offer service on?  The host part of
-             * the peername should be taken from the response's source
-             * address. */
-            static const parameter<peernameport> port(754);
-            /* How long may the recipient beacon client cache this
-             * result for? */
-            static const parameter<timedelta> cachetime(755);
-        }
-    }
-
     /* The first request made by a client when it connects to a server
      * must always be HELLO */
     namespace HELLO {

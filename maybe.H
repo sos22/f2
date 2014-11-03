@@ -27,8 +27,8 @@ class maybe {
     unsigned char content[sizeof(t)];
     maybe() = delete;
 public:
-    explicit maybe(deserialise1 &);
-    maybe(const quickcheck &);
+    maybe(deserialise1 &);
+    maybe(quickcheck &);
     maybe(const maybe &o)
         : r(o.r)
         {
@@ -70,6 +70,7 @@ public:
             if (isjust())
                 new (content) t(o.just());
         }
+    void operator=(deserialise1 &);
     void operator=(const t &o) {
         if (isjust()) just().~t();
         r = false;

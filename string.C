@@ -7,6 +7,8 @@
 #include "proto2.H"
 #include "serialise.H"
 
+#include "serialise.tmpl"
+
 const fields::strfield &
 fields::mk(const string &s) {
     return mk(s.content); }
@@ -34,16 +36,18 @@ string::string(string &&o)
     o.content = NULL; }
 
 string::string(deserialise1 &ds) {
-    size_t sz(ds);
-    /* Avoid stupidity */
-    if (sz > proto::maxmsgsize) {
-        ds.fail(error::invalidmessage);
-        content = strdup("<bad>");
-        return; }
-    auto c = (char *)malloc(sz + 1);
-    ds.bytes(c, sz);
-    c[sz] = '\0';
-    content = c; }
+    if (ds.random()) content = strdup((const char *)quickcheck());
+    else {
+        size_t sz(ds.poprange<size_t>(0, proto::maxmsgsize));
+        /* Avoid stupidity */
+        if (sz > proto::maxmsgsize) {
+            ds.fail(error::invalidmessage);
+            content = strdup("<bad>");
+            return; }
+        auto c = (char *)malloc(sz + 1);
+        ds.bytes(c, sz);
+        c[sz] = '\0';
+        content = c; } }
 
 void
 string::operator=(const string &o) {
@@ -83,11 +87,16 @@ size_t
 string::len() const {
     return strlen(content); }
 
+void
+string::truncate(size_t sz) {
+    assert(len() >= sz);
+    content[sz] = '\0'; }
+
 string::~string() {
     free((void *)content); }
 
 void
-string::serialise(serialise1 &s) {
+string::serialise(serialise1 &s) const {
     size_t sz(strlen(content));
     s.push(sz);
     s.bytes(content, sz); }

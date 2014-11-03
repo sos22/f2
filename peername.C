@@ -13,6 +13,7 @@
 #include "logging.H"
 #include "parsers.H"
 #include "proto.H"
+#include "serialise.H"
 #include "socket.H"
 #include "spark.H"
 #include "tcpsocket.H"
@@ -32,6 +33,13 @@ peername::port::any(0);
 
 wireproto_wrapper_type(peername)
 wireproto_simple_wrapper_type(peernameport, unsigned short, p)
+
+peernameport::peernameport(deserialise1 &ds)
+    : p(ds) {}
+
+void
+peernameport::serialise(serialise1 &s) const {
+    s.push(p); }
 
 peername::peername(const quickcheck &q) {
     switch (random() % 3) {

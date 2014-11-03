@@ -2,6 +2,7 @@
 
 #include "fields.H"
 #include "parsers.H"
+#include "serialise.H"
 
 #include "parsers.tmpl"
 #include "wireproto.tmpl"
@@ -10,6 +11,13 @@ wireproto_simple_wrapper_type(slavename, string, content)
 
 slavename::slavename(const slavename &o)
     : content(o.content) {}
+
+slavename::slavename(deserialise1 &ds)
+    : content(ds) {}
+
+void
+slavename::serialise(serialise1 &s) const {
+    content.serialise(s); }
 
 bool
 slavename::operator==(const slavename &o) const {
