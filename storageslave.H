@@ -1,7 +1,6 @@
 #ifndef STORAGESLAVE_H__
 #define STORAGESLAVE_H__
 
-#include "controlserver.H"
 #include "rpcservice.H"
 #include "storageconfig.H"
 
@@ -17,20 +16,9 @@ private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
 private: beaconserver *beacon;
-private: controlserver *const cs;
-private: class controliface : public controlinterface {
-    private: storageslave *const owner;
-    public:  controliface(storageslave *_owner,
-                          controlserver *cs);
-    private: void getstatus() const final;
-    private: void getlistening(rpcservice::response *) const final;
-    };
-private: controliface control_;
 public:  static orerror<storageslave *> build(clientio,
-                                              const storageconfig &config,
-                                              controlserver *);
+                                              const storageconfig &config);
 private: storageslave(const constoken &,
-                      controlserver *cs,
                       const storageconfig &config);
 private: orerror<void> initialise(clientio) final;
 private: void call(const wireproto::rx_message &, response *) final;

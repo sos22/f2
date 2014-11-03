@@ -381,22 +381,6 @@ fields::mk(const memlog_entry &e) {
     return "<memlog_entry:" + fields::mk(e.idx) +
         "=" + fields::mk(e.msg) + ">"; }
 
-orerror<void>
-getlogs(const wireproto::rx_message &msg, rpcservice::response *resp) {
-    auto start(msg.getparam(proto::GETLOGS::req::startidx).
-               dflt(memlog_idx::min));
-    auto nr(msg.getparam(proto::GETLOGS::req::nr).dflt(200));
-    if (nr == 0 || nr > 500) return error::invalidparameter;
-    logmsg(loglevel::debug,
-           "fetch logs from " + fields::mk(start.as_long()) +
-           " for " + fields::mk(nr));
-    list<memlog_entry> results;
-    auto resume(policy.memlog.fetch(start, nr, results));
-    resp->addparam(proto::GETLOGS::resp::msgs, results.steal());
-    if (resume.isjust()) {
-        resp->addparam(proto::GETLOGS::resp::resume, resume.just()); }
-    return Success; }
-
 void
 tests::logging() {
     testcaseV("logging", "memlog", [] () {

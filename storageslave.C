@@ -60,29 +60,12 @@ storageslave::call(const wireproto::rx_message &rxm, response *resp) {
         else resp->complete(removestream(jn.just(), sn.just())); }
     else resp->fail(error::unrecognisedmessage); }
 
-storageslave::controliface::controliface(storageslave *_owner,
-                                         controlserver *cs)
-    : controlinterface(cs),
-      owner(_owner) {
-    start(); }
-
-void
-storageslave::controliface::getstatus() const {
-    logmsg(loglevel::info, fields::mk(owner->status())); }
-
-void
-storageslave::controliface::getlistening(rpcservice::response *resp) const {
-    resp->addparam(proto::LISTENING::resp::storageslave, owner->localname()); }
-
-
 orerror<storageslave *>
 storageslave::build(clientio io,
-                    const storageconfig &config,
-                    controlserver *cs) {
+                    const storageconfig &config) {
     return rpcservice::listen<storageslave>(
         io,
         peername::all(peername::port::any),
-        cs,
         config); }
 
 orerror<void>
@@ -95,14 +78,11 @@ storageslave::initialise(clientio) {
     return Success; }
 
 storageslave::storageslave(const constoken &token,
-                           controlserver *_cs,
                            const storageconfig &_config)
     : rpcservice(token),
       config(_config),
       mux(),
-      beacon(NULL),
-      cs(_cs),
-      control_(this, cs) { }
+      beacon(NULL) {}
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */

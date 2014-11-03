@@ -4,7 +4,6 @@ all: realall
 
 .SUFFIXES:
 
-include cli.mk
 include lib.mk
 include spawnservice.mk
 include storage.mk

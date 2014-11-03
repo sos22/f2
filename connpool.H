@@ -5,7 +5,6 @@
 #ifndef CONNPOOL_H__
 #define CONNPOOL_H__
 
-#include "controlserver.H"
 #include "probability.H"
 #include "rpcclient.H"
 #include "slavename.H"
@@ -220,18 +219,10 @@ private: list<pooledconnection *> connections;
     /* Connection maintenance thread. */
 private: connpoolmaintenance *const maintain;
 
-private: class controliface : public controlinterface {
-    private: connpool *const owner;
-    public:  controliface(controlserver *cs,
-                          connpool *owner);
-    public:  void getstatus() const final; };
-private: maybe<controliface> control;
-
     /* Constructor for connpool. The beaconclient is used to perform
      * slavename -> peername lookups, when necessary.  We expose the
      * connpool status interface over @cs, if it is non-NULL. */
 public:  connpool(beaconclient *,
-                  controlserver *cs = NULL,
                   const connpoolconfig & = connpoolconfig::dflt());
 
     /* Obtain a pooledconnection for a given remove slavename from the

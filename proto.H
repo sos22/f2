@@ -91,60 +91,6 @@ namespace proto {
         /* No request parameters */
         /* No response parameters */
     };
-    /* Control interface */
-
-    namespace GETLOGS {
-        static const msgtag tag(2);
-        namespace req {
-            /* optional */
-            static const parameter<memlog_idx> startidx(200);
-            /* optional */
-            static const parameter<unsigned> nr(201);
-        };
-        namespace resp {
-            static const parameter<memlog_idx> resume(250);
-            static const parameter<list< ::memlog_entry> > msgs(251);
-        };
-    };
-
-    namespace QUIT {
-        static const msgtag tag(3);
-        namespace req {
-            static const parameter<const char *> message(300);
-            static const parameter<shutdowncode> reason(301);
-        };
-        /* No response parameters */
-    };
-
-    namespace STATUS {
-        static const msgtag tag(4);
-        /* no request parameters */
-        /* no response parameters: it all goes in the logs */
-    };
-
-    namespace BUILDCONFIG {
-        static const msgtag tag(5);
-        /* no request parameters */
-        namespace resp {
-            static const parameter< ::buildconfig> config(550);
-        };
-    };
-
-    /* Find all of the ports we're listening on.  The same information
-       is also exposed throughthe STATUS interface, but that interface
-       is intended for debugging, so should be easy to change and
-       shouldn't be used for ``real'' work, whereas this one is
-       intended to be consumed by other programs, and will therefore
-       remain stable. */
-    namespace LISTENING {
-        static const msgtag tag(6);
-        /* no request parameters */
-        namespace resp {
-            static const parameter< ::peername> control(651);
-            static const parameter< ::peername> coordinator(652);
-            static const parameter< ::peername> storageslave(653);
-        }
-    }
 
     /* The first request made by a client when it connects to a server
      * must always be HELLO */

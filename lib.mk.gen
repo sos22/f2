@@ -16,7 +16,6 @@ function bits() {
     _ clustername
     _ cond
     _ connpool
-    _ controlserver
     _ digest
     _ error
     _ fd
@@ -116,7 +115,6 @@ EOF
 
 # Things which would benefit from unit tests:
 #
-# controlserver
 # logging
 # mastersecret
 # nonce

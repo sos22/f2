@@ -56,8 +56,7 @@ private: unsigned errors; /* total number of errors, ever */
 private: unsigned ignored; /* total number of ignored requests,
                             * excluding errors, ever */
 
-    /* Construct a new beacon server.  We expose listening and status
-     * interfaces over the controlserver cs, if it's non-NULL. */
+    /* Construct a new beacon server. */
 public:  static orerror<beaconserver *> build(const beaconserverconfig &,
                                               interfacetype type,
                                               peername::port port);

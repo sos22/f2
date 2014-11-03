@@ -7,8 +7,6 @@
 
 #include "pubsub.H"
 
-class controlserver;
-
 namespace tests {
 
 class support {
@@ -146,10 +144,6 @@ void testcaseS(
     const char *component,
     const char *test,
     std::function<void (support &)> doit);
-void testcaseCS(
-    const char *component,
-    const char *test,
-    std::function<void (controlserver *, clientio)> doit);
 
 void listcomponents();
 void listtests(const char *component);

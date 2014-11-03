@@ -8,7 +8,6 @@
 
 #include <functional>
 
-#include "controlserver.H"
 #include "filename.H"
 #include "list.H"
 #include "peername.H"
@@ -109,26 +108,6 @@ testcaseS(const char *c_name,
     test *t = &component->tests.append();
     t->name = t_name;
     t->doit = doit; }
-
-void
-testcaseCS(const char *c_name,
-           const char *t_name,
-           std::function<void (controlserver *, clientio)> doit) {
-    testcaseS(c_name,
-              t_name,
-              [doit] (support &) {
-                  waitbox<shutdowncode> s;
-                  unlink("testcontroller");
-                  initpubsub();
-                  auto cs(controlserver::build(
-                              clientio::CLIENTIO,
-                              peername::local(filename("testcontroller"))
-                              .fatal("peername testcontroller"),
-                              s));
-                  assert(cs.issuccess());
-                  doit(cs.success(), clientio::CLIENTIO);
-                  cs.success()->destroy(clientio::CLIENTIO);
-                  deinitpubsub(clientio::CLIENTIO); }); }
 
 void
 testcaseIO(const char *component,

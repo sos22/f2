@@ -201,17 +201,7 @@ pooledconnection::~pooledconnection() {
      * better be single-threaded by now. */
     disconnect(mux.DUMMY()); }
 
-connpool::controliface::controliface(controlserver *cs,
-                                     connpool *_owner)
-    : controlinterface(cs),
-      owner(_owner) { start(); }
-
-void
-connpool::controliface::getstatus() const {
-    logmsg(loglevel::info, fields::mk(owner->status())); }
-
 connpool::connpool(beaconclient *_bc,
-                   controlserver *_cs,
                    const connpoolconfig &_config)
     : mux(),
       connchanged(),
@@ -221,8 +211,7 @@ connpool::connpool(beaconclient *_bc,
       connections(),
       maintain(thread::start<connpoolmaintenance>(
                    fields::mk("connpool"),
-                   this)),
-      control(Nothing) { if (_cs != NULL) control.mkjust(_cs, this); }
+                   this)) {}
 
 mktupledef(connpoolstatus);
 

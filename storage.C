@@ -2,7 +2,6 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "controlserver.H"
 #include "fields.H"
 #include "filename.H"
 #include "logging.H"
@@ -34,17 +33,7 @@ main(int argc, char *argv[])
 
     signal(SIGPIPE, SIG_IGN);
 
-    waitbox<shutdowncode> s;
-    config.controlsock.evict();
-    auto c(controlserver::build(clientio::CLIENTIO, config.controlsock, s)
-           .fatal("build control interface"));
-    auto slave(storageslave::build(clientio::CLIENTIO, config, c)
-               .fatal("build storage slave"));
+    storageslave::build(clientio::CLIENTIO, config)
+        .fatal("build storage slave");
 
-    auto r = s.get(clientio::CLIENTIO);
-    slave->destroy(clientio::CLIENTIO);
-    c->destroy(clientio::CLIENTIO);
-    deinitpubsub(clientio::CLIENTIO);
-    deinitlogging();
-    r.finish();
-}
+    while (true) sleep(1000); }
