@@ -20,10 +20,8 @@
 
 #include "maybe.tmpl"
 #include "parsers.tmpl"
-#include "rpcservice.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
-#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 

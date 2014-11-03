@@ -10,9 +10,7 @@
 #include "maybe.tmpl"
 #include "mutex.tmpl"
 #include "parsers.tmpl"
-#include "rpcservice.tmpl"
 #include "thread.tmpl"
-#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
