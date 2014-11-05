@@ -15,6 +15,6 @@ cli
 config
 /master
 spawnservice
-storage
+storageservice
 storageclient
 test

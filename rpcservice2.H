@@ -45,7 +45,7 @@ private:   const rpcservice2config config;
 private:   rootthread *const root;
 
 private:   static orerror<listenfd> open(const peername &pn);
-private:   void start();
+private:   orerror<void> _initialise(clientio);
 
     /* Start listening on an address.  @t gives the type of service to
      * construct (and must be derived class of rpcservice2).  @pn
@@ -58,10 +58,22 @@ private:   void start();
      * setup will succeed.  The derived class must be able to process
      * incoming calls as soon as its constructor returns. */
 public:    template <typename t, typename ... args> static orerror<nnp<t> >
-    listen(const rpcservice2config &config, const peername &pn, args &&...);
+    listen(clientio,
+           const rpcservice2config &config,
+           const peername &pn,
+           args &&...);
     /* Convenience wrapper for listen() which uses the default configuration. */
 public:    template <typename t, typename ... args> static orerror<nnp<t> >
-    listen(const peername &pn, args &&...);
+    listen(clientio, const peername &pn, args &&...);
+
+    /* Hook for derived classes to do some initialisation of their
+     * own.  This is called after we start listening on the socket (so
+     * remote hosts can connect() without error) but before we accept
+     * any calls and before listen() returns.  If it returns an error
+     * then the service will be torn back down and the same error
+     * returned from listen().  The default implementation does
+     * nothing and returns Success. */
+public:    virtual orerror<void> initialise(clientio);
 
     /* Cookie type: our constructor can only be called from listen(),
      * indirectly via the derived type constructor, and requires one
@@ -180,6 +192,10 @@ public:    class incompletecall {
                                   onconnectionthread)> &doit,
         onconnectionthread);
     public:  void fail(error, onconnectionthread);
+        /* Further variants of complete() for use when a call produces
+         * no outputs other than a success/failure indication. */
+    public:  void complete(orerror<void>);
+    public:  void complete(orerror<void>, onconnectionthread);
         /* Use complete() or fail() instead. */
     private: ~incompletecall();};
 
@@ -188,6 +204,15 @@ public:    class incompletecall {
      * structures to be complete()d or fail()d.  Any outstanding
      * incompletecalls will have their abandoned() waitbox set. */
 public:    void destroy(clientio);
+
+    /* Hook for derived classes to do something when we're shutting
+     * down.  This is called after the last call is complete and once
+     * remote peers can no longer connect to the interface.  destroy()
+     * will wait for it to complete before returning, and before
+     * releasing the class's memory.  The default implementation does
+     * nothing.  Note that this will never be called if initialise()
+     * returns an error. */
+private:   virtual void destroying(clientio);
 
     /* Logically private (only called from destroy()) but needs to be
      * protected to keep gcc happy. */

@@ -22,8 +22,10 @@ class digest {
     friend const parser< ::digest> &parsers::_digest();
     unsigned long val;
     WIREPROTO_WRAPPER_TYPE(digest, unsigned long, private);
-public:
-    explicit digest(const fields::field &);
+public:  explicit digest(const fields::field &);
+public:  explicit digest(deserialise1 &);
+public:  void serialise(serialise1 &) const;
+
     bool operator==(const digest &o) const;
     bool operator!=(const digest &o) const;
 

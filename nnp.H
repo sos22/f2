@@ -10,6 +10,7 @@ private: nnp() = delete;
 private: t *inner;
 private: nnp(t *_inner) : inner(_inner) {}
 public:  nnp(t &_inner) : inner(&_inner) {}
+public:  nnp(const nnp<t> &o) : inner(o.inner) {}
 public:  static maybe<nnp<t> > mk(t *x) {
     if (x == NULL) return Nothing;
     else return nnp(x); }

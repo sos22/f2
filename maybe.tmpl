@@ -18,7 +18,7 @@ maybe<t>::mkjust(args &&...params) {
 template <typename t> void
 maybe<t>::serialise(serialise1 &s) const {
     s.push(r);
-    if (isjust()) just().serialise(s); }
+    if (isjust()) s.push(just()); }
 
 template <typename t>
 maybe<t>::maybe(deserialise1 &ds)

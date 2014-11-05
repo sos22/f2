@@ -73,21 +73,21 @@ serialise1::pushfundamental(bool b) {
     if (b) pushfundamental<char>(1);
     else pushfundamental<char>(0); }
 
-void
-serialise1::push(bool x) { pushfundamental(x); }
-void
-serialise1::push(char x) { pushfundamental(x); }
-void
-serialise1::push(unsigned char x) { pushfundamental(x); }
-void
-serialise1::push(short x) { pushfundamental(x); }
-void
-serialise1::push(unsigned short x) { pushfundamental(x); }
-void
-serialise1::push(int x) { pushfundamental(x); }
-void
-serialise1::push(unsigned int x) { pushfundamental(x); }
-void
-serialise1::push(long x) { pushfundamental(x); }
-void
-serialise1::push(unsigned long x) { pushfundamental(x); }
+template <> void
+serialise1::push(const bool &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const char &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const unsigned char &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const short &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const unsigned short &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const int &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const unsigned int &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const long &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const unsigned long &x) { pushfundamental(x); }

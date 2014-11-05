@@ -1,39 +1,36 @@
-#include <err.h>
-#include <signal.h>
-#include <unistd.h>
+#include "storage.H"
 
-#include "fields.H"
-#include "filename.H"
-#include "logging.H"
-#include "parsers.H"
-#include "peername.H"
-#include "pubsub.H"
-#include "shutdown.H"
-#include "storageconfig.H"
-#include "storageslave.H"
-#include "string.H"
-#include "waitbox.H"
+#include "error.H"
+#include "serialise.H"
 
-#include "orerror.tmpl"
+const proto::storage::tag
+proto::storage::tag::createempty(91);
+const proto::storage::tag
+proto::storage::tag::append(92);
+const proto::storage::tag
+proto::storage::tag::finish(93);
+const proto::storage::tag
+proto::storage::tag::read(94);
+const proto::storage::tag
+proto::storage::tag::listjobs(95);
+const proto::storage::tag
+proto::storage::tag::liststreams(96);
+const proto::storage::tag
+proto::storage::tag::removestream(97);
 
-int
-main(int argc, char *argv[])
-{
-    initlogging("storage");
-    initpubsub();
+proto::storage::tag::tag(unsigned x) : v(x) {}
 
-    if (argc != 2) errx(1, "need one argument, the storage configuration");
+proto::storage::tag::tag(deserialise1 &ds)
+    : v(ds) {
+    if (*this != createempty &&
+        *this != append &&
+        *this != finish &&
+        *this != read &&
+        *this != listjobs &&
+        *this != liststreams &&
+        *this != removestream) {
+        ds.fail(error::invalidmessage);
+        v = createempty.v; } }
 
-    auto config(parsers::__storageconfig()
-                .match(argv[1])
-                .fatal("cannot parse " + fields::mk(argv[1]) +
-                       " as storage configuration"));
-
-    logmsg(loglevel::notice, fields::mk("storage slave starting"));
-
-    signal(SIGPIPE, SIG_IGN);
-
-    storageslave::build(clientio::CLIENTIO, config)
-        .fatal("build storage slave");
-
-    while (true) sleep(1000); }
+void
+proto::storage::tag::serialise(serialise1 &s) const { s.push(v); }

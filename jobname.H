@@ -6,6 +6,8 @@
 #include "digest.H"
 #include "wireproto.H"
 
+class deserialise1;
+class serialise1;
 class jobname;
 
 template <typename> class parser;
@@ -30,6 +32,8 @@ private: digest d;
 public:  string asfilename() const;
 public:  bool operator<(const jobname &o) const;
 public:  bool operator>(const jobname &o) const;
+public:  explicit jobname(deserialise1 &);
+public:  void serialise(serialise1 &) const;
 };
 
 #endif /* !JOBNAME_H__ */

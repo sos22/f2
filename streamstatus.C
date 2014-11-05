@@ -1,6 +1,7 @@
 #include "streamstatus.H"
 
 #include "proto.H"
+#include "serialise.H"
 
 #include "wireproto.tmpl"
 
@@ -49,3 +50,14 @@ streamstatus::fromcompound(wireproto::rx_message const &rxm) {
     auto size(rxm.getparam(proto::streamstatus::size));
     if (!name || !finished || !size) return Nothing;
     return streamstatus(name.just(), finished.just(), size.just()); }
+
+streamstatus::streamstatus(deserialise1 &ds)
+    : name(ds),
+      finished_(ds),
+      size(ds) {}
+
+void
+streamstatus::serialise(serialise1 &s) const {
+    name.serialise(s);
+    s.push(finished_);
+    s.push(size); }

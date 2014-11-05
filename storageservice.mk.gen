@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc storageservice.C
+ld storageservice storageservice.o lib.a
+
+target storageservice

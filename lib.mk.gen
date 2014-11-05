@@ -44,6 +44,7 @@ function bits() {
     _ socket
     _ spark
     _ spawn
+    _ storage
     _ storageconfig
     _ storageslave
     _ streamname

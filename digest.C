@@ -5,6 +5,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "parsers.H"
+#include "serialise.H"
 #include "string.H"
 
 #include "either.tmpl"
@@ -29,6 +30,11 @@ digest::digest(const fields::field &what)
     logmsg(loglevel::verbose,
            "digest " + what + " -> " + fields::mk(val));
 }
+
+digest::digest(deserialise1 &ds) : val(ds) {}
+
+void
+digest::serialise(serialise1 &s) const { s.push(val); }
 
 bool
 digest::operator==(const digest &o) const

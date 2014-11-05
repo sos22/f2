@@ -11,8 +11,10 @@
 #include "wireproto.H"
 
 class clientio;
+class deserialise1;
 class fd_t;
 template <typename> class orerror;
+class serialise1;
 class subscriber;
 class subscriptionbase;
 class test;
@@ -64,6 +66,9 @@ public: buffer(const buffer &o);
 public:
     buffer() : first(NULL), last(NULL), prod(0), cons(0) {}
     ~buffer();
+
+public:  explicit buffer(deserialise1 &);
+public:  void serialise(serialise1 &) const;
 
     /* Interface to fd_t */
     /* Send some bytes from the start of the buffer.  Only ever makes

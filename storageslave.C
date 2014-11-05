@@ -2,68 +2,72 @@
 
 #include "jobname.H"
 #include "logging.H"
+#include "nnp.H"
 #include "parsers.H"
 #include "proto.H"
+#include "serialise.H"
+#include "storage.H"
 #include "streamname.H"
 #include "streamstatus.H"
 
 #include "list.tmpl"
+#include "maybe.tmpl"
 #include "parsers.tmpl"
-#include "rpcservice.tmpl"
+#include "rpcservice2.tmpl"
 
-void
-storageslave::call(const wireproto::rx_message &rxm, response *resp) {
-    if (rxm.tag() == proto::CREATEEMPTY::tag) {
-        auto job(rxm.getparam(proto::CREATEEMPTY::req::job));
-        auto stream(rxm.getparam(proto::CREATEEMPTY::req::stream));
-        if (!job || !stream) resp->fail(error::missingparameter);
-        else resp->complete(createempty(job.just(), stream.just())); }
-    else if (rxm.tag() == proto::APPEND::tag) {
-        auto job(rxm.getparam(proto::APPEND::req::job));
-        auto stream(rxm.getparam(proto::APPEND::req::stream));
-        auto bytes(rxm.getparam(proto::APPEND::req::bytes));
-        if (!job || !stream || !bytes) resp->fail(error::missingparameter);
-        else if (bytes.just().empty()) resp->fail(error::invalidparameter);
-        else resp->complete(append(job.just(), stream.just(), bytes.just())); }
-    else if (rxm.tag() == proto::FINISH::tag) {
-        auto job(rxm.getparam(proto::FINISH::req::job));
-        auto stream(rxm.getparam(proto::FINISH::req::stream));
-        if (!job || !stream) resp->fail(error::missingparameter);
-        else resp->complete(finish(job.just(), stream.just())); }
-    else if (rxm.tag() == proto::READ::tag) {
-        auto job(rxm.getparam(proto::READ::req::job));
-        auto stream(rxm.getparam(proto::READ::req::stream));
-        if (!job || !stream) resp->fail(error::missingparameter);
-        else read(
-            resp,
-            job.just(),
-            stream.just(),
-            rxm.getparam(proto::READ::req::start).dflt(0),
-            rxm.getparam(proto::READ::req::end).dflt(UINT64_MAX)); }
-    else if (rxm.tag() == proto::LISTJOBS::tag) {
-        listjobs(
-            resp,
-            rxm.getparam(proto::LISTJOBS::req::cursor),
-            rxm.getparam(proto::LISTJOBS::req::limit)); }
-    else if (rxm.tag() == proto::LISTSTREAMS::tag) {
-        auto jn(rxm.getparam(proto::LISTSTREAMS::req::job));
-        if (!jn) resp->fail(error::missingparameter);
-        else liststreams(
-            resp,
-            jn.just(),
-            rxm.getparam(proto::LISTSTREAMS::req::cursor),
-            rxm.getparam(proto::LISTSTREAMS::req::limit)); }
-    else if (rxm.tag() == proto::REMOVESTREAM::tag) {
-        auto jn(rxm.getparam(proto::REMOVESTREAM::req::job));
-        auto sn(rxm.getparam(proto::REMOVESTREAM::req::stream));
-        if (!jn || !sn) resp->fail(error::missingparameter);
-        else resp->complete(removestream(jn.just(), sn.just())); }
-    else resp->fail(error::unrecognisedmessage); }
+orerror<void>
+storageslave::called(
+    clientio,
+    onconnectionthread oct,
+    deserialise1 &ds,
+    nnp<incompletecall> ic) {
+    proto::storage::tag tag(ds);
+    if (tag == proto::storage::tag::createempty) {
+        jobname j(ds);
+        streamname s(ds);
+        if (!ds.isfailure()) ic->complete(createempty(j, s), oct); }
+    else if (tag == proto::storage::tag::append) {
+        jobname job(ds);
+        streamname stream(ds);
+        buffer bytes(ds);
+        if (!ds.isfailure()) ic->complete(append(job, stream, bytes), oct); }
+    else if (tag == proto::storage::tag::finish) {
+        jobname job(ds);
+        streamname stream(ds);
+        if (!ds.isfailure()) ic->complete(finish(job, stream), oct); }
+    else if (tag == proto::storage::tag::read) {
+        jobname job(ds);
+        streamname stream(ds);
+        maybe<unsigned long> _start(ds);
+        maybe<unsigned long> end(ds);
+        if (!ds.isfailure()) {
+            auto r(read(job, stream, _start.dflt(0), end.dflt(UINT64_MAX),
+                        ic, oct));
+            if (r.isfailure()) ds.fail(r.failure()); } }
+    else if (tag == proto::storage::tag::listjobs) {
+        maybe<jobname> _start(ds);
+        maybe<unsigned> limit(ds);
+        if (!ds.isfailure()) {
+            auto r(listjobs(_start, limit, ic, oct));
+            if (r.isfailure()) ds.fail(r.failure()); } }
+    else if (tag == proto::storage::tag::liststreams) {
+        jobname job(ds);
+        maybe<streamname> cursor(ds);
+        maybe<unsigned> limit(ds);
+        if (!ds.isfailure()) {
+            auto r(liststreams(job, cursor, limit, ic, oct));
+            if (r.isfailure()) ds.fail(r.failure()); } }
+    else if (tag == proto::storage::tag::removestream) {
+        jobname job(ds);
+        streamname stream(ds);
+        if (!ds.isfailure()) ic->complete(removestream(job, stream), oct); }
+    else ds.fail(error::invalidmessage);
+    return ds.status(); }
 
-orerror<storageslave *>
+orerror<nnp<storageslave> >
 storageslave::build(clientio io,
                     const storageconfig &config) {
-    return rpcservice::listen<storageslave>(
+    return rpcservice2::listen<storageslave>(
         io,
         peername::all(peername::port::any),
         config); }
@@ -72,14 +76,14 @@ orerror<void>
 storageslave::initialise(clientio) {
     auto b(beaconserver::build(config.beacon,
                                interfacetype::storage,
-                               localname().getport()));
+                               port()));
     if (b.isfailure()) return b.failure();
     beacon = b.success();
     return Success; }
 
 storageslave::storageslave(const constoken &token,
                            const storageconfig &_config)
-    : rpcservice(token),
+    : rpcservice2(token, interfacetype::storage),
       config(_config),
       mux(),
       beacon(NULL) {}
@@ -171,54 +175,45 @@ storageslave::finish(
     else if (exists == true) return error::already;
     return finished.createfile(); }
 
-void
+orerror<void>
 storageslave::read(
-    response *resp,
     const jobname &jn,
     const streamname &sn,
     uint64_t start,
-    uint64_t end) const {
-    if (start > end) {
-        resp->fail(error::invalidparameter);
-        return; }
+    uint64_t end,
+    nnp<incompletecall> ic,
+    onconnectionthread oct) const {
+    if (start > end) return error::invalidparameter;
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     {   auto finished((dirname + "finished").exists());
-        if (finished.isfailure()) {
-            resp->fail(finished.failure());
-            return; }
-        else if (finished == false) {
-            resp->fail(error::toosoon);
-            return; } }
+        if (finished.isfailure()) return finished.failure();
+        else if (finished == false) return error::toosoon; }
     auto content(dirname + "content");
     {   auto r(content.exists());
-        if (r.isfailure()) {
-            resp->fail(r.failure());
-            return; }
-        else if (r == false) {
-            resp->fail(error::toosoon);
-            return; } }
+        if (r.isfailure()) return r.failure();
+        else if (r == false) return error::toosoon; }
     auto sz(content.size());
-    if (sz.isfailure()) {
-        resp->fail(sz.failure());
-        return; }
+    if (sz.isfailure()) return sz.failure();
     if (start > sz.success()) start = sz.success();
     if (end > sz.success()) end = sz.success();
-    resp->addparam(proto::READ::resp::size, sz.success());
     auto b(content.read(start, end));
-    if (b.isfailure()) {
-        resp->fail(b.failure());
-        return; }
-    resp->addparam(proto::READ::resp::bytes, b.success().steal());
-    resp->complete(); }
+    if (b.isfailure()) return b.failure();
+    ic->complete([sz, &b]
+                 (serialise1 &s,
+                  mutex_t::token /* txlock */,
+                  onconnectionthread) {
+                     s.push(sz.success());
+                     b.success().serialise(s); },
+                 oct);
+    return Success; }
 
-void
+orerror<void>
 storageslave::listjobs(
-    response *resp,
     const maybe<jobname> &cursor,
-    const maybe<unsigned> &limit) const {
-    if (limit == 0) {
-        resp->fail(error::invalidparameter);
-        return; }
+    const maybe<unsigned> &limit,
+    nnp<incompletecall> ic,
+    onconnectionthread oct) const {
+    if (limit == 0) return error::invalidparameter;
     auto &parser(parsers::_jobname());
     list<jobname> res;
     {   filename::diriter it(config.poolpath);
@@ -237,10 +232,7 @@ storageslave::listjobs(
                 continue; }
             if (cursor != Nothing && jn.success() < cursor.just()) continue;
             res.pushtail(jn.success()); }
-        if (it.isfailure()) {
-            it.failure().warn("listing " + fields::mk(config.poolpath));
-            resp->fail(it.failure());
-            return; } }
+        if (it.isfailure()) return it.failure(); }
     sort(res);
     maybe<jobname> newcursor(Nothing);
     if (limit != Nothing) {
@@ -249,19 +241,23 @@ storageslave::listjobs(
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
         if (!it.finished()) newcursor = *it;
         while (!it.finished()) it.remove(); }
-    resp->addparam(proto::LISTJOBS::resp::cursor, newcursor);
-    resp->addparam(proto::LISTJOBS::resp::jobs, res);
-    resp->complete(); }
+    ic->complete([&newcursor, &res]
+                 (serialise1 &s,
+                  mutex_t::token /* txlock */,
+                  onconnectionthread) {
+                     newcursor.serialise(s);
+                     res.serialise(s); },
+                 oct);
+    return Success; }
 
-void
+orerror<void>
 storageslave::liststreams(
-    response *resp,
     const jobname &jn,
     const maybe<streamname> &cursor,
-    const maybe<unsigned> &limit) const {
-    if (limit == 0) {
-        resp->fail(error::invalidparameter);
-        return; }
+    const maybe<unsigned> &limit,
+    nnp<incompletecall> ic,
+    onconnectionthread oct) const {
+    if (limit == 0) return error::invalidparameter;
     auto dir(config.poolpath + jn.asfilename());
     const parser<streamname> &parser(parsers::_streamname());
     list<streamstatus> res;
@@ -281,28 +277,16 @@ storageslave::liststreams(
             if (cursor != Nothing && sn.success() < cursor.just()) continue;
             auto fname(dir + it.filename());
             auto size((fname + "content").size());
-            if (size.isfailure()) {
-                size.failure().warn("getting size of " +
-                                    fields::mk(fname + "content"));
-                resp->fail(size.failure());
-                return; }
+            if (size.isfailure()) return size.failure();
             auto finished((fname + "finished").exists());
-            if (finished.isfailure()) {
-                finished.failure().warn("checking whether " + fields::mk(jn) +
-                                        "::" + fields::mk(it.filename()) +
-                                        " finished");
-                resp->fail(finished.failure());
-                return; }
+            if (finished.isfailure()) return finished.failure();
             if (finished == true) {
                 res.pushtail(streamstatus::finished(sn.success(),
                                                     size.success())); }
             else {
                 res.pushtail(streamstatus::partial(sn.success(),
                                                    size.success())); } }
-        if (it.isfailure()) {
-            it.failure().warn("listing " + fields::mk(dir));
-            resp->fail(it.failure());
-            return; } }
+        if (it.isfailure()) return it.failure(); }
     sort(res);
     maybe<streamname> newcursor(Nothing);
     if (limit != Nothing) {
@@ -311,9 +295,13 @@ storageslave::liststreams(
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
         if (!it.finished()) newcursor = it->name;
         while (!it.finished()) it.remove(); }
-    resp->addparam(proto::LISTSTREAMS::resp::cursor, newcursor);
-    resp->addparam(proto::LISTSTREAMS::resp::streams, res);
-    resp->complete(); }
+    ic->complete(
+        [&newcursor, &res]
+        (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
+            newcursor.serialise(s);
+            res.serialise(s); },
+        oct);
+    return Success; }
 
 orerror<void>
 storageslave::removestream(const jobname &jn,

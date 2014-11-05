@@ -10,6 +10,11 @@
 
 wireproto_simple_wrapper_type(jobname, digest, d);
 
+jobname::jobname(deserialise1 &ds) : d(ds) {}
+
+void
+jobname::serialise(serialise1 &s) const { d.serialise(s); }
+
 const fields::field &
 fields::mk(const jobname &jn) {
     return "<job:" + mk(jn.d) + ">"; }

@@ -130,6 +130,7 @@ void
 rpctest2() {
     testcaseIO("rpctest2", "echo", [] (clientio io) {
             auto srv(rpcservice2::listen<echoservice>(
+                         io,
                          peername::all(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(
@@ -193,18 +194,20 @@ rpctest2() {
             srv->destroy(io); });
     testcaseIO("rpctest2", "doublelisten", [] (clientio io) {
             auto srv(rpcservice2::listen<echoservice>(
+                         io,
                          peername::all(peername::port::any))
                      .fatal("starting echo service"));
             auto port(srv->port());
-            assert(rpcservice2::listen<echoservice>(peername::all(port))
+            assert(rpcservice2::listen<echoservice>(io, peername::all(port))
                    == error::from_errno(EADDRINUSE));
             srv->destroy(io);
-            srv = rpcservice2::listen<echoservice>(peername::all(port))
+            srv = rpcservice2::listen<echoservice>(io, peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
     testcaseIO("rpctest2", "abandon1", [] (clientio io) {
             waitbox<void> abandoned;
             auto srv(rpcservice2::listen<abandonservice>(
+                         io,
                          peername::loopback(peername::port::any),
                          abandoned)
                      .fatal("starting abandon service"));
@@ -229,6 +232,7 @@ rpctest2() {
     testcaseIO("rpctest2", "timeoutcall", [] (clientio io) {
             waitbox<void> abandoned;
             auto srv(rpcservice2::listen<abandonservice>(
+                         io,
                          peername::loopback(peername::port::any),
                          abandoned)
                      .fatal("starting abandon service"));
@@ -251,6 +255,7 @@ rpctest2() {
             clnt->destroy(); });
     testcaseIO("rpctest2", "slow", [] (clientio io) {
             auto srv(rpcservice2::listen<slowservice>(
+                         io,
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
             auto clnt(rpcclient2::connect(io,
@@ -304,6 +309,7 @@ rpctest2() {
             srv->destroy(io); });
     testcaseIO("rpctest2", "slowabandon", [] (clientio io) {
             auto srv(rpcservice2::listen<slowservice>(
+                         io,
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
             auto clnt(rpcclient2::connect(io,
@@ -332,6 +338,7 @@ rpctest2() {
                    timedelta::milliseconds(100)); });
     testcaseIO("rpctest2", "abortcompleted", [] (clientio io) {
             auto srv(rpcservice2::listen<echoservice>(
+                         io,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(io,
@@ -359,6 +366,7 @@ rpctest2() {
             hook<void> h(rpcservice2::clientdisconnected,
                          [&died] { if (!died.ready()) died.set(); });
             auto srv(rpcservice2::listen<echoservice>(
+                         io,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt1(rpcclient2::connect(io,
@@ -383,6 +391,7 @@ rpctest2() {
              * first. */
             config.maxoutstandingcalls = 1000000;
             auto srv(rpcservice2::listen<largerespservice>(
+                         io,
                          config,
                          peername::loopback(peername::port::any))
                      .fatal("starting large response service"));
@@ -414,6 +423,7 @@ rpctest2() {
             srv->destroy(io); });
     testcaseIO("rpctest2", "largereq", [] (clientio io) {
             auto srv(rpcservice2::listen<largereqservice>(
+                         io,
                          peername::loopback(peername::port::any))
                      .fatal("starting large request service"));
             auto clnt(rpcclient2::connect(io,
@@ -462,6 +472,7 @@ rpctest2() {
                 [&doneconnect] () {
                     doneconnect.set(); });
             auto srv(rpcservice2::listen<echoservice>(
+                         io,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto conn(rpcclient2::connect(

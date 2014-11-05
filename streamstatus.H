@@ -21,6 +21,8 @@ public:  static streamstatus partial(const streamname &, uint64_t);
 public:  static streamstatus finished(const streamname &, uint64_t);
 public:  bool operator<(const streamstatus &sn) const;
 public:  bool operator>(const streamstatus &sn) const;
+public:  explicit streamstatus(deserialise1 &);
+public:  void serialise(serialise1 &) const;
     WIREPROTO_TYPE(streamstatus);
 };
 

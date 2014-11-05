@@ -1,8 +1,0 @@
-#! /bin/bash
-
-. shutil
-
-cc storage.C
-ld storage storage.o lib.a
-
-target storage

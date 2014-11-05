@@ -3,6 +3,7 @@
 #include "either.H"
 #include "fields.H"
 #include "parsers.H"
+#include "serialise.H"
 
 #include "either.tmpl"
 #include "parsers.tmpl"
@@ -31,12 +32,18 @@ streamname::streamname(const string &o)
 
 maybe<streamname>
 streamname::mk(const string &s) {
-    auto l(s.len());
-    if (l == 0) return Nothing;
-    auto c(s.c_str());
+    streamname res(s);
+    if (!res.isvalid()) return Nothing;
+    else return res; }
+
+bool
+streamname::isvalid() const {
+    auto l(content.len());
+    if (l == 0) return false;
+    auto c(content.c_str());
     for (unsigned x = 0; x < l; x++) {
-        if (!isprint(c[x]) || c[x] == '/') return Nothing; }
-    return streamname(s); }
+        if (!isprint(c[x]) || c[x] == '/') return false; }
+    return true; }
 
 string
 streamname::asfilename() const {
@@ -49,6 +56,15 @@ streamname::operator<(const streamname &o) const {
 bool
 streamname::operator>(const streamname &o) const {
     return content > o.content; }
+
+streamname::streamname(deserialise1 &ds)
+    : content(ds) {
+    if (!isvalid()) {
+        ds.fail(error::invalidmessage);
+        content = "...badstream..."; } }
+
+void
+streamname::serialise(serialise1 &s) const { content.serialise(s); }
 
 const parser<streamname> &
 parsers::_streamname() {

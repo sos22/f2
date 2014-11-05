@@ -102,38 +102,6 @@ namespace proto {
         /* No response parameters (except possibly for an error) */
     }
 
-    /* Storage slave: Create a new empty output stream.  Existing
-       empty and partial streams are silently replaced.  Requests to
-       create which already exists and which is already full return
-       error::already. */
-    namespace CREATEEMPTY {
-        static const msgtag tag(12);
-        namespace req {
-            static const parameter< ::jobname> job(1200);
-            static const parameter< ::streamname> stream(1201);
-        }
-        /* No response parameters, except for possible error */
-    }
-    /* Storage slave: add some bytes to the end of an output stream.
-       The stream must already exist. */
-    namespace APPEND {
-        static const msgtag tag(13);
-        namespace req {
-            static const parameter< ::jobname> job(1300);
-            static const parameter< ::streamname> stream(1301);
-            static const parameter< ::buffer> bytes(1302);
-        }
-        /* No response parameters, except for possible error */
-    }
-    /* Storage slave: mark a stream as completed. */
-    namespace FINISH {
-        static const msgtag tag(14);
-        namespace req {
-            static const parameter< ::jobname> job(1400);
-            static const parameter< ::streamname> stream(1401);
-        }
-        /* No response parameters, except for possible error */
-    }
     /* Storage slave: read a chunk of a stream.  The stream must be
      * complete. */
     namespace READ {

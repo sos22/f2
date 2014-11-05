@@ -76,20 +76,22 @@ public:  ::error failure() const { return status().failure(); } };
 class serialise1 {
 private:   buffer &dest;
 public:    explicit serialise1(buffer &_dest);
-    /* Push a fundamental type; mirror image of deserialise1::pop() */
-public:    void push(bool);
-public:    void push(char);
-public:    void push(unsigned char);
-public:    void push(short);
-public:    void push(unsigned short);
-public:    void push(int);
-public:    void push(unsigned int);
-public:    void push(long);
-public:    void push(unsigned long);
+    /* Push something into the stream. */
+public:    template <typename t> void push(const t &x) { x.serialise(*this); }
     /* Only used to implement the push methods. */
 private:   template <typename t> void pushfundamental(t);
     /* Copy some raw bytes into the buffer. */
 public:    void bytes(const void *, size_t); };
+
+template <> void serialise1::push(const bool &);
+template <> void serialise1::push(const char &);
+template <> void serialise1::push(const unsigned char &);
+template <> void serialise1::push(const short &);
+template <> void serialise1::push(const unsigned short &);
+template <> void serialise1::push(const int &);
+template <> void serialise1::push(const unsigned int &);
+template <> void serialise1::push(const long &);
+template <> void serialise1::push(const unsigned long &);
 
 /* Hooks for testing upgrade before we have another version to upgrade
  * to. */

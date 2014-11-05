@@ -22,6 +22,9 @@ public:
     list(list &&o);
     list(const quickcheck &);
 
+    explicit list(deserialise1 &);
+    void serialise(serialise1 &) const;
+
     list steal();
 
     class iter {

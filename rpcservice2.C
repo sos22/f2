@@ -16,6 +16,7 @@
 #include "mutex.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
+#include "waitbox.tmpl"
 
 #include "fieldfinal.H"
 
@@ -23,7 +24,7 @@ class rpcservice2::rootthread : public thread {
 public: rpcservice2 &owner;
 public: listenfd const fd;
 public: waitbox<void> shutdown;
-public: waitbox<void> ready;
+public: waitbox<orerror<void> > initialisedone;
 public: interfacetype const type;
 public: rootthread(const constoken &token,
                    rpcservice2 &_owner,
@@ -33,7 +34,7 @@ public: rootthread(const constoken &token,
       owner(_owner),
       fd(_fd),
       shutdown(),
-      ready(),
+      initialisedone(),
       type(_type) {}
 public: void run(clientio) final; };
 
@@ -73,6 +74,13 @@ public: void complete(
     onconnectionthread oct,
     proto::sequencenr);
 public: void fail(error err, onconnectionthread oct, proto::sequencenr);
+public: void complete(
+    orerror<void>,
+    proto::sequencenr);
+public: void complete(
+    orerror<void>,
+    proto::sequencenr,
+    onconnectionthread);
 public: void txcomplete(unsigned long, mutex_t::token);
 public: void txcomplete(unsigned long, mutex_t::token, onconnectionthread);
 public: orerror<void> calledhello(
@@ -106,8 +114,15 @@ rpcservice2::open(const peername &pn) {
         return error::from_errno(); }
     else return listenfd(s); }
 
-void
-rpcservice2::start() { root->ready.set(); }
+orerror<void>
+rpcservice2::_initialise(clientio io) {
+    auto res(initialise(io));
+    root->initialisedone.set(res);
+    if (res.isfailure()) destroy(io);
+    return res; }
+
+orerror<void>
+rpcservice2::initialise(clientio) { return Success; }
 
 /* We start the root thread immediately, but won't actually let it do
  * anything until the derived class constructor returns. */
@@ -149,6 +164,12 @@ rpcservice2::incompletecall::fail(error e) {
 
 void
 rpcservice2::incompletecall::complete(
+    orerror<void> res) {
+    owner.complete(res, seqnr);
+    delete this; }
+
+void
+rpcservice2::incompletecall::complete(
     const std::function<void (serialise1 &,
                               mutex_t::token,
                               onconnectionthread)> &doit,
@@ -161,6 +182,14 @@ rpcservice2::incompletecall::fail(error e, onconnectionthread oct) {
     owner.fail(e, oct, seqnr);
     delete this; }
 
+void
+rpcservice2::incompletecall::complete(
+    orerror<void> res,
+    onconnectionthread oct) {
+    owner.complete(res, seqnr, oct);
+    delete this; }
+
+
 rpcservice2::incompletecall::~incompletecall() {}
 
 void
@@ -172,6 +201,9 @@ rpcservice2::destroy(clientio io) {
     root->join(io);
     delete this; }
 
+void
+rpcservice2::destroying(clientio) {}
+
 rpcservice2::~rpcservice2() {}
 
 tests::hookpoint<void>
@@ -179,11 +211,13 @@ rpcservice2::clientdisconnected([] { } );
 
 void
 rpcservice2::rootthread::run(clientio io) {
-    /* Wait for service derived class constructor to finish before
-     * going any further.  Note that we don't watch for shutdown here:
-     * the constructor must be finished before anyone can try a
-     * destroy(), so there wouldn't be much point. */
-    ready.get(io);
+    /* Wait for the initialise() method to finish.  Note that we don't
+     * watch for shutdown here: initialise() must be finished before
+     * anyone can get a pointer to the class to call destroy(), so
+     * there wouldn't be much point. */
+    if (initialisedone.get(io).isfailure()) {
+        fd.close();
+        return; }
 
     subscriber sub;
     subscription ss(sub, shutdown.pub);
@@ -229,7 +263,8 @@ rpcservice2::rootthread::run(clientio io) {
         auto w( (connworker *)it->data );
         it.remove();
         w->join(io); }
-    fd.close(); }
+    fd.close();
+    owner.destroying(io); }
 
 void
 rpcservice2::connworker::run(clientio io) {
@@ -389,6 +424,11 @@ rpcservice2::connworker::fail(error err, proto::sequencenr seqnr) {
             proto::respheader(-1, seqnr, err).serialise(s);
             txcomplete(oldavail, txtoken); }); }
 
+void
+rpcservice2::connworker::complete(orerror<void> res, proto::sequencenr seqnr) {
+    if (res.isfailure()) fail(res.failure(), seqnr);
+    else complete([] (serialise1 &, mutex_t::token) {}, seqnr); }
+
 /* Marginally faster version for when we're already on the connection
  * thread.  Never need to kick the thread, because we're already on
  * it, and don't need to use atomic ops, because we hold the lock
@@ -416,6 +456,16 @@ rpcservice2::connworker::fail(error err,
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, err).serialise(s);
             txcomplete(startavail, txtoken, oct); }); }
+
+void
+rpcservice2::connworker::complete(orerror<void> res,
+                                  proto::sequencenr seqnr,
+                                  onconnectionthread oct) {
+    if (res.isfailure()) fail(res.failure(), oct, seqnr);
+    else complete(
+        [] (serialise1 &, mutex_t::token, onconnectionthread) {},
+        oct,
+        seqnr); }
 
 /* Tail end of transmitting a reply.  Set the size in the reply,
  * remove it from the outstandingcalls quota, try a fast send, and

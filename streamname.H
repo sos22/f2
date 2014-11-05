@@ -6,6 +6,8 @@
 
 #include "string.H"
 
+class deserialise1;
+class serialise1;
 class streamname;
 
 template <typename> class parser;
@@ -28,10 +30,13 @@ class streamname {
     friend class wireproto::tx_message;
 private: string content;
 private: explicit streamname(const string &);
+private: bool isvalid() const;
 public:  static maybe<streamname> mk(const string &);
 public:  string asfilename() const;
 public:  bool operator<(const streamname &o) const;
 public:  bool operator>(const streamname &o) const;
+public:  explicit streamname(deserialise1 &);
+public:  void serialise(serialise1 &) const;
 };
 
 #endif /* !STREAMNAME_H__ */

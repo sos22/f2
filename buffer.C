@@ -12,7 +12,9 @@
 #include "either.H"
 #include "fd.H"
 #include "proto.H"
+#include "proto2.H"
 #include "pubsub.H"
+#include "serialise.H"
 #include "spark.H"
 #include "test.H"
 #include "timedelta.H"
@@ -466,6 +468,36 @@ buffer::status() const {
 const bufferfield &
 fields::mk(const buffer &b) {
     return bufferfield::mk(false, bufferfield::c_ascii, true, b); }
+
+buffer::buffer(deserialise1 &ds)
+    : first(NULL),
+      last(NULL),
+      prod(ds),
+      cons(ds) {
+    if (prod - cons > proto::maxmsgsize) ds.fail(error::invalidmessage);
+    if (ds.isfailure()) {
+        prod = 0;
+        cons = 0;
+        return; }
+    auto s(unlinked_subbuf(prod - cons));
+    s->prod = prod;
+    s->cons = cons;
+    ds.bytes(s->payload, prod - cons);
+    if (ds.isfailure()) {
+        free(s);
+        prod = 0;
+        cons = 0;
+        return; }
+    s->next = NULL;
+    first = s;
+    last = s; }
+
+void
+buffer::serialise(serialise1 &s) const {
+    s.push(prod);
+    s.push(cons);
+    for (auto it(first); it != NULL; it = it->next) {
+        s.bytes(it->payload, it->prod - it->cons); } }
 
 const bufferfield &
 bufferfield::mk(bool _showshape,
