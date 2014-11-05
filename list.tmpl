@@ -22,7 +22,9 @@ list<t>::list(deserialise1 &ds)
     if (len > 1000000) {
         ds.fail(error::overflowed);
         return; }
-    while (len != 0) append(ds); }
+    while (len != 0) {
+        append(ds);
+        len--; } }
 
 template <typename t> void
 list<t>::serialise(serialise1 &s) const {

@@ -50,7 +50,7 @@ public:  orerror<pair<maybe<jobname>, list<jobname> > > listjobs(
     clientio,
     const maybe<jobname> &,
     maybe<unsigned>);
-public:  orerror<pair<maybe<streamname>, list<streamname> > > liststreams(
+public:  orerror<pair<maybe<streamname>, list<streamstatus> > > liststreams(
     clientio,
     const jobname &,
     const maybe<streamname> &,
@@ -126,7 +126,8 @@ storageclient::read(clientio io,
             -> orerror<pair<size_t, buffer> > {
             size_t s(ds);
             buffer b(ds);
-            return mkpair(s, b); }); }
+            if (ds.isfailure()) return ds.failure();
+            else return mkpair(s, b); }); }
 
 orerror<pair<maybe<jobname>, list<jobname> > >
 storageclient::listjobs(clientio io,
@@ -138,27 +139,31 @@ storageclient::listjobs(clientio io,
             proto::storage::tag::listjobs.serialise(s);
             start.serialise(s);
             limit.serialise(s); },
-        [] (deserialise1 &ds, rpcclient2::onconnectionthread) {
+        [] (deserialise1 &ds, rpcclient2::onconnectionthread)
+            -> orerror<pair<maybe<jobname>, list<jobname> > >{
             maybe<jobname> newcursor(ds);
             list<jobname> res(ds);
-            return mkpair(newcursor, res); }); }
+            if (ds.isfailure()) return ds.failure();
+            else return mkpair(newcursor, res); }); }
 
-orerror<pair<maybe<streamname>, list<streamname> > >
+orerror<pair<maybe<streamname>, list<streamstatus> > >
 storageclient::liststreams(clientio io,
                            const jobname &job,
                            const maybe<streamname> &start,
                            maybe<unsigned> limit) {
-    return inner->call<pair<maybe<streamname>, list<streamname> > >(
+    return inner->call<pair<maybe<streamname>, list<streamstatus> > >(
         io,
         [&job, limit, &start] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::liststreams.serialise(s);
             job.serialise(s);
             start.serialise(s);
             limit.serialise(s); },
-        [] (deserialise1 &ds, rpcclient2::onconnectionthread) {
+        [] (deserialise1 &ds, rpcclient2::onconnectionthread)
+            -> orerror<pair<maybe<streamname>, list<streamstatus> > >{
             maybe<streamname> newcursor(ds);
-            list<streamname> res(ds);
-            return mkpair(newcursor, res); }); }
+            list<streamstatus> res(ds);
+            if (ds.isfailure()) return ds.failure();
+            else return mkpair(newcursor, res); }); }
 
 orerror<void>
 storageclient::removestream(clientio io,
