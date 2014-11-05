@@ -19,7 +19,7 @@ template <typename t> class orerror {
     };
     orerror() = delete;
 public:
-    orerror(deserialise1 &ds)
+    explicit orerror(deserialise1 &ds)
         : errored(ds) {
         if (errored) new (&err) error(ds);
         else new (buf) t(ds); }
@@ -28,6 +28,10 @@ public:
         {
             new (this->buf) t(v);
         }
+    orerror(const orerror &o)
+        : errored(o.errored) {
+        if (errored) new (&err) error(o.err);
+        else new (buf) t(*(t *)o.buf); }
     orerror(t &&v)
         : errored(false)
         {
