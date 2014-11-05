@@ -24,6 +24,7 @@ template <typename t> void
 rpcclient2::asynccall<t>::complete(deserialise1 &ds, onconnectionthread oct) {
     auto dead(mux.locked<bool>([this, &ds, oct] {
                 if (!aborted) {
+                    assert(res == Nothing);
                     res = deserialise(*this, _nnp(ds), oct);
                     _finished = true;
                     _pub.publish();
@@ -35,6 +36,7 @@ template <typename t> void
 rpcclient2::asynccall<t>::fail(error e, onconnectionthread oct) {
     auto dead(mux.locked<bool>([this, e, oct] {
                 if (!aborted) {
+                    assert(res == Nothing);
                     res = deserialise(*this, e, oct);
                     _finished = true;
                     _pub.publish();

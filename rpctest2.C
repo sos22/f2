@@ -126,6 +126,23 @@ public: orerror<void> called(
         oct);
     return Success; } };
 
+class bufferservice : public rpcservice2 {
+public: bufferservice(const constoken &t) : rpcservice2(t,interfacetype::test){}
+public: orerror<void> called(
+    clientio,
+    onconnectionthread oct,
+    deserialise1 &ds,
+    nnp<incompletecall> ic) {
+    ::buffer b(ds);
+    assert(!memcmp(b.linearise(0, 5), "HELLO", 5));
+    ic->complete(
+        [] (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
+            ::buffer bb;
+            bb.queue("GOODBYE", 7);
+            bb.serialise(s); },
+        oct);
+    return Success; } };
+
 void
 rpctest2() {
     testcaseIO("rpctest2", "echo", [] (clientio io) {
@@ -481,6 +498,27 @@ rpctest2() {
             doneconnect.get(io);
             conn->abort();
             srv->destroy(io); });
-
-
+    testcaseIO("rpctest2", "returnbuffer", [] (clientio io) {
+            auto srv(rpcservice2::listen<bufferservice>(
+                         io,
+                         peername::loopback(peername::port::any))
+                     .fatal("starting buffer service"));
+            auto conn(rpcclient2::connect(
+                          io,
+                          interfacetype::test,
+                          peername::loopback(srv->port()))
+                      .fatal("connecting to buffer service"));
+            auto b(conn->call< ::buffer >(
+                       io,
+                       [] (serialise1 &s, mutex_t::token /* txlock */) {
+                           ::buffer b;
+                           b.queue("HELLO", 5);
+                           b.serialise(s); },
+                       [] (deserialise1 &s, rpcclient2::onconnectionthread)
+                           -> orerror< ::buffer> {
+                           return (::buffer)s; })
+                   .fatal("calling buffer service"));
+            assert(!memcmp(b.linearise(0, 7), "GOODBYE", 7));
+            conn->destroy();
+            srv->destroy(io); });
 } }
