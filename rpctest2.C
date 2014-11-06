@@ -511,9 +511,9 @@ rpctest2() {
             auto b(conn->call< ::buffer >(
                        io,
                        [] (serialise1 &s, mutex_t::token /* txlock */) {
-                           ::buffer b;
-                           b.queue("HELLO", 5);
-                           b.serialise(s); },
+                           ::buffer buf;
+                           buf.queue("HELLO", 5);
+                           buf.serialise(s); },
                        [] (deserialise1 &s, rpcclient2::onconnectionthread)
                            -> orerror< ::buffer> {
                            return (::buffer)s; })
