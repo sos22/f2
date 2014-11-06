@@ -213,7 +213,6 @@ storageslave::listjobs(
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
     onconnectionthread oct) const {
-    if (limit == 0) return error::invalidparameter;
     auto &parser(parsers::_jobname());
     list<jobname> res;
     {   filename::diriter it(config.poolpath);
@@ -257,7 +256,6 @@ storageslave::liststreams(
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
     onconnectionthread oct) const {
-    if (limit == 0) return error::invalidparameter;
     auto dir(config.poolpath + jn.asfilename());
     const parser<streamname> &parser(parsers::_streamname());
     list<streamstatus> res;
