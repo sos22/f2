@@ -35,7 +35,8 @@ private: nnp<workerthread> worker() const;
      * down. */
 private: orerror<void> queuerx(nnp<_asynccall> call);
     /* Add something to the pending transmit queue. */
-private: void queuetx(const std::function<void (serialise1 &,
+private: void queuetx(interfacetype,
+                      const std::function<void (serialise1 &,
                                                 mutex_t::token)> &serialise,
                       proto::sequencenr seqnr);
     /* Publisher for asynccalls to notify when they get aborted. */
@@ -66,7 +67,7 @@ private: rpcclient2();
      * which can be used to receive the results of the call, or to
      * abort before the connect finishes. */
 public:  class asyncconnect;
-public:  static nnp<asyncconnect> connect(interfacetype, const peername &);
+public:  static nnp<asyncconnect> connect(const peername &);
 public:  class asyncconnect {
         friend class rpcclient2;
     private: asyncconnect(const asyncconnect &) = delete;
@@ -102,7 +103,6 @@ public:  class asyncconnect {
      * result. */
 public:  static orerror<nnp<rpcclient2> > connect(
     clientio,
-    interfacetype,
     const peername &,
     maybe<timestamp> deadline = Nothing);
 
@@ -146,6 +146,7 @@ public:  class onconnectionthread {
      */
 public:  template <typename> class asynccall;
 public:  template <typename t> nnp<asynccall<t> > call(
+        interfacetype,
         const std::function<void (serialise1 &s, mutex_t::token txlock)> &
             serialise,
         const std::function<orerror<t> (asynccall<t> &ac,
@@ -203,6 +204,7 @@ public:  template <typename t> class asynccall final : private _asynccall {
      * asyncconnect structure. */
 public:  template <typename t> orerror<t> call(
     clientio,
+    interfacetype,
     const std::function<void (serialise1 &,
                               mutex_t::token txlock)> &serialise,
     const std::function<orerror<t> (deserialise1 &,

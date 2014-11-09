@@ -18,6 +18,7 @@ public:  bool operator==(interfacetype o) const { return v == o.v; }
 public:  bool operator!=(interfacetype o) const { return v != o.v; }
 public:  const fields::field &field() const;
 public:  static const ::parser<interfacetype> &parser();
+public:  static const interfacetype meta;
 public:  static const interfacetype storage;
 public:  static const interfacetype test;
 public:  static const interfacetype test2;

@@ -25,17 +25,19 @@ public: rpcservice2 &owner;
 public: listenfd const fd;
 public: waitbox<void> shutdown;
 public: waitbox<orerror<void> > initialisedone;
-public: interfacetype const type;
+public: list<interfacetype> type; /* const once initialised */
 public: rootthread(const constoken &token,
                    rpcservice2 &_owner,
                    listenfd _fd,
-                   interfacetype _type)
+                   const list<interfacetype> &_type)
     : thread(token),
       owner(_owner),
       fd(_fd),
       shutdown(),
       initialisedone(),
-      type(_type) {}
+      type(_type) {
+    assert(!type.contains(interfacetype::meta));
+    type.pushtail(interfacetype::meta); }
 public: void run(clientio) final; };
 
 class rpcservice2::connworker : public thread {
@@ -135,7 +137,14 @@ rpcservice2::rpcservice2(const constoken &ct, interfacetype type)
                "R:" + fields::mk(ct.pn),
                *this,
                ct.fd,
-               type)) {}
+               list<interfacetype>::mk(type))) {}
+rpcservice2::rpcservice2(const constoken &ct, const list<interfacetype> &type)
+    : config(ct.config),
+      root(thread::start<rootthread>(
+               "R:" + fields::mk(ct.pn),
+               *this,
+               ct.fd,
+               type)) { }
 
 peername::port
 rpcservice2::port() const { return root->fd.localname().getport(); }
@@ -268,6 +277,9 @@ rpcservice2::rootthread::run(clientio io) {
 
 void
 rpcservice2::connworker::run(clientio io) {
+    /* Only used for log messages. */
+    auto peer(fd.peer());
+
     subscriber sub;
     /* We keep the in subscription armed unless we're trying to get
      * the other side to back off (either because we have too many
@@ -298,6 +310,7 @@ rpcservice2::connworker::run(clientio io) {
     bool donehello = false;
     bool failed;
     failed = false;
+
     while (!failed && !owner.shutdown.ready()) {
         /* The obvious races here are all handled by re-checking
          * everything when completedsub gets notified. */
@@ -346,9 +359,17 @@ rpcservice2::connworker::run(clientio io) {
                 deserialise1 ds(rxbuffer);
                 proto::reqheader hdr(ds);
                 if (ds.status() == error::underflowed) break;
-                if (ds.isfailure() ||
-                    hdr.size < sizeof(hdr) ||
-                    hdr.size > proto::maxmsgsize) {
+                if (ds.isfailure()) {
+                    ds.failure().warn("parsing message header from " +
+                                      fields::mk(peer));
+                    failed = true;
+                    break; }
+                if (hdr.size > proto::maxmsgsize) {
+                    logmsg(loglevel::info,
+                           "oversized message from " +
+                           fields::mk(peer) + ": " +
+                           fields::mk(hdr.size) + " > " +
+                           fields::mk(proto::maxmsgsize));
                     failed = true;
                     break; }
                 if (hdr.size > rxbuffer.avail()) {
@@ -361,12 +382,37 @@ rpcservice2::connworker::run(clientio io) {
                 auto ic(_nnp(*new incompletecall(*this, hdr.seq)));
                 onconnectionthread oct;
                 orerror<void> res(Success);
-                if (hdr.vers != version::current) res = error::badversion;
-                else if (donehello) res = owner.owner.called(io, oct, ds, ic);
-                else res = calledhello(io, oct, ds, ic);
-                donehello = true;
-                if (res.isfailure()) {
-                    ic->fail(res.failure()); }
+
+                if (hdr.vers != version::current) {
+                    logmsg(loglevel::info,
+                           "peer " + fields::mk(peer) +
+                           " requested version " + fields::mk(hdr.vers) +
+                           "; we only support " + fields::mk(version::current));
+                    res = error::badversion; }
+                else if (!owner.type.contains(hdr.type)) {
+                    logmsg(loglevel::info,
+                           "peer " + fields::mk(peer) +
+                           " requested interface " + fields::mk(hdr.type) +
+                           " on a service supporting " +
+                           fields::mk(owner.type));
+                    res = error::badinterface; }
+                else if (hdr.type == interfacetype::meta) {
+                    if (donehello) {
+                        logmsg(loglevel::info,
+                               "peer " + fields::mk(peer) +
+                               " sent mulitple HELLOs");
+                        res = error::toolate; }
+                    else {
+                        res = calledhello(io, oct, ds, ic);
+                        donehello = true; } }
+                else if (!donehello) {
+                    logmsg(loglevel::info,
+                           "peer " + fields::mk(peer) +
+                           " sent request before sending HELLO?");
+                    res = error::toosoon; }
+                else res = owner.owner.called(io, oct, ds, hdr.type, ic);
+
+                if (res.isfailure()) ic->fail(res.failure());
                 else if (ds.offset() != rxbuffer.offset() + hdr.size) {
                     logmsg(loglevel::error,
                            "expected message to go from " +
@@ -396,10 +442,8 @@ rpcservice2::connworker::run(clientio io) {
         while (atomicload(outstandingcalls) > 0) {
             if (smallsub.wait(io, laststatus + timedelta::seconds(1)) == NULL) {
                 logmsg(loglevel::info,
-                       "waiting to shut down service to " +
-                       fields::mk(fd.peer()) +
-                       "; " +
-                       fields::mk(atomicload(outstandingcalls)) +
+                       "waiting to shut down service to " + fields::mk(peer) +
+                       "; " + fields::mk(atomicload(outstandingcalls)) +
                        " left");
                 laststatus = timestamp::now(); } } }
     /* We're done */
@@ -523,7 +567,9 @@ rpcservice2::connworker::calledhello(clientio,
                                      deserialise1 &ds,
                                      nnp<incompletecall> ic) {
     proto::hello::req h(ds);
-    if (ds.issuccess()) {
+    if (ds.isfailure()) {
+        ds.failure().warn("parsing HELLO request"); }
+    else {
         ic->complete([this]
                      (serialise1 &s,
                       mutex_t::token /* txlock */,

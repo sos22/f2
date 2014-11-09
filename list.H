@@ -105,6 +105,9 @@ public:
        the start of the list, and return a reference to it. */
     template <typename... args> t &prepend(args && ...);
 
+    /* O(n) membership test. */
+    bool contains(const t&) const;
+
     /* Check that the list looks vaguely reasonable */
     void sanitycheck() const;
 

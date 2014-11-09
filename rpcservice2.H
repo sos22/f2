@@ -94,6 +94,7 @@ protected: class constoken {
           config(_config) {} };
 
     /* Use listen() instead. */
+protected: rpcservice2(const constoken &, const list<interfacetype> &);
 protected: rpcservice2(const constoken &, interfacetype);
 
     /* Extract the port we're listening on.  We deliberately don't try
@@ -146,6 +147,7 @@ private:   virtual orerror<void> called(
         clientio,
         onconnectionthread,
         deserialise1 &ds,
+        interfacetype,
         nnp<incompletecall> ic) = 0;
 
 public:    class incompletecall {

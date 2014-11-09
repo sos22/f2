@@ -21,4 +21,15 @@ tests::_list() {
             assert(l.pophead() == 6);
             assert(l.pophead() == 7);
             assert(l.pophead() == 8);
-            assert(l.empty()); }); }
+            assert(l.empty()); });
+    testcaseV("list", "contains", [] {
+            assert(!list<int>::mk().contains(7));
+            assert(!list<int>::mk().contains(0));
+            assert(!list<int>::mk(1).contains(0));
+            assert(!list<int>::mk(1,2,3).contains(0));
+            assert(list<int>::mk(1,2,3).contains(1));
+            assert(list<int>::mk(1,2,3).contains(2));
+            assert(list<int>::mk(1,2,3).contains(3));
+            auto l(list<int>::mk(1,2,3));
+            l.pophead();
+            assert(!l.contains(1)); }); }

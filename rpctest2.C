@@ -30,7 +30,8 @@ public: orerror<void> called(
     clientio,
     onconnectionthread oct,
     deserialise1 &ds,
-    nnp<incompletecall> ic) {
+    interfacetype,
+    nnp<incompletecall> ic) final {
     string msg(ds);
     if (ds.isfailure()) return ds.failure();
     if (cntr == 75) {
@@ -58,7 +59,8 @@ public: orerror<void> called(
     clientio,
     onconnectionthread,
     deserialise1 &,
-    nnp<incompletecall> ic) {
+    interfacetype,
+    nnp<incompletecall> ic) final {
     worker.mkjust([this, ic] () {
             ic->abandoned().get(clientio::CLIENTIO);
             abandoned.set();
@@ -73,7 +75,8 @@ public: orerror<void> called(
     clientio,
     onconnectionthread,
     deserialise1 &ds,
-    nnp<incompletecall> ic) {
+    interfacetype,
+    nnp<incompletecall> ic) final {
     timedelta delay(ds);
     unsigned key(ds);
     if (ds.isfailure()) return ds.failure();
@@ -98,7 +101,8 @@ public: orerror<void> called(
     clientio,
     onconnectionthread oct,
     deserialise1 &,
-    nnp<incompletecall> ic) {
+    interfacetype,
+    nnp<incompletecall> ic) final {
     ic->complete(
         [this] (serialise1 &s, mutex_t::token, onconnectionthread) {
             largestring.serialise(s); },
@@ -115,7 +119,8 @@ public: orerror<void> called(
     clientio io,
     onconnectionthread oct,
     deserialise1 &ds,
-    nnp<incompletecall> ic) {
+    interfacetype,
+    nnp<incompletecall> ic) final {
     string s(ds);
     assert(s == largestring);
     /* Slow down thread to make it a bit easier for the client to fill their
@@ -132,7 +137,8 @@ public: orerror<void> called(
     clientio,
     onconnectionthread oct,
     deserialise1 &ds,
-    nnp<incompletecall> ic) {
+    interfacetype,
+    nnp<incompletecall> ic) final {
     ::buffer b(ds);
     assert(!memcmp(b.linearise(0, 5), "HELLO", 5));
     ic->complete(
@@ -152,11 +158,11 @@ rpctest2() {
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(
                           io,
-                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to echo service"));
             clnt->call<void>(
                 io,
+                interfacetype::test,
                 [] (serialise1 &s, mutex_t::token) {
                     string("HELLO!").serialise(s); },
                 []
@@ -172,6 +178,7 @@ rpctest2() {
             assert(
                 clnt->call<int>(
                     io,
+                    interfacetype::test,
                     [] (serialise1 &s, mutex_t::token) {
                         string("GOODBYE!").serialise(s); },
                     []
@@ -186,6 +193,7 @@ rpctest2() {
                 == 9);
             auto r = clnt->call<char *>(
                 io,
+                interfacetype::test,
                 [] (serialise1 &s, mutex_t::token) {
                     string("GOODBYE!").serialise(s); },
                 []
@@ -195,6 +203,7 @@ rpctest2() {
             assert(
                 clnt->call<char *>(
                     io,
+                    interfacetype::test,
                     [] (serialise1 &s, mutex_t::token) {
                         string("boo").serialise(s); },
                     []
@@ -230,10 +239,10 @@ rpctest2() {
                      .fatal("starting abandon service"));
             auto clnt(rpcclient2::connect(
                           io,
-                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to abandon service"));
             auto call(clnt->call<void>(
+                          interfacetype::test,
                           [] (serialise1 &, mutex_t::token) {},
                           [] (rpcclient2::asynccall<void> &,
                               orerror<nnp<deserialise1> > d,
@@ -255,11 +264,11 @@ rpctest2() {
                      .fatal("starting abandon service"));
             auto clnt(rpcclient2::connect(
                           io,
-                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to abandon service"));
             assert(clnt->call<void>(
                        io,
+                       interfacetype::test,
                        [] (serialise1 &, mutex_t::token) {},
                        [] (deserialise1 &, rpcclient2::onconnectionthread)
                            -> orerror<void> { abort(); },
@@ -276,13 +285,13 @@ rpctest2() {
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
             auto clnt(rpcclient2::connect(io,
-                                          interfacetype::test,
                                           peername::loopback(srv->port()))
                       .fatal("connecting to slow service"));
             maybe<timestamp> completed1(Nothing);
             maybe<timestamp> completed2(Nothing);
             list<nnp<rpcclient2::asynccall<void> > > completed;
             auto call1(clnt->call<void>(
+                           interfacetype::test,
                            [] (serialise1 &s, mutex_t::token) {
                                timedelta::milliseconds(200).serialise(s);
                                s.push((unsigned)1); },
@@ -299,6 +308,7 @@ rpctest2() {
                                completed.pushtail(ac);
                                return Success; } ) );
             auto call2(clnt->call<void>(
+                           interfacetype::test,
                            [] (serialise1 &s, mutex_t::token) {
                                timedelta::milliseconds(100).serialise(s);
                                s.push((unsigned)2); },
@@ -330,10 +340,10 @@ rpctest2() {
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
             auto clnt(rpcclient2::connect(io,
-                                          interfacetype::test,
                                           peername::loopback(srv->port()))
                       .fatal("connecting to slow service"));
             auto call(clnt->call<void>(
+                          interfacetype::test,
                           [] (serialise1 &s, mutex_t::token) {
                               timedelta::hours(3).serialise(s);
                               s.push((unsigned)3); },
@@ -359,11 +369,11 @@ rpctest2() {
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(io,
-                                          interfacetype::test,
                                           peername::loopback(srv->port()))
                       .fatal("connecting to echo service"));
             ::logmsg(loglevel::info, "send call");
             auto call(clnt->call<int>(
+                          interfacetype::test,
                           [] (serialise1 &s, mutex_t::token) {
                               string("foo").serialise(s); },
                           [] (rpcclient2::asynccall<int> &,
@@ -386,13 +396,9 @@ rpctest2() {
                          io,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
-            auto clnt1(rpcclient2::connect(io,
-                                           interfacetype::test,
-                                           peername::loopback(srv->port()))
+            auto clnt1(rpcclient2::connect(io, peername::loopback(srv->port()))
                        .fatal("connecting to echo service"));
-            auto clnt2(rpcclient2::connect(io,
-                                           interfacetype::test,
-                                           peername::loopback(srv->port()))
+            auto clnt2(rpcclient2::connect(io, peername::loopback(srv->port()))
                        .fatal("connecting to echo service"));
             clnt2->destroy();
             assert(timedelta::time([&died, io] { died.get(io); })
@@ -412,14 +418,13 @@ rpctest2() {
                          config,
                          peername::loopback(peername::port::any))
                      .fatal("starting large response service"));
-            auto clnt(rpcclient2::connect(io,
-                                          interfacetype::test,
-                                          peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
                       .fatal("connecting to large response service"));
             list<nnp<rpcclient2::asynccall<void> > > outstanding;
             for (unsigned x = 0; x < 10; x++) {
                 outstanding.pushtail(
                     clnt->call<void>(
+                        interfacetype::test,
                         [] (serialise1 &, mutex_t::token) {},
                         [srv, io] (rpcclient2::asynccall<void> &,
                                    orerror<nnp<deserialise1> > d,
@@ -443,14 +448,13 @@ rpctest2() {
                          io,
                          peername::loopback(peername::port::any))
                      .fatal("starting large request service"));
-            auto clnt(rpcclient2::connect(io,
-                                          interfacetype::test,
-                                          peername::loopback(srv->port()))
+            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
                       .fatal("connecting to large request service"));
             list<nnp<rpcclient2::asynccall<void> > > outstanding;
             for (unsigned x = 0; x < 10; x++) {
                 outstanding.pushtail(
                     clnt->call<void>(
+                        interfacetype::test,
                         [srv] (serialise1 &s, mutex_t::token) {
                             srv->largestring.serialise(s); },
                         [srv, io] (rpcclient2::asynccall<void> &,
@@ -472,12 +476,10 @@ rpctest2() {
             sa.sin_port = 12345;
             assert(rpcclient2::connect(
                        io,
-                       interfacetype::test,
                        peername((struct sockaddr *)&sa, sizeof(sa)),
                        timestamp::now()) == error::timeout);
             assert(rpcclient2::connect(
                        io,
-                       interfacetype::test,
                        peername::loopback(peername::port(1)))
                    == error::from_errno(ECONNREFUSED)); });
     testcaseIO("rpctest2", "abortconnect", [] (clientio io) {
@@ -492,9 +494,7 @@ rpctest2() {
                          io,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
-            auto conn(rpcclient2::connect(
-                          interfacetype::test,
-                          peername::loopback(srv->port())));
+            auto conn(rpcclient2::connect(peername::loopback(srv->port())));
             doneconnect.get(io);
             conn->abort();
             srv->destroy(io); });
@@ -505,11 +505,11 @@ rpctest2() {
                      .fatal("starting buffer service"));
             auto conn(rpcclient2::connect(
                           io,
-                          interfacetype::test,
                           peername::loopback(srv->port()))
                       .fatal("connecting to buffer service"));
             auto b(conn->call< ::buffer >(
                        io,
+                       interfacetype::test,
                        [] (serialise1 &s, mutex_t::token /* txlock */) {
                            ::buffer buf;
                            buf.queue("HELLO", 5);

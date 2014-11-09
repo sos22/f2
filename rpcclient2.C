@@ -34,8 +34,6 @@ public: mutex_t connectlock;
 public: maybe<orerror<void> > connectres;
     /* Publisher notified when connectres becomes non-Nothing. */
 public: publisher connectpub;
-    /* What interface do we need them to expose? */
-public: const interfacetype type;
     /* Who are we connecting to? */
 public: const peername peer;
 
@@ -55,7 +53,7 @@ public: publisher abortedpub;
     /* Shutdown machine. */
 public: waitbox<void> shutdown;
 
-public: workerthread(const constoken &tok, interfacetype, const peername &p);
+public: workerthread(const constoken &tok, const peername &p);
 
 public: void run(clientio);
 
@@ -86,17 +84,18 @@ rpcclient2::queuerx(nnp<_asynccall> cll) {
  * be sent.  Cannot race with the local side being torn down. */
 void
 rpcclient2::queuetx(
+    interfacetype type,
     const std::function<void (serialise1 &, mutex_t::token)> &serialise,
     proto::sequencenr seqnr) {
     auto w((worker()));
     auto notify(
         w->txlock.locked<bool>(
-            [seqnr, &serialise, w]
+            [seqnr, &serialise, type, w]
             (mutex_t::token txtoken) {
                 auto startavail(w->txbuffer.avail());
                 serialise1 s(w->txbuffer);
                 /* size gets filled in later */
-                proto::reqheader(-1, version::current, seqnr).serialise(s);
+                proto::reqheader(-1, version::current, type,seqnr).serialise(s);
                 serialise(s, txtoken);
                 /* Set size in header. */
                 auto sz = w->txbuffer.avail() - startavail;
@@ -150,9 +149,8 @@ rpcclient2::_asynccall::~_asynccall() { assert(aborted || _finished); }
 rpcclient2::rpcclient2() {}
 
 nnp<rpcclient2::asyncconnect>
-rpcclient2::connect(interfacetype type, const peername &pn) {
-    return thread::start<workerthread>("C:" + fields::mk(pn), type, pn)
-        ->connector; }
+rpcclient2::connect(const peername &pn) {
+    return thread::start<workerthread>("C:" + fields::mk(pn), pn)->connector; }
 
 nnp<rpcclient2::workerthread>
 rpcclient2::asyncconnect::owner() const {
@@ -189,10 +187,9 @@ rpcclient2::asyncconnect::~asyncconnect() {}
 orerror<nnp<rpcclient2> >
 rpcclient2::connect(
     clientio io,
-    interfacetype type,
     const peername &pn,
     maybe<timestamp> deadline) {
-    auto ac(connect(type, pn));
+    auto ac(connect(pn));
     auto t(ac->finished());
     if (t == Nothing) {
         subscriber sub;
@@ -222,7 +219,6 @@ rpcclient2::doneconnectsyscall([] { } );
 
 rpcclient2::workerthread::workerthread(
     const constoken &token,
-    interfacetype _type,
     const peername &_peer)
     : thread(token),
       api(),
@@ -230,7 +226,6 @@ rpcclient2::workerthread::workerthread(
       connectlock(),
       connectres(Nothing),
       connectpub(),
-      type(_type),
       peer(_peer),
       rxlock(),
       rxqueue(),
@@ -287,6 +282,7 @@ rpcclient2::workerthread::run(clientio io) {
     /* Start by sending a HELLO call. */
     maybe<nnp<asynccall<void> > > hellocall(
         api.call<void>(
+            interfacetype::meta,
             [] (serialise1 &s, mutex_t::token) {
                 proto::hello::req().serialise(s); },
             [this]
@@ -299,7 +295,6 @@ rpcclient2::workerthread::run(clientio io) {
                 if (ds.isfailure()) return ds.failure();
                 if (r.min > version::current || r.max < version::current) {
                     return error::badversion; }
-                if (r.type != type) return error::invalidparameter;
                 return Success; }));
     maybe<subscription> hellosub(Nothing);
     hellosub.mkjust(sub, hellocall.just()->pub());

@@ -5,6 +5,7 @@
 
 template <typename t> nnp<rpcclient2::asynccall<t> >
 rpcclient2::call(
+    interfacetype type,
     const std::function<void (serialise1 &, mutex_t::token)> &serialise,
     const std::function<orerror<t> (asynccall<t> &,
                                     orerror<nnp<deserialise1> >,
@@ -17,7 +18,7 @@ rpcclient2::call(
      * be. */
     if (toolate.isfailure()) res->fail(toolate.failure(),
                                        onconnectionthread());
-    else queuetx(serialise, res->seqnr);
+    else queuetx(type, serialise, res->seqnr);
     return res; }
 
 template <typename t> void
@@ -76,12 +77,14 @@ rpcclient2::asynccall<t>::abort(clientio) {
 template <typename t> orerror<t>
 rpcclient2::call(
     clientio io,
+    interfacetype type,
     const std::function<void (serialise1 &,
                               mutex_t::token txlock)> &serialise,
     const std::function<orerror<t> (deserialise1 &,
                                     onconnectionthread)> &deserialise,
     maybe<timestamp> deadline) {
-    auto c(call<t>(serialise,
+    auto c(call<t>(type,
+                   serialise,
                    [&deserialise]
                    (asynccall<t> &,
                     orerror<nnp<deserialise1> > ds,

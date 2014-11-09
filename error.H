@@ -99,6 +99,7 @@ public:
     static const error shutdown; /* The thing which is being called is
                                   * shutting down. */
     static const error range; /* Parameter is out of range. */
+    static const error badinterface; /* Interface not supported. */
 };
 
 namespace fields {

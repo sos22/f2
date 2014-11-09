@@ -350,6 +350,12 @@ list<t>::const_iter::operator->() const
     return &cursor->value;
 }
 
+template <typename t> bool
+list<t>::contains(const t &what) const {
+    for (auto it(start()); !it.finished(); it.next()) {
+        if (*it == what) return true; }
+    return false; }
+
 template <typename t> void
 list<t>::sanitycheck() const
 {

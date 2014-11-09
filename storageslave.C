@@ -20,7 +20,11 @@ storageslave::called(
     clientio,
     onconnectionthread oct,
     deserialise1 &ds,
+    interfacetype type,
     nnp<incompletecall> ic) {
+    /* rpcservice2 should enforce this for us, since we only claim to
+     * support one interface type. */
+    assert(type == interfacetype::storage);
     proto::storage::tag tag(ds);
     if (tag == proto::storage::tag::createempty) {
         jobname j(ds);
