@@ -14,6 +14,7 @@
 #include "fields.H"
 #include "filename.H"
 #include "frequency.H"
+#include "list.H"
 #include "logging.H"
 #include "maybe.H"
 #include "mutex.H"
@@ -49,6 +50,7 @@ main(int argc, char *argv[])
     tests::fields();
     tests::_filename();
     tests::_frequency();
+    tests::_list();
     tests::logging();
     tests::_maybe();
     tests::mutex();

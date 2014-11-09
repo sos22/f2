@@ -3,8 +3,10 @@
 
 #include <functional>
 
+class deserialise1;
 class quickcheck;
 template <typename> class list;
+class serialise1;
 
 /* Sorting a linked list is usually a hint that you're doing something
  * wrong, but it's sometimes useful in smaller programs. */
@@ -21,6 +23,8 @@ public:
     list(const list &o);
     list(list &&o);
     list(const quickcheck &);
+
+    template <typename ... args> static list mk(args...);
 
     explicit list(deserialise1 &);
     void serialise(serialise1 &) const;
@@ -84,8 +88,9 @@ public:
     const t &peekhead() const;
     /* Add a copy of an item to the front of the list */
     void pushhead(const t &);
-    /* Add a copy of an item to the end of the list */
-    void pushtail(const t &);
+    /* Copy some items to the tail of the list, in order */
+    void pushtail();
+    template <typename ... args> void pushtail(const t &, args &&...);
 
     /* Grab a reference to an element of the list given its zero-based
        index.  The index must be within bounds. */
@@ -115,5 +120,7 @@ public:
 
     bool operator==(const list &o) const;
 };
+
+namespace tests { void _list(); }
 
 #endif /* !LIST_H__ */

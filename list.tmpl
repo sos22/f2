@@ -26,6 +26,12 @@ list<t>::list(deserialise1 &ds)
         append(ds);
         len--; } }
 
+template <typename t> template <typename ... args> list<t>
+list<t>::mk(args...params) {
+    list<t> res;
+    res.pushtail(params...);
+    return res; }
+
 template <typename t> void
 list<t>::serialise(serialise1 &s) const {
     unsigned len(length());
@@ -153,9 +159,12 @@ list<t>::pushhead(const t &what)
 }
 
 template <typename t> void
-list<t>::pushtail(const t &what)
+list<t>::pushtail() {}
+
+template <typename t> template <typename ... args> void
+list<t>::pushtail(const t &first, args &&...rest)
 {
-    auto m(new member(NULL, tail, false, what));
+    auto m(new member(NULL, tail, false, first));
     if (tail) {
         assert(head);
         tail->next = m;
@@ -164,7 +173,7 @@ list<t>::pushtail(const t &what)
         head = m;
     }
     tail = m;
-}
+    pushtail(std::forward<args>(rest)...); }
 
 template <typename t> t &
 list<t>::idx(unsigned x) {
