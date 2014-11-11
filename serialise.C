@@ -50,6 +50,7 @@ deserialise1::bytes(void *buf, size_t s) {
 
 template <typename t> t
 deserialise1::pop() {
+    if (random()) return (t)*src.right();
     t res;
     bytes(&res, sizeof(res));
     return res; }
