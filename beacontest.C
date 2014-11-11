@@ -26,7 +26,7 @@ tests::beacon() {
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
                        beaconserverconfig::dflt(cluster, slave),
-                       interfacetype::test,
+                       mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             auto c(beaconclient::build(beaconclientconfig(cluster,
@@ -34,7 +34,8 @@ tests::beacon() {
                                                           slave))
                    .fatal("starting beacon client"));
             auto r(c->query(io, slave));
-            assert(r.type == interfacetype::test);
+            assert(r.type.length() == 1);
+            assert(r.type.idx(0) == interfacetype::test);
             assert(r.name.getport() == port);
             c->destroy();
             s->destroy(io); });
@@ -50,7 +51,7 @@ tests::beacon() {
                            cluster,
                            slave,
                            timedelta::milliseconds(500)),
-                       interfacetype::test,
+                       mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             auto c(beaconclient::build(
@@ -79,7 +80,7 @@ tests::beacon() {
                                           cluster,
                                           slave,
                                           timedelta::seconds(1)),
-                       interfacetype::test,
+                       mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             auto c(beaconclient::build(
@@ -111,7 +112,7 @@ tests::beacon() {
                                    cluster,
                                    slave,
                                    timedelta::seconds(1)),
-                interfacetype::test,
+                mklist(interfacetype::test),
                 port)
                 .fatal("restarting beacon server");
             assert(timedelta::time([c, io, port, &slave] {
@@ -127,7 +128,7 @@ tests::beacon() {
             auto s(beaconserver::build(
                        beaconserverconfig::dflt(cluster,
                                                 slave),
-                       interfacetype::test,
+                       mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             auto c(beaconclient::build(beaconclientconfig(
@@ -141,7 +142,7 @@ tests::beacon() {
             auto s2(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
                                                  slave),
-                        interfacetype::storage,
+                        mklist(interfacetype::storage),
                         port2)
                     .fatal("starting second beacon server"));
             assert(c->query(io, slave).name.getport() == port2);
@@ -162,19 +163,20 @@ tests::beacon() {
             auto s1(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
                                                  slave1),
-                        interfacetype::test,
+                        mklist(interfacetype::test),
                         port1)
                     .fatal("starting beacon server"));
             auto s2(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
                                                  slave2),
-                        interfacetype::storage,
+                        mklist(interfacetype::storage,
+                               interfacetype::test),
                         port2)
                     .fatal("starting beacon server"));
             auto s3(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
                                                  slave3),
-                        interfacetype::test2,
+                        mklist(interfacetype::test2),
                         port3)
                     .fatal("starting beacon server"));
             assert(c->query(io, slave1).name.getport() == port1);
@@ -186,17 +188,19 @@ tests::beacon() {
             for (auto it(c->start()); !it.finished(); it.next()) {
                 if (it.name() == slave1) {
                     assert(!found1);
-                    assert(it.type() == interfacetype::test);
+                    assert(it.type() == mklist(interfacetype::test));
                     assert(it.peer().getport() == port1);
                     found1 = true; }
                 else if (it.name() == slave2) {
                     assert(!found2);
-                    assert(it.type() == interfacetype::storage);
+                    assert(it.type().length() == 2);
+                    assert(it.type().idx(1) == interfacetype::storage);
+                    assert(it.type().idx(0) == interfacetype::test);
                     assert(it.peer().getport() == port2);
                     found2 = true; }
                 else if (it.name() == slave3) {
                     assert(!found3);
-                    assert(it.type() == interfacetype::test2);
+                    assert(it.type() == mklist(interfacetype::test2));
                     assert(it.peer().getport() == port3);
                     found3 = true; }
                 else abort(); }
@@ -205,7 +209,7 @@ tests::beacon() {
             assert(found3);
             {   auto it(c->start(interfacetype::test2));
                 assert(!it.finished());
-                assert(it.type() == interfacetype::test2);
+                assert(it.type() == mklist(interfacetype::test2));
                 assert(it.peer().getport() == port3);
                 it.next();
                 assert(it.finished()); }
@@ -254,7 +258,7 @@ tests::beacon() {
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
                        beaconserverconfig::dflt(cluster, slave),
-                       interfacetype::test,
+                       mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             c = beaconclient::build(beaconclientconfig(cluster))
@@ -278,7 +282,7 @@ tests::beacon() {
             slavename slave((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(beaconserverconfig::dflt(cluster, slave),
-                                       interfacetype::test,
+                                       mklist(interfacetype::test),
                                        port)
                    .fatal("starting beacon server"));
             unsigned cntr = 0;
@@ -322,7 +326,7 @@ tests::beacon() {
                                           cluster,
                                           slave,
                                           timedelta::milliseconds(500)),
-                       interfacetype::test,
+                       mklist(interfacetype::test),
                        port)
                    .fatal("beaconserver::build"));
             auto c(beaconclient::build(beaconclientconfig::mk(
@@ -370,7 +374,7 @@ tests::beacon() {
     testcaseIO("beacon", "sillyiterator", [] (clientio io) {
             auto c(beaconclient::build(
                        beaconclientconfig(quickcheck(),
-                                          interfacetype::test))
+                                          mklist(interfacetype::test)))
                    .fatal("creating beacon client"));
             unsigned nr = 0;
             eventwaiter< ::loglevel> waiter(
@@ -387,7 +391,7 @@ tests::beacon() {
                 [] (udpsocket) { return error::pastend; });
             assert(beaconserver::build(beaconserverconfig::dflt(quickcheck(),
                                                                 quickcheck()),
-                                       interfacetype::test,
+                                       mklist(interfacetype::test),
                                        quickcheck())
                    == error::pastend); });
 #if TESTING
@@ -410,7 +414,7 @@ tests::beacon() {
                                            cluster,
                                            slave,
                                            timedelta::milliseconds(300)),
-                                       interfacetype::test,
+                                       mklist(interfacetype::test),
                                        port)
                    .fatal("beaconserver::build"));
             auto c(beaconclient::build(
@@ -447,7 +451,7 @@ tests::beacon() {
                                            cluster,
                                            slave,
                                            timedelta::milliseconds(300)),
-                                       interfacetype::test,
+                                       mklist(interfacetype::test),
                                        port)
                    .fatal("beaconserver::build"));
             /* Blocking the server from sending aything should make it

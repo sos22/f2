@@ -47,7 +47,7 @@ private: beaconserver(const beaconserver &) = delete;
 private: void operator=(const beaconserver &) = delete;
 
 private: beaconserverconfig config;
-private: const interfacetype advertisetype;
+private: const list<interfacetype> advertisetype;
 private: const peername::port advertiseport;
 private: udpsocket listenfd;
 private: udpsocket clientfd;
@@ -58,12 +58,12 @@ private: unsigned ignored; /* total number of ignored requests,
 
     /* Construct a new beacon server. */
 public:  static orerror<beaconserver *> build(const beaconserverconfig &,
-                                              interfacetype type,
+                                              const list<interfacetype> &type,
                                               peername::port port);
     /* Use build() */
 private: beaconserver(thread::constoken,
                       const beaconserverconfig &config,
-                      interfacetype type,
+                      const list<interfacetype> &type,
                       peername::port port,
                       udpsocket listenfd,
                       udpsocket clientfd);

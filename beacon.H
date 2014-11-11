@@ -53,7 +53,7 @@ public: bool operator==(const req &) const; };
 class resp {
 public: resp(const clustername &,
              const slavename &,
-             interfacetype,
+             list<interfacetype>,
              peername::port, timedelta);
 public: resp(deserialise1 &);
 public: void serialise(serialise1 &) const;
@@ -62,7 +62,7 @@ public: unsigned magic;
 public: class ::version version;
 public: clustername cluster;
 public: slavename name;
-public: interfacetype type;
+public: list<interfacetype> type;
 public: peername::port port;
 public: timedelta cachetime;
 public: bool operator==(const resp &) const; }; } }

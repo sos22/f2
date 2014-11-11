@@ -3,6 +3,7 @@
 #include "parsers.H"
 #include "serialise.H"
 
+#include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 
@@ -58,7 +59,7 @@ proto::beacon::req::operator==(const req &o) const {
 
 proto::beacon::resp::resp(const clustername &_cluster,
                           const slavename &_name,
-                          interfacetype _type,
+                          list<interfacetype> _type,
                           peername::port _port,
                           timedelta _cachetime)
     : magic(magicval),
@@ -67,7 +68,11 @@ proto::beacon::resp::resp(const clustername &_cluster,
       name(_name),
       type(_type),
       port(_port),
-      cachetime(_cachetime) {}
+      cachetime(_cachetime) {
+    sort<interfacetype>(
+        type,
+        [] (const interfacetype &a, const interfacetype &b) {
+            return a.ord(b); }); }
 
 proto::beacon::resp::resp(deserialise1 &ds)
     : magic(ds.poprange(magicval, magicval)),
@@ -76,7 +81,11 @@ proto::beacon::resp::resp(deserialise1 &ds)
       name(ds),
       type(ds),
       port(ds),
-      cachetime(ds) { }
+      cachetime(ds) {
+    sort<interfacetype>(
+        type,
+        [] (const interfacetype &a, const interfacetype &b) {
+            return a.ord(b); }); }
 
 void
 proto::beacon::resp::serialise(serialise1 &s) const {

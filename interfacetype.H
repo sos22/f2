@@ -22,6 +22,13 @@ public:  static const interfacetype meta;
 public:  static const interfacetype storage;
 public:  static const interfacetype test;
 public:  static const interfacetype test2;
+
+    /* Little bit of a hack: interfaces are normally unordered, so
+     * don't have a < operator, but we want to make sure that if a
+     * beacon server advertises two interfaces it always does them in
+     * the same order.  Expose ord rather than operator < so that we
+     * can do that without risking odd behaviour elsewhere. */
+public:  bool ord(interfacetype o) const { return v < o.v; }
 };
 
 namespace fields {

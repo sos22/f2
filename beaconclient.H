@@ -128,12 +128,9 @@ private: void sendbroadcast();
 private: void handletimeouts(mutex_t::token);
 public:  class result {
         friend class beaconclient;
-    private: result(const peername &, interfacetype);
+    private: result(const peername &, const list<interfacetype> &);
     public:  const peername name;
-        /* XXX should probably kill interfacetype of beacon now that a
-         * single slavename can expose multiple interfaces, or
-         * alternatively generalise it to be a list. */
-    public:  const interfacetype type; };
+    public:  const list<interfacetype> type; };
     /* Query the client's current knowledge of a particular slave,
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */
@@ -170,15 +167,17 @@ public:  class iterator {
         friend class beaconclient;
     private: class entry {
         public: slavename name;
-        public: interfacetype type;
+        public: list<interfacetype> type;
         public: peername peer;
-        public: entry(const slavename &, interfacetype, const peername &); };
+        public: entry(const slavename &,
+                      const list<interfacetype> &,
+                      const peername &); };
     private: list<entry> content;
         /* Never Nothing except for a brief interval in the constructor */
     private: maybe<list<entry>::const_iter> it;
     private: iterator(beaconclient *, maybe<interfacetype>);
     public:  const slavename &name() const;
-    public:  interfacetype type() const;
+    public:  const list<interfacetype> &type() const;
     public:  const peername &peer() const;
     public:  bool finished() const;
     public:  void next();

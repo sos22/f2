@@ -133,7 +133,7 @@ class beaconclientslot {
     /* Name of remote system */
 private: slavename name;
     /* Interface exposed by remote system */
-private: interfacetype type;
+private: list<interfacetype> type;
     /* Where to connect to for this server? */
 private: peername server;
     /* Where is the beacon for this server? */
@@ -151,7 +151,7 @@ public: timestamp expiry;
     /* When did we receive content of result?  */
 public: timestamp lastbeaconresponse;
 public:  beaconclientslot(const slavename &,
-                          interfacetype,
+                          const list<interfacetype> &,
                           const peername &,
                           const peername &,
                           walltime,
@@ -162,7 +162,7 @@ public:  timestamp nextsend(mutex_t::token,
                             const beaconclientconfig &) const; };
 
 beaconclientslot::beaconclientslot(const slavename &sn,
-                                   interfacetype _type,
+                                   const list<interfacetype> &_type,
                                    const peername &_server,
                                    const peername &_beacon,
                                    walltime now,
@@ -263,7 +263,7 @@ beaconclient::handletimeouts(mutex_t::token tok) {
         /* Time to send another beacon request for this slave. */
         buffer txbuf;
         serialise1 s(txbuf);
-        proto::beacon::req(config.cluster(), it->name, it->type).serialise(s);
+        proto::beacon::req(config.cluster(), it->name, Nothing).serialise(s);
         logmsg(loglevel::verbose, "query on:");
         it->status(tok, loglevel::verbose);
         auto r(clientfd.send(txbuf, it->beacon));
@@ -350,7 +350,8 @@ beaconclient::run(clientio io) {
             errors++;
             continue; }
         if (resp.cluster != config.cluster() ||
-            (config.type() != Nothing && config.type() != resp.type) ||
+            (config.type() != Nothing &&
+             !resp.type.contains(config.type().just())) ||
             (config.name() != Nothing && config.name() != resp.name)) {
             ignored++;
             continue; }
@@ -394,7 +395,8 @@ beaconclient::run(clientio io) {
     listenfd.close();
     clientfd.close(); }
 
-beaconclient::result::result(const peername &_name, interfacetype _type)
+beaconclient::result::result(const peername &_name,
+                             const list<interfacetype> &_type)
     : name(_name),
       type(_type) {}
 
@@ -417,7 +419,7 @@ beaconclient::query(clientio io, const slavename &sn) {
         sub.wait(io); } }
 
 beaconclient::iterator::entry::entry(const slavename &_name,
-                                     interfacetype _type,
+                                     const list<interfacetype> &_type,
                                      const peername &_peer)
     : name(_name),
       type(_type),
@@ -429,14 +431,14 @@ beaconclient::iterator::iterator(beaconclient *what,
       it(Nothing) {
     what->cachelock.locked([this, _type, what] (mutex_t::token) {
         for (auto e(what->cache.start()); !e.finished(); e.next()) {
-            if (_type == Nothing || _type == e->type) {
+            if (_type == Nothing || e->type.contains(_type.just())) {
                 content.append(e->name, e->type, e->server); } } } );
     it.mkjust(const_cast<const list<entry> *>(&content)->start()); }
 
 const slavename &
 beaconclient::iterator::name() const { return it.just()->name; }
 
-interfacetype
+const list<interfacetype> &
 beaconclient::iterator::type() const { return it.just()->type; }
 
 const peername &

@@ -57,7 +57,7 @@ parsers::__beaconserverconfig() {
 
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
-                    interfacetype type,
+                    const list<interfacetype> &type,
                     peername::port port) {
     auto listensock(udpsocket::listen(config.proto.reqport));
     if (listensock.isfailure()) return listensock.failure();
@@ -76,7 +76,7 @@ beaconserver::build(const beaconserverconfig &config,
 
 beaconserver::beaconserver(thread::constoken token,
                            const beaconserverconfig &_config,
-                           interfacetype type,
+                           const list<interfacetype> &type,
                            peername::port port,
                            udpsocket _listenfd,
                            udpsocket _clientfd)
@@ -152,7 +152,7 @@ beaconserver::run(clientio io) {
 
         if (req.cluster != config.cluster ||
             (req.name != Nothing && req.name != config.name) ||
-            (req.type != Nothing && req.type != advertisetype)) {
+            (req.type != Nothing && !advertisetype.contains(req.type.just()))) {
             logmsg(loglevel::debug,
                    "BEACON request from " +
                    fields::mk(rr.success()) +
