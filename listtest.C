@@ -35,4 +35,20 @@ tests::_list() {
             assert(!l.contains(1)); });
     testcaseV("list", "mklist", [] {
             auto l(mklist(1,2,3));
-            assert(l == list<int>::mk(1,2,3)); }); }
+            assert(l == list<int>::mk(1,2,3)); });
+    testcaseV("list", "sort", [] {
+            list<int> empty;
+            sort(empty);
+            assert(empty.empty());
+            auto one(mklist(5));
+            sort(one);
+            assert(one == mklist(5));
+            auto two1(mklist(5, 6));
+            sort(two1);
+            assert(two1 == mklist(6, 5));
+            auto two2(mklist(6, 5));
+            sort(two2);
+            assert(two2 == mklist(6, 5));
+            auto two3(mklist(5, 6));
+            sort<int>(two3, [] (const int &a, const int &b) { return a > b; });
+            assert(two3 == mklist(5, 6)); }); }

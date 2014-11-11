@@ -412,7 +412,7 @@ list<t>::map(std::function<other_t (const t&)> what) const {
     return std::move(res); }
 
 template <typename t> void
-sort(list<t> &what) {
+sort(list<t> &what, const std::function<bool (const t&a, const t &b)> &ord) {
     /* Insertion sort, because what the hell. */
     /* Everything before cursor1 is sorted. */
     auto cursor1(what.head);
@@ -425,7 +425,7 @@ sort(list<t> &what) {
         else what.head = cursor1->next;
         /* Insert cursor1 somewhere */
         auto cursor2(cursor1->prev);
-        while (cursor2 && cursor2->value > cursor1->value) {
+        while (cursor2 && ord(cursor2->value, cursor1->value)) {
             cursor2 = cursor2->prev; }
         /* cursor1 should be immediately after cursor2 */
         assert(cursor1 != cursor2);
@@ -442,6 +442,10 @@ sort(list<t> &what) {
             else what.tail = cursor1;
             cursor2->next = cursor1; }
         cursor1 = next; } }
+
+template <typename t> void
+sort(list<t> &what) {
+    sort<t>(what, [] (const t &a, const t &b) { return a > b; }); }
 
 template <typename t> bool
 list<t>::operator==(const list<t> &o) const {

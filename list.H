@@ -11,10 +11,14 @@ class serialise1;
 /* Sorting a linked list is usually a hint that you're doing something
  * wrong, but it's sometimes useful in smaller programs. */
 template <typename t> void sort(list<t> &);
+/* Same thing with an explicit > operator. */
+template <typename t> void sort(
+    list<t> &, const std::function<bool (const t&, const t&)> &);
 
 template <typename t>
 class list {
-    friend void sort<t>(list<t> &);
+    friend void sort<t>(list<t> &,
+                        const std::function<bool (const t&, const t&)> &);
     struct member;
     member *head;
     member *tail;
