@@ -5,13 +5,13 @@
 #include "thread.H"
 #include "timedelta.H"
 
+#include "maybe.tmpl"
 #include "mutex.tmpl"
 #include "thread.tmpl"
 
 mutex_t::mutex_t()
-{
-    pthread_mutex_init(&mux, NULL);
-}
+    : heldby(Nothing) {
+    pthread_mutex_init(&mux, NULL); }
 
 mutex_t::~mutex_t()
 {
@@ -22,6 +22,7 @@ mutex_t::token
 mutex_t::lock()
 {
     pthread_mutex_lock(&mux);
+    heldby.mkjust(tid::me());
     return token();
 }
 
@@ -33,6 +34,7 @@ mutex_t::unlock(token *tok)
 {
     tok->formux(*this);
     tok->release();
+    heldby = Nothing;
     pthread_mutex_unlock(&mux);
 }
 

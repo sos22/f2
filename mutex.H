@@ -5,11 +5,15 @@
 
 #include <functional>
 
+#include "maybe.H"
+#include "tid.H"
+
 class cond_t;
 
 class mutex_t {
     friend class cond_t;
     pthread_mutex_t mux;
+    maybe<tid> heldby;
 public:
     /* lock acquisition returns a token, for a couple of reasons:
 
