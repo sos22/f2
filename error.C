@@ -45,7 +45,8 @@ const error error::wouldblock(-23);
 const error error::shutdown(-24);
 const error error::range(-25);
 const error error::badinterface(-26);
-static const int lasterror = 26;
+const error error::aborted(-27);
+static const int lasterror = 27;
 
 error::error(const quickcheck &q) {
     if ((bool)q) e = (unsigned)q % 300 + 1;
@@ -117,6 +118,8 @@ public:
                 buf.push("range");
             } else if (content == error::badinterface) {
                 buf.push("badinterface");
+            } else if (content == error::aborted) {
+                buf.push("aborted");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

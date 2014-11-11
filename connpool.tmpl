@@ -1,0 +1,66 @@
+#ifndef CONNPOOL_TMPL__
+#define CONNPOOL_TMPL__
+
+#ifndef CONNPOOL_H__
+#error Include connpool.H before connpool.tmpl
+#endif
+
+template <typename t> class connpool::asynccallT final {
+    friend class connpool;
+private: asynccall *inner;
+private: maybe<orerror<t> > res;
+public:  class token {
+        friend class asynccallT<t>;
+    private: asynccall::token inner;
+    private: token(asynccall::token); };
+public:  maybe<token> finished() const {
+        auto r(inner->finished());
+        if (r.isjust()) return token(r.just());
+        else return Nothing; }
+public:  orerror<t> pop(token tok) {
+    assert(res.isjust());
+
+    /* Ignore result, just doing it to release the inner structure. */
+    inner->pop(tok.inner);
+
+    auto r(res.just());
+    delete this;
+    return r; }
+public:  const publisher &pub() const { return inner->pub(); }
+public:  void abort() { inner->abort(); delete this; }
+public:  token finished(clientio io) const { return token(inner->finished(io));}
+public:  orerror<t> pop(clientio io) { return pop(finished(io)); }
+private: ~asynccallT() { } };
+
+template <typename t> nnp<connpool::asynccallT<t> >
+connpool::call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
+                                    connlock)> &ds) {
+    auto res(new asynccallT<t>());
+    res->inner = new asynccall(
+        sn,
+        type,
+        deadline,
+        s,
+        [&ds, res]
+        (orerror<nnp<deserialise1> > ds2, connlock cl) -> orerror<void> {
+            res->res = ds(ds2, cl);
+            return Success; });
+    return _nnp(*res); }
+
+template <typename t> orerror<t>
+connpool::call(
+    clientio io,
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
+                                    connlock)> &ds) {
+    return call(sn, type, deadline, s, ds)->pop(io); }
+
+#endif /* !CONNPOOL_TMPL__ */

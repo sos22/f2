@@ -100,6 +100,7 @@ public:
                                   * shutting down. */
     static const error range; /* Parameter is out of range. */
     static const error badinterface; /* Interface not supported. */
+    static const error aborted; /* Call aborted. */
 };
 
 namespace fields {

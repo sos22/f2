@@ -14,7 +14,6 @@ public:  nnp(const nnp<t> &o) : inner(o.inner) {}
 public:  static maybe<nnp<t> > mk(t *x) {
     if (x == NULL) return Nothing;
     else return nnp(x); }
-public:  bool operator==(const nnp &o) const { return inner == o.inner; }
 public:  bool operator!=(const nnp &o) const { return inner != o.inner; }
 public:  t *operator->() const { return inner; }
 public:  t &operator *() const { return *inner; }

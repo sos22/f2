@@ -130,6 +130,9 @@ public:  class result {
         friend class beaconclient;
     private: result(const peername &, interfacetype);
     public:  const peername name;
+        /* XXX should probably kill interfacetype of beacon now that a
+         * single slavename can expose multiple interfaces, or
+         * alternatively generalise it to be a list. */
     public:  const interfacetype type; };
     /* Query the client's current knowledge of a particular slave,
      * returning its peername and actortype if we have one or Nothing

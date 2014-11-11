@@ -1,529 +1,1042 @@
 #include "connpool.H"
 
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include "beaconclient.H"
 #include "fields.H"
 #include "logging.H"
-#include "proto.H"
+#include "pair.H"
+#include "peername.H"
+#include "proto2.H"
+#include "pubsub.H"
+#include "slavename.H"
+#include "thread.H"
+#include "util.H"
+#include "waitbox.H"
 
+#include "connpool.tmpl"
 #include "list.tmpl"
-#include "maybe.tmpl"
 #include "mutex.tmpl"
-#include "rpcservice.tmpl"
 #include "thread.tmpl"
 
-mktupledef(connpoolconfig)
+/* Because I got bored typing the same thing over and over again. */
+#define POOL connpool::impl
+#define CALL connpool::asynccall::impl
+#define CONN POOL::conn
 
-connpoolconfig
-connpoolconfig::dflt() {
-    return connpoolconfig(rpcclientconfig::dflt(),
-                          /* connecttimeout */
-                          timedelta::seconds(5),
-                          /* callretries */
-                          10,
-                          /* expirytime */
-                          timedelta::seconds(300),
-                          /* dupecalls */
-                          probability::never); }
+/* The pool thread itself is responsible for establishing and
+ * destroying connections to remote machines when appropriate. */
+class POOL : public thread {
+    /* We run a connection for each peer we're currently keeping track
+     * of.  All of the connections are expected to watch the owner
+     * shutdown box and shut down quickly once it's set. */
+public: class conn;
 
-pooledconnection::pooledconnection(connpool *_owner,
-                                   const slavename &_name)
-    : mux(),
-      name(_name),
-      owner(_owner),
-      refcount(1),
-      idledat(Nothing),
-      outstanding(),
-      inner(Nothing),
-      connectsub(Nothing),
-      connectstart(Nothing),
-      errored(false),
-      newcall(),
-      newcallsub(Nothing) {}
+public: const config cfg;
+
+    /* Embed the API structure to give callers outside of this file a
+     * nicer API. */
+public: connpool api;
+    /* Set once someone calls api::destroy() on the pool. */
+public: waitbox<void> shutdown;
+
+    /* Beacon client to use for slavename -> peername lookups. */
+public: nnp<beaconclient> beacon;
+
+public: mutex_t mux;
+
+    /* All of the currently-live conns.  Protected by the mux. */
+public: list<nnp<conn> > _connections;
+public: list<nnp<conn> > &connections(mutex_t::token) { return _connections; }
+
+    /* Subscriber for the main pool.  New threads conn get attached to
+     * this by their embedded subscription structure; the data on
+     * those subscriptions is the conn itself.  Also tracks shutdown
+     * with a NULL data. */
+public: subscriber sub;
+
+public: explicit impl(const constoken &t, const config &, nnp<beaconclient>);
+public: ~impl();
+
+public: void run(clientio);
+
+    /* Implementations of our public API, proxied through api. */
+public: nnp<connpool::asynccall> call(const slavename &sn,
+                                      interfacetype type,
+                                      timestamp deadline,
+                                      const std::function<serialise> &s,
+                                      const std::function<deserialise> &ds); };
+
+class CONN : public thread {
+public: POOL &pool;
+public: mutex_t mux;
+    /* Connects the pool subscriber to the thread death publisher. */
+public: subscription deathsub;
+    /* To whom are we supposed to be connected? */
+    public: const slavename slave;
+
+    /* Set once the connection is far enough through its shutdown
+     * sequence that it can't accept more calls.  dying == true should
+     * imply newcalls is empty but doesn't say anything about the
+     * aborted or active calls list. */
+public: bool _dying;
+public: bool &dying(mutex_t::token) { return _dying; }
+    /* conn thread can read dying without the lock. */
+public: bool dying(connlock) const { return _dying; }
+
+    /* Calls which have been made against the call() interface but not
+     * yet picked up by the connection thread. */
+public: list<nnp<CALL> > _newcalls;
+public: list<nnp<CALL> > &newcalls(mutex_t::token) { return _newcalls; }
+
+    /* Calls which have been abort()ed at the API but not yet released
+     * by the connection thread. */
+public: list<nnp<CALL> > _aborted;
+public: list<nnp<CALL> > &aborted(mutex_t::token) { return _aborted; }
+
+    /* Notified whenever something is added to the aborted or newcalls
+     * lists. */
+public: publisher callschanged;
+
+    /* true if it's time to shut down: dying set and the call list
+     * empty. */
+public: bool finished(const list<nnp<CALL> > &, connlock cl) const;
+
+    /* Cause a single call to fail with a given error.  Note that this
+     * does not update the calls list. */
+public: void failcall(nnp<CALL> what, error err, connlock cl) const;
+
+    /* Cause every call in the list to fail with the same error.
+     * Drains the list as it does so. */
+public: void harderror(list<nnp<CALL> > &what, error err, connlock cl);
+
+    /* Find the next timeout (which is either the first call timeout,
+     * if we have any calls outstanding, or the idle timeout, if we
+     * don't).  It's important not to adjust the live calls list
+     * between calling this and using the result, because otherwise
+     * you'll wait for the wrong thing. */
+    /* This also does a lot of other interesting work: processing call
+     * timeouts, maintaining idledat, processing call aborts, and, if
+     * we're not connected, pull new calls into the call list.  */
+public: timestamp checktimeouts(list<nnp<CALL> > &calls,
+                                connlock cl,
+                                maybe<timestamp> &idledat,
+                                bool connected);
+
+    /* Simple wrapper around getsockopt(SO_ERROR) */
+public: orerror<void> socketerr(int sock, const peername &_peer);
+
+    /* Serialise a list of calls into the TX buffer, draining
+     * the list as we do so. */
+public: void queuetx(list<nnp<CALL> > &calls,
+                     buffer &txbuffer,
+                     proto::sequencenr &nextseq,
+                     connlock cl);
+
+    /* Process the next response in the rxbuffer, removing it from the
+     * buffer as we do so.  This can complete and remove at most one
+     * member of calls as it's working.  Returns error::underflowed if
+     * the buffer doesn't yet contain a whole response or some other
+     * error for a protocol issue.  Note that application-level errors
+     * do not cause processresponse to return an error; errors here
+     * indicate a problem with the protocol and can only be recovered
+     * from by tearing down and rebuilding the connection. */
+public: orerror<void> processresponse(buffer &rxbuffer,
+                                      list<nnp<CALL> > &calls,
+                                      connlock cl);
+
+    /* Do the slavename->peername translation, the connect(), and the
+     * hello. */
+public: maybe<fd_t> connectphase(
+    clientio io,
+    subscriber &sub,
+    maybe<pair<peername, timestamp> > &debounceconnect,
+    list<nnp<CALL> > &calls,
+    connlock cl,
+    maybe<timestamp> &idledat,
+    proto::sequencenr &nextseqnr);
+
+public: void workphase(
+    clientio io,
+    list<nnp<CALL> > &calls,
+    subscriber &sub,
+    fd_t fd,
+    const subscription &shutdownsub,
+    const subscription &newcallssub,
+    proto::sequencenr &nextseqnr,
+    maybe<timestamp> &idledat,
+    connlock cl);
+
+public: void delayconnect(
+    maybe<pair<peername, timestamp> > &debounceconnect,
+    const peername &peer);
+
+    /* Queue a call against the conn.  This will take over the entire
+     * call machine until it completes.  Only safe if dying is false,
+     * so since dying is protected by the mux this can only be called
+     * under the mux. */
+public: nnp<CALL> call(timestamp,
+                       interfacetype type,
+                       const std::function<serialise> &,
+                       const std::function<deserialise> &,
+                       mutex_t::token);
+
+    /* We start off with the lock held, to stop the connection dying
+     * before we get a chance to use it, so this gives back a mutex
+     * token as well as constructing the conn. */
+public: conn(const constoken &,
+             const slavename &,
+             POOL &,
+             maybe<mutex_t::token> *);
+public: void run(clientio io); };
+
+
+/* Note that these can survive after the connection drops (and in fact
+ * after the whole pool is destroyed) if our users are slow about
+ * calling abort() and pop().  That implies that most of the
+ * communication should be conn->call, rather than vice-versa. */
+class CALL {
+public: connpool::asynccall api;
+public: CONN &conn;
+
+public: const timestamp deadline;
+public: const interfacetype type;
+public: const std::function<serialise> serialiser;
+public: const std::function<deserialise> deserialiser;
+
+    /* Notified when the call completes. */
+public: publisher pub;
+
+    /* Acquired from finished(), which is const. */
+public: mutable mutex_t mux;
+
+public: maybe<orerror<void> > _res;
+public: maybe<orerror<void> > &res(mutex_t::token) { return _res; }
+    /* A token is enough to read _res without the lock, but not to
+     * write it. */
+public: maybe<orerror<void> > res(token) const { return _res; }
+
+public: bool _aborted;
+public: bool &aborted(mutex_t::token) { return _aborted; }
+
+    /* Sequence number is only allocated when we transmit, and is
+     * reset if we abandon an attempt to do the call. */
+public: maybe<proto::sequencenr> _seqnr;
+public: maybe<proto::sequencenr> &seqnr(connlock) { return _seqnr; }
+
+public: impl(CONN &_conn,
+             timestamp _deadline,
+             interfacetype _type,
+             const std::function<serialise> &_serialiser,
+             const std::function<deserialise> &_deserialiser);
+
+    /* Implementations of the public API. */
+public: maybe<token> finished() const;
+public: token finished(clientio) const;
+public: orerror<void> pop(token);
+public: orerror<void> abort(); };
+
+/* ----------------------------- config type ---------------------------- */
+connpool::config::config(const beaconclientconfig &_beacon,
+                         probability _forceretry,
+                         timedelta _idletimeout,
+                         timedelta _connecttimeout,
+                         timedelta _hellotimeout,
+                         timedelta _debounceconnect)
+    : beacon(_beacon),
+      forceretry(_forceretry),
+      idletimeout(_idletimeout),
+      connecttimeout(_connecttimeout),
+      hellotimeout(_hellotimeout),
+      debounceconnect(_debounceconnect) {}
+
+connpool::config::config(const beaconclientconfig &_beacon,
+                         probability _forceretry)
+    : beacon(_beacon),
+      forceretry(_forceretry),
+      idletimeout(timedelta::seconds(60)),
+      connecttimeout(timedelta::seconds(10)),
+      hellotimeout(timedelta::seconds(10)),
+      debounceconnect(timedelta::seconds(1)) {}
+
+orerror<connpool::config>
+connpool::config::mk(const beaconclientconfig &bc,
+                     probability forceretry,
+                     timedelta idletimeout,
+                     timedelta connecttimeout,
+                     timedelta hellotimeout,
+                     timedelta debounceconnect) {
+    if (idletimeout < timedelta::seconds(0) ||
+        connecttimeout < timedelta::seconds(0) ||
+        hellotimeout < timedelta::seconds(0) ||
+        debounceconnect < timedelta::seconds(0)) {
+        return error::invalidparameter; }
+    else return config(bc,
+                       forceretry,
+                       idletimeout,
+                       connecttimeout,
+                       hellotimeout,
+                       debounceconnect); }
+
+connpool::config
+connpool::config::dflt(const clustername &cn) {
+    /* Can't fail with all defaults. */
+    return mk(beaconclientconfig(cn)).success(); }
+
+/* -------------------------- connpool API proxies ---------------------- */
+POOL &
+connpool::implementation() { return *containerof(this, impl, api); }
+
+const POOL &
+connpool::implementation() const { return *containerof(this, impl, api); }
+
+orerror<void>
+connpool::voidcall(orerror<nnp<deserialise1> > ds, connlock) {
+    if (ds.isfailure()) return ds.failure();
+    else return Success; }
+
+nnp<connpool::asynccall>
+connpool::call(const slavename &sn,
+               interfacetype type,
+               timestamp deadline,
+               const std::function<serialise> &s,
+               const std::function<deserialise> &ds) {
+    return implementation().call(sn, type, deadline, s, ds); }
+
+orerror<nnp<connpool> >
+connpool::build(const config &cfg) {
+    auto bc(beaconclient::build(cfg.beacon));
+    if (bc.isfailure()) return bc.failure();
+    else return _nnp(thread::start<impl>(fields::mk("connpool"),
+                                         cfg,
+                                         _nnp(*bc.success()))->api); }
+
+orerror<nnp<connpool> >
+connpool::build(const clustername &cn) { return build(config::dflt(cn)); }
+
 void
-pooledconnection::disconnect(
-    mutex_t::token /* conn lock */) {
-    bool aborted;
-    refcount++;
-    /* Rewind any still-outstanding calls on the old connection. */
-    for (auto it2(outstanding.start());
-         !it2.finished();
-         aborted ? it2.remove()
-                 : it2.next()) {
-        auto Call(*it2);
-        aborted = Call->mux.locked<bool>([this, Call] (mutex_t::token) {
-                Call->sub = Nothing;
-                if (Call->inner) Call->inner->abort();
-                else Call->nrretries++;
-                Call->inner = NULL;
-                return Call->aborted; });
-        if (aborted) {
-            Call->owner = NULL;
-            delete Call;
-            put(); } }
-    /* Tear down however much of the old connection we have. */
-    connectsub = Nothing;
-    if (inner.isjust()) {
-        if (inner.just().isleft()) inner.just().left()->abort();
-        else delete inner.just().right(); }
-    inner = Nothing;
-    put(); }
+connpool::destroy() {
+    auto i(&implementation());
+    i->shutdown.set();
+    /* Pool thread always stops quickly once shutdown is set. */
+    i->join(clientio::CLIENTIO); }
 
-orerror<wireproto::rx_message *>
-pooledconnection::call(clientio io,
-                       const wireproto::req_message &msg,
-                       maybe<timestamp> deadline) {
-    return call(msg)->pop(io, deadline); }
+connpool::~connpool() {}
 
-pooledconnection::asynccall::asynccall(pooledconnection *_owner,
-                                       const wireproto::req_message &_msg)
-    : mux(),
-      owner(_owner),
-      msg(_msg.clone()),
-      nrretries(0),
-      inner(NULL),
-      res(Nothing),
-      sub(Nothing),
-      _pub(),
-      aborted(false) {}
+/* ------------------------ asynccall API proxies ----------------------- */
+CALL &
+connpool::asynccall::implementation() { return *containerof(this, impl, api); }
 
-pooledconnection::asynccall::asynccall()
-    : mux(),
-      owner(NULL),
-      msg(NULL),
-      nrretries(0),
-      inner(NULL),
-      res(error::disconnected),
-      sub(Nothing),
-      _pub(),
-      aborted(false) {}
+const CALL &
+connpool::asynccall::implementation() const {
+    return *containerof(this, impl, api); }
 
-pooledconnection::asynccall::token::token() {}
+connpool::asynccall::token::token() {}
 
-maybe<pooledconnection::asynccall::token>
-pooledconnection::asynccall::finished() const {
-    return mux.locked<maybe<pooledconnection::asynccall::token> >(
-        [this]
-        (mutex_t::token) -> maybe<pooledconnection::asynccall::token> {
-            assert(!aborted);
-            if (res.isjust()) return token();
-            else return Nothing; } ); }
+maybe<connpool::asynccall::token>
+connpool::asynccall::finished() const { return implementation().finished(); }
 
 const publisher &
-pooledconnection::asynccall::pub() const { return _pub; }
+connpool::asynccall::pub() const { return implementation().pub; }
 
-orerror<wireproto::rx_message *>
-pooledconnection::asynccall::pop(token) {
-    assert(!aborted);
-    /* Because we have a token, and they're only constructed once we
-     * have a result. */
-    assert(res.isjust());
-    /* Because maintenance thread is supposed to make sure of these
-     * before setting res. */
-    assert(inner == NULL);
-    assert(owner == NULL);
-    assert(sub == Nothing);
-    /* No lock because res never changes once it's set. */
-    auto result(res.just());
-    res = Nothing;
-    delete this;
-    return result; }
+orerror<void>
+connpool::asynccall::pop(token t) { return implementation().pop(t); }
+
+orerror<void>
+connpool::asynccall::abort() { return implementation().abort(); }
+
+connpool::asynccall::token
+connpool::asynccall::finished(clientio io) const {
+    return implementation().finished(io); }
+
+connpool::asynccall::~asynccall() {}
+
+/* ----------------------- connpool implementation --------------------- */
+POOL::impl(const constoken &t,
+           const config &_cfg,
+           nnp<beaconclient> _beacon)
+    : thread(t),
+      cfg(_cfg),
+      api(),
+      shutdown(),
+      beacon(_beacon),
+      mux(),
+      _connections(),
+      sub() {}
+
+POOL::~impl() { beacon->destroy(); }
 
 void
-pooledconnection::asynccall::abort() {
-    auto detached = mux.locked<bool>([this] (mutex_t::token) {
-            assert(!aborted);
-            aborted = true;
-            /* Could let the maintenance thread do this, but doing it
-             * early makes it more likely that we'll stop it before we
-             * send it to the other side. */
-            if (inner) {
-                sub = Nothing;
-                inner->abort();
-                inner = NULL; }
-            if (owner) owner->newcall.publish();
-            return owner == NULL; });
-    if (detached) delete this; }
+POOL::run(clientio io) {
+    subscription ss(sub, shutdown.pub);
+    while (!shutdown.ready()) {
+        auto s(sub.wait(io));
+        if (s == &ss) continue;
+        auto c = (conn *)s->data;
+        auto t(c->hasdied());
+        if (t == Nothing) continue;
+        /* Thread must declare itself to be dying before exiting (and
+         * that's necessary for us to get away with not taking the
+         * connection lock here). */
+        assert(c->_dying);
+        mux.locked([this, c] (mutex_t::token tok) {
+                for (auto it(connections(tok).start());
+                     true;
+                     it.next()) {
+                    if (*it == c) {
+                        it.remove();
+                        return; } } });
+        /* Thread should have cleared all calls before shutting
+         * down. */
+        assert(c->_newcalls.empty());
+        assert(c->_aborted.empty());
+        c->join(t.just()); }
+    /* The shutdown box is set so all of our connections should be
+     * shutting down.  Wait for them to do so. */
+    auto token(mux.lock());
+    while (!connections(token).empty()) {
+        auto c(connections(token).pophead());
+        /* Not clear whether dropping the lock here is *necessary*,
+         * but it is safe, and it makes things easier to think about,
+         * so do it anyway. */
+        mux.unlock(&token);
+        c->join(clientio::CLIENTIO);
+        token = mux.lock(); }
+    mux.unlock(&token); }
 
-orerror<wireproto::rx_message *>
-pooledconnection::asynccall::pop(clientio io, maybe<timestamp> deadline) {
-    maybe<token> t(Nothing);
-    {   subscriber subscribe;
-        subscription ss(subscribe, pub());
+nnp<connpool::asynccall>
+POOL::call(const slavename &sn,
+           interfacetype type,
+           timestamp deadline,
+           const std::function<serialise> &s,
+           const std::function<deserialise> &ds) {
+    assert(!shutdown.ready());
+    auto token(mux.lock());
+    maybe<pair<nnp<CONN>, mutex_t::token> > worker(Nothing);
+    for (auto it(connections(token).start());
+         worker == Nothing && !it.finished();
+         it.next()) {
+        auto cc(*it);
+        if (cc->slave != sn) continue;
+        auto workertoken(cc->mux.lock());
+        /* Don't take connections which are already dying. */
+        if (cc->dying(workertoken)) cc->mux.unlock(&workertoken);
+        else worker = mkpair(_nnp(*cc), workertoken); }
+    if (worker == Nothing) {
+        /* No existing worker -> start one. */
+        maybe<mutex_t::token> tok(Nothing);
+        auto w(thread::start<conn>(
+                   "C:" + fields::mk(sn),
+                   sn,
+                   *this,
+                   &tok));
+        assert(tok != Nothing);
+        /* Dying starts off clear, and the lock has never been
+         * released, so it can't be set now. */
+        assert(!w->dying(tok.just()));
+        worker = mkpair(_nnp(*w), tok.just());
+        connections(token).pushtail(_nnp(*w)); }
+    /* Have a connection with dying clear and the conn lock is
+     * sufficient to stop dying being set -> no longer need the pool
+     * lock. */
+    mux.unlock(&token);
+    auto &w(worker.just());
+    logmsg(loglevel::debug, "queueing call");
+    auto res(_nnp(w.first()->call(deadline, type, s, ds, w.second())->api));
+    logmsg(loglevel::debug, "queued call");
+    /* Conn now responsible for completing the call -> no longer need
+     * the lock. */
+    w.first()->mux.unlock(&w.second());
+    return res; }
+
+/* ------------------------ Connection implementation ---------------------- */
+bool
+CONN::finished(const list<nnp<CALL> > &calls, connlock cl) const {
+    /* Necessary condition for it to be safe for us to shut down: no
+     * calls outstanding, and no more can be added. */
+    if (calls.empty() && dying(cl)) {
+        /* Can't extend newcalls while dying is set and we're supposed
+         * to flush it when we set dying, so it must be empty now. */
+        assert(_newcalls.empty());
+        return true; }
+    else return false; }
+
+void
+CONN::failcall(nnp<CALL> what, error err, connlock cl) const {
+    auto callres(what->deserialiser(err, cl));
+    what->mux.locked([&callres, what] (mutex_t::token tok) {
+            assert(what->res(tok) == Nothing);
+            what->res(tok) = callres;
+            what->pub.publish(); }); }
+
+void
+CONN::harderror(list<nnp<CALL> > &calls, error e, connlock cl) {
+    for (auto it(calls.start()); !it.finished(); it.remove()) {
+        failcall(*it, e, cl); } }
+
+timestamp
+CONN::checktimeouts(list<nnp<CALL> > &calls,
+                    connlock cl,
+                    maybe<timestamp> &idledat,
+                    bool connected) {
+    /* If we're not connected then we pick up incoming calls now. */
+    if (!connected) {
+        mux.locked([this, &calls] (mutex_t::token tok) {
+                calls.transfer(newcalls(tok)); }); }
+    logmsg(loglevel::info, "done checktimeouts transfer");
+
+    list<nnp<CALL> > aborts;
+    mux.locked([this, &aborts] (mutex_t::token tok) {
+            aborts.transfer(aborted(tok)); });
+    for (auto it(aborts.start()); !it.finished(); it.next()) {
+        auto c(*it);
+        assert(c->_aborted);
+        bool found = false;
+        for (auto it2(calls.start()); !it2.finished(); it2.next()) {
+            if (*it2 == c) {
+                found = true;
+                it2.remove();
+                break; } }
+        if (!found) {
+            /* This can happen if someone starts a new call and then
+             * abort()s it before we pull it out of the newcalls list.
+             * Check the newcalls list as well. */
+            mux.locked([this, c] (mutex_t::token tok) {
+                    for (auto it2(newcalls(tok).start());
+                         /* It must be in one of the lists, so if it's
+                          * not in the calls list it must be in
+                          * newcalls (and only this thread can move
+                          * stuff from newcalls to calls). */
+                         true;
+                         it2.next()) {
+                        if (*it2 == c) {
+                            it2.remove();
+                            return; } } }); }
+        failcall(c, error::aborted, cl); }
+    /* Zap anything which has already timed out. */
+    list<nnp<CALL> > timeout;
+    for (auto it(calls.start()); !it.finished(); /**/) {
+        auto c(*it);
+        if (c->deadline.inpast()) {
+            it.remove();
+            failcall(c, error::timeout, cl); }
+        else it.next(); }
+    if (pool.shutdown.ready() && !dying(cl)) {
+        /* Told to shut down -> go to dying mode. */
+        mux.locked([this] (mutex_t::token tok) {
+                dying(tok) = true; });
+        /* Can't get more calls once pool shutdown set.  Kill off
+         * existing ones. */
+        calls.transfer(_newcalls /* No lock: we're dying. */);
+        harderror(calls, error::disconnected, cl);
+        assert(calls.empty()); }
+    /* If we've gone idle then set idledat.  If we've gone non-idle
+     * then clear it.  That's not perfect (there might be a lag
+     * between idling and setting the time), but it'll be a short lag,
+     * so it's probably good enough. */
+    if (idledat.isjust() != calls.empty()) {
+        if (calls.empty()) idledat = timestamp::now();
+        else idledat = Nothing; }
+    assert(idledat.isjust() == calls.empty());
+
+    /* If we're currently idle then the only (and therefore next)
+     * timeout is the idle timeout. */
+    if (idledat.isjust()) {
+        logmsg(loglevel::debug, "idle");
+        auto r(idledat.just() + pool.cfg.idletimeout);
+        if (r.inpast() && !dying(cl)) {
+            /* Hit idle timeout -> go to dying mode. */
+            auto raced(
+                mux.locked<bool>(
+                    [this] (mutex_t::token tok) {
+                        if (!newcalls(tok).empty()) return true;
+                        dying(tok) = true;
+                        return false; } ) );
+            if (raced) {
+                /* More calls arrived just in time to stop us timing
+                 * out.  Try again from the top. */
+                return checktimeouts(calls, cl, idledat, connected); } }
+        /* Waiting for idle timeout. */
+        return r; }
+    logmsg(loglevel::debug, "active");
+    /* Otherwise, take the soonest call timeout. */
+    auto it(calls.start());
+    auto res((*it)->deadline);
+    while (!it.finished()) {
+        res = min(res, (*it)->deadline);
+        it.next(); }
+    return res; }
+
+orerror<void>
+CONN::socketerr(int sock, const peername &_peer) {
+    int err;
+    socklen_t sz(sizeof(err));
+    orerror<void> res(Success);
+    if (::getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &sz) < 0) {
+            /* Kernel implementation detail: not actually possible to
+             * get an error here. */
+#ifndef COVERAGESKIP
+            res = error::from_errno();
+            res.failure()
+                .warn("getting connect error for " + fields::mk(_peer));
+#endif
+            }
+    else if (err != 0) res = error::from_errno(err);
+    return res; }
+
+void
+CONN::queuetx(list<nnp<CALL> > &calls,
+              buffer &txbuffer,
+              proto::sequencenr &nextseq,
+              connlock cl) {
+    serialise1 s(txbuffer);
+    bool remove;
+    for (auto it(calls.start());
+         !it.finished();
+         remove ? it.remove() : it.next()) {
+        auto c(*it);
+        assert(c->seqnr(cl) == Nothing);
+
+        /* Quick lock-free check.  It doesn't matter if this misses
+         * some updates; async abort is inherently racy, anyway. */
+        if (c->_aborted) {
+            failcall(c, error::aborted, cl);
+            remove = true;
+            continue; }
+        /* This is also a good place to check for timeouts. */
+        if (c->deadline.inpast()) {
+            failcall(c, error::timeout, cl);
+            remove = true;
+            continue; }
+        /* Otherwise, it's still a viable call and we should add it to
+         * the TX buffer. */
+        /* XXX should maybe limit size of TX buffer to make timeouts a
+         * bit more timely? */
+        remove = false;
+        c->seqnr(cl) = nextseq;
+        nextseq++;
+        auto startoff(txbuffer.offset() + txbuffer.avail());
+        proto::reqheader(-1,
+                         version::current,
+                         c->type,
+                         c->seqnr(cl).just())
+            .serialise(s);
+        c->serialiser(s, cl);
+        auto sz(txbuffer.offset() + txbuffer.avail() - startoff);
+        assert(sz <= proto::maxmsgsize);
+        *txbuffer.linearise<unsigned>(startoff) = (unsigned)sz; } }
+
+orerror<void>
+CONN::processresponse(buffer &rxbuffer,
+                      list<nnp<CALL> > &calls,
+                      connlock cl) {
+    if (pool.shutdown.ready()) return error::shutdown;
+    deserialise1 ds(rxbuffer);
+    proto::respheader hdr(ds);
+    if (ds.status() == error::underflowed) return error::underflowed;
+    if (hdr.size > proto::maxmsgsize) ds.fail(error::invalidmessage);
+    if (ds.isfailure()) {
+        ds.failure().warn(
+            "parsing response header from " + fields::mk(slave));
+        return ds.failure(); }
+    if (hdr.size > rxbuffer.avail()) return error::underflowed;
+
+    /* We've got enough in the buffer to process this message */
+    CALL *c = NULL;
+    for (auto it(calls.start()); !it.finished(); it.next()) {
+        assert((*it)->seqnr(cl).isjust());
+        if ((*it)->seqnr(cl).just() == hdr.seq) {
+            c = *it;
+            it.remove();
+            break; } }
+
+    if (c == NULL) {
+        /* This can sometimes happen if we cancel a call before
+         * receiving a reply. */
+        logmsg(loglevel::debug,
+               "dropping response from " + fields::mk(slave) +
+               "; no call"); }
+    else {
+        orerror<void> callres(Success);
+        /* Invoke the deserialise callback without holding the lock. */
+        if (hdr.status.issuccess()) callres = c->deserialiser(_nnp(ds), cl);
+        else callres = c->deserialiser(hdr.status.failure(), cl);
+        c->mux.locked(
+            [c, callres] (mutex_t::token tok) {
+                assert(c->res(tok) == Nothing);
+                /* Once we set res and drop the lock c can be
+                 * released underneath us. */
+                c->res(tok) = callres;
+                c->pub.publish(); }); }
+    rxbuffer.discard(hdr.size);
+    return Success; }
+
+maybe<fd_t>
+CONN::connectphase(
+    clientio io,
+    subscriber &sub,
+    maybe<pair<peername, timestamp> > &debounceconnect,
+    list<nnp<CALL> > &calls,
+    connlock cl,
+    maybe<timestamp> &idledat,
+    proto::sequencenr &nextseqnr) {
+    /* Not started connecting yet -> find out where we're connecting
+     * to. */
+    auto _beaconres(pool.beacon->poll(slave));
+    if (_beaconres == Nothing) {
+        /* Beacon doesn't know where we need to connect to yet -> wait
+         * until it does. */
+        subscription beaconsub(sub, pool.beacon->changed());
+        logmsg(loglevel::debug, "waiting for beacon");
+        sub.wait(io, checktimeouts(calls, cl, idledat, false));
+        return Nothing; }
+    auto &peer(_beaconres.just().name);
+
+    if (debounceconnect.isjust() &&
+        debounceconnect.just().first() == peer &&
+        debounceconnect.just().second().infuture()) {
+        /* Tried to connect recently -> wait a bit before retrying on
+         * the same peer. */
+        subscription beaconsub(sub, pool.beacon->changed());
+        sub.wait(io, min(checktimeouts(calls, cl, idledat, false),
+                         debounceconnect.just().second()));
+        return Nothing; }
+
+    /* Know where we're supposed to be connecting to -> do it. */
+    /* XXX this is a lot easier with raw syscalls than with our fancy
+     * listenfd type -> listenfd probably needs some work.  Or to just
+     * die. */
+    auto sock(::socket(peer.sockaddr()->sa_family,
+                       SOCK_STREAM | SOCK_NONBLOCK,
+                       0));
+    if (sock < 0) {
+        auto e(error::from_errno());
+        e.warn("socket() for " + fields::mk(slave));
+        /* Not being able to use the address family is a hard error.
+         * Most other connect()-time errors are soft. */
+        harderror(calls, e, cl);
+        delayconnect(debounceconnect, peer);
+        return Nothing; }
+    if (::connect(sock, peer.sockaddr(), peer.sockaddrsize()) < 0 &&
+        errno != EINPROGRESS) {
+        error::from_errno().warn("connect() to " + fields::mk(slave));
+        ::close(sock);
+        delayconnect(debounceconnect, peer);
+        return Nothing; }
+
+    /* Started async connect() -> wait for result. */
+    {   iosubscription connectsub(sub, fd_t(sock).poll(POLLOUT));
+        auto deadline(timestamp::now() + pool.cfg.connecttimeout);
+        while (true) {
+            if (deadline.inpast()) {
+                ::close(sock);
+                /* No debounce this time: the connect timeout achieves the
+                 * same thing. */
+                return Nothing; }
+            auto ss(sub.wait(io, min(checktimeouts(calls, cl, idledat, false),
+                                     deadline)));
+            if (finished(calls, cl)) {
+                ::close(sock);
+                return Nothing; }
+            /* Other subscriptions handled by checktimeouts() */
+            if (ss != &connectsub) continue;
+            auto pfd(fd_t(sock).poll(POLLOUT));
+            if (::poll(&pfd, 1, 0) < 0) {
+#ifndef COVERAGESKIP
+                auto err(error::from_errno());
+                err.warn("connect poll() " + fields::mk(slave));
+                harderror(calls, err, cl);
+                return Nothing;
+#endif
+            }
+            if (pfd.revents & POLLOUT) {
+                auto err(socketerr(sock, peer));
+                if (err.isfailure()) {
+                    err.failure().warn(
+                        "connecting to " + fields::mk(slave));
+                    ::close(sock);
+                    if (err != error::timeout) {
+                        delayconnect(debounceconnect, peer); }
+                    return Nothing; }
+                else break; } } }
+
+    /* We have a connection.  Send the HELLO request. */
+    auto helloseq(nextseqnr);
+    nextseqnr++;
+    {   buffer txbuf;
+        serialise1 s(txbuf);
+        proto::reqheader(-1,
+                         version::current,
+                         interfacetype::meta,
+                         helloseq)
+            .serialise(s);
+        proto::hello::req().serialise(s);
+        assert(txbuf.avail() <= proto::maxmsgsize);
+        *txbuf.linearise<unsigned>(txbuf.offset()) = (unsigned)txbuf.avail();
+        iosubscription out(sub, fd_t(sock).poll(POLLOUT));
+        auto deadline(timestamp::now() + pool.cfg.hellotimeout);
+        while (true) {
+            auto res(txbuf.sendfast(fd_t(sock)));
+            if (res.isfailure() && res != error::wouldblock) {
+                ::close(sock);
+                return Nothing; }
+            if (txbuf.empty()) break;
+            if (deadline.inpast()) {
+                logmsg(loglevel::info,
+                       "timeout sending hello to " + fields::mk(slave));
+                ::close(sock);
+                return Nothing; }
+            auto ss(sub.wait(io, min(checktimeouts(calls, cl, idledat, false),
+                                     deadline)));
+            if (finished(calls, cl)) {
+                ::close(sock);
+                return Nothing; }
+            if (ss == &out) out.rearm(); } }
+
+    /* Wait for and process the HELLO response. */
+    iosubscription in(sub, fd_t(sock).poll(POLLIN));
+    /* Use a local rxbuffer, rather than the main one used for other
+     * responses, because the peer shouldn't be sending us any
+     * messages other than the HELLO response until after we've sent
+     * it an actual command. */
+    buffer rxbuffer;
+    while (true) {
+        deserialise1 ds(rxbuffer);
+        proto::respheader hdr(ds);
+        proto::hello::resp resp(ds);
+        if (ds.status() == error::underflowed) {
+            sub.wait(io, checktimeouts(calls, cl, idledat, false));
+            if (finished(calls, cl)) {
+                ::close(sock);
+                return Nothing; }
+            continue; }
+        if (hdr.status.isfailure()) ds.fail(hdr.status.failure());
+        else if (hdr.size > proto::maxmsgsize) ds.fail(error::overflowed);
+        else if (hdr.seq != helloseq) ds.fail(error::invalidmessage);
+        else if (hdr.size != rxbuffer.avail()) ds.fail(error::invalidmessage);
+        else if (resp.min > version::current || resp.max < version::current) {
+            ds.fail(error::badversion); }
+        if (ds.isfailure()) {
+            /* Getting an error back from HELLO is a hard failure. */
+            harderror(calls, ds.failure(), cl);
+            ::close(sock);
+            return Nothing; }
+        /* XXX we discard the server's advertised interface list.  Is
+         * there much point in having it? */
+        /* Connected successfully -> reset debouncer. */
+        debounceconnect = Nothing;
+        /* HELLO completed successfully -> ready to move to main
+         * phase. */
+        return fd_t(sock); } }
+
+void
+CONN::workphase(clientio io,
+                list<nnp<CALL> > &calls,
+                subscriber &sub,
+                fd_t fd,
+                const subscription &shutdownsub,
+                const subscription &newcallssub,
+                proto::sequencenr &nextseqnr,
+                maybe<timestamp> &idledat,
+                connlock cl) {
+    /* Connection established and we've negotiated the protocol
+     * version.  Deal with messages. */
+
+    buffer txbuffer;
+    /* Need to retransmit everything in the backlog. */
+    queuetx(calls, txbuffer, nextseqnr, cl);
+
+    /* Stays connected all the time, even when we're not expecting
+     * anything back, to pick up errors. */
+    iosubscription insub(sub, fd.poll(POLLIN));
+    /* Only armed when we have stuff to send. */
+    iosubscription outsub(sub, fd.poll(POLLOUT));
+    bool outarmed(true);
+
+    buffer rxbuffer;
+    while (true) {
+        if (!txbuffer.empty() && !outarmed) {
+            outsub.rearm();
+            outarmed = true; }
+        auto ss(sub.wait(io, checktimeouts(calls, cl, idledat, true)));
+        if (ss == NULL || ss == &shutdownsub) {
+            if (finished(calls, cl)) return; }
+        else if (ss == &newcallssub) {
+            /* Suck the newcalls list into the calls list, serialising
+             * them into the TX buffer as we do so.  The abort list
+             * will be handled by checktimeouts(). */
+            list<nnp<CALL> > nn;
+            mux.locked([this, &nn] (mutex_t::token tok) {
+                    nn.transfer(newcalls(tok)); });
+            queuetx(nn, txbuffer, nextseqnr, cl);
+            calls.transfer(nn);
+            /* Do a quick send, while we're here, to avoid a trip
+             * through the iosubscription thread.  Errors will leave
+             * stuff in the buffer and will eventually be handled by the slow
+             * path. */
+            if (!txbuffer.empty()) (void)txbuffer.sendfast(fd); }
+        else if (ss == &outsub) {
+            assert(outarmed);
+            outarmed = false;
+            auto err(txbuffer.sendfast(fd));
+            if (err == error::wouldblock) continue;
+            if (err.isfailure()) {
+                /* Treat any failure here as a lost connection and
+                 * restart the connect machine. */
+                err.failure().warn("transmitting to " + fields::mk(slave));
+                /* Might as well check if there are any viable
+                 * responses waiting for us before we give up. */
+                (void)rxbuffer.receivefast(fd);
+                while (processresponse(rxbuffer, calls, cl).issuccess()) { }
+                return; } }
+        else if (ss == &insub) {
+            auto err(rxbuffer.receivefast(fd));
+            if (err == error::wouldblock) continue;
+            if (err.isfailure()) {
+                err.failure().warn("receiving from " + fields::mk(slave));
+                return; }
+            insub.rearm();
+            while (true) {
+                auto r(processresponse(rxbuffer, calls, cl));
+                if (r == error::underflowed) break;
+                else if (r.isfailure()) return; } }
+        else abort(); } }
+
+void
+CONN::delayconnect(maybe<pair<peername, timestamp> > &debounceconnect,
+                   const peername &peer) {
+    debounceconnect =
+        mkpair(peer, timestamp::now() + pool.cfg.debounceconnect); }
+
+nnp<CALL>
+CONN::call(timestamp deadline,
+           interfacetype type,
+           const std::function<serialise> &s,
+           const std::function<deserialise> &ds,
+           mutex_t::token token) {
+    assert(!dying(token));
+    /* XXX there should be a fast path here which sends stuff directly
+     * without waiting for the connection thread (if we already have a
+     * connection) */
+    auto res(_nnp(*new CALL(*this, deadline, type, s, ds)));
+    newcalls(token).pushtail(res);
+    logmsg(loglevel::debug,
+           "queue call, empty " + fields::mk(newcalls(token).empty()));
+    callschanged.publish();
+    return res; }
+
+CONN::conn(const constoken &t,
+           const slavename &_slave,
+           POOL &_pool,
+           maybe<mutex_t::token> *token)
+    : thread(t),
+      pool(_pool),
+      mux(),
+      deathsub(_pool.sub, thread::pub(), this),
+      slave(_slave),
+      _dying(false),
+      _newcalls(),
+      _aborted(),
+      callschanged() {
+    *token = mux.lock(); }
+
+void
+CONN::run(clientio io) {
+    subscriber sub;
+    subscription shutdownsub(sub, pool.shutdown.pub);
+    subscription newcallssub(sub, callschanged);
+
+    /* The connlock isn't really a lock, it's just a tag to indicate
+     * that a particular operation will hold up the connection
+     * thread. */
+    connlock cl;
+
+    maybe<pair<peername, timestamp> > debounceconnect(Nothing);
+    list<nnp<CALL> > calls;
+    maybe<timestamp> idledat(timestamp::now());
+    /* Something (a) recognisable and (b) large enough to flush out 32
+     * bit truncation bugs. */
+    proto::sequencenr nextseqnr(0x156782345ul);
+
+    shutdownsub.set();
+    newcallssub.set();
+
+    while (!finished(calls, cl)) {
+        auto fd(connectphase(io,
+                             sub,
+                             debounceconnect,
+                             calls,
+                             cl,
+                             idledat,
+                             nextseqnr));
+        if (fd.isjust()) {
+            workphase(io,
+                      calls,
+                      sub,
+                      fd.just(),
+                      shutdownsub,
+                      newcallssub,
+                      nextseqnr,
+                      idledat,
+                      cl);
+            fd.just().close();
+            fd = Nothing; } }
+    assert(calls.empty());
+    assert(_dying);
+    assert(_newcalls.empty());
+    assert(_aborted.empty()); }
+
+/* --------------------------- Call implementation ------------------------ */
+CALL::impl(CONN &_conn,
+           timestamp _deadline,
+           interfacetype _type,
+           const std::function<serialise> &_serialiser,
+           const std::function<deserialise> &_deserialiser)
+    : api(),
+      conn(_conn),
+      deadline(_deadline),
+      type(_type),
+      serialiser(_serialiser),
+      deserialiser(_deserialiser),
+      pub(),
+      mux(),
+      _res(Nothing),
+      _aborted(false),
+      _seqnr(Nothing) {}
+
+maybe<connpool::asynccall::token>
+CALL::finished() const {
+    if (mux.locked<bool>([this] (mutex_t::token tok) {
+                return res(tok) != Nothing; })) {
+        return token(); }
+    else return Nothing; }
+
+connpool::asynccall::token
+CALL::finished(clientio io) const {
+    auto t(finished());
+    if (t == Nothing) {
+        subscriber sub;
+        subscription ss(sub, pub);
         t = finished();
         while (t == Nothing) {
-            if (subscribe.wait(io, deadline) == NULL) goto timeout;
+            sub.wait(io);
             t = finished(); } }
-    return pop(t.just());
- timeout:
-    abort();
-    return error::timeout; }
+    return t.just(); }
 
-pooledconnection::asynccall::~asynccall() {
-    assert(owner == NULL);
-    assert(sub == Nothing);
-    assert(inner == NULL);
-    if (res != Nothing && res.just().issuccess()) delete res.just().success();
-    delete msg; }
+orerror<void>
+CALL::pop(token t) {
+    auto r(res(t).just());
+    delete this;
+    return r; }
 
-pooledconnection::asynccall *
-pooledconnection::call(const wireproto::req_message &msg) {
-    return mux.locked<asynccall *>(
-        [this, &msg]
-        (mutex_t::token) {
-            if (owner) {
-                refcount++;
-                if (refcount == 1) idledat = Nothing;
-                auto res(new asynccall(this, msg));
-                outstanding.pushtail(res);
-                newcall.publish();
-                return res; }
-            else return new asynccall(); }); }
-
-void
-pooledconnection::put() {
-    bool die = mux.locked<bool>([this] (mutex_t::token) {
-            assert(refcount > 0);
-            assert(idledat == Nothing);
-            refcount--;
-            if (refcount == 0) {
-                idledat = timestamp::now();
-                if (owner == NULL) return true;
-                owner->connchanged.publish(); }
-            return false; });
-    if (die) delete this; }
-
-pooledconnection::~pooledconnection() {
-    assert(owner == NULL);
-    assert(refcount == 0);
-    assert(idledat != Nothing);
-    assert(newcallsub == Nothing);
-    /* Don't need a full token because we're a destructor, so it'd
-     * better be single-threaded by now. */
-    disconnect(mux.DUMMY()); }
-
-connpool::connpool(beaconclient *_bc,
-                   const connpoolconfig &_config)
-    : mux(),
-      connchanged(),
-      config(_config),
-      shutdown(),
-      bc(_bc),
-      connections(),
-      maintain(thread::start<connpoolmaintenance>(
-                   fields::mk("connpool"),
-                   this)) {}
-
-mktupledef(connpoolstatus);
-
-class connpoolmaintenance : public thread {
-private: connpool *const owner;
-public:  connpoolmaintenance(const constoken &t, connpool *owner);
-public:  void run(clientio); };
-
-connpoolmaintenance::connpoolmaintenance(const constoken &t,
-                                         connpool *_owner)
-    : thread(t),
-      owner(_owner) {}
-
-void
-connpoolmaintenance::run(clientio io) {
-    subscriber sub;
-    subscription ss(sub, owner->shutdown.pub);
-    subscription conns(sub, owner->connchanged);
-    subscription beacon(sub, owner->bc->changed());
-    /* Check the conn list and beacon list as soon as we start. */
-    conns.set();
-    beacon.set();
-    while (!owner->shutdown.ready()) {
-        /* Figure out when the next timeout is. */
-        maybe<timestamp> wakeat(Nothing);
-        owner->mux.locked([this, &wakeat] (mutex_t::token) {
-                for (auto it(owner->connections.start());
-                     !it.finished();
-                     it.next()) {
-                    auto e(*it);
-                    e->mux.locked([this, e, &wakeat] (mutex_t::token) {
-                            if (e->refcount != 0) return;
-                            assert(e->idledat.isjust());
-                            if (wakeat == Nothing ||
-                                e->idledat.just() + owner->config.expirytime <
-                                    wakeat.just()) {
-                                wakeat = e->idledat.just() +
-                                         owner->config.expirytime; } }); } });
-        /* Wait for something to happen. */
-        auto notified(sub.wait(io));
-        if (notified == &ss) continue;
-        list<pooledconnection *> doomed;
-        list<pooledconnection *> needbeaconpoll;
-        list<pooledconnection *> needconnectpoll;
-        list<pooledconnection *> needcall;
-        list<pooledconnection::asynccall *> needcompletepoll;
-        if (((uintptr_t)notified->data & 3) == 1) {
-            needconnectpoll.pushtail(
-                (pooledconnection *)((uintptr_t)notified->data & ~3ul)); }
-        if (((uintptr_t)notified->data & 3) == 2) {
-            needcompletepoll.pushtail(
-                (pooledconnection::asynccall *)
-                ((uintptr_t)notified->data & ~3ul)); }
-        if (((uintptr_t)notified->data & 3) == 3) {
-            needcall.pushtail(
-                (pooledconnection *)((uintptr_t)notified->data & ~3ul)); }
-        /* Check for errors, idle timeouts, and things which need us
-         * to start a connect. */
-        owner->mux.locked(
-            [this, &beacon, &needbeaconpoll, &needcall, notified, &sub]
-            (mutex_t::token) {
-                bool remove;
-                for (auto it(owner->connections.start());
-                     !it.finished();
-                     remove ? it.remove()
-                            : it.next()) {
-                    auto conn(*it);
-                    remove = conn->mux.locked<bool>(
-                        [this, &beacon, conn, &needbeaconpoll,
-                         &needcall, notified, &sub]
-                        (mutex_t::token connlock) {
-                            if (conn->newcallsub == Nothing) {
-                                conn->newcallsub.mkjust(sub, conn->newcall);
-                                needcall.pushtail(conn); }
-                            if (conn->connectstart.isjust() &&
-                                timestamp::now() - conn->connectstart.just() >
-                                    owner->config.connecttimeout) {
-                                /* Took too long to connect -> run
-                                 * error recovery machine. */
-                                conn->errored = true; }
-                            if (conn->errored) {
-                                /* This connection has an error.
-                                 * Disconnect it. */
-                                conn->errored = false;
-                                conn->disconnect(connlock);
-                                if (conn->refcount == 0) {
-                                    /* No more work -> throw it
-                                     * away. */
-                                    assert(conn->outstanding.empty());
-                                    return true; }
-                                else {
-                                    /* Still have some work ->
-                                     * reconnect. */
-                                    needbeaconpoll.pushtail(conn);
-                                    return false; } }
-                            else if (conn->refcount == 0 &&
-                                     timestamp::now() - conn->idledat.just() >
-                                         owner->config.expirytime) {
-                                /* This connection has been idle for a
-                                 * while -> disconnect. */
-                                assert(conn->outstanding.empty());
-                                conn->disconnect(connlock);
-                                return true; }
-                            else if (conn->inner == Nothing &&
-                                     notified == &beacon) {
-                                /* Check the beacon for a posible
-                                 * peername for this conn. */
-                                needbeaconpoll.pushtail(conn);
-                                return false; }
-                            else return false; } );
-                    if (remove) {
-                        conn->newcallsub = Nothing;
-                        conn->owner = NULL;
-                        delete conn; } } } );
-        /* Check if anything which needed beacon results has made
-         * progress. */
-        while (!needbeaconpoll.empty()) {
-            auto conn(needbeaconpoll.pophead());
-            if (conn->connectstart == Nothing) {
-                conn->connectstart = timestamp::now(); }
-            auto p(owner->bc->poll(conn->name));
-            if (p == Nothing) continue;
-            /* Got a peername -> start the connect() proper. */
-            auto inner(rpcclient::connect(p.just().name));
-            conn->mux.locked(
-                [conn, inner, &needconnectpoll, &sub]
-                (mutex_t::token) {
-                    assert(conn->inner == Nothing);
-                    conn->inner = either<rpcclient::asyncconnect *, rpcclient *>
-                        ::left(inner);
-                    conn->connectsub.mkjust(sub,
-                                            inner->pub(),
-                                            (void *)((uintptr_t)conn | 1));
-                    needconnectpoll.pushtail(conn); }); }
-        /* Check if anything which was waiting for the rpcclient to
-         * connect has made progress. */
-        while (!needconnectpoll.empty()) {
-            auto conn(needconnectpoll.pophead());
-            conn->mux.locked(
-                [this, conn, &conns, &needcall]
-                (mutex_t::token) {
-                    assert(conn->inner.isjust());
-                    assert(conn->inner.just().isleft());
-                    auto tok(conn->inner.just().left()->finished());
-                    if (tok == Nothing) return;
-                    /* rpcclient connect() finished -> pick up the
-                     * results. */
-                    conn->connectsub = Nothing;
-                    auto inner(conn->inner.just().left()->pop(tok.just()));
-                    if (inner.isfailure()) {
-                        /* connect failed -> run the error handling
-                         * machine next time around. */
-                        conn->errored = true;
-                        conn->inner = Nothing;
-                        owner->connchanged.publish(); }
-                    else {
-                        /* connect succeeded. */
-                        conn->connectstart = Nothing;
-                        conn->inner =
-                            either<rpcclient::asyncconnect *, rpcclient *>
-                            ::right(inner.success());
-                        needcall.pushtail(conn); } } ); }
-        /* Check for connections with new calls and for abort()ed
-         * calls. */
-        while (!needcall.empty()) {
-            auto conn(needcall.pophead());
-            conn->mux.locked(
-                [this, conn, &needcompletepoll, &sub]
-                (mutex_t::token) {
-                    if (conn->inner == Nothing ||
-                        conn->inner.just().isleft()) {
-                        return; }
-                    /* Retry any outstanding calls. */
-                    bool remove;
-                    for (auto it(conn->outstanding.start());
-                         !it.finished();
-                         remove ? it.next() : it.remove()) {
-                        auto call(*it);
-                        assert(call->owner == conn);
-                        assert(call->res == Nothing);
-                        if (call->mux.locked<bool>([call] (mutex_t::token) {
-                                    return call->aborted; })) {
-                            remove = true; }
-                        else if (call->inner != NULL) continue;
-                        else if (call->nrretries++ < owner->config.callretries){
-                            auto innerconn(conn->inner.just().right());
-                            call->inner = innerconn->call(*call->msg);
-                            if (owner->config.dupecalls.random()) {
-                                /* XXX stupid stupid hack: give it a
-                                 * few milliseconds to actually send
-                                 * the call before we send it again,
-                                 * even though that means sleeping
-                                 * while holding important locks and
-                                 * without a client IO token.  Just
-                                 * barely good enough for a debug-only
-                                 * option. */
-                                {   subscriber debugsub;
-                                    subscription sillysub(debugsub,
-                                                          call->inner->pub());
-                                    auto deadline(timestamp::now() +
-                                                  timedelta::milliseconds(50));
-                                    while (call->inner->finished() == Nothing &&
-                                           debugsub.wait(clientio::CLIENTIO,
-                                                         deadline) != NULL)
-                                        ; }
-                                call->inner->abort();
-                                call->inner = innerconn->call(*call->msg); }
-                            call->sub.mkjust(sub,
-                                             call->inner->pub(),
-                                             (void *)((uintptr_t)call | 2));
-                            needcompletepoll.pushtail(call); }
-                        else {
-                            call->mux.locked([call] (mutex_t::token) {
-                                    call->res = error::disconnected;
-                                    call->_pub.publish();
-                                    call->owner = NULL; });
-                            remove = true; }
-                        if (remove) {
-                            call->sub = Nothing;
-                            if (call->inner) call->inner->abort();
-                            call->owner = NULL;
-                            delete call; } } } ); }
-        /* Check if anything which was waiting for a response has made
-         * progress. */
-        while (!needcompletepoll.empty()) {
-            auto call(needcompletepoll.pophead());
-            auto conn(call->owner);
-            assert(call->inner != NULL);
-            assert(conn != NULL);
-            auto tok(call->inner->finished());
-            if (tok == Nothing) continue;
-            /* Call completed. */
-            call->sub = Nothing;
-            auto res(call->inner->pop(tok.just()));
-            call->inner = NULL;
-            if (res == error::disconnected || res == error::invalidmessage) {
-                /* These errors cause the connection to be torn down
-                 * so that we retry the calls. */
-                conn->mux.locked([this, conn] (mutex_t::token) {
-                        conn->errored = true;
-                        owner->connchanged.publish(); }); }
-            else {
-                /* Otherwise, pass the result back to whoever
-                 * initiated the call; the maintenance thread will
-                 * have nothing more to do with it. */
-                conn->mux.locked([call, conn] (mutex_t::token) {
-                        for (auto it(conn->outstanding.start());
-                             true;
-                             it.next()) {
-                            if (*it == call) {
-                                it.remove();
-                                break; } } });
-                auto destroy = call->mux.locked<bool>(
-                    [call, res]
-                    (mutex_t::token) {
-                        assert(call->res == Nothing);
-                        call->res = res;
-                        call->owner = NULL;
-                        call->_pub.publish();
-                        return call->aborted; });
-                if (destroy) delete call;
-                conn->put(); } } }
-    /* We're about to die.  Finish off any work we still have
-     * outstanding first. */
-    owner->mux.locked(
-        [this]
-        (mutex_t::token) {
-            while (!owner->connections.empty()) {
-                auto conn(owner->connections.pophead());
-                bool die = conn->mux.locked<bool>(
-                    [this, conn]
-                    (mutex_t::token) {
-                        while (!conn->outstanding.empty()) {
-                            auto call(conn->outstanding.pophead());
-                            bool d = call->mux.locked<bool>(
-                                [call, conn]
-                                (mutex_t::token) {
-                                    assert(call->owner == conn);
-                                    call->owner = NULL;
-                                    call->res = error::disconnected;
-                                    call->_pub.publish();
-                                    return call->aborted; });
-                            if (d) delete call; }
-                        assert(conn->owner == owner);
-                        conn->newcallsub = Nothing;
-                        conn->owner = NULL;
-                        return conn->refcount == 0; });
-                if (die) delete conn; } }); }
-
-pooledconnection *
-connpool::connect(const slavename &name) {
-    return mux.locked<pooledconnection *>(
-        [this, &name]
-        (mutex_t::token) {
-            for (auto it(connections.start());
-                 !it.finished();
-                 it.next()) {
-                auto conn(*it);
-                if (conn->name == name) {
-                    conn->refcount++;
-                    return conn; } }
-            auto res(new pooledconnection(this, name));
-            connections.pushtail(res);
-            connchanged.publish();
-            return res; }); }
-
-connpool::status_t
-connpool::status() const { return status_t(config); }
-
-connpool::~connpool() {
-    shutdown.set();
-    /* Maintenance thread is guaranteed to stop quickly once shutdown
-     * is set, so this doesn't need a clientio token. */
-    maintain->join(clientio::CLIENTIO);
-    assert(connections.empty()); }
+orerror<void>
+CALL::abort() {
+    mux.locked([this] (mutex_t::token tok) { aborted(tok) = true; });
+    conn.mux.locked([this] (mutex_t::token tok) {
+            conn.aborted(tok).pushtail(_nnp(*this));
+            conn.callschanged.publish(); });
+    /* Setting aborted and notifying the conn's callschanged publisher
+     * is guaranteed to complete the call quickly, so we don't need a
+     * full clientio token here. */
+    return pop(finished(clientio::CLIENTIO)); }
