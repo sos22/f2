@@ -18,8 +18,9 @@ list<t>::list(deserialise1 &ds)
     : head(NULL),
       tail(NULL) {
     unsigned len(ds);
-    /* Arbitrary limit. */
-    if (len > 1000000) {
+    if (ds.random()) len %= 100;
+    else if (len > 1000000) {
+        /* Arbitrary limit. */
         ds.fail(error::overflowed);
         return; }
     while (len != 0) {
