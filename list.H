@@ -124,6 +124,8 @@ public:
     bool operator==(const list &o) const;
 };
 
+template <typename t, typename ... args> list<t> mklist(const t &, args &&...);
+
 namespace tests { void _list(); }
 
 #endif /* !LIST_H__ */

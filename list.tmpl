@@ -454,4 +454,8 @@ list<t>::operator==(const list<t> &o) const {
         c1.next();
         c2.next(); } }
 
+template <typename t, typename ... args> list<t>
+mklist(const t &first, args &&...rest) {
+    return list<t>::mk(first, std::forward<args>(rest)...); }
+
 #endif /* !LIST_TMPL__ */

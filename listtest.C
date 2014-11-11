@@ -32,4 +32,7 @@ tests::_list() {
             assert(list<int>::mk(1,2,3).contains(3));
             auto l(list<int>::mk(1,2,3));
             l.pophead();
-            assert(!l.contains(1)); }); }
+            assert(!l.contains(1)); });
+    testcaseV("list", "mklist", [] {
+            auto l(mklist(1,2,3));
+            assert(l == list<int>::mk(1,2,3)); }); }
