@@ -17,7 +17,7 @@ serialisefundamental(quickcheck &q, unsigned nr = 1000) {
         deserialise1 ds(buf);
         assert((t)ds == val);
         assert(!ds.status().isfailure());
-        assert(buf.empty()); } }
+        assert(buf.avail() == ds.offset()); } }
 
 class testcompound1 {
 public: int field1;
@@ -110,9 +110,12 @@ tests::_serialise() {
                     val.serialise(s); }
                 deserialise1 ds(b);
                 if ((version)ds == version::current) {
-                    assert(testcompound1(ds) == val); }
+                    assert(testcompound1(ds) == val);
+                    assert(!ds.isfailure());
+                    assert(b.avail() == ds.offset()); }
                 else {
                     deserialiseT dsT(b);
-                    assert(testcompound1(dsT) == val); }
-                assert(b.empty()); } });
-}
+                    assert((version)dsT == version::invalid);
+                    assert(testcompound1(dsT) == val);
+                    assert(!dsT.isfailure());
+                    assert(b.avail() == dsT.offset()); } } }); }
