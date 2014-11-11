@@ -22,8 +22,8 @@ class list {
     struct member;
     member *head;
     member *tail;
-    void operator=(const list &o) = delete;
 public:
+    void operator=(const list &o);
     list(const list &o);
     list(list &&o);
     list(const quickcheck &);

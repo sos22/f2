@@ -73,6 +73,29 @@ list<t>::list(list<t> &&o)
     o.head = NULL;
     o.tail = NULL; }
 
+template <typename t> void
+list<t>::operator=(const list &o) {
+    auto it1(head);
+    auto it2(o.head);
+    head = NULL;
+    tail = NULL;
+    while (it1 != NULL && it2 != NULL) {
+        it1->value = it2->value;
+        tail = it1;
+        if (head == NULL) head = it1;
+        it1 = it1->next;
+        it2 = it2->next; }
+    if (it1) {
+        if (tail) tail->next = NULL;
+        while (it1) {
+            it2 = it1->next;
+            delete it1;
+            it1 = it2; } }
+    else {
+        while (it2) {
+            append(it2->value);
+            it2 = it2->next; } } }
+
 template <typename t> list<t>
 list<t>::steal() {
     list res;

@@ -51,4 +51,12 @@ tests::_list() {
             assert(two2 == mklist(6, 5));
             auto two3(mklist(5, 6));
             sort<int>(two3, [] (const int &a, const int &b) { return a > b; });
-            assert(two3 == mklist(5, 6)); }); }
+            assert(two3 == mklist(5, 6)); });
+    testcaseV("list", "=", [] {
+            auto l1(mklist(5,6,7,8));
+            l1 = list<int>::mk();
+            assert(l1.empty());
+            l1 = mklist(1,2,3);
+            assert(l1 == mklist(1,2,3));
+            l1 = mklist(4,5);
+            assert(l1 == mklist(4,5)); }); }
