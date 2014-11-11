@@ -197,7 +197,7 @@ public:  void status() const;
 public:  typedef beaconclientconfig config_t;
 
     /* Shut the client down and destroy it. */
-public:  void destroy(clientio);
+public:  void destroy();
 
     /* Use destroy() instead. */
 private: ~beaconclient(); };

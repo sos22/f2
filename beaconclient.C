@@ -274,9 +274,7 @@ beaconclient::handletimeouts(mutex_t::token tok) {
            be covered by the usual retry logic anyway. */
         it->lastbeaconrequest = timestamp::now(); } }
 
-/* Note that the destructor waits for this without a clientio token ->
- * it must shut down quickly when asked to do so.  The clientio token
- * can only be used to wait for shutdown. */
+/* Must shut down quickly once shutdown is set. */
 void
 beaconclient::run(clientio io) {
     subscriber sub;
@@ -465,8 +463,9 @@ const publisher &
 beaconclient::changed() const { return _changed; }
 
 void
-beaconclient::destroy(clientio io) {
+beaconclient::destroy() {
     shutdown.set();
-    join(io); }
+    /* Guaranteed to be quick because shutdown is set. */
+    join(clientio::CLIENTIO); }
 
 beaconclient::~beaconclient() { }

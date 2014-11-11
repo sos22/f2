@@ -36,7 +36,7 @@ tests::beacon() {
             auto r(c->query(io, slave));
             assert(r.type == interfacetype::test);
             assert(r.name.getport() == port);
-            c->destroy(io);
+            c->destroy();
             s->destroy(io); });
     testcaseIO("beacon", "refresh", [] (clientio io) {
             /* Make sure it hangs around past the server-specified
@@ -66,7 +66,7 @@ tests::beacon() {
             c->query(io, slave);
             while (timestamp::now() < start + timedelta::milliseconds(600)) {
                 assert(c->poll(slave) != Nothing); }
-            c->destroy(io);
+            c->destroy();
             s->destroy(io); });
     testcaseIO("beacon", "dropserver", [] (clientio io) {
             /* Do dead servers drop out of the client cache reasonably
@@ -118,7 +118,7 @@ tests::beacon() {
                         assert(c->query(io, slave).name.getport() == port); })
                 < timedelta::milliseconds(100));
             s->destroy(io);
-            c->destroy(io); });
+            c->destroy(); });
     testcaseIO("beacon", "clientfilter", [] (clientio io) {
             /* Does filtering by type work? */
             clustername cluster((quickcheck()));
@@ -145,7 +145,7 @@ tests::beacon() {
                         port2)
                     .fatal("starting second beacon server"));
             assert(c->query(io, slave).name.getport() == port2);
-            c->destroy(io);
+            c->destroy();
             s2->destroy(io);
             s->destroy(io); });
     testcaseIO("beacon", "iterator", [] (clientio io) {
@@ -209,7 +209,7 @@ tests::beacon() {
                 assert(it.peer().getport() == port3);
                 it.next();
                 assert(it.finished()); }
-            c->destroy(io);
+            c->destroy();
             s1->destroy(io);
             s2->destroy(io);
             s3->destroy(io); });
@@ -268,7 +268,7 @@ tests::beacon() {
             assert(tv >= timedelta::milliseconds(200));
             assert(tv <= timedelta::milliseconds(400));
             s->destroy(io);
-            c->destroy(io); });
+            c->destroy(); });
     testcaseIO("beacon", "clientbroadcastfailure", [] (clientio io) {
             /* Client should be able to recover if its first few
              * broadcasts fail. */
@@ -309,7 +309,7 @@ tests::beacon() {
             /* Should complete fairly quickly after that. */
             assert(tv <= timedelta::milliseconds(400));
             s->destroy(io);
-            c->destroy(io); });
+            c->destroy(); });
     testcaseIO("beacon", "clientdirectfailure", [] (clientio io) {
             /* If we stop the client from doing directed calls then
              * things should drop out of the cache at the expiry time
@@ -364,7 +364,7 @@ tests::beacon() {
             auto recover(timestamp::now());
             assert(recover - start >= timedelta::milliseconds(900));
             assert(recover - start <= timedelta::milliseconds(1100));
-            c->destroy(io);
+            c->destroy();
             s->destroy(io); });
 #if TESTING
     testcaseIO("beacon", "sillyiterator", [] (clientio io) {
@@ -379,7 +379,7 @@ tests::beacon() {
             auto it(c->start(interfacetype::storage));
             assert(nr > 0);
             assert(it.finished());
-            c->destroy(io); });
+            c->destroy(); });
 #endif
     testcaseIO("beacon", "serverfailure1", [] (clientio) {
             hook<orerror<udpsocket>, udpsocket> h(
@@ -435,7 +435,7 @@ tests::beacon() {
              * server normally again. */
             fail = false;
             assert(c->query(io, slave).name.getport() == port);
-            c->destroy(io);
+            c->destroy();
             s->destroy(io); });
 #endif
     testcaseIO("beacon", "serverfailure3", [] (clientio io) {
@@ -477,5 +477,5 @@ tests::beacon() {
             assert(timedelta::time([c, io, port, &slave] {
                         assert(c->query(io, slave).name.getport() == port); })
                 <= timedelta::milliseconds(300));
-            c->destroy(io);
+            c->destroy();
             s->destroy(io); }); }
