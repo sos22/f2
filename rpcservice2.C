@@ -26,6 +26,7 @@ public: listenfd const fd;
 public: waitbox<void> shutdown;
 public: waitbox<orerror<void> > initialisedone;
 public: list<interfacetype> type; /* const once initialised */
+public: beaconserver *beacon;
 public: rootthread(const constoken &token,
                    rpcservice2 &_owner,
                    listenfd _fd,
@@ -35,7 +36,8 @@ public: rootthread(const constoken &token,
       fd(_fd),
       shutdown(),
       initialisedone(),
-      type(_type) {
+      type(_type),
+      beacon(NULL) {
     assert(!type.contains(interfacetype::meta));
     type.pushtail(interfacetype::meta); }
 public: void run(clientio) final; };
@@ -91,14 +93,18 @@ public: orerror<void> calledhello(
         deserialise1 &ds,
         nnp<incompletecall> ic); };
 
-rpcservice2config::rpcservice2config(unsigned _maxoutstandingcalls,
+rpcservice2config::rpcservice2config(const beaconserverconfig &_beacon,
+                                     unsigned _maxoutstandingcalls,
                                      unsigned _txbufferlimit)
-    : maxoutstandingcalls(_maxoutstandingcalls),
+    : beacon(_beacon),
+      maxoutstandingcalls(_maxoutstandingcalls),
       txbufferlimit(_txbufferlimit) {}
 
 rpcservice2config
-rpcservice2config::dflt() {
+rpcservice2config::dflt(const clustername &cn,
+                        const slavename &sn) {
     return rpcservice2config(
+        beaconserverconfig::dflt(cn, sn),
         /* maxoutstandingcalls */
         64,
         /* bufferlimit */
@@ -118,9 +124,21 @@ rpcservice2::open(const peername &pn) {
 
 orerror<void>
 rpcservice2::_initialise(clientio io) {
+    auto beacon(beaconserver::build(config.beacon,
+                                    root->type,
+                                    port()));
+    if (beacon.isfailure()) {
+        root->initialisedone.set(beacon.failure());
+        destroy(io);
+        return beacon.failure(); }
     auto res(initialise(io));
+    if (res.isfailure()) {
+        root->initialisedone.set(res);
+        beacon.success()->destroy(io);
+        destroy(io);
+        return res; }
+    root->beacon = beacon.success();
     root->initialisedone.set(res);
-    if (res.isfailure()) destroy(io);
     return res; }
 
 orerror<void>
@@ -137,7 +155,7 @@ rpcservice2::rpcservice2(const constoken &ct, interfacetype type)
                "R:" + fields::mk(ct.pn),
                *this,
                ct.fd,
-               list<interfacetype>::mk(type))) {}
+               list<interfacetype>::mk(type))) { }
 rpcservice2::rpcservice2(const constoken &ct, const list<interfacetype> &type)
     : config(ct.config),
       root(thread::start<rootthread>(

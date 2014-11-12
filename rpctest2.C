@@ -152,8 +152,13 @@ public: orerror<void> called(
 void
 rpctest2() {
     testcaseIO("rpctest2", "echo", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
+                         cn,
+                         sn,
                          peername::all(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(
@@ -219,21 +224,32 @@ rpctest2() {
             clnt->destroy();
             srv->destroy(io); });
     testcaseIO("rpctest2", "doublelisten", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
+                         cn,
+                         sn,
                          peername::all(peername::port::any))
                      .fatal("starting echo service"));
             auto port(srv->port());
-            assert(rpcservice2::listen<echoservice>(io, peername::all(port))
-                   == error::from_errno(EADDRINUSE));
+            assert(
+                rpcservice2::listen<echoservice>(io, cn, sn,peername::all(port))
+                == error::from_errno(EADDRINUSE));
             srv->destroy(io);
-            srv = rpcservice2::listen<echoservice>(io, peername::all(port))
+            srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
     testcaseIO("rpctest2", "abandon1", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             waitbox<void> abandoned;
             auto srv(rpcservice2::listen<abandonservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any),
                          abandoned)
                      .fatal("starting abandon service"));
@@ -256,9 +272,14 @@ rpctest2() {
             abandoned.get(io);
             srv->destroy(io); });
     testcaseIO("rpctest2", "timeoutcall", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             waitbox<void> abandoned;
             auto srv(rpcservice2::listen<abandonservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any),
                          abandoned)
                      .fatal("starting abandon service"));
@@ -280,8 +301,13 @@ rpctest2() {
             abandoned.get(io);
             clnt->destroy(); });
     testcaseIO("rpctest2", "slow", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<slowservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
             auto clnt(rpcclient2::connect(io,
@@ -335,8 +361,13 @@ rpctest2() {
             clnt->destroy();
             srv->destroy(io); });
     testcaseIO("rpctest2", "slowabandon", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<slowservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting slow service"));
             auto clnt(rpcclient2::connect(io,
@@ -364,8 +395,13 @@ rpctest2() {
             assert(timedelta::time([clnt] { clnt->destroy(); }) <
                    timedelta::milliseconds(100)); });
     testcaseIO("rpctest2", "abortcompleted", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt(rpcclient2::connect(io,
@@ -389,11 +425,16 @@ rpctest2() {
             clnt->destroy();
             srv->destroy(io); });
     testcaseIO("rpctest2", "clientdisco", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             waitbox<void> died;
             hook<void> h(rpcservice2::clientdisconnected,
                          [&died] { if (!died.ready()) died.set(); });
             auto srv(rpcservice2::listen<echoservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto clnt1(rpcclient2::connect(io, peername::loopback(srv->port()))
@@ -406,7 +447,10 @@ rpctest2() {
             clnt1->destroy();
             srv->destroy(io); });
     testcaseIO("rpctest2", "largeresp", [] (clientio io) {
-            auto config(rpcservice2config::dflt());
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto config(rpcservice2config::dflt(cn, sn));
             /* Use a small TX buffer limit to make things a bit
              * easier. */
             config.txbufferlimit = 100;
@@ -444,8 +488,13 @@ rpctest2() {
             clnt->destroy();
             srv->destroy(io); });
     testcaseIO("rpctest2", "largereq", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<largereqservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting large request service"));
             auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
@@ -485,6 +534,9 @@ rpctest2() {
     testcaseIO("rpctest2", "abortconnect", [] (clientio io) {
             /* Arrange to abort after doing the connect syscall but
              * before we do the HELLO */
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             waitbox<void> doneconnect;
             tests::hook<void> h(
                 rpcclient2::doneconnectsyscall,
@@ -492,6 +544,8 @@ rpctest2() {
                     doneconnect.set(); });
             auto srv(rpcservice2::listen<echoservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting echo service"));
             auto conn(rpcclient2::connect(peername::loopback(srv->port())));
@@ -499,8 +553,13 @@ rpctest2() {
             conn->abort();
             srv->destroy(io); });
     testcaseIO("rpctest2", "returnbuffer", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
             auto srv(rpcservice2::listen<bufferservice>(
                          io,
+                         cn,
+                         sn,
                          peername::loopback(peername::port::any))
                      .fatal("starting buffer service"));
             auto conn(rpcclient2::connect(

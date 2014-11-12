@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include "beaconserver.H"
 #include "listenfd.H"
 #include "mutex.H"
 #include "peername.H"
@@ -23,16 +24,20 @@ template <typename> class waitbox;
  * and txbufferlimit bounds the amount of memory used if the client
  * sends us a lot of cheap calls with large responses. */
 class rpcservice2config {
+    /* Beacon configuration */
+public: beaconserverconfig beacon;
     /* Limit on the number of outstanding incompletecalls we can have
      * before we stop accepting more requests from the client. */
 public: unsigned maxoutstandingcalls;
     /* Limit on the number of pending bytes in our TX buffer before we
      * stop accepting more requests from the client. */
 public: unsigned txbufferlimit;
-public: rpcservice2config(unsigned _maxoutstandingcalls,
+public: rpcservice2config(const beaconserverconfig &_beacon,
+                          unsigned _maxoutstandingcalls,
                           unsigned _txbufferlimit);
     /* Pick some sensible defaults for all parameters. */
-public: static rpcservice2config dflt(); };
+public: static rpcservice2config dflt(const clustername &,
+                                      const slavename &); };
 
 class rpcservice2 {
 private:   class rootthread;
@@ -64,7 +69,11 @@ public:    template <typename t, typename ... args> static orerror<nnp<t> >
            args &&...);
     /* Convenience wrapper for listen() which uses the default configuration. */
 public:    template <typename t, typename ... args> static orerror<nnp<t> >
-    listen(clientio, const peername &pn, args &&...);
+    listen(clientio,
+           const clustername &cn,
+           const slavename &sn,
+           const peername &pn,
+           args &&...);
 
     /* Hook for derived classes to do some initialisation of their
      * own.  This is called after we start listening on the socket (so

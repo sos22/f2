@@ -4,10 +4,12 @@
 template <typename t, typename ... args> orerror<nnp<t> >
 rpcservice2::listen(
     clientio io,
+    const clustername &cn,
+    const slavename &sn,
     const peername &pn,
     args && ... params) {
     return listen<t>(io,
-                     rpcservice2config::dflt(),
+                     rpcservice2config::dflt(cn, sn),
                      pn,
                      std::forward<args>(params)...); }
 

@@ -73,24 +73,16 @@ storageslave::build(clientio io,
                     const storageconfig &config) {
     return rpcservice2::listen<storageslave>(
         io,
+        config.beacon.cluster,
+        config.beacon.name,
         peername::all(peername::port::any),
         config); }
-
-orerror<void>
-storageslave::initialise(clientio) {
-    auto b(beaconserver::build(config.beacon,
-                               mklist(interfacetype::storage),
-                               port()));
-    if (b.isfailure()) return b.failure();
-    beacon = b.success();
-    return Success; }
 
 storageslave::storageslave(const constoken &token,
                            const storageconfig &_config)
     : rpcservice2(token, interfacetype::storage),
       config(_config),
-      mux(),
-      beacon(NULL) {}
+      mux() {}
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */
@@ -323,8 +315,3 @@ storageslave::removestream(const jobname &jn,
             r.warn("cannot remove " + fields::mk(jobdir)); } }
     if (already) return error::already;
     else return Success; }
-
-void
-storageslave::destroying(clientio io) {
-    beacon->destroy(io);
-    beacon = NULL; }

@@ -16,7 +16,6 @@ class storageslave : public rpcservice2 {
 private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
-private: beaconserver *beacon;
 public:  static orerror<nnp<storageslave> > build(clientio,
                                                   const storageconfig &config);
 private: storageslave(const constoken &,
