@@ -305,6 +305,23 @@ connpool::call(const slavename &sn,
                const std::function<deserialise> &ds) {
     return implementation().call(sn, type, deadline, s, ds); }
 
+nnp<connpool::asynccall>
+connpool::call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<orerror<void> (deserialise1 &, connlock)> &ds) {
+    return call(sn,
+                type,
+                deadline,
+                s,
+                [ds]
+                (orerror<nnp<deserialise1> > ds1, connlock cl)
+                    -> orerror<void> {
+                    if (ds1.isfailure()) return ds1.failure();
+                    else return ds(*ds1.success(), cl); }); }
+
 orerror<nnp<connpool> >
 connpool::build(const config &cfg) {
     auto bc(beaconclient::build(cfg.beacon));
@@ -532,6 +549,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         calls.transfer(_newcalls /* No lock: we're dying. */);
         harderror(calls, error::disconnected, cl);
         assert(calls.empty()); }
+
     /* If we've gone idle then set idledat.  If we've gone non-idle
      * then clear it.  That's not perfect (there might be a lag
      * between idling and setting the time), but it'll be a short lag,
@@ -545,8 +563,12 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
      * timeout is the idle timeout. */
     if (idledat.isjust()) {
         logmsg(loglevel::debug, "idle");
+        if (dying(cl)) {
+            /* We're trying to shut down and have no outstanding calls
+             * -> return immediately. */
+            return timestamp::now(); }
         auto r(idledat.just() + pool.cfg.idletimeout);
-        if (r.inpast() && !dying(cl)) {
+        if (r.inpast()) {
             /* Hit idle timeout -> go to dying mode. */
             auto raced(
                 mux.locked<bool>(
@@ -807,8 +829,14 @@ CONN::connectphase(
         proto::respheader hdr(ds);
         proto::hello::resp resp(ds);
         if (ds.status() == error::underflowed) {
-            sub.wait(io, checktimeouts(calls, cl, idledat, false));
-            if (finished(calls, cl)) {
+            auto err(rxbuffer.receivefast(fd_t(sock)));
+            if (err == error::wouldblock) {
+                auto ss(sub.wait(io, checktimeouts(calls, cl, idledat, false)));
+                if (finished(calls, cl)) {
+                    ::close(sock);
+                    return Nothing; }
+                if (ss == &in) in.rearm(); }
+            else if (err.isfailure()) {
                 ::close(sock);
                 return Nothing; }
             continue; }

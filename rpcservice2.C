@@ -245,6 +245,7 @@ rpcservice2::rootthread::run(clientio io) {
      * there wouldn't be much point. */
     if (initialisedone.get(io).isfailure()) {
         fd.close();
+        if (beacon) beacon->destroy(io);
         return; }
 
     subscriber sub;
@@ -291,6 +292,7 @@ rpcservice2::rootthread::run(clientio io) {
         auto w( (connworker *)it->data );
         it.remove();
         w->join(io); }
+    if (beacon) beacon->destroy(io);
     fd.close();
     owner.destroying(io); }
 
