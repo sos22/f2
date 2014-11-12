@@ -92,28 +92,6 @@ public: orerror<void> called(
                     s.push(key); }); });
     return Success; } };
 
-class largereqservice : public rpcservice2 {
-public: string largestring;
-public: largereqservice(const constoken &t)
-    : rpcservice2(t, interfacetype::test),
-      largestring("Hello world, this is another test pattern") {
-    for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
-public: orerror<void> called(
-    clientio io,
-    onconnectionthread oct,
-    deserialise1 &ds,
-    interfacetype,
-    nnp<incompletecall> ic) final {
-    string s(ds);
-    assert(s == largestring);
-    /* Slow down thread to make it a bit easier for the client to fill their
-     * TX buffer. */
-    (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
-    ic->complete(
-        [this] (serialise1 &, mutex_t::token, onconnectionthread) {},
-        oct);
-    return Success; } };
-
 class bufferservice : public rpcservice2 {
 public: bufferservice(const constoken &t) : rpcservice2(t,interfacetype::test){}
 public: orerror<void> called(
@@ -152,35 +130,6 @@ rpctest2() {
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
-    testcaseIO("rpctest2", "largereq", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            auto srv(rpcservice2::listen<largereqservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any))
-                     .fatal("starting large request service"));
-            auto clnt(rpcclient2::connect(io, peername::loopback(srv->port()))
-                      .fatal("connecting to large request service"));
-            list<nnp<rpcclient2::asynccall<void> > > outstanding;
-            for (unsigned x = 0; x < 10; x++) {
-                outstanding.pushtail(
-                    clnt->call<void>(
-                        interfacetype::test,
-                        [srv] (serialise1 &s, mutex_t::token) {
-                            srv->largestring.serialise(s); },
-                        [srv, io] (rpcclient2::asynccall<void> &,
-                                   orerror<nnp<deserialise1> > d,
-                                   rpcclient2::onconnectionthread)
-                        -> orerror<void> {
-                            assert(d.issuccess());
-                            return Success; })); }
-            while (!outstanding.empty()) {
-                assert(outstanding.pophead()->pop(io) == Success); }
-            clnt->destroy();
-            srv->destroy(io); });
     testcaseIO("rpctest2", "badconnect", [] (clientio io) {
             /* Make up a peername which probably respond quickly. */
             struct sockaddr_in sa;
