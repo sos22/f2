@@ -38,6 +38,8 @@ public:  typedef void serialise(serialise1 &, connlock);
      * in your pipeline. */
 public:  typedef orerror<void> deserialise(
         asynccall &, orerror<nnp<deserialise1> >, connlock);
+public:  typedef orerror<void> deserialiseV(
+        orerror<nnp<deserialise1> >, connlock);
 
 private: connpool(const connpool &) = delete;
 private: connpool() {};
@@ -99,6 +101,7 @@ public:  class connlock {
     /* Deserialise method suitable for use with RPCs which return
      * nothing except for the mandatory success/failure indication. */
 public:  static deserialise voidcall;
+public:  static deserialiseV voidcallV;
 
     /* Basic call interface.  Attempt to connect to a given remote
      * host and perform an RPC.
@@ -144,6 +147,11 @@ public:  nnp<asynccall> call(const slavename &sn,
                              timestamp deadline,
                              const std::function<serialise> &s,
                              const std::function<deserialise> &ds = voidcall);
+public:  nnp<asynccall> call(const slavename &sn,
+                             interfacetype type,
+                             timestamp deadline,
+                             const std::function<serialise> &s,
+                             const std::function<deserialiseV> &ds);
 
     /* Cookie type representing an outstanding call.  Allocated by the
      * call() method. */
@@ -202,6 +210,13 @@ public:  nnp<asynccall> call(
     const std::function<orerror<void> (asynccall &,
                                        deserialise1 &,
                                        connlock)> &ds);
+public:  nnp<asynccall> call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<orerror<void> (deserialise1 &,
+                                       connlock)> &ds);
 
     /* Convenience wrapper around the async call interface: start a
      * call, wait for it to complete, and then return the result. */
@@ -211,7 +226,7 @@ public:  orerror<void> call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<deserialise> &ds = voidcall) {
+    const std::function<deserialiseV> &ds) {
         return call(sn, type, deadline, s, ds)->pop(io); }
 public:  orerror<void> call(
     clientio io,
@@ -219,8 +234,7 @@ public:  orerror<void> call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<void> (asynccall &,
-                                       deserialise1 &,
+    const std::function<orerror<void> (deserialise1 &,
                                        connlock)> &ds) {
         return call(sn, type, deadline, s, ds)->pop(io); }
 
@@ -241,8 +255,22 @@ public:  template <typename t> nnp<asynccallT<t> > call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
+    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
+                                    connlock)> &ds);
+public:  template <typename t> nnp<asynccallT<t> > call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
     const std::function<orerror<t> (asynccallT<t> &,
                                     deserialise1 &,
+                                    connlock)> &ds);
+public:  template <typename t> nnp<asynccallT<t> > call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<orerror<t> (deserialise1 &,
                                     connlock)> &ds);
 public:  template <typename t> orerror<t> call(
     clientio io,
@@ -250,8 +278,7 @@ public:  template <typename t> orerror<t> call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (asynccallT<t> &,
-                                    orerror<nnp<deserialise1> >,
+    const std::function<orerror<t> (deserialise1 &,
                                     connlock)> &ds);
 public:  template <typename t> orerror<t> call(
     clientio io,
@@ -259,8 +286,7 @@ public:  template <typename t> orerror<t> call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (asynccallT<t> &,
-                                    deserialise1 &,
+    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
                                     connlock)> &ds);
 
     /* Construct a new connpool. */

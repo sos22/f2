@@ -297,6 +297,11 @@ connpool::voidcall(asynccall &, orerror<nnp<deserialise1> > ds, connlock) {
     if (ds.isfailure()) return ds.failure();
     else return Success; }
 
+orerror<void>
+connpool::voidcallV(orerror<nnp<deserialise1> > ds, connlock) {
+    if (ds.isfailure()) return ds.failure();
+    else return Success; }
+
 nnp<connpool::asynccall>
 connpool::call(const slavename &sn,
                interfacetype type,
@@ -304,6 +309,39 @@ connpool::call(const slavename &sn,
                const std::function<serialise> &s,
                const std::function<deserialise> &ds) {
     return implementation().call(sn, type, deadline, s, ds); }
+
+nnp<connpool::asynccall>
+connpool::call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<orerror<void> (deserialise1 &ds, connlock)> &ds) {
+    return call(
+        sn,
+        type,
+        deadline,
+        s,
+        [ds] (asynccall &, orerror<nnp<deserialise1> > ds1, connlock cl)
+            -> orerror<void> {
+            if (ds1.isfailure()) return ds1.failure();
+            else return ds(*ds1.success(), cl); }); }
+
+nnp<connpool::asynccall>
+connpool::call(
+    const slavename &sn,
+    interfacetype type,
+    timestamp deadline,
+    const std::function<serialise> &s,
+    const std::function<deserialiseV> &ds) {
+    return call(
+        sn,
+        type,
+        deadline,
+        s,
+        [ds] (asynccall &, orerror<nnp<deserialise1> > ds1, connlock cl)
+            -> orerror<void> {
+            return ds(ds1, cl); }); }
 
 nnp<connpool::asynccall>
 connpool::call(

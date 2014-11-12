@@ -147,4 +147,7 @@ public:  bool operator!=(_Success) const { return !issuccess(); }
 public:  void serialise(serialise1 &s) const { content.serialise(s); }
 };
 
+template <typename t> orerror<t>
+success(const t &x) { return x; }
+
 #endif /* !ORERROR_H__ */
