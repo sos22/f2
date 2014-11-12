@@ -11,10 +11,8 @@
 #include "peername.H"
 #include "proto.H"
 #include "socket.H"
-#include "wireproto.H"
 
 #include "maybe.tmpl"
-#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
@@ -177,8 +175,6 @@ listenfd::status_t::fromcompound(const wireproto::rx_message &rxm) {
                               protocol,
                               flags,
                               revents); }
-
-wireproto_wrapper_type(listenfd::status_t)
 
 const fields::field &
 fields::mk(const listenfd::status_t &o) {

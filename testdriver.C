@@ -2,7 +2,6 @@
 #include <err.h>
 #include <signal.h>
 
-#include "actortype.H"
 #include "beacontest.H"
 #include "buffer.H"
 #include "clustername.H"
@@ -37,7 +36,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::_actortype();
     tests::beacon();
     tests::buffer();
     tests::__clustername();

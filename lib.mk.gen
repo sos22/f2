@@ -7,7 +7,6 @@ function bits() {
     function _() {
         echo $1$suffix
     }
-    _ actortype
     _ beacon
     _ beaconclient
     _ beaconserver
