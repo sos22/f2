@@ -171,28 +171,6 @@ rpctest2() {
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
-    testcaseIO("rpctest2", "clientdisco", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            waitbox<void> died;
-            hook<void> h(rpcservice2::clientdisconnected,
-                         [&died] { if (!died.ready()) died.set(); });
-            auto srv(rpcservice2::listen<echoservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any))
-                     .fatal("starting echo service"));
-            auto clnt1(rpcclient2::connect(io, peername::loopback(srv->port()))
-                       .fatal("connecting to echo service"));
-            auto clnt2(rpcclient2::connect(io, peername::loopback(srv->port()))
-                       .fatal("connecting to echo service"));
-            clnt2->destroy();
-            assert(timedelta::time([&died, io] { died.get(io); })
-                   < timedelta::milliseconds(100));
-            clnt1->destroy();
-            srv->destroy(io); });
     testcaseIO("rpctest2", "largeresp", [] (clientio io) {
             quickcheck q;
             clustername cn(q);

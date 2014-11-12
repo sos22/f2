@@ -400,7 +400,6 @@ tests::_connpool() {
             assert(timedelta::time([pool] { pool->destroy(); }) <
                    timedelta::milliseconds(100)); });
     testcaseIO("connpool", "abortcompleted", [] (clientio io) {
-            initlogging("T");
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
@@ -428,5 +427,65 @@ tests::_connpool() {
             assert(call->abort() == 1023);
             ::logmsg(loglevel::info, "aborted");
             pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "clientdisco", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            waitbox<void> died;
+            hook<void> h(rpcservice2::clientdisconnected,
+                         [&died] { if (!died.ready()) died.set(); });
+            auto srv(rpcservice2::listen<echoservice2>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting echo service"));
+            auto pool1(connpool::build(cn).fatal("building pool1"));
+            /* Run a call to force the pool to connect */
+            assert(pool1->call<int>(
+                       io,
+                       sn,
+                       interfacetype::test,
+                       timestamp::now() + timedelta::hours(1),
+                       [] (serialise1 &s, connpool::connlock) {
+                           string("").serialise(s); },
+                       []
+                       (connpool::asynccallT<int> &,
+                        deserialise1 &ds,
+                        connpool::connlock) ->
+                           orerror<int> {
+                           string msg(ds);
+                           unsigned cntr(ds);
+                           assert(!ds.isfailure());
+                           assert(msg == "");
+                           assert(cntr == 74);
+                           return 9; })
+                   == 9);
+            auto pool2(connpool::build(cn).fatal("building pool2"));
+            /* Force pool2 to connect as well. */
+            assert(pool2->call(
+                       io,
+                       sn,
+                       interfacetype::test,
+                       timestamp::now() + timedelta::hours(1),
+                       [] (serialise1 &s, connpool::connlock) {
+                           string("").serialise(s); },
+                       []
+                       (connpool::asynccall &,
+                        deserialise1 &ds,
+                        connpool::connlock) ->
+                           orerror<void> {
+                           string msg(ds);
+                           unsigned cntr(ds);
+                           assert(!ds.isfailure());
+                           assert(msg == "");
+                           assert(cntr == 75);
+                           return Success; })
+                   == Success);
+            pool2->destroy();
+            assert(timedelta::time([&died, io] { died.get(io); })
+                   < timedelta::milliseconds(100));
+            pool1->destroy();
             srv->destroy(io); });
 }
