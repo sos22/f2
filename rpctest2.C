@@ -92,24 +92,6 @@ public: orerror<void> called(
                     s.push(key); }); });
     return Success; } };
 
-class bufferservice : public rpcservice2 {
-public: bufferservice(const constoken &t) : rpcservice2(t,interfacetype::test){}
-public: orerror<void> called(
-    clientio,
-    onconnectionthread oct,
-    deserialise1 &ds,
-    interfacetype,
-    nnp<incompletecall> ic) final {
-    ::buffer b(ds);
-    assert(!memcmp(b.linearise(0, 5), "HELLO", 5));
-    ic->complete(
-        [] (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
-            ::buffer bb;
-            bb.queue("GOODBYE", 7);
-            bb.serialise(s); },
-        oct);
-    return Success; } };
-
 void
 rpctest2() {
     testcaseIO("rpctest2", "doublelisten", [] (clientio io) {
@@ -165,33 +147,5 @@ rpctest2() {
             auto conn(rpcclient2::connect(peername::loopback(srv->port())));
             doneconnect.get(io);
             conn->abort();
-            srv->destroy(io); });
-    testcaseIO("rpctest2", "returnbuffer", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            auto srv(rpcservice2::listen<bufferservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any))
-                     .fatal("starting buffer service"));
-            auto conn(rpcclient2::connect(
-                          io,
-                          peername::loopback(srv->port()))
-                      .fatal("connecting to buffer service"));
-            auto b(conn->call< ::buffer >(
-                       io,
-                       interfacetype::test,
-                       [] (serialise1 &s, mutex_t::token /* txlock */) {
-                           ::buffer buf;
-                           buf.queue("HELLO", 5);
-                           buf.serialise(s); },
-                       [] (deserialise1 &s, rpcclient2::onconnectionthread)
-                           -> orerror< ::buffer> {
-                           return (::buffer)s; })
-                   .fatal("calling buffer service"));
-            assert(!memcmp(b.linearise(0, 7), "GOODBYE", 7));
-            conn->destroy();
             srv->destroy(io); });
 } }

@@ -1,6 +1,7 @@
 #include "connpool.H"
 
 #include "beaconclient.H"
+#include "buffer.H"
 #include "error.H"
 #include "logging.H"
 #include "quickcheck.H"
@@ -124,6 +125,24 @@ public: orerror<void> called(
     (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
     ic->complete(
         [this] (serialise1 &, mutex_t::token, onconnectionthread) {},
+        oct);
+    return Success; } };
+
+class bufferservice : public rpcservice2 {
+public: bufferservice(const constoken &t) : rpcservice2(t,interfacetype::test){}
+public: orerror<void> called(
+    clientio,
+    onconnectionthread oct,
+    deserialise1 &ds,
+    interfacetype,
+    nnp<incompletecall> ic) final {
+    ::buffer b(ds);
+    assert(!memcmp(b.linearise(0, 5), "HELLO", 5));
+    ic->complete(
+        [] (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
+            ::buffer bb;
+            bb.queue("GOODBYE", 7);
+            bb.serialise(s); },
         oct);
     return Success; } };
 
@@ -581,7 +600,7 @@ tests::_connpool() {
                          sn,
                          peername::all(peername::port::any))
                      .fatal("starting large request service"));
-            auto pool(connpool::build(cn).fatal("building pool1"));
+            auto pool(connpool::build(cn).fatal("building pool"));
             list<nnp<connpool::asynccall> > outstanding;
             for (unsigned x = 0; x < 10; x++) {
                 outstanding.pushtail(
@@ -599,6 +618,35 @@ tests::_connpool() {
                             return Success; })); }
             while (!outstanding.empty()) {
                 assert(outstanding.pophead()->pop(io) == Success); }
+            pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "returnbuffer", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<bufferservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting buffer service"));
+            auto pool(connpool::build(cn).fatal("building pool"));
+            auto b(pool->call< ::buffer >(
+                       io,
+                       sn,
+                       interfacetype::test,
+                       timestamp::now() + timedelta::hours(1),
+                       [] (serialise1 &s, connpool::connlock) {
+                           ::buffer buf;
+                           buf.queue("HELLO", 5);
+                           buf.serialise(s); },
+                       [] (connpool::asynccallT< ::buffer> &,
+                           deserialise1 &ds,
+                           connpool::connlock)
+                           -> orerror< ::buffer> {
+                           return (::buffer)ds; })
+                   .fatal("calling buffer service"));
+            assert(!memcmp(b.linearise(0, 7), "GOODBYE", 7));
             pool->destroy();
             srv->destroy(io); });
 }
