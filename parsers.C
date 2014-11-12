@@ -8,6 +8,7 @@
 #include "error.H"
 #include "fields.H"
 #include "orerror.H"
+#include "quickcheck.H"
 #include "test.H"
 
 #include "either.tmpl"

@@ -1,9 +1,7 @@
 #include "streamstatus.H"
 
-#include "proto.H"
+#include "fields.H"
 #include "serialise.H"
-
-#include "wireproto.tmpl"
 
 const fields::field &
 fields::mk(const streamstatus &sn) {
@@ -33,23 +31,6 @@ streamstatus::operator <(const streamstatus &sn) const {
 bool
 streamstatus::operator >(const streamstatus &sn) const {
     return name > sn.name; }
-
-wireproto_wrapper_type(streamstatus);
-void
-streamstatus::addparam(wireproto::parameter<streamstatus> param,
-                       wireproto::tx_message &txm) const {
-    txm.addparam(wireproto::parameter<wireproto::tx_compoundparameter>(param),
-                 wireproto::tx_compoundparameter()
-                 .addparam(proto::streamstatus::name, name)
-                 .addparam(proto::streamstatus::finished, finished_)
-                 .addparam(proto::streamstatus::size, size)); }
-maybe<streamstatus>
-streamstatus::fromcompound(wireproto::rx_message const &rxm) {
-    auto name(rxm.getparam(proto::streamstatus::name));
-    auto finished(rxm.getparam(proto::streamstatus::finished));
-    auto size(rxm.getparam(proto::streamstatus::size));
-    if (!name || !finished || !size) return Nothing;
-    return streamstatus(name.just(), finished.just(), size.just()); }
 
 streamstatus::streamstatus(deserialise1 &ds)
     : name(ds),

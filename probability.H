@@ -3,8 +3,6 @@
 #ifndef PROBABILITY_H__
 #define PROBABILITY_H__
 
-#include "wireproto.H"
-
 template <typename> class orerror;
 class quickcheck;
 
@@ -18,6 +16,7 @@ class probability {
     friend const fields::field &fields::mk(const probability);
 private: probability() = delete;
 private: double val; /* 0 to 1 */
+private: explicit probability(double _val) : val(_val) {}
 public:  probability(const quickcheck &);
 public:  static orerror<probability> mk(double);
 public:  bool operator==(probability o) const {
@@ -28,7 +27,6 @@ public:  bool operator!=(probability o) const {
      * is the probability represented by this. */
 public:  bool random() const;
 public:  static const probability never;
-public:  static const probability always;
-    WIREPROTO_WRAPPER_TYPE(probability, double, private); };
+public:  static const probability always; };
 
 #endif /* !PROBABILITY_H__ */

@@ -3,8 +3,6 @@
 
 #include <functional>
 
-#include "wireproto.H"
-
 class deserialise1;
 class frequency;
 class quickcheck;
@@ -24,6 +22,7 @@ class timedelta {
     friend class timestamp;
     friend timedelta operator/(double, frequency);
     long v;
+    explicit timedelta(long _v) : v(_v) {}
 public:
     /* Random over entire possible space */
     timedelta(const quickcheck &);
@@ -59,8 +58,6 @@ public:
     static timedelta time(std::function<void ()>);
 
     void serialise(serialise1 &) const;
-
-    WIREPROTO_WRAPPER_TYPE(timedelta, long, private);
 };
 
 static inline timedelta operator*(double scale, timedelta v) {

@@ -12,14 +12,12 @@
 #include "logging.H"
 #include "orerror.H"
 #include "parsers.H"
+#include "quickcheck.H"
 #include "test.H"
 
 #include "list.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
-#include "wireproto.tmpl"
-
-wireproto_simple_wrapper_type(filename, string, content)
 
 static tests::event<ssize_t *> readasstringloop;
 static tests::event<ssize_t *> createfileloop;
@@ -377,8 +375,6 @@ tests::_filename() {
                 assert(it.isfailure());
                 assert(it.failure() == error::from_errno(ETXTBSY)); } } );
 #endif
-    testcaseV("filename", "wire", [] {
-            wireproto::roundtrip<filename>(); });
     testcaseV("filename", "str", [] {
             assert((filename("foo") + "bar").str() ==
                    string("foo/bar")); });

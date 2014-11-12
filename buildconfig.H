@@ -3,7 +3,6 @@
 
 #include "filename.H"
 #include "string.H"
-#include "wireproto.H"
 
 #define _buildconfigfields(iter, iter1)         \
     iter(string, githead, 1)                    \
@@ -30,8 +29,6 @@ public: buildconfig(
 public: static const buildconfig us;
 
 public: filename programname(string) const;
-
-    WIREPROTO_TYPE(buildconfig);
 };
 
 namespace fields {

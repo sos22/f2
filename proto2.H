@@ -2,6 +2,8 @@
 #define PROTO2_H__
 
 #include "interfacetype.H"
+#include "list.H"
+#include "orerror.H"
 #include "version.H"
 
 namespace proto {

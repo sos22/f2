@@ -10,6 +10,7 @@ class deserialise1;
 class serialise1;
 class streamname;
 
+template <typename> class maybe;
 template <typename> class parser;
 
 namespace fields {

@@ -1,5 +1,6 @@
 #include "maybe.H"
 
+#include "quickcheck.H"
 #include "test.H"
 
 #include "maybe.tmpl"

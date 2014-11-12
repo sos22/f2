@@ -1,5 +1,6 @@
 #include "beacon.H"
 
+#include "fields.H"
 #include "parsers.H"
 #include "serialise.H"
 

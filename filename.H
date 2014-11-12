@@ -3,9 +3,10 @@
 #ifndef FILE_H__
 #define FILE_H__
 
+#include "orerror.H"
 #include "string.H"
-#include "wireproto.H"
 
+class buffer;
 class fd_t;
 class filename;
 template <typename> class orerror;
@@ -20,6 +21,7 @@ class filename {
     friend const fields::field &fields::mk(const filename &);
 private: string content;
 public:  filename(const char *s);
+public:  explicit filename(const string &_content) : content(_content) {}
     /* Quickcheck filenames are single component i.e. no / character. */
 public:  filename(const quickcheck &q);
     /* Add another component to the end of the path, with a separating
@@ -86,8 +88,6 @@ public:  orerror<void> unlink() const;
 
     /* Convert to a simple string. */
 public:  const string &str() const { return content; }
-
-    WIREPROTO_WRAPPER_TYPE(filename, string, public);
 };
 
 template <typename> class parser;

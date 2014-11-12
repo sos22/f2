@@ -2,8 +2,10 @@
 
 #include <arpa/inet.h>
 
+#include "buffer.H"
 #include "logging.H"
 #include "nnp.H"
+#include "quickcheck.H"
 #include "rpcclient2.H"
 #include "rpcservice2.H"
 #include "serialise.H"
@@ -13,6 +15,7 @@
 
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 #include "rpcclient2.tmpl"
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"

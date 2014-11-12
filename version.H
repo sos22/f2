@@ -4,6 +4,7 @@
 #include "tuple.H"
 
 class deserialise1;
+class quickcheck;
 class serialise1;
 
 #define _version(ctxt, iter0, iter1)                    \

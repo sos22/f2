@@ -58,9 +58,7 @@ private: listenfdstatus(const maybe<peername> &,
                         maybe<int>,
                         maybe<int>,
                         maybe<int>);
-public:  listenfdstatus(quickcheck q);
-public:  bool operator==(const listenfdstatus &o) const;
-WIREPROTO_TYPE(listenfdstatus);
-};
+public:  listenfdstatus(quickcheck &q);
+public:  bool operator==(const listenfdstatus &o) const; };
 
 #endif /* !LISTENFD_H__ */

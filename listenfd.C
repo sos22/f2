@@ -9,7 +9,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "peername.H"
-#include "proto.H"
+#include "quickcheck.H"
 #include "socket.H"
 
 #include "maybe.tmpl"
@@ -123,7 +123,7 @@ listenfdstatus::listenfdstatus(const maybe<peername> &_listenon,
       flags(_flags),
       revents(_revents) {}
 
-listenfdstatus::listenfdstatus(quickcheck q)
+listenfdstatus::listenfdstatus(quickcheck &q)
     : listenon(q),
       fd(q),
       domain(q),
@@ -139,42 +139,6 @@ listenfdstatus::operator==(const listenfdstatus &o) const {
         protocol == o.protocol &&
         flags == o.flags &&
         revents == o.revents; }
-
-void
-listenfd::status_t::addparam(
-    wireproto::parameter<listenfd::status_t> tmpl,
-    wireproto::tx_message &out) const {
-    wireproto::tx_compoundparameter p;
-    p.addparam(proto::listenfdstatus::fd, fd);
-    if (listenon != Nothing) {
-        p.addparam(proto::listenfdstatus::listenon, listenon.just()); }
-    if (domain != Nothing) {
-        p.addparam(proto::listenfdstatus::domain, domain.just()); }
-    if (protocol != Nothing) {
-        p.addparam(proto::listenfdstatus::protocol, protocol.just()); }
-    if (flags != Nothing) {
-        p.addparam(proto::listenfdstatus::flags, flags.just()); }
-    if (revents != Nothing) {
-        p.addparam(proto::listenfdstatus::revents, revents.just()); }
-    out.addparam(
-        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
-        p); }
-
-maybe<listenfd::status_t>
-listenfd::status_t::fromcompound(const wireproto::rx_message &rxm) {
-    auto listenon(rxm.getparam(proto::listenfdstatus::listenon));
-    auto fd(rxm.getparam(proto::listenfdstatus::fd));
-    auto domain(rxm.getparam(proto::listenfdstatus::domain));
-    auto protocol(rxm.getparam(proto::listenfdstatus::protocol));
-    auto flags(rxm.getparam(proto::listenfdstatus::flags));
-    auto revents(rxm.getparam(proto::listenfdstatus::revents));
-    if (!fd) return Nothing;
-    return listenfd::status_t(listenon,
-                              fd.just(),
-                              domain,
-                              protocol,
-                              flags,
-                              revents); }
 
 const fields::field &
 fields::mk(const listenfd::status_t &o) {

@@ -1,3 +1,4 @@
+#include "quickcheck.H"
 #include "serialise.H"
 #include "test.H"
 

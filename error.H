@@ -5,12 +5,6 @@ namespace fields {
 class field;
 };
 
-namespace wireproto {
-    template <typename t> class parameter;
-    class tx_message;
-    class rx_message;
-};
-
 class deserialise1;
 class serialise1;
 template <typename t> class orerror;
@@ -26,18 +20,9 @@ class error {
     friend class errorfield;
     friend void tests::_error();
     int e;
-    explicit error(const int &_e);
+    explicit error(const int &_e) : e(_e) {}
     int unwrap() const;
 public:
-    /* Can't use WIREPROTO_WRAPPER_TYPE for header ordering rules, so
-     * expand it manually. */
-    friend class wireproto::rx_message;
-    friend class wireproto::tx_message;
-    static error __fromwrapped__(const int &e);
-    void addparam(wireproto::parameter<error>, wireproto::tx_message &) const;
-    static orerror<void> getparam(wireproto::parameter<error>,
-                                  const wireproto::rx_message &);
-
     error(deserialise1 &);
     error() : e(unknown.e) {}
     error(const quickcheck &q);

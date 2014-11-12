@@ -3,9 +3,10 @@
 #include "beaconclient.H"
 #include "error.H"
 #include "logging.H"
-#include "proto.H"
+#include "quickcheck.H"
 #include "test.H"
 
+#include "orerror.tmpl"
 #include "timedelta.tmpl"
 
 void

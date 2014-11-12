@@ -8,6 +8,7 @@
 #include "fields.H"
 #include "logging.H"
 #include "parsers.H"
+#include "quickcheck.H"
 #include "string.H"
 #include "test.H"
 
@@ -15,7 +16,6 @@
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
-#include "wireproto.tmpl"
 
 static const int firsterror = 0;
 const error error::unknown(0);
@@ -179,8 +179,6 @@ error::warn(const char *msg) const
     warn(fields::mk(msg));
 }
 
-wireproto_simple_wrapper_type(error, int, e);
-
 template void maybe<error>::serialise(serialise1 &) const;
 template maybe<error>::maybe(deserialise1 &);
 
@@ -224,8 +222,6 @@ tests::_error() {
             auto e(error::from_errno());
             assert(errno == 99);
             assert(e == error::from_errno(7)); });
-    testcaseV("error", "wireproto", [] {
-            wireproto::roundtrip<error>(); });
     testcaseV("error", "fmtinvalid", [] {
             assert(!strcmp(fields::mk(error(-99)).c_str(),
                            "<invalid error -99>")); });

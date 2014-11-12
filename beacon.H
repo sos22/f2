@@ -3,7 +3,9 @@
 
 #include "clustername.H"
 #include "interfacetype.H"
+#include "list.H"
 #include "peername.H"
+#include "maybe.H"
 #include "slavename.H"
 #include "timedelta.H"
 #include "tuple.H"

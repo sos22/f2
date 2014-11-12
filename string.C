@@ -5,6 +5,7 @@
 
 #include "fields.H"
 #include "proto2.H"
+#include "quickcheck.H"
 #include "serialise.H"
 
 #include "serialise.tmpl"

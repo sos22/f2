@@ -8,7 +8,6 @@
 #include "list.H"
 #include "maybe.H"
 #include "timestamp.H"
-#include "wireproto.H"
 
 class clientio;
 class deserialise1;
@@ -27,10 +26,8 @@ public: bufferstatus(
     unsigned long _cons)
     : prod(_prod),
       cons(_cons) {}
-public: bufferstatus(quickcheck);
-public: bool operator==(const bufferstatus &) const;
-WIREPROTO_TYPE(bufferstatus);
-};
+public: bufferstatus(quickcheck &);
+public: bool operator==(const bufferstatus &) const; };
 
 class buffer;
 class bufferfield;

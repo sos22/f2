@@ -11,7 +11,6 @@
 #include "logging.H"
 #include "orerror.H"
 #include "peername.H"
-#include "proto.H"
 #include "test.H"
 #include "timedelta.H"
 #include "udpsocket.H"

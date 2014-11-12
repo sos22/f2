@@ -7,21 +7,6 @@
 
 #include "either.tmpl"
 #include "parsers.tmpl"
-#include "wireproto.tmpl"
-
-/* Not quite a simple wrapper, because a string can encode values
-   (e.g. '/', anything non-printable) which aren't allowed in a
-   streamname, and so we can't use the simple wrapper macros. */
-namespace wireproto {
-template <> maybe<streamname>
-deserialise<streamname>(wireproto::bufslice &slice) {
-    auto r(deserialise<string>(slice));
-    if (r == Nothing) return Nothing;
-    else return streamname::mk(r.just()); }
-template <> tx_message& tx_message::addparam<streamname>(
-    parameter<streamname> param,
-    streamname const &val) {
-    return addparam(parameter<string>(param), val.content); } }
 
 const fields::field &
 fields::mk(const streamname &s) {

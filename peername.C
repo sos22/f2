@@ -12,27 +12,22 @@
 #include "listenfd.H"
 #include "logging.H"
 #include "parsers.H"
-#include "proto.H"
+#include "quickcheck.H"
 #include "serialise.H"
 #include "socket.H"
 #include "spark.H"
 #include "tcpsocket.H"
 #include "test.H"
 #include "util.H"
-#include "wireproto.H"
 
 #include "either.tmpl"
 #include "parsers.tmpl"
 #include "spark.tmpl"
-#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
 const peername::port
 peername::port::any(0);
-
-wireproto_wrapper_type(peername)
-wireproto_simple_wrapper_type(peernameport, unsigned short, p)
 
 peernameport::peernameport(deserialise1 &ds)
     : p(ds) {}
@@ -180,82 +175,6 @@ fields::mk(const peername &p) {
 const fields::field &
 fields::mk(const peername::port &p) {
     return "<port:" + mk(p.p) + ">"; }
-
-void
-peername::addparam(wireproto::parameter<peername> tmpl,
-                   wireproto::tx_message &tx_msg) const
-{
-    wireproto::tx_compoundparameter tx;
-    auto sa(sockaddr());
-    const char *c;
-    switch (sa->sa_family) {
-    case AF_UNIX:
-        c = ((const struct sockaddr_un *)sa)->sun_path;
-        tx.addparam(proto::peername::local, c);
-        if (sockaddrsize() == sizeof(sa_family_t))
-            tx.addparam(proto::peername::wildcardlocal, true);
-        break;
-    case AF_INET:
-        tx.addparam(proto::peername::ipv4,
-                    *(uint32_t *)&((const struct sockaddr_in *)sa)->sin_addr);
-        tx.addparam(proto::peername::port,
-                    peername::port(
-                        ntohs(((const struct sockaddr_in *)sa)->sin_port)));
-        break;
-    case AF_INET6:
-        tx.addparam(
-            proto::peername::ipv6a,
-            ((uint64_t *)&((const struct sockaddr_in6 *)sa)->sin6_addr)[0]);
-        tx.addparam(
-            proto::peername::ipv6b,
-            ((uint64_t *)&((const struct sockaddr_in6 *)sa)->sin6_addr)[1]);
-        tx.addparam(proto::peername::port,
-                    peername::port(
-                        ntohs(((const struct sockaddr_in6 *)sa)->sin6_port)));
-        break;
-    default:
-        abort();
-    }
-    tx_msg.addparam(
-        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl), tx);
-}
-maybe<peername>
-peername::fromcompound(const wireproto::rx_message &msg)
-{
-    auto local(msg.getparam(proto::peername::local));
-    if (local.isjust()) {
-        struct sockaddr_un un;
-        memset(&un, 0, sizeof(un));
-        if (strlen(local.just()) >= sizeof(un.sun_path)) return Nothing;
-        un.sun_family = AF_UNIX;
-        strcpy(un.sun_path, local.just());
-        return peername(
-            (struct sockaddr *)&un,
-            (unsigned)(msg.getparam(proto::peername::wildcardlocal).dflt(false)
-                       ? sizeof(sa_family_t)
-                       : sizeof(un))); }
-    auto port(msg.getparam(proto::peername::port));
-    if (port == Nothing) return Nothing;
-    auto ipv4(msg.getparam(proto::peername::ipv4));
-    if (ipv4.isjust()) {
-        struct sockaddr_in in;
-        memset(&in, 0, sizeof(in));
-        in.sin_family = AF_INET;
-        in.sin_port = htons(port.just().p);
-        *(uint32_t *)&in.sin_addr = ipv4.just();
-        return peername((struct sockaddr *)&in, sizeof(in));
-    }
-    auto ipv6a(msg.getparam(proto::peername::ipv6a));
-    auto ipv6b(msg.getparam(proto::peername::ipv6b));
-    if (!ipv6a || !ipv6b) return Nothing;
-    struct sockaddr_in6 in6;
-    memset(&in6, 0, sizeof(in6));
-    in6.sin6_family = AF_INET6;
-    in6.sin6_port = htons(port.just().p);
-    ((uint64_t *)&in6.sin6_addr)[0] = ipv6a.just();
-    ((uint64_t *)&in6.sin6_addr)[1] = ipv6b.just();
-    return peername((struct sockaddr *)&in6, sizeof(in6));
-}
 
 peername::port::peernameport(const quickcheck &q) {
     do {
@@ -550,8 +469,6 @@ tests::_peername() {
     testcaseV("peername", "status", [] {
             peername p((quickcheck()));
             assert(p.status() == p); });
-    testcaseV("peername", "wireproto", [] {
-            wireproto::roundtrip<peername>();});
     testcaseV("peername", "fieldbad", [] {
             int x = 93;
             peername p((const sockaddr *)&x, sizeof(x));

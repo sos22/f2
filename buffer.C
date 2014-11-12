@@ -11,9 +11,9 @@
 
 #include "either.H"
 #include "fd.H"
-#include "proto.H"
 #include "proto2.H"
 #include "pubsub.H"
+#include "quickcheck.H"
 #include "serialise.H"
 #include "spark.H"
 #include "test.H"
@@ -29,7 +29,7 @@ fields::mk(const buffer::status_t &o) {
     return "<prod:" + mk(o.prod) +
         " cons:" + mk(o.cons) +
         ">"; }
-bufferstatus::bufferstatus(quickcheck q) {
+bufferstatus::bufferstatus(quickcheck &q) {
     do {
         prod = q;
         cons = q;

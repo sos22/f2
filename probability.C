@@ -4,11 +4,6 @@
 
 #include "fields.H"
 #include "orerror.H"
-#include "wireproto.H"
-
-#include "wireproto.tmpl"
-
-wireproto_simple_wrapper_type(probability, double, val)
 
 const probability
 probability::never(0);

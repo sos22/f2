@@ -2,12 +2,10 @@
 
 #include "fields.H"
 #include "parsers.H"
+#include "quickcheck.H"
 #include "serialise.H"
 
 #include "parsers.tmpl"
-#include "wireproto.tmpl"
-
-wireproto_simple_wrapper_type(slavename, string, content)
 
 slavename::slavename(const slavename &o)
     : content(o.content) {}

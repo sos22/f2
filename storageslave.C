@@ -1,10 +1,11 @@
 #include "storageslave.H"
 
+#include "buffer.H"
 #include "jobname.H"
 #include "logging.H"
 #include "nnp.H"
 #include "parsers.H"
-#include "proto.H"
+#include "proto2.H"
 #include "serialise.H"
 #include "storage.H"
 #include "streamname.H"

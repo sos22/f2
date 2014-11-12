@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include "buffer.H"
 #include "fields.H"
 #include "logging.H"
 #include "proto2.H"
@@ -14,6 +15,7 @@
 
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "orerror.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 #include "waitbox.tmpl"

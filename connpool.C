@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "beaconclient.H"
+#include "buffer.H"
 #include "fields.H"
 #include "logging.H"
 #include "pair.H"
@@ -18,6 +19,7 @@
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "orerror.tmpl"
 #include "thread.tmpl"
 
 /* Because I got bored typing the same thing over and over again. */

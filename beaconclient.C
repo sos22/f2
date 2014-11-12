@@ -1,8 +1,9 @@
 #include "beaconclient.H"
 
 #include "beacon.H"
+#include "buffer.H"
 #include "logging.H"
-#include "proto.H"
+#include "quickcheck.H"
 #include "tuple.H"
 #include "version.H"
 
@@ -14,7 +15,7 @@
 
 #include "fieldfinal.H"
 
-beaconclientconfig::beaconclientconfig(quickcheck q)
+beaconclientconfig::beaconclientconfig(quickcheck &q)
     : _cluster(q),
       _type(q),
       _name(q),

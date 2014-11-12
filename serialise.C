@@ -1,6 +1,7 @@
 #include "serialise.H"
 
 #include "buffer.H"
+#include "quickcheck.H"
 
 #include "either.tmpl"
 

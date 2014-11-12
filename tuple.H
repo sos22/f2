@@ -40,7 +40,8 @@ mktupledef(T)
 #ifndef TUPLE_H__
 #define TUPLE_H__
 
-#include "wireproto.tmpl"
+#include "fields.H"
+#include "quickcheck.H"
 
 #define __mktuplefieldsopt(type)                                        \
     maybe< type >
@@ -65,8 +66,7 @@ mktupledef(T)
 public: cname(const quickcheck &q);                                     \
 cvis: explicit cname(_ ## cname (Z, __mktupledecl0, __mktupledecl1));   \
 public: bool operator==(const cname &) const;                           \
-public: bool operator!=(const cname &) const;                           \
-        WIREPROTO_TYPE(cname);
+public: bool operator!=(const cname &) const;
 
 #define mktupleext(name)                                                \
 namespace fields {                                                      \
@@ -86,27 +86,6 @@ const parser<name> &__ ##name();}
     name(q)
 #define __mktuplene(_ctxt, _idx, _opt,_flavour, _type, name)            \
     if (!(name == o.name)) return true;
-#define __mktupleprotodefnopt(n) maybe<n>
-#define __mktupleprotodefnmand(n) n
-#define __mktupleprotodefn(_ctxt, idx, opt, _flavour, type, name)       \
-    static const wireproto::parameter<                                  \
-        __mktupleprotodefn ## opt(type) > name(idx);
-#define __mktupleaddparam(ctxt, _idx, opt, _flavour, _type, name)      \
-    .addparam(proto::ctxt::name, this->name)
-#define __mktuplefromcompound3opt(name) do {} while (0);
-#define __mktuplefromcompound3mand(name)                                \
-    if (name == Nothing) return Nothing;
-#define __mktuplefromcompound0(ctxt, _idx, opt, _flavour, _type, name)  \
-    auto name(msg.getparam(proto::ctxt::name));                         \
-    __mktuplefromcompound3 ## opt (name)
-#define __mktuplefromcompound1mand(name) name.just(),
-#define __mktuplefromcompound1opt(name) name,
-#define __mktuplefromcompound2mand(name) name.just()
-#define __mktuplefromcompound2opt(name) name
-#define __mktuplefromcompound1(_ctxt, _idx, opt, _flavour, _type, name) \
-    __mktuplefromcompound1 ## opt(name)
-#define __mktuplefromcompound2(_ctxt, _idx, opt, _flavour, _type, name) \
-    __mktuplefromcompound2 ## opt(name)
 #define __mktuplefield(_ctxt, _idx, _opt, _flavour, _type, name)        \
     + " " #name ":" + fields::mk(o.name).escape()
 #define mktupledef(cname)                                               \
@@ -121,24 +100,6 @@ cname::operator!=(const cname &o) const {                               \
 bool                                                                    \
 cname::operator==(const cname &o) const {                               \
     return !(*this != o); }                                             \
-wireproto_wrapper_type(cname)                                           \
-namespace proto {                                                       \
-namespace cname {                                                       \
-_ ## cname(Z, __mktupleprotodefn, __mktupleprotodefn) } }               \
-void                                                                    \
-cname::addparam(                                                        \
-    wireproto::parameter< ::cname > tmpl,                               \
-    wireproto::tx_message &tx_msg) const {                              \
-    tx_msg.addparam(                                                    \
-        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),    \
-        wireproto::tx_compoundparameter()                               \
-            _##cname(cname, __mktupleaddparam, __mktupleaddparam)); }   \
-maybe<cname>                                                            \
-cname::fromcompound(const wireproto::rx_message &msg) {                 \
-    _ ##cname(cname, __mktuplefromcompound0, __mktuplefromcompound0)    \
-    return cname(_##cname(Z,                                            \
-                             __mktuplefromcompound1,                    \
-                             __mktuplefromcompound2)); }                \
 const fields::field &                                                   \
 fields::mk(const cname &o) {                                            \
     return fields::mk("<" #cname ":")                                   \

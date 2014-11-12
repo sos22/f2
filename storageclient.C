@@ -9,7 +9,6 @@
 #include "logging.H"
 #include "parsers.H"
 #include "peername.H"
-#include "proto.H"
 #include "pubsub.H"
 #include "rpcclient2.H"
 #include "storage.H"
@@ -20,7 +19,6 @@
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "rpcclient2.tmpl"
-#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 

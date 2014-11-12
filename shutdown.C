@@ -9,10 +9,8 @@
 
 #include "orerror.tmpl"
 #include "waitbox.tmpl"
-#include "wireproto.tmpl"
 
 template class waitbox<shutdowncode>;
-wireproto_simple_wrapper_type(shutdowncode, int, code);
 
 void
 shutdowncode::finish()

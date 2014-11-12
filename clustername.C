@@ -1,17 +1,16 @@
 #include "clustername.H"
 
 #include "error.H"
+#include "fields.H"
 #include "parsers.H"
+#include "quickcheck.H"
 #include "serialise.H"
 #include "test.H"
 
 #include "parsers.tmpl"
-#include "wireproto.tmpl"
 
 const unsigned
 clustername::maxsize = 100;
-
-wireproto_simple_wrapper_type(clustername, string, value);
 
 clustername::clustername(deserialise1 &ds)
     : value(ds) {

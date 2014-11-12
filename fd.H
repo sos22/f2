@@ -6,7 +6,6 @@
 #include "maybe.H"
 #include "orerror.H"
 #include "timestamp.H"
-#include "wireproto.H"
 
 struct pollfd;
 class buffer;
@@ -65,9 +64,7 @@ public: fd_tstatus(
 #undef doparam1
         {}
 public: fd_tstatus(const quickcheck &);
-public: bool operator==(const fd_tstatus &o) const;
-WIREPROTO_TYPE(fd_tstatus);
-};
+public: bool operator==(const fd_tstatus &o) const; };
 namespace fields {
 const field &mk(const fd_tstatus &); }
 

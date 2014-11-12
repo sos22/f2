@@ -4,7 +4,6 @@
 #define JOBNAME_H__
 
 #include "digest.H"
-#include "wireproto.H"
 
 class deserialise1;
 class serialise1;
@@ -25,10 +24,10 @@ const parser< ::jobname> &_jobname();
 }
 
 class jobname {
-    WIREPROTO_WRAPPER_TYPE(jobname, digest, private);
     friend const fields::field &fields::mk(const jobname &);
     friend const parser< ::jobname> &parsers::_jobname();
 private: digest d;
+private: explicit jobname(digest _d) : d(_d) {}
 public:  string asfilename() const;
 public:  bool operator<(const jobname &o) const;
 public:  bool operator>(const jobname &o) const;

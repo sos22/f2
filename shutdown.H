@@ -2,7 +2,6 @@
 #define SHUTDOWN_H__
 
 #include "maybe.H"
-#include "wireproto.H"
 
 class shutdowncode;
 
@@ -19,7 +18,7 @@ class process;
 class shutdowncode {
     friend const fields::field &fields::mk(const shutdowncode &);
     int code;
-    WIREPROTO_WRAPPER_TYPE(shutdowncode, int, public);
+public: explicit shutdowncode(int _code) : code(_code) {}
 public:
 
     static const shutdowncode ok;

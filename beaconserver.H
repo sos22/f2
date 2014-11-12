@@ -16,7 +16,6 @@
 #include "thread.H"
 #include "tuple.H"
 #include "udpsocket.H"
-#include "wireproto.H"
 
 class clientio;
 

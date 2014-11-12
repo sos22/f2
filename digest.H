@@ -2,10 +2,10 @@
 #ifndef DIGEST_H__
 #define DIGEST_H__
 
-#include "wireproto.H"
-
+class deserialise1;
 class digest;
 template <typename> class parser;
+class serialise1;
 class string;
 
 namespace fields {
@@ -21,7 +21,7 @@ class digest {
     friend const fields::field &fields::mk(const digest &d);
     friend const parser< ::digest> &parsers::_digest();
     unsigned long val;
-    WIREPROTO_WRAPPER_TYPE(digest, unsigned long, private);
+private: explicit digest(unsigned long _val) : val(_val) {}
 public:  explicit digest(const fields::field &);
 public:  explicit digest(deserialise1 &);
 public:  void serialise(serialise1 &) const;

@@ -61,7 +61,6 @@ main(int argc, char *argv[])
     tests::thread();
     tests::_timedelta();
     tests::_walltime();
-    tests::wireproto();
 
     signal(SIGPIPE, SIG_IGN);
 

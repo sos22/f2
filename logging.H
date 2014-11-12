@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "mutex.H"
-#include "wireproto.H"
 
 class loglevel;
 class memlog_idx;
@@ -70,7 +69,7 @@ class memlog_idx {
     friend const fields::field &fields::mk(const memlog_idx &);
     unsigned long val;
     memlog_idx operator++(int);
-    WIREPROTO_WRAPPER_TYPE(memlog_idx, unsigned long, private);
+private: explicit memlog_idx(unsigned long _val) : val(_val) {}
 public:
 
     static const memlog_idx min;
@@ -84,7 +83,6 @@ public:
 
 class memlog_entry {
     void operator=(const memlog_entry &) = delete;
-    WIREPROTO_TYPE(memlog_entry);
 public:
 
     memlog_idx const idx;

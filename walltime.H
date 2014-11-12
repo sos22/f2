@@ -5,7 +5,6 @@
 #define WALLTIME_H__
 
 #include "fields.H"
-#include "wireproto.H"
 
 template <typename> class parser;
 class quickcheck;
@@ -31,10 +30,10 @@ class walltime {
     friend class walltimeparser;
 private: long v; /* nanoseconds since epoch */
 private: walltime() = delete;
+private: explicit walltime(long _v) : v(_v) {}
 public:  walltime(quickcheck);
 public:  bool operator==(walltime) const;
 public:  static walltime now();
-WIREPROTO_WRAPPER_TYPE(walltime, long, private);
 };
 
 #endif /* !WALLTIME_H__ */

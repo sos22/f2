@@ -3,7 +3,6 @@
 #include "beaconclient.H"
 #include "beaconserver.H"
 #include "logging.H"
-#include "proto.H"
 #include "test.H"
 #include "udpsocket.H"
 

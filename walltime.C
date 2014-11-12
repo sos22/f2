@@ -8,9 +8,6 @@
 #include "timedelta.H"
 
 #include "parsers.tmpl"
-#include "wireproto.tmpl"
-
-wireproto_simple_wrapper_type(walltime, long, v)
 
 walltime::walltime(quickcheck q)
     : v(q) {}
@@ -67,7 +64,6 @@ parsers::_walltime() {
 
 void
 tests::_walltime() {
-    testcaseV("walltime", "wire", [] { wireproto::roundtrip<walltime>(); });
     testcaseIO("walltime", "granularity", [] (clientio io) {
             auto last(walltime::now());
             for (int i = 0; i < 100; i++) {

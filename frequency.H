@@ -1,8 +1,6 @@
 #ifndef FREQUENCY_H__
 #define FREQUENCY_H__
 
-#include "wireproto.H"
-
 class quickcheck;
 class timedelta;
 class frequency;
@@ -17,7 +15,7 @@ class frequency {
     friend timedelta operator/(double, frequency);
     friend const fields::field &fields::mk(const frequency &);
     double hz_;
-    WIREPROTO_WRAPPER_TYPE(frequency, double, private);
+private: explicit frequency(double _hz) : hz_(_hz) {}
 public:
 
     static frequency hz(double);

@@ -10,7 +10,6 @@
 
 #include "parsers.tmpl"
 #include "timedelta.tmpl"
-#include "wireproto.tmpl"
 
 timedelta::timedelta(const quickcheck &q, timedelta min, timedelta max)
     : v(min == max
@@ -52,8 +51,6 @@ timedelta::time(std::function<void ()> what) {
 
 void
 timedelta::serialise(serialise1 &s) const { s.push(v); }
-
-wireproto_simple_wrapper_type(timedelta, long, v)
 
 void
 tests::_timedelta() {

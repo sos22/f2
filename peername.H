@@ -5,10 +5,9 @@
 #ifndef PEERNAME_H__
 #define PEERNAME_H__
 
-#include "wireproto.H"
-
 class deserialise1;
 class filename;
+template <typename> class orerror;
 class peername;
 class quickcheck;
 class serialise1;
@@ -23,20 +22,19 @@ class peernameport {
 public:
     unsigned short p; /* host byte order */
     peernameport(const quickcheck &q);
-public:  peernameport(deserialise1 &);
+public:  explicit peernameport(unsigned short _p) : p(_p) {}
+public:  explicit peernameport(deserialise1 &);
 public:  void serialise(serialise1 &) const;
     bool operator==(const peernameport &o) const { return p == o.p; }
     /* Special port which can be used to get the OS to allocate an
        arbitrary port for you. */
     const static peernameport any;
-    WIREPROTO_WRAPPER_TYPE(peernameport, unsigned short, public);
 };
 
 class peername {
     void *sockaddr_;
     unsigned sockaddrsize_;
     peername() = delete;
-    WIREPROTO_TYPE(peername);
 public:
     peername(const quickcheck &);
     peername(const peername &);

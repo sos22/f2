@@ -3,6 +3,7 @@
 #include "error.H"
 #include "fields.H"
 #include "parsers.H"
+#include "quickcheck.H"
 #include "serialise.H"
 
 #include "parsers.tmpl"

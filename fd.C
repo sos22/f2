@@ -8,12 +8,11 @@
 
 #include "fields.H"
 #include "maybe.H"
-#include "proto.H"
+#include "quickcheck.H"
 #include "test.H"
 #include "timedelta.H"
 
 #include "maybe.tmpl"
-#include "wireproto.tmpl"
 
 #include "fieldfinal.H"
 
@@ -189,36 +188,6 @@ fd_tstatus::operator==(const fd_tstatus &o) const {
 #undef iter
     return true; }
 
-wireproto_wrapper_type(fd_t::status_t)
-void
-fd_t::status_t::addparam(
-    wireproto::parameter<fd_t::status_t> tmpl,
-    wireproto::tx_message &out) const {
-    wireproto::tx_compoundparameter p;
-    p.addparam(proto::fd_tstatus::fd, fd);
-#define doparam(name)                                                   \
-    if (name.isjust()) p.addparam(proto::fd_tstatus::name, name.just());
-    fd_tstatus_params(doparam)
-#undef doparam
-    out.addparam(
-        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
-        p); }
-maybe<fd_t::status_t>
-fd_t::status_t::fromcompound(const wireproto::rx_message &rxm) {
-#define doparam(name)                                   \
-    auto name(rxm.getparam(proto::fd_tstatus::name));
-    doparam(fd);
-    fd_tstatus_params(doparam);
-#undef doparam
-    if (!fd) return Nothing;
-    return fd_t::status_t(
-        fd.just(),
-#define doparam1(name) name
-#define doparam(name) doparam1(name),
-        _fd_tstatus_params(doparam, doparam1)
-#undef doparam
-#undef doparam1
-        ); }
 const fields::field &
 fields::mk(const fd_t::status_t &o) {
     return "<fd:" + mk(o.fd) +
@@ -230,8 +199,6 @@ fields::mk(const fd_t::status_t &o) {
 
 void
 tests::fd() {
-    testcaseV("fd", "statuswire", [] {
-            wireproto::roundtrip<fd_t::status_t>(); });
     testcaseV("fd", "closepoll", [] {
             int p[2];
             int r(::pipe(p));

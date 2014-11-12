@@ -5,8 +5,6 @@
 
 #include <stddef.h>
 
-#include "wireproto.H"
-
 class deserialise1;
 class quickcheck;
 class serialise1;
