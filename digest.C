@@ -8,7 +8,6 @@
 #include "serialise.H"
 #include "string.H"
 
-#include "either.tmpl"
 #include "parsers.tmpl"
 
 digest::digest(const fields::field &what)

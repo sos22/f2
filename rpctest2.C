@@ -15,7 +15,6 @@
 
 #include "list.tmpl"
 #include "maybe.tmpl"
-#include "orerror.tmpl"
 #include "rpcclient2.tmpl"
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"

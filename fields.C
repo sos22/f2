@@ -11,7 +11,6 @@
 #include "util.H"
 
 #include "list.tmpl"
-#include "orerror.tmpl"
 #include "spark.tmpl"
 
 #include "fieldfinal.H"

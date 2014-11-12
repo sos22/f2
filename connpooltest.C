@@ -6,7 +6,6 @@
 #include "quickcheck.H"
 #include "test.H"
 
-#include "orerror.tmpl"
 #include "timedelta.tmpl"
 
 void

@@ -7,7 +7,6 @@
 #include "fields.H"
 #include "util.H"
 
-#include "orerror.tmpl"
 #include "waitbox.tmpl"
 
 template class waitbox<shutdowncode>;

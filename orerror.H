@@ -56,7 +56,9 @@ public:
                 new (&this->err) error(o.failure());
             } else {
                 success() = o.success(); } } }
-    ~orerror();
+    ~orerror() {
+        if (errored) failure().~error();
+        else success().~t(); }
     const t &success() const {
         assert(!errored);
         return *(const t *)buf;

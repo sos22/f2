@@ -3,8 +3,6 @@
 #include "buffer.H"
 #include "quickcheck.H"
 
-#include "either.tmpl"
-
 deserialise1::deserialise1(const buffer &_src)
     : src(left<nnp<quickcheck> >(_nnp(_src))),
       error(Success),

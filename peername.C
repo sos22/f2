@@ -20,7 +20,6 @@
 #include "test.H"
 #include "util.H"
 
-#include "either.tmpl"
 #include "parsers.tmpl"
 #include "spark.tmpl"
 

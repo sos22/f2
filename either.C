@@ -4,8 +4,6 @@
 
 #include "test.H"
 
-#include "either.tmpl"
-
 void
 tests::either() {
     class tracklife {
@@ -29,10 +27,6 @@ tests::either() {
             auto x(::either<int, int>::right(93));
             assert(x.isright());
             assert(x.right() == 93); });
-    testcaseV("either", "right2", [] {
-            auto x(::either<int, int>(97));
-            assert(x.isright());
-            assert(x.right() == 97); });
     testcaseV("either", "copyleft", [] {
             auto x(::either<copy, int>::left(copy()));
             ::either<copy, int> y(x);
@@ -66,20 +60,4 @@ tests::either() {
                 assert(cons);
                 assert(!dest); }
             assert(cons);
-            assert(dest); });
-    testcaseV("either", "void*", [] {
-            {   ::either<void, tracklife> z;
-                assert(z.isleft());
-                assert(!z.isright()); }
-            bool cons = false;
-            bool dest = false;
-            {   ::either<void, tracklife> z(tracklife(cons, dest));
-                assert(z.isright());
-                assert(!z.isleft());
-                assert(cons);
-                dest = false;
-                cons = false;
-                z.right();
-                assert(!cons);
-                assert(!dest); }
             assert(dest); }); }

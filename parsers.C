@@ -11,8 +11,6 @@
 #include "quickcheck.H"
 #include "test.H"
 
-#include "either.tmpl"
-#include "orerror.tmpl"
 #include "parsers.tmpl"
 
 orerror<void>

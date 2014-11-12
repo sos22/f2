@@ -5,7 +5,6 @@
 #include "parsers.H"
 #include "serialise.H"
 
-#include "either.tmpl"
 #include "parsers.tmpl"
 
 const fields::field &

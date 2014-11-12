@@ -19,7 +19,6 @@
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
-#include "orerror.tmpl"
 #include "thread.tmpl"
 
 /* Because I got bored typing the same thing over and over again. */

@@ -14,7 +14,6 @@
 #include "timedelta.H"
 
 #include "list.tmpl"
-#include "orerror.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"

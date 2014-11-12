@@ -5,7 +5,6 @@
 #include "parsers.H"
 #include "string.H"
 
-#include "either.tmpl"
 #include "parsers.tmpl"
 
 jobname::jobname(deserialise1 &ds) : d(ds) {}
