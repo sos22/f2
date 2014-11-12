@@ -33,7 +33,6 @@ function bits() {
     _ proto2
     _ pubsub
     _ quickcheck
-    _ rpcclient2
     _ rpcservice2
     _ serialise
     _ shutdown
