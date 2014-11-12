@@ -26,7 +26,6 @@ private: orerror<void> called(
     deserialise1 &,
     interfacetype,
     nnp<incompletecall>) final;
-private: orerror<void> initialise(clientio) final;
 public:  orerror<void> createempty(
     const jobname &t,
     const streamname &sn);
@@ -57,8 +56,6 @@ private: orerror<void> liststreams(
     onconnectionthread oct) const;
 public:  orerror<void> removestream(
     const jobname &jn,
-    const streamname &sn);
-
-private: void destroying(clientio) final; };
+    const streamname &sn); };
 
 #endif /* !STORAGESLAVE_H__ */

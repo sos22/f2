@@ -4,7 +4,6 @@
 #include "beaconserver.H"
 #include "logging.H"
 #include "proto.H"
-#include "rpcclient.H"
 #include "test.H"
 #include "udpsocket.H"
 
