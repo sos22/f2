@@ -3,14 +3,13 @@
  * responses (including broadcast responses), and it uses these to
  * maintain a mapping from persistent slavenames to the peernames on
  * which those slaves are currently listening. */
-/* XXX the beaconclientresult vs beaconclientslot distinction is
- * crazy.  Get rid of it. */
 #ifndef BEACONCLIENT_H__
 #define BEACONCLIENT_H__
 
 #include "beacon.H"
 #include "beacontest.H"
 #include "clustername.H"
+#include "logging.H"
 #include "peername.H"
 #include "interfacetype.H"
 #include "slavename.H"
@@ -189,7 +188,7 @@ public:  iterator start(maybe<interfacetype> = Nothing);
 public:  const publisher &changed() const;
 
     /* status interface */
-public:  void status() const;
+public:  void status(loglevel = loglevel::debug) const;
 
     /* config interface */
 public:  typedef beaconclientconfig config_t;

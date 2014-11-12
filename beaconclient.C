@@ -466,6 +466,12 @@ const publisher &
 beaconclient::changed() const { return _changed; }
 
 void
+beaconclient::status(loglevel level) const {
+    cachelock.locked([this, level] (mutex_t::token tok) {
+            for (auto it(cache.start()); !it.finished(); it.next()) {
+                it->status(tok, level); } }); }
+
+void
 beaconclient::destroy() {
     shutdown.set();
     /* Guaranteed to be quick because shutdown is set. */
