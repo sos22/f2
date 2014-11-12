@@ -777,7 +777,8 @@ CONN::connectphase(
                 auto err(socketerr(sock, peer));
                 if (err.isfailure()) {
                     err.failure().warn(
-                        "connecting to " + fields::mk(slave));
+                        "connecting to " + fields::mk(peer) +
+                        " for " + fields::mk(slave));
                     ::close(sock);
                     if (err != error::timeout) {
                         delayconnect(debounceconnect, peer); }

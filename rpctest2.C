@@ -171,36 +171,6 @@ rpctest2() {
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
-    testcaseIO("rpctest2", "abandon1", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            waitbox<void> abandoned;
-            auto srv(rpcservice2::listen<abandonservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any),
-                         abandoned)
-                     .fatal("starting abandon service"));
-            auto clnt(rpcclient2::connect(
-                          io,
-                          peername::loopback(srv->port()))
-                      .fatal("connecting to abandon service"));
-            auto call(clnt->call<void>(
-                          interfacetype::test,
-                          [] (serialise1 &, mutex_t::token) {},
-                          [] (rpcclient2::asynccall<void> &,
-                              orerror<nnp<deserialise1> > d,
-                              rpcclient2::onconnectionthread) {
-                              assert(d == error::shutdown);
-                              return error::toosoon; }));
-            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
-            assert(call->finished() == Nothing);
-            assert(call->abort(io) == Nothing);
-            clnt->destroy();
-            abandoned.get(io);
-            srv->destroy(io); });
     testcaseIO("rpctest2", "timeoutcall", [] (clientio io) {
             quickcheck q;
             clustername cn(q);

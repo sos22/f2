@@ -244,7 +244,6 @@ public:  template <typename t> orerror<t> call(
     const std::function<serialise> &s,
     const std::function<orerror<t> (deserialise1 &, connlock)> &ds);
 
-
     /* Construct a new connpool. */
 public:  static orerror<nnp<connpool> > build(const config &);
 public:  static orerror<nnp<connpool> > build(const clustername &cn);

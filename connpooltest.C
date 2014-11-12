@@ -9,7 +9,9 @@
 #include "test.H"
 
 #include "connpool.tmpl"
+#include "maybe.tmpl"
 #include "rpcservice2.tmpl"
+#include "spark.tmpl"
 #include "timedelta.tmpl"
 
 namespace tests {
@@ -40,7 +42,28 @@ public: orerror<void> called(
             oct); }
     return Success; } };
 
+class abandonservice : public rpcservice2 {
+public: maybe<spark<void> > worker;
+public: waitbox<void> &abandoned;
+public: abandonservice(const rpcservice2::constoken &t,
+                       waitbox<void> &_abandoned)
+    : rpcservice2(t, interfacetype::test),
+      worker(Nothing),
+      abandoned(_abandoned) {}
+public: orerror<void> called(
+    clientio,
+    onconnectionthread,
+    deserialise1 &,
+    interfacetype,
+    nnp<incompletecall> ic) final {
+    worker.mkjust([this, ic] () {
+            ic->abandoned().get(clientio::CLIENTIO);
+            abandoned.set();
+            ic->fail(error::toolate); });
+    return Success; } };
+
 }
+
 void
 tests::_connpool() {
     testcaseIO("connpool", "null", [] (clientio io) {
@@ -108,7 +131,6 @@ tests::_connpool() {
             end = timestamp::now();
             assert(end - start < timedelta::milliseconds(10)); });
     testcaseIO("connpool", "echo", [] (clientio io) {
-            initlogging("T");
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
@@ -182,5 +204,34 @@ tests::_connpool() {
                         return (char *)7; })
                 == (char *)7);
             pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "abandon1", [] (clientio io) {
+            initlogging("T");
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            waitbox<void> abandoned;
+            auto srv(rpcservice2::listen<abandonservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any),
+                         abandoned)
+                     .fatal("starting abandon service"));
+            auto pool(connpool::build(cn).fatal("building connpool"));
+            auto call(pool->call(
+                          sn,
+                          interfacetype::test,
+                          timestamp::now() + timedelta::hours(1),
+                          [] (serialise1 &, connpool::connlock) {},
+                          [] (orerror<nnp<deserialise1> > d,
+                              connpool::connlock) {
+                              assert(d == error::disconnected);
+                              return error::toosoon; }));
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+            assert(call->finished() == Nothing);
+            pool->destroy();
+            assert(call->pop(io) == error::toosoon);
+            abandoned.get(io);
             srv->destroy(io); });
 }
