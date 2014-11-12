@@ -1,7 +1,6 @@
 #include "buildconfig.H"
 
-#include "wireproto.H"
-#include "wireproto.tmpl"
+#include "fields.H"
 
 buildconfig::buildconfig(
 #define iter(type, name, ignore) const type &_ ## name ,
@@ -17,8 +16,6 @@ buildconfig::buildconfig(
 #undef iter
 #undef iter1
     {}
-
-wireproto_wrapper_type(buildconfig);
 
 namespace params {
 #define iter(type, name, i) static const wireproto::parameter<type> name(i);

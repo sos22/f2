@@ -23,26 +23,7 @@
 #include "list.tmpl"
 #include "spark.tmpl"
 #include "timedelta.tmpl"
-#include "wireproto.tmpl"
 
-wireproto_wrapper_type(buffer::status_t)
-void
-buffer::status_t::addparam(
-    wireproto::parameter<buffer::status_t> tmpl,
-    wireproto::tx_message &out) const {
-    out.addparam(
-        wireproto::parameter<wireproto::tx_compoundparameter>(tmpl),
-        wireproto::tx_compoundparameter()
-        .addparam(proto::bufferstatus::prod, prod)
-        .addparam(proto::bufferstatus::cons, cons)); }
-maybe<buffer::status_t>
-buffer::status_t::fromcompound(const wireproto::rx_message &msg) {
-#define doparam(name) auto name(msg.getparam(proto::bufferstatus::name))
-    doparam(prod);
-    doparam(cons);
-#undef doparam
-    if (!prod || !cons) return Nothing;
-    else return buffer::status_t(prod.just(), cons.just()); }
 const fields::field &
 fields::mk(const buffer::status_t &o) {
     return "<prod:" + mk(o.prod) +
@@ -808,30 +789,6 @@ tests::buffer(void)
             fields::fieldbuf fb;
             fields::mk(s).fmt(fb);
             assert(!strcmp(fb.c_str(), "<prod:5 cons:3>")); } );
-
-    testcaseV("buffer", "statuswire", [] () {
-            ::buffer buf1;
-            buf1.queue("Hello", 5);
-            char b[3];
-            buf1.fetch(b, 3);
-            auto s(buf1.status());
-            wireproto::parameter<buffer::status_t> param(7);
-            wireproto::msgtag tag(99);
-            {   ::buffer buf2;
-                wireproto::tx_message(tag)
-                    .serialise(buf2, wireproto::sequencenr::invalid);
-                auto r(wireproto::rx_message::fetch(buf2));
-                assert(r.issuccess());
-                assert(r.success().getparam(param) == Nothing); }
-            {   ::buffer buf2;
-                wireproto::tx_message(tag).addparam(param,s)
-                    .serialise(buf2, wireproto::sequencenr::invalid);
-                auto r(wireproto::rx_message::fetch(buf2));
-                assert(r.issuccess());
-                assert(r.success().getparam(param).isjust());
-                assert(r.success().getparam(param).just().cons == s.cons);
-                assert(r.success().getparam(param).just().prod == s.prod); }
-            wireproto::roundtrip<buffer::status_t>();});
 
     testcaseV("buffer", "pushbackempty", [] () {
             ::buffer buf;
