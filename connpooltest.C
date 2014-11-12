@@ -86,6 +86,25 @@ public: orerror<void> called(
                     s.push(key); }); });
     return Success; } };
 
+class largerespservice : public rpcservice2 {
+public: string largestring;
+public: largerespservice(const constoken &t)
+    : rpcservice2(t, interfacetype::test),
+      largestring("Hello world, this is a test pattern") {
+    /* Make it about eight megs. */
+    for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
+public: orerror<void> called(
+    clientio,
+    onconnectionthread oct,
+    deserialise1 &,
+    interfacetype,
+    nnp<incompletecall> ic) final {
+    ic->complete(
+        [this] (serialise1 &s, mutex_t::token, onconnectionthread) {
+            largestring.serialise(s); },
+        oct);
+    return Success; } };
+
 }
 
 void
@@ -487,5 +506,47 @@ tests::_connpool() {
             assert(timedelta::time([&died, io] { died.get(io); })
                    < timedelta::milliseconds(100));
             pool1->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "largeresp", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto config(rpcservice2config::dflt(cn, sn));
+            /* Use a small TX buffer limit to make things a bit
+             * easier. */
+            config.txbufferlimit = 100;
+            /* Bump up call limit a bit so that we don't hit that
+             * first. */
+            config.maxoutstandingcalls = 1000000;
+            auto srv(rpcservice2::listen<largerespservice>(
+                         io,
+                         config,
+                         peername::all(peername::port::any))
+                     .fatal("starting large response service"));
+            auto pool(connpool::build(cn).fatal("building pool1"));
+            list<nnp<connpool::asynccall> > outstanding;
+            for (unsigned x = 0; x < 10; x++) {
+                outstanding.pushtail(
+                    pool->call(
+                        sn,
+                        interfacetype::test,
+                        timestamp::now() + timedelta::hours(1),
+                        [] (serialise1 &, connpool::connlock) {},
+                        [srv, io] (connpool::asynccall &,
+                                   orerror<nnp<deserialise1> > d,
+                                   connpool::connlock)
+                        -> orerror<void> {
+                            assert(d.issuccess());
+                            string s(*d.success());
+                            assert(s == srv->largestring);
+                            /* Deliberately slow the client conn
+                             * thread down a bit to make it easier for
+                             * the service to fill the buffer. */
+                            (timestamp::now() + timedelta::milliseconds(1))
+                                .sleep(io);
+                            return Success; })); }
+            while (!outstanding.empty()) {
+                assert(outstanding.pophead()->pop(io) == Success); }
+            pool->destroy();
             srv->destroy(io); });
 }
