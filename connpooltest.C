@@ -14,13 +14,14 @@
 #include "maybe.tmpl"
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"
+#include "test.tmpl"
 #include "timedelta.tmpl"
 
 namespace tests {
 
-class echoservice2 : public rpcservice2 {
+class echoservice : public rpcservice2 {
 private: unsigned cntr;
-public:  echoservice2(const rpcservice2::constoken &t)
+public:  echoservice(const rpcservice2::constoken &t)
     : rpcservice2(t, interfacetype::test),
       cntr(73) {}
 public: orerror<void> called(
@@ -218,7 +219,7 @@ tests::_connpool() {
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
-            auto srv(rpcservice2::listen<echoservice2>(
+            auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
                          sn,
@@ -446,7 +447,7 @@ tests::_connpool() {
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
-            auto srv(rpcservice2::listen<echoservice2>(
+            auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
                          sn,
@@ -478,7 +479,7 @@ tests::_connpool() {
             waitbox<void> died;
             hook<void> h(rpcservice2::clientdisconnected,
                          [&died] { if (!died.ready()) died.set(); });
-            auto srv(rpcservice2::listen<echoservice2>(
+            auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
                          sn,
@@ -624,4 +625,24 @@ tests::_connpool() {
             assert(!memcmp(b.linearise(0, 7), "GOODBYE", 7));
             pool->destroy();
             srv->destroy(io); });
-}
+
+    /* This doesn't really belong here, but it's the easiest place to
+     * put it. */
+    testcaseIO("connpool", "doublelisten", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<echoservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting echo service"));
+            auto port(srv->port());
+            assert(
+                rpcservice2::listen<echoservice>(io, cn, sn,peername::all(port))
+                == error::from_errno(EADDRINUSE));
+            srv->destroy(io);
+            srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
+                .fatal("restarting echo service");
+            srv->destroy(io); } ); }

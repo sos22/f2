@@ -54,7 +54,6 @@ main(int argc, char *argv[])
     tests::parsers();
     tests::_peername();
     tests::pubsub();
-    tests::rpctest2();
     tests::_serialise();
     tests::_spawn();
     tests::__storageconfig();
