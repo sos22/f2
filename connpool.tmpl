@@ -39,7 +39,8 @@ connpool::call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
+    const std::function<orerror<t> (asynccallT<t> &,
+                                    orerror<nnp<deserialise1> >,
                                     connlock)> &ds) {
     auto res(new asynccallT<t>());
     res->inner = call(
@@ -48,8 +49,11 @@ connpool::call(
         deadline,
         s,
         [ds, res]
-        (orerror<nnp<deserialise1> > ds2, connlock cl) -> orerror<void> {
-            res->res = ds(ds2, cl);
+        (asynccall &ths,
+         orerror<nnp<deserialise1> > ds2,
+         connlock cl) -> orerror<void> {
+            assert(res->inner == &ths);
+            res->res = ds(*res, ds2, cl);
             return Success; });
     return _nnp(*res); }
 
@@ -59,15 +63,19 @@ connpool::call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (deserialise1 &, connlock)> &ds) {
+    const std::function<orerror<t> (asynccallT<t> &,
+                                    deserialise1 &,
+                                    connlock)> &ds) {
     return call<t>(
         sn,
         type,
         deadline,
         s,
-        [ds] (orerror<nnp<deserialise1> > ds1, connlock cl) -> orerror<t> {
+        [ds]
+        (asynccallT<t> &ths, orerror<nnp<deserialise1> > ds1, connlock cl)
+            -> orerror<t> {
             if (ds1.isfailure()) return ds1.failure();
-            else return ds(*ds1.success(), cl); }); }
+            else return ds(ths, *ds1.success(), cl); }); }
 
 template <typename t> orerror<t>
 connpool::call(
@@ -76,7 +84,8 @@ connpool::call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
+    const std::function<orerror<t> (asynccallT<t> &,
+                                    orerror<nnp<deserialise1> >,
                                     connlock)> &ds) {
     return call(sn, type, deadline, s, ds)->pop(io); }
 
@@ -87,7 +96,9 @@ connpool::call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (deserialise1 &, connlock)> &ds) {
+    const std::function<orerror<t> (asynccallT<t> &,
+                                    deserialise1 &,
+                                    connlock)> &ds) {
     return call(sn, type, deadline, s, ds)->pop(io); }
 
 #endif /* !CONNPOOL_TMPL__ */

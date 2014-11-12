@@ -293,7 +293,7 @@ const POOL &
 connpool::implementation() const { return *containerof(this, impl, api); }
 
 orerror<void>
-connpool::voidcall(orerror<nnp<deserialise1> > ds, connlock) {
+connpool::voidcall(asynccall &, orerror<nnp<deserialise1> > ds, connlock) {
     if (ds.isfailure()) return ds.failure();
     else return Success; }
 
@@ -311,16 +311,18 @@ connpool::call(
     interfacetype type,
     timestamp deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<void> (deserialise1 &, connlock)> &ds) {
+    const std::function<orerror<void> (asynccall &,
+                                       deserialise1 &,
+                                       connlock)> &ds) {
     return call(sn,
                 type,
                 deadline,
                 s,
                 [ds]
-                (orerror<nnp<deserialise1> > ds1, connlock cl)
+                (asynccall &ths, orerror<nnp<deserialise1> > ds1, connlock cl)
                     -> orerror<void> {
                     if (ds1.isfailure()) return ds1.failure();
-                    else return ds(*ds1.success(), cl); }); }
+                    else return ds(ths, *ds1.success(), cl); }); }
 
 orerror<nnp<connpool> >
 connpool::build(const config &cfg) {
@@ -482,7 +484,7 @@ CONN::finished(const list<nnp<CALL> > &calls, connlock cl) const {
 
 void
 CONN::failcall(nnp<CALL> what, error err, connlock cl) const {
-    auto callres(what->deserialiser(err, cl));
+    auto callres(what->deserialiser(what->api, err, cl));
     what->mux.locked([&callres, what] (mutex_t::token tok) {
             assert(what->res(tok) == Nothing);
             what->res(tok) = callres;
@@ -683,8 +685,9 @@ CONN::processresponse(buffer &rxbuffer,
     else {
         orerror<void> callres(Success);
         /* Invoke the deserialise callback without holding the lock. */
-        if (hdr.status.issuccess()) callres = c->deserialiser(_nnp(ds), cl);
-        else callres = c->deserialiser(hdr.status.failure(), cl);
+        if (hdr.status.issuccess()) {
+            callres = c->deserialiser(c->api, _nnp(ds), cl); }
+        else callres = c->deserialiser(c->api, hdr.status.failure(), cl);
         c->mux.locked(
             [c, callres] (mutex_t::token tok) {
                 assert(c->res(tok) == Nothing);

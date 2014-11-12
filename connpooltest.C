@@ -9,6 +9,7 @@
 #include "test.H"
 
 #include "connpool.tmpl"
+#include "list.tmpl"
 #include "maybe.tmpl"
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"
@@ -62,6 +63,29 @@ public: orerror<void> called(
             ic->fail(error::toolate); });
     return Success; } };
 
+class slowservice : public rpcservice2 {
+public: list<spark<void> > outstanding;
+public: slowservice(const rpcservice2::constoken &t)
+    : rpcservice2(t, interfacetype::test) {}
+public: orerror<void> called(
+    clientio,
+    onconnectionthread,
+    deserialise1 &ds,
+    interfacetype,
+    nnp<incompletecall> ic) final {
+    timedelta delay(ds);
+    unsigned key(ds);
+    if (ds.isfailure()) return ds.failure();
+    auto deadline(timestamp::now() + delay);
+    outstanding.append([deadline, key, ic] {
+            {   subscriber sub;
+                subscription ss(sub, ic->abandoned().pub);
+                while (deadline.infuture() && !ic->abandoned().ready()) {
+                    sub.wait(clientio::CLIENTIO, deadline); } }
+            ic->complete([key] (serialise1 &s, mutex_t::token) {
+                    s.push(key); }); });
+    return Success; } };
+
 }
 
 void
@@ -84,7 +108,9 @@ tests::_connpool() {
                             * serialise. */
                            abort(); },
                        []
-                       (orerror<nnp<deserialise1> > e, connpool::connlock)
+                       (connpool::asynccall &,
+                        orerror<nnp<deserialise1> > e,
+                        connpool::connlock)
                            -> orerror<void> {
                            assert(e == error::timeout);
                            return error::ratelimit; })
@@ -99,7 +125,9 @@ tests::_connpool() {
                        timestamp::now() + timedelta::hours(10),
                        [] (serialise1 &, connpool::connlock) { abort(); },
                        []
-                       (orerror<nnp<deserialise1> > e, connpool::connlock)
+                       (connpool::asynccall &,
+                        orerror<nnp<deserialise1> > e,
+                        connpool::connlock)
                            -> orerror<void> {
                            assert(e == error::aborted);
                            return error::ratelimit; }));
@@ -118,7 +146,9 @@ tests::_connpool() {
                 timestamp::now() + timedelta::hours(10),
                 [] (serialise1 &, connpool::connlock) { abort(); },
                 []
-                (orerror<nnp<deserialise1> > e, connpool::connlock)
+                (connpool::asynccall &,
+                 orerror<nnp<deserialise1> > e,
+                 connpool::connlock)
                     -> orerror<void> {
                     assert(e == error::disconnected);
                     return error::ratelimit; });
@@ -149,7 +179,8 @@ tests::_connpool() {
                 [] (serialise1 &s, connpool::connlock) {
                     string("HELLO!").serialise(s); },
                 []
-                (deserialise1 &ds, connpool::connlock) -> orerror<void> {
+                (connpool::asynccall &, deserialise1 &ds, connpool::connlock)
+                    -> orerror<void> {
                     string msg(ds);
                     unsigned cntr(ds);
                     assert(!ds.isfailure());
@@ -166,7 +197,9 @@ tests::_connpool() {
                     [] (serialise1 &s, connpool::connlock) {
                         string("GOODBYE!").serialise(s); },
                     []
-                    (deserialise1 &ds, connpool::connlock) ->
+                    (connpool::asynccallT<int> &,
+                     deserialise1 &ds,
+                     connpool::connlock) ->
                         orerror<int> {
                         string msg(ds);
                         unsigned cntr(ds);
@@ -183,7 +216,10 @@ tests::_connpool() {
                 [] (serialise1 &s, connpool::connlock) {
                     string("GOODBYE!").serialise(s); },
                 []
-                (deserialise1 &, connpool::connlock) -> orerror<char *> {
+                (connpool::asynccallT<char *> &,
+                 deserialise1 &,
+                 connpool::connlock)
+                    -> orerror<char *> {
                     abort(); } );
             assert(r == error::toolate);
             assert(
@@ -195,7 +231,10 @@ tests::_connpool() {
                     [] (serialise1 &s, connpool::connlock) {
                         string("boo").serialise(s); },
                     []
-                    (deserialise1 &ds, connpool::connlock) -> orerror<char *>{
+                    (connpool::asynccallT<char *> &,
+                     deserialise1 &ds,
+                     connpool::connlock)
+                        -> orerror<char *>{
                         string msg(ds);
                         unsigned cntr(ds);
                         assert(!ds.isfailure());
@@ -223,7 +262,8 @@ tests::_connpool() {
                           interfacetype::test,
                           timestamp::now() + timedelta::hours(1),
                           [] (serialise1 &, connpool::connlock) {},
-                          [] (orerror<nnp<deserialise1> > d,
+                          [] (connpool::asynccall &,
+                              orerror<nnp<deserialise1> > d,
                               connpool::connlock) {
                               assert(d == error::disconnected);
                               return error::toosoon; }));
@@ -252,7 +292,9 @@ tests::_connpool() {
                        interfacetype::test,
                        timestamp::now() + timedelta::milliseconds(100),
                        [] (serialise1 &, connpool::connlock) {},
-                       [] (deserialise1 &, connpool::connlock)
+                       [] (connpool::asynccall &,
+                           deserialise1 &,
+                           connpool::connlock)
                            -> orerror<void> { abort(); })
                    == error::timeout);
             (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
@@ -260,4 +302,67 @@ tests::_connpool() {
             srv->destroy(io);
             abandoned.get(io);
             pool->destroy(); });
+    testcaseIO("connpool", "slow", [] (clientio io) {
+            initlogging("T");
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<slowservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting slow service"));
+            auto pool(connpool::build(cn).fatal("building connpool"));
+            maybe<timestamp> completed1(Nothing);
+            maybe<timestamp> completed2(Nothing);
+            list<nnp<connpool::asynccall> > completed;
+            auto call1(pool->call(
+                           sn,
+                           interfacetype::test,
+                           timestamp::now() + timedelta::hours(1),
+                           [] (serialise1 &s, connpool::connlock) {
+                               timedelta::milliseconds(200).serialise(s);
+                               s.push((unsigned)1); },
+                           [&completed, &completed1]
+                           (connpool::asynccall &ac,
+                            orerror<nnp<deserialise1> > d,
+                            connpool::connlock)
+                           -> orerror<void> {
+                               d.fatal("getting response from slow service");
+                               unsigned k(*d.success());
+                               assert(k == 1);
+                               assert(completed1 == Nothing);
+                               completed1 = timestamp::now();
+                               completed.pushtail(ac);
+                               return Success; } ) );
+            auto call2(pool->call(
+                           sn,
+                           interfacetype::test,
+                           timestamp::now() + timedelta::hours(1),
+                           [] (serialise1 &s, connpool::connlock) {
+                               timedelta::milliseconds(100).serialise(s);
+                               s.push((unsigned)2); },
+                           [&completed, &completed2]
+                           (connpool::asynccall &ac,
+                            orerror<nnp<deserialise1> > d,
+                            connpool::connlock)
+                           -> orerror<void> {
+                               d.fatal("getting response from slow service");
+                               unsigned k(*d.success());
+                               assert(k == 2);
+                               assert(completed2 == Nothing);
+                               completed2 = timestamp::now();
+                               completed.pushtail(ac);
+                               return Success; } ) );
+            assert(call1->pop(io) == Success);
+            assert(completed1.isjust());
+            assert(completed2.isjust());
+            assert(completed1.just() > completed2.just());
+            assert(call2->finished().isjust());
+            assert(call2->pop(io) == Success);
+            assert(completed.pophead() == call2);
+            assert(completed.pophead() == call1);
+            pool->destroy();
+            srv->destroy(io); });
 }

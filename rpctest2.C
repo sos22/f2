@@ -171,66 +171,6 @@ rpctest2() {
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
-    testcaseIO("rpctest2", "slow", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            auto srv(rpcservice2::listen<slowservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any))
-                     .fatal("starting slow service"));
-            auto clnt(rpcclient2::connect(io,
-                                          peername::loopback(srv->port()))
-                      .fatal("connecting to slow service"));
-            maybe<timestamp> completed1(Nothing);
-            maybe<timestamp> completed2(Nothing);
-            list<nnp<rpcclient2::asynccall<void> > > completed;
-            auto call1(clnt->call<void>(
-                           interfacetype::test,
-                           [] (serialise1 &s, mutex_t::token) {
-                               timedelta::milliseconds(200).serialise(s);
-                               s.push((unsigned)1); },
-                           [&completed, &completed1]
-                           (rpcclient2::asynccall<void> &ac,
-                            orerror<nnp<deserialise1> > d,
-                            rpcclient2::onconnectionthread)
-                           -> orerror<void> {
-                               d.fatal("getting response from slow service");
-                               unsigned k(*d.success());
-                               assert(k == 1);
-                               assert(completed1 == Nothing);
-                               completed1 = timestamp::now();
-                               completed.pushtail(ac);
-                               return Success; } ) );
-            auto call2(clnt->call<void>(
-                           interfacetype::test,
-                           [] (serialise1 &s, mutex_t::token) {
-                               timedelta::milliseconds(100).serialise(s);
-                               s.push((unsigned)2); },
-                           [&completed, &completed2]
-                           (rpcclient2::asynccall<void> &ac,
-                            orerror<nnp<deserialise1> > d,
-                            rpcclient2::onconnectionthread)
-                           -> orerror<void> {
-                               d.fatal("getting response from slow service");
-                               unsigned k(*d.success());
-                               assert(k == 2);
-                               assert(completed2 == Nothing);
-                               completed2 = timestamp::now();
-                               completed.pushtail(ac);
-                               return Success; } ) );
-            assert(call1->pop(io) == Success);
-            assert(completed1.isjust());
-            assert(completed2.isjust());
-            assert(completed1.just() > completed2.just());
-            assert(call2->finished().isjust());
-            assert(call2->pop(io) == Success);
-            assert(completed.pophead() == call2);
-            assert(completed.pophead() == call1);
-            clnt->destroy();
-            srv->destroy(io); });
     testcaseIO("rpctest2", "slowabandon", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
