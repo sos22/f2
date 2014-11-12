@@ -206,7 +206,6 @@ tests::_connpool() {
             pool->destroy();
             srv->destroy(io); });
     testcaseIO("connpool", "abandon1", [] (clientio io) {
-            initlogging("T");
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
@@ -234,4 +233,31 @@ tests::_connpool() {
             assert(call->pop(io) == error::toosoon);
             abandoned.get(io);
             srv->destroy(io); });
+    testcaseIO("connpool", "timeoutcall", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            waitbox<void> abandoned;
+            auto srv(rpcservice2::listen<abandonservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any),
+                         abandoned)
+                     .fatal("starting abandon service"));
+            auto pool(connpool::build(cn).fatal("building connpool"));
+            assert(pool->call(
+                       io,
+                       sn,
+                       interfacetype::test,
+                       timestamp::now() + timedelta::milliseconds(100),
+                       [] (serialise1 &, connpool::connlock) {},
+                       [] (deserialise1 &, connpool::connlock)
+                           -> orerror<void> { abort(); })
+                   == error::timeout);
+            (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+            assert(!abandoned.ready());
+            srv->destroy(io);
+            abandoned.get(io);
+            pool->destroy(); });
 }
