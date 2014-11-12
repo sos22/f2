@@ -17,6 +17,7 @@
 #include "version.H"
 
 #include "list.tmpl"
+#include "maybe.tmpl"
 #include "mutex.tmpl"
 #include "rpcclient2.tmpl"
 #include "test.tmpl"

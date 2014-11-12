@@ -21,7 +21,6 @@
 #include "parsers.H"
 #include "peername.H"
 #include "pubsub.H"
-#include "rpctest.H"
 #include "serialise.H"
 #include "spawn.H"
 #include "storageconfig.H"
@@ -57,7 +56,6 @@ main(int argc, char *argv[])
     tests::parsers();
     tests::_peername();
     tests::pubsub();
-    tests::_rpc();
     tests::rpctest2();
     tests::_serialise();
     tests::_spawn();
