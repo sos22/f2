@@ -23,7 +23,6 @@
 #include "walltime.H"
 
 #include "list.tmpl"
-#include "rpcservice.tmpl"
 #include "test.tmpl"
 
 const loglevel
