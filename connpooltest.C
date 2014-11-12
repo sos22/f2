@@ -365,4 +365,38 @@ tests::_connpool() {
             assert(completed.pophead() == call1);
             pool->destroy();
             srv->destroy(io); });
+    testcaseIO("connpool", "slowabandon", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<slowservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting slow service"));
+            auto pool(connpool::build(cn).fatal("building connpool"));
+            auto call(pool->call(
+                          sn,
+                          interfacetype::test,
+                          timestamp::now() + timedelta::hours(1),
+                          [] (serialise1 &s, connpool::connlock) {
+                              timedelta::hours(3).serialise(s);
+                              s.push((unsigned)3); },
+                          [] (connpool::asynccall &,
+                              orerror<nnp<deserialise1> > d,
+                              connpool::connlock) -> orerror<void> {
+                              assert(d == error::aborted);
+                              return Success; }) );
+            /* Wait for the call to start. */
+            while (srv->outstanding.empty()) {
+                (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
+            /* Shut down server while it's got outstanding calls.
+             * Should be able to do it quickly. */
+            assert(timedelta::time([srv, io] { srv->destroy(io); }) <
+                   timedelta::milliseconds(100));
+            assert(timedelta::time([call, io] { call->abort(); }) <
+                   timedelta::milliseconds(100));
+            assert(timedelta::time([pool] { pool->destroy(); }) <
+                   timedelta::milliseconds(100)); });
 }

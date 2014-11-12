@@ -171,40 +171,6 @@ rpctest2() {
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
-    testcaseIO("rpctest2", "slowabandon", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            auto srv(rpcservice2::listen<slowservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any))
-                     .fatal("starting slow service"));
-            auto clnt(rpcclient2::connect(io,
-                                          peername::loopback(srv->port()))
-                      .fatal("connecting to slow service"));
-            auto call(clnt->call<void>(
-                          interfacetype::test,
-                          [] (serialise1 &s, mutex_t::token) {
-                              timedelta::hours(3).serialise(s);
-                              s.push((unsigned)3); },
-                          [] (rpcclient2::asynccall<void> &,
-                              orerror<nnp<deserialise1> > d,
-                              rpcclient2::onconnectionthread) -> orerror<void> {
-                              assert(d == error::disconnected);
-                              return Success; }) );
-            /* Wait for the call to start. */
-            while (srv->outstanding.empty()) {
-                (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
-            /* Shut down server while it's got outstanding calls.
-             * Should be able to do it quickly. */
-            assert(timedelta::time([srv, io] { srv->destroy(io); }) <
-                   timedelta::milliseconds(100));
-            assert(timedelta::time([call, io] { call->abort(io); }) <
-                   timedelta::milliseconds(100));
-            assert(timedelta::time([clnt] { clnt->destroy(); }) <
-                   timedelta::milliseconds(100)); });
     testcaseIO("rpctest2", "abortcompleted", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
