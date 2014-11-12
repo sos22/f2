@@ -11,7 +11,6 @@
 #include "peername.H"
 #include "proto.H"
 #include "pubsub.H"
-#include "rpcclient.H"
 #include "rpcclient2.H"
 #include "storage.H"
 #include "streamname.H"
@@ -62,7 +61,7 @@ public:  ~storageclient(); };
 
 orerror<nnp<storageclient> >
 storageclient::connect(clientio io, const peername &p) {
-    auto conn(rpcclient2::connect(io, interfacetype::storage, p));
+    auto conn(rpcclient2::connect(io, p));
     if (conn.isfailure()) return conn.failure();
     else return _nnp(*new storageclient(conn.success())); }
 
@@ -72,6 +71,7 @@ storageclient::createempty(clientio io,
                            const streamname &sn) {
     return inner->call<void>(
         io,
+        interfacetype::storage,
         [&jn, &sn] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::createempty.serialise(s);
             jn.serialise(s);
@@ -86,6 +86,7 @@ storageclient::append(clientio io,
                       const buffer &buf) {
     return inner->call<void>(
         io,
+        interfacetype::storage,
         [&buf, &jn, &sn] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::append.serialise(s);
             jn.serialise(s);
@@ -100,6 +101,7 @@ storageclient::finish(clientio io,
                       const streamname &sn) {
     return inner->call<void>(
         io,
+        interfacetype::storage,
         [&jn, &sn] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::finish.serialise(s);
             jn.serialise(s);
@@ -115,6 +117,7 @@ storageclient::read(clientio io,
                     maybe<unsigned long> end) {
     return inner->call<pair<size_t, buffer> >(
         io,
+        interfacetype::storage,
         [end, &jn, &sn, start] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::read.serialise(s);
             jn.serialise(s);
@@ -135,6 +138,7 @@ storageclient::listjobs(clientio io,
                         maybe<unsigned> limit) {
     return inner->call<pair<maybe<jobname>, list<jobname> > >(
         io,
+        interfacetype::storage,
         [limit, &start] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::listjobs.serialise(s);
             start.serialise(s);
@@ -153,6 +157,7 @@ storageclient::liststreams(clientio io,
                            maybe<unsigned> limit) {
     return inner->call<pair<maybe<streamname>, list<streamstatus> > >(
         io,
+        interfacetype::storage,
         [&job, limit, &start] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::liststreams.serialise(s);
             job.serialise(s);
@@ -171,6 +176,7 @@ storageclient::removestream(clientio io,
                             const streamname &sn) {
     return inner->call<void>(
         io,
+        interfacetype::storage,
         [&jn, &sn] (serialise1 &s, mutex_t::token /* txlock */) {
             proto::storage::tag::removestream.serialise(s);
             jn.serialise(s);
