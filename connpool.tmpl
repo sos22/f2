@@ -28,7 +28,11 @@ public:  orerror<t> pop(token tok) {
     delete this;
     return r; }
 public:  const publisher &pub() const { return inner->pub(); }
-public:  void abort() { inner->abort(); delete this; }
+public:  orerror<t> abort() {
+        inner->abort();
+        auto r(res.just());
+        delete this;
+        return r; }
 public:  token finished(clientio io) const { return token(inner->finished(io));}
 public:  orerror<t> pop(clientio io) { return pop(finished(io)); }
 private: ~asynccallT() { } };
@@ -49,10 +53,10 @@ connpool::call(
         deadline,
         s,
         [ds, res]
-        (asynccall &ths,
+        (asynccall &,
          orerror<nnp<deserialise1> > ds2,
          connlock cl) -> orerror<void> {
-            assert(res->inner == &ths);
+            /* Careful: res->inner might not have been set yet. */
             res->res = ds(*res, ds2, cl);
             return Success; });
     return _nnp(*res); }

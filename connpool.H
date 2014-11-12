@@ -27,6 +27,15 @@ public:  class asynccall;
 public:  class connlock;
 public:  template <typename> class asynccallT;
 public:  typedef void serialise(serialise1 &, connlock);
+    /* deserialise methods are called once we get a response from the
+     * other side (or when we give up waiting).  They receive a
+     * reference to the call structure.  Be careful with that: the
+     * call isn't considered finished until deserialise returns, so
+     * finished() will always return Nothing from a deserialise
+     * methods and any of the asynccall wait methods (those with a
+     * clientio token) will deadlock.  Basically, the only thing you
+     * can do with the call reference is pass it off to the next stag
+     * in your pipeline. */
 public:  typedef orerror<void> deserialise(
         asynccall &, orerror<nnp<deserialise1> >, connlock);
 

@@ -399,4 +399,34 @@ tests::_connpool() {
                    timedelta::milliseconds(100));
             assert(timedelta::time([pool] { pool->destroy(); }) <
                    timedelta::milliseconds(100)); });
+    testcaseIO("connpool", "abortcompleted", [] (clientio io) {
+            initlogging("T");
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<echoservice2>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting echo service"));
+            auto pool(connpool::build(cn).fatal("building connpool"));
+            auto call(pool->call<int>(
+                          sn,
+                          interfacetype::test,
+                          timestamp::now() + timedelta::hours(1),
+                          [] (serialise1 &s, connpool::connlock) {
+                              string("foo").serialise(s); },
+                          [] (connpool::asynccallT<int> &,
+                              orerror<nnp<deserialise1> > d,
+                              connpool::connlock) -> orerror<int> {
+                              assert(string(*d.success()) == "foo");
+                              return 1023; }));
+            while (call->finished() == Nothing) {
+                (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
+            ::logmsg(loglevel::info, "aborting");
+            assert(call->abort() == 1023);
+            ::logmsg(loglevel::info, "aborted");
+            pool->destroy();
+            srv->destroy(io); });
 }

@@ -171,36 +171,6 @@ rpctest2() {
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
             srv->destroy(io); } );
-    testcaseIO("rpctest2", "abortcompleted", [] (clientio io) {
-            quickcheck q;
-            clustername cn(q);
-            slavename sn(q);
-            auto srv(rpcservice2::listen<echoservice>(
-                         io,
-                         cn,
-                         sn,
-                         peername::loopback(peername::port::any))
-                     .fatal("starting echo service"));
-            auto clnt(rpcclient2::connect(io,
-                                          peername::loopback(srv->port()))
-                      .fatal("connecting to echo service"));
-            ::logmsg(loglevel::info, "send call");
-            auto call(clnt->call<int>(
-                          interfacetype::test,
-                          [] (serialise1 &s, mutex_t::token) {
-                              string("foo").serialise(s); },
-                          [] (rpcclient2::asynccall<int> &,
-                              orerror<nnp<deserialise1> > d,
-                              rpcclient2::onconnectionthread) -> orerror<int> {
-                              assert(string(*d.success()) == "foo");
-                              return 1023; }));
-            while (call->finished() == Nothing) {
-                (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
-            ::logmsg(loglevel::info, "aborting");
-            assert(call->abort(io).just() == 1023);
-            ::logmsg(loglevel::info, "aborted");
-            clnt->destroy();
-            srv->destroy(io); });
     testcaseIO("rpctest2", "clientdisco", [] (clientio io) {
             quickcheck q;
             clustername cn(q);

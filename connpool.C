@@ -520,19 +520,17 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                 break; } }
         if (!found) {
             /* This can happen if someone starts a new call and then
-             * abort()s it before we pull it out of the newcalls list.
+             * abort()s it before we pull it out of the newcalls list
+             * or if they abort() it after we've finished processing.
              * Check the newcalls list as well. */
             mux.locked([this, c] (mutex_t::token tok) {
                     for (auto it2(newcalls(tok).start());
-                         /* It must be in one of the lists, so if it's
-                          * not in the calls list it must be in
-                          * newcalls (and only this thread can move
-                          * stuff from newcalls to calls). */
-                         true;
+                         !it2.finished();
                          it2.next()) {
                         if (*it2 == c) {
                             it2.remove();
-                            return; } } }); }
+                            return; } }
+                    /* finished before abort().  Fine. */}); }
         failcall(c, error::aborted, cl); }
     /* Zap anything which has already timed out. */
     list<nnp<CALL> > timeout;
@@ -1065,10 +1063,16 @@ CALL::pop(token t) {
 
 orerror<void>
 CALL::abort() {
-    mux.locked([this] (mutex_t::token tok) { aborted(tok) = true; });
-    conn.mux.locked([this] (mutex_t::token tok) {
-            conn.aborted(tok).pushtail(_nnp(*this));
-            conn.callschanged.publish(); });
+    if (mux.locked<bool>([this] (mutex_t::token tok) {
+                if (res(tok) != Nothing) return true;
+                aborted(tok) = true;
+                return false; })) {
+        /* Call finished before we aborted it.  No need to put it in
+         * the abort queue. */ }
+    else {
+        conn.mux.locked([this] (mutex_t::token tok) {
+                conn.aborted(tok).pushtail(_nnp(*this));
+                conn.callschanged.publish(); }); }
     /* Setting aborted and notifying the conn's callschanged publisher
      * is guaranteed to complete the call quickly, so we don't need a
      * full clientio token here. */
