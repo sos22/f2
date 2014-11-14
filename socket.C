@@ -1,6 +1,8 @@
 #include "socket.H"
 
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -40,9 +42,36 @@ socket_t::socketpair() {
     int scv[2];
     if (::socketpair(AF_UNIX, SOCK_STREAM, 0, scv) < 0) {
         return error::from_errno(); }
-    return socketpairres(scv[0], scv[1]); }
+    return socketpairres(socket_t(scv[0]), socket_t(scv[1])); }
 
 void
 socketpairres::close() {
     fd0.close();
     fd1.close(); }
+
+/* Set the socket options used for all of our RPC sockets.  Note that
+ * this can leave some options set and other unset if it fails; pretty
+ * much the only sane thing to do at that point is close() it and
+ * start again. */
+orerror<void>
+socket_t::setsockoptions() const {
+    int nodelay = 1;
+    int keepalive = 1;
+    int keepcnt = 10;
+    int keepidle = 10;
+    int keepintvl = 1;
+    int usertimeout = 20;
+    if (::setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+                     &keepalive, sizeof(keepalive)) < 0 ||
+        ::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
+                     &nodelay, sizeof(nodelay)) < 0 ||
+        ::setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT,
+                     &keepcnt, sizeof(keepcnt)) < 0 ||
+        ::setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE,
+                     &keepidle, sizeof(keepidle)) < 0 ||
+        ::setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL,
+                     &keepintvl, sizeof(keepintvl)) < 0 ||
+        ::setsockopt(fd, IPPROTO_TCP, TCP_USER_TIMEOUT,
+                     &usertimeout, sizeof(usertimeout)) < 0) {
+        return error::from_errno(); }
+    else return Success; }

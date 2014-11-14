@@ -12,6 +12,7 @@
 #include "proto2.H"
 #include "pubsub.H"
 #include "slavename.H"
+#include "socket.H"
 #include "thread.H"
 #include "util.H"
 #include "waitbox.H"
@@ -786,6 +787,13 @@ CONN::connectphase(
         ::close(sock);
         delayconnect(debounceconnect, peer);
         return Nothing; }
+
+    {   auto r(socket_t(sock).setsockoptions());
+        if (r.isfailure()) {
+            r.failure().warn("setting sock options for connection");
+            ::close(sock);
+            delayconnect(debounceconnect, peer);
+            return Nothing; } }
 
     /* Started async connect() -> wait for result. */
     {   iosubscription connectsub(sub, fd_t(sock).poll(POLLOUT));

@@ -36,7 +36,13 @@ listenfd::accept(clientio) const
 orerror<socket_t>
 listenfd::accept() const {
     int n(::accept4(fd, NULL, NULL, SOCK_NONBLOCK));
-    if (n >= 0) return socket_t(n);
+    if (n >= 0) {
+        socket_t res(n);
+        auto r(res.setsockoptions());
+        if (r.isfailure()) {
+            res.close();
+            return r.failure(); }
+        else return res; }
     else if (errno == EAGAIN || errno == EWOULDBLOCK) return error::wouldblock;
     else return error::from_errno(); }
 

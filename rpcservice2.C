@@ -117,8 +117,8 @@ rpcservice2::open(const peername &pn) {
                     SOCK_STREAM | SOCK_NONBLOCK,
                     0));
     if (s < 0) return error::from_errno();
-    else if (::bind(s, pn.sockaddr(), pn.sockaddrsize()) < 0 ||
-             ::listen(s, 10) < 0) {
+    if (::bind(s, pn.sockaddr(), pn.sockaddrsize()) < 0 ||
+        ::listen(s, 10) < 0) {
         ::close(s);
         return error::from_errno(); }
     else return listenfd(s); }
