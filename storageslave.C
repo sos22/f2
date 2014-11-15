@@ -18,11 +18,11 @@
 
 orerror<void>
 storageslave::called(
-    clientio,
-    onconnectionthread oct,
+    clientio io,
     deserialise1 &ds,
     interfacetype type,
-    nnp<incompletecall> ic) {
+    nnp<incompletecall> ic,
+    onconnectionthread oct) {
     /* rpcservice2 should enforce this for us, since we only claim to
      * support one interface type. */
     assert(type == interfacetype::storage);
@@ -30,16 +30,17 @@ storageslave::called(
     if (tag == proto::storage::tag::createempty) {
         jobname j(ds);
         streamname s(ds);
-        if (!ds.isfailure()) ic->complete(createempty(j, s), oct); }
+        if (!ds.isfailure()) ic->complete(createempty(j, s), io, oct); }
     else if (tag == proto::storage::tag::append) {
         jobname job(ds);
         streamname stream(ds);
         buffer bytes(ds);
-        if (!ds.isfailure()) ic->complete(append(job, stream, bytes), oct); }
+        if (!ds.isfailure()) {
+            ic->complete(append(job, stream, bytes), io, oct); } }
     else if (tag == proto::storage::tag::finish) {
         jobname job(ds);
         streamname stream(ds);
-        if (!ds.isfailure()) ic->complete(finish(job, stream), oct); }
+        if (!ds.isfailure()) ic->complete(finish(job, stream), io, oct); }
     else if (tag == proto::storage::tag::read) {
         jobname job(ds);
         streamname stream(ds);
@@ -47,25 +48,25 @@ storageslave::called(
         maybe<unsigned long> end(ds);
         if (!ds.isfailure()) {
             auto r(read(job, stream, _start.dflt(0), end.dflt(UINT64_MAX),
-                        ic, oct));
+                        ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::listjobs) {
         maybe<jobname> _start(ds);
         maybe<unsigned> limit(ds);
         if (!ds.isfailure()) {
-            auto r(listjobs(_start, limit, ic, oct));
+            auto r(listjobs(_start, limit, ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::liststreams) {
         jobname job(ds);
         maybe<streamname> cursor(ds);
         maybe<unsigned> limit(ds);
         if (!ds.isfailure()) {
-            auto r(liststreams(job, cursor, limit, ic, oct));
+            auto r(liststreams(job, cursor, limit, ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::removestream) {
         jobname job(ds);
         streamname stream(ds);
-        if (!ds.isfailure()) ic->complete(removestream(job, stream), oct); }
+        if (!ds.isfailure()) ic->complete(removestream(job, stream), io, oct); }
     else ds.fail(error::invalidmessage);
     return ds.status(); }
 
@@ -179,6 +180,7 @@ storageslave::read(
     uint64_t start,
     uint64_t end,
     nnp<incompletecall> ic,
+    acquirestxlock atl,
     onconnectionthread oct) const {
     if (start > end) return error::invalidparameter;
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
@@ -201,6 +203,7 @@ storageslave::read(
                   onconnectionthread) {
                      s.push(sz.success());
                      b.success().serialise(s); },
+                 atl,
                  oct);
     return Success; }
 
@@ -209,6 +212,7 @@ storageslave::listjobs(
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
+    acquirestxlock atl,
     onconnectionthread oct) const {
     auto &parser(parsers::_jobname());
     list<jobname> res;
@@ -243,6 +247,7 @@ storageslave::listjobs(
                   onconnectionthread) {
                      newcursor.serialise(s);
                      res.serialise(s); },
+                 atl,
                  oct);
     return Success; }
 
@@ -252,6 +257,7 @@ storageslave::liststreams(
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
+    acquirestxlock atl,
     onconnectionthread oct) const {
     auto dir(config.poolpath + jn.asfilename());
     const parser<streamname> &parser(parsers::_streamname());
@@ -295,6 +301,7 @@ storageslave::liststreams(
         (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
             newcursor.serialise(s);
             res.serialise(s); },
+        atl,
         oct);
     return Success; }
 

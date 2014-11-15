@@ -25,16 +25,16 @@ public:  echoservice(const rpcservice2::constoken &t)
     : rpcservice2(t, interfacetype::test),
       cntr(73) {}
 public: orerror<void> called(
-    clientio,
-    onconnectionthread oct,
+    clientio io,
     deserialise1 &ds,
     interfacetype,
-    nnp<incompletecall> ic) final {
+    nnp<incompletecall> ic,
+    onconnectionthread oct) final {
     string msg(ds);
     if (ds.isfailure()) return ds.failure();
     if (cntr == 75) {
         cntr++;
-        ic->fail(error::toolate, oct); }
+        ic->fail(error::toolate, io, oct); }
     else {
         ic->complete(
             [&msg, this] (serialise1 &s,
@@ -42,6 +42,7 @@ public: orerror<void> called(
                           onconnectionthread) {
                 msg.serialise(s);
                 s.push(cntr++); },
+            io,
             oct); }
     return Success; } };
 
@@ -55,14 +56,14 @@ public: abandonservice(const rpcservice2::constoken &t,
       abandoned(_abandoned) {}
 public: orerror<void> called(
     clientio,
-    onconnectionthread,
     deserialise1 &,
     interfacetype,
-    nnp<incompletecall> ic) final {
+    nnp<incompletecall> ic,
+    onconnectionthread) final {
     worker.mkjust([this, ic] () {
             ic->abandoned().get(clientio::CLIENTIO);
             abandoned.set();
-            ic->fail(error::toolate); });
+            ic->fail(error::toolate, acquirestxlock(clientio::CLIENTIO)); });
     return Success; } };
 
 class slowservice : public rpcservice2 {
@@ -71,10 +72,10 @@ public: slowservice(const rpcservice2::constoken &t)
     : rpcservice2(t, interfacetype::test) {}
 public: orerror<void> called(
     clientio,
-    onconnectionthread,
     deserialise1 &ds,
     interfacetype,
-    nnp<incompletecall> ic) final {
+    nnp<incompletecall> ic,
+    onconnectionthread) final {
     timedelta delay(ds);
     unsigned key(ds);
     if (ds.isfailure()) return ds.failure();
@@ -84,8 +85,10 @@ public: orerror<void> called(
                 subscription ss(sub, ic->abandoned().pub);
                 while (deadline.infuture() && !ic->abandoned().ready()) {
                     sub.wait(clientio::CLIENTIO, deadline); } }
-            ic->complete([key] (serialise1 &s, mutex_t::token) {
-                    s.push(key); }); });
+            ic->complete(
+                [key] (serialise1 &s, mutex_t::token) {
+                    s.push(key); },
+                acquirestxlock(clientio::CLIENTIO)); });
     return Success; } };
 
 class largerespservice : public rpcservice2 {
@@ -96,14 +99,15 @@ public: largerespservice(const constoken &t)
     /* Make it about eight megs. */
     for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
 public: orerror<void> called(
-    clientio,
-    onconnectionthread oct,
+    clientio io,
     deserialise1 &,
     interfacetype,
-    nnp<incompletecall> ic) final {
+    nnp<incompletecall> ic,
+    onconnectionthread oct) final {
     ic->complete(
         [this] (serialise1 &s, mutex_t::token, onconnectionthread) {
             largestring.serialise(s); },
+        acquirestxlock(io),
         oct);
     return Success; } };
 
@@ -115,10 +119,10 @@ public: largereqservice(const constoken &t)
     for (unsigned x = 0; x < 18; x++) largestring = largestring + largestring; }
 public: orerror<void> called(
     clientio io,
-    onconnectionthread oct,
     deserialise1 &ds,
     interfacetype,
-    nnp<incompletecall> ic) final {
+    nnp<incompletecall> ic,
+    onconnectionthread oct) final {
     string s(ds);
     assert(s == largestring);
     /* Slow down thread to make it a bit easier for the client to fill their
@@ -126,17 +130,18 @@ public: orerror<void> called(
     (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
     ic->complete(
         [this] (serialise1 &, mutex_t::token, onconnectionthread) {},
+        acquirestxlock(io),
         oct);
     return Success; } };
 
 class bufferservice : public rpcservice2 {
 public: bufferservice(const constoken &t) : rpcservice2(t,interfacetype::test){}
 public: orerror<void> called(
-    clientio,
-    onconnectionthread oct,
+    clientio io,
     deserialise1 &ds,
     interfacetype,
-    nnp<incompletecall> ic) final {
+    nnp<incompletecall> ic,
+    onconnectionthread oct) final {
     ::buffer b(ds);
     assert(!memcmp(b.linearise(0, 5), "HELLO", 5));
     ic->complete(
@@ -144,6 +149,7 @@ public: orerror<void> called(
             ::buffer bb;
             bb.queue("GOODBYE", 7);
             bb.serialise(s); },
+        acquirestxlock(io),
         oct);
     return Success; } };
 

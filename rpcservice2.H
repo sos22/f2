@@ -113,12 +113,17 @@ protected: rpcservice2(const constoken &, interfacetype);
      * multiple NICs and you need to use a particular one). */
 public:    peername::port port() const;
 
-    /* Cookie type used to indicate that a particular callback will be
+    /* Tag type used to indicate that a particular callback will be
      * invoked on the connection thread, and hence potentially slow
      * down superficially unrelated RPCs if it takes too long. */
 public:    class onconnectionthread {
         friend class rpcservice2;
     private: onconnectionthread(); };
+
+    /* Tag type used to indicate that a particular method acquires the
+     * connection TX lock, for some connection.  Basically a more
+     * specialised and descriptive version of a clientio type. */
+public:    class acquirestxlock { public: acquirestxlock(clientio) {} };
 
     /* The actual call interface, used to implement the bulk of the
      * service-specific processing.  called will be called whenever we
@@ -154,10 +159,10 @@ public:    class onconnectionthread {
 public:    class incompletecall;
 private:   virtual orerror<void> called(
         clientio,
-        onconnectionthread,
         deserialise1 &ds,
         interfacetype,
-        nnp<incompletecall> ic) = 0;
+        nnp<incompletecall> ic,
+        onconnectionthread) = 0;
 
 public:    class incompletecall {
         friend rpcservice2;
@@ -186,27 +191,29 @@ public:    class incompletecall {
          * returns; it must not be referenced again.  This function is
          * safe to call whether on or off the connection thread. */
     public:  void complete(
-        const std::function<void (serialise1 &s, mutex_t::token txlock)> &doit);
+        const std::function<void (serialise1 &s, mutex_t::token txlock)> &doit,
+        acquirestxlock);
         /* Mark a call as failed.  A reply is sent to the client
          * consisting of a simple error and the incompletecall
          * structure is released. */
-    public:  void fail(error);
+    public:  void fail(error, acquirestxlock);
         /* Specialised versions of complete() and fail() which run
          * slightly faster than the generic versions but which can
          * only be safely called from the connection thread.  Apart
          * from that, and the addition of an onconnectionthread token
          * to the complete() @doit callback, these are semantically
-         * identical to the generci versions above. */
+         * identical to the generic versions above. */
     public:  void complete(
         const std::function<void (serialise1 &s,
                                   mutex_t::token txlock,
                                   onconnectionthread)> &doit,
+        acquirestxlock,
         onconnectionthread);
-    public:  void fail(error, onconnectionthread);
+    public:  void fail(error, acquirestxlock, onconnectionthread);
         /* Further variants of complete() for use when a call produces
          * no outputs other than a success/failure indication. */
-    public:  void complete(orerror<void>);
-    public:  void complete(orerror<void>, onconnectionthread);
+    public:  void complete(orerror<void>, acquirestxlock);
+    public:  void complete(orerror<void>, acquirestxlock, onconnectionthread);
         /* Use complete() or fail() instead. */
     private: ~incompletecall();};
 

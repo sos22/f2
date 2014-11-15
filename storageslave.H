@@ -22,10 +22,10 @@ private: storageslave(const constoken &,
                       const storageconfig &config);
 private: orerror<void> called(
     clientio,
-    onconnectionthread,
     deserialise1 &,
     interfacetype,
-    nnp<incompletecall>) final;
+    nnp<incompletecall>,
+    onconnectionthread) final;
 public:  orerror<void> createempty(
     const jobname &t,
     const streamname &sn);
@@ -42,17 +42,20 @@ private: orerror<void> read(
     uint64_t start,
     uint64_t end,
     nnp<incompletecall> ic,
+    acquirestxlock atl,
     onconnectionthread oct) const;
 private: orerror<void> listjobs(
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
+    acquirestxlock atl,
     onconnectionthread oct) const;
 private: orerror<void> liststreams(
     const jobname &jn,
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
+    acquirestxlock atl,
     onconnectionthread oct) const;
 public:  orerror<void> removestream(
     const jobname &jn,
