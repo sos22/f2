@@ -212,10 +212,20 @@ public:    class incompletecall {
     public:  void fail(error, acquirestxlock, onconnectionthread);
         /* Further variants of complete() for use when a call produces
          * no outputs other than a success/failure indication. */
-    public:  void complete(orerror<void>, acquirestxlock);
-    public:  void complete(orerror<void>, acquirestxlock, onconnectionthread);
+    public:  void complete(orerror<void> o, acquirestxlock atl) {
+        if (o.isfailure()) fail(o.failure(), atl);
+        else complete([] (serialise1 &, mutex_t::token) {}, atl); }
+    public:  void complete(orerror<void> o,
+                           acquirestxlock atl,
+                           onconnectionthread oct) {
+        if (o.isfailure()) fail(o.failure(), atl, oct);
+        else {
+            complete([] (serialise1 &, mutex_t::token, onconnectionthread) {},
+                     atl,
+                     oct); } }
+
         /* Use complete() or fail() instead. */
-    private: ~incompletecall();};
+    private: ~incompletecall(); };
 
     /* Destroy an RPC service, waiting for any extant calls to
      * called() to return and for any extant incomplete call
