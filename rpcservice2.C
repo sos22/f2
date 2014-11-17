@@ -69,32 +69,40 @@ public: connworker(
       completedcall() {}
 
 public: void run(clientio) final;
+
+    /* Wow there are a lot of fiddly variants of this method. */
 public: void complete(
     const std::function<void (serialise1 &, mutex_t::token)> &,
     proto::sequencenr,
+    incompletecall *,
     acquirestxlock);
-public: void fail(error, proto::sequencenr, acquirestxlock);
+public: void fail(error, proto::sequencenr, incompletecall *, acquirestxlock);
 public: void complete(
     const std::function<void (serialise1 &,
                               mutex_t::token,
                               onconnectionthread)> &doit,
     proto::sequencenr,
+    incompletecall *,
     acquirestxlock,
     onconnectionthread oct);
 public: void fail(
     error err,
     proto::sequencenr,
+    incompletecall *,
     acquirestxlock,
     onconnectionthread oct);
 public: void complete(
     orerror<void>,
     proto::sequencenr,
+    incompletecall *,
     acquirestxlock);
 public: void complete(
     orerror<void>,
     proto::sequencenr,
+    incompletecall *,
     acquirestxlock,
     onconnectionthread);
+
 public: void txcomplete(unsigned long, mutex_t::token);
 public: void txcomplete(unsigned long, mutex_t::token, onconnectionthread);
 public: orerror<void> calledhello(
@@ -192,20 +200,17 @@ void
 rpcservice2::incompletecall::complete(
     const std::function<void (serialise1 &, mutex_t::token)> &doit,
     acquirestxlock atl) {
-    owner.complete(doit, seqnr, atl);
-    delete this; }
+    owner.complete(doit, seqnr, this, atl); }
 
 void
 rpcservice2::incompletecall::fail(error e, acquirestxlock atl) {
-    owner.fail(e, seqnr, atl);
-    delete this; }
+    owner.fail(e, seqnr, this, atl); }
 
 void
 rpcservice2::incompletecall::complete(
     orerror<void> res,
     acquirestxlock atl) {
-    owner.complete(res, seqnr, atl);
-    delete this; }
+    owner.complete(res, seqnr, this, atl); }
 
 void
 rpcservice2::incompletecall::complete(
@@ -214,25 +219,21 @@ rpcservice2::incompletecall::complete(
                               onconnectionthread)> &doit,
     acquirestxlock atl,
     onconnectionthread oct) {
-    owner.complete(doit, seqnr, atl, oct);
-    delete this; }
+    owner.complete(doit, seqnr, this, atl, oct); }
 
 void
 rpcservice2::incompletecall::fail(
     error e,
     acquirestxlock atl,
     onconnectionthread oct) {
-    owner.fail(e, seqnr, atl, oct);
-    delete this; }
+    owner.fail(e, seqnr, this, atl, oct); }
 
 void
 rpcservice2::incompletecall::complete(
     orerror<void> res,
     acquirestxlock atl,
     onconnectionthread oct) {
-    owner.complete(res, seqnr, atl, oct);
-    delete this; }
-
+    owner.complete(res, seqnr, this, atl, oct); }
 
 rpcservice2::incompletecall::~incompletecall() {}
 
@@ -492,32 +493,37 @@ void
 rpcservice2::connworker::complete(
     const std::function<void (serialise1 &, mutex_t::token)> &doit,
     proto::sequencenr seqnr,
+    incompletecall *call,
     acquirestxlock atl) {
     txlock(atl).locked([this, &doit, seqnr] (mutex_t::token txtoken) {
             auto oldavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, Success).serialise(s);
             doit(s, txtoken);
-            txcomplete(oldavail, txtoken); }); }
+            txcomplete(oldavail, txtoken); });
+    delete call; }
 
 void
 rpcservice2::connworker::fail(
     error err,
     proto::sequencenr seqnr,
+    incompletecall *call,
     acquirestxlock atl) {
     txlock(atl).locked([this, err, seqnr] (mutex_t::token txtoken) {
             auto oldavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, err).serialise(s);
-            txcomplete(oldavail, txtoken); }); }
+            txcomplete(oldavail, txtoken); });
+    delete call; }
 
 void
 rpcservice2::connworker::complete(
     orerror<void> res,
     proto::sequencenr seqnr,
+    incompletecall *call,
     acquirestxlock atl) {
-    if (res.isfailure()) fail(res.failure(), seqnr, atl);
-    else complete([] (serialise1 &, mutex_t::token) {}, seqnr, atl); }
+    if (res.isfailure()) fail(res.failure(), seqnr, call, atl);
+    else complete([] (serialise1 &, mutex_t::token) {}, seqnr, call, atl); }
 
 /* Marginally faster version for when we're already on the connection
  * thread.  Never need to kick the thread, because we're already on
@@ -529,6 +535,7 @@ rpcservice2::connworker::complete(
                               mutex_t::token,
                               onconnectionthread)> &doit,
     proto::sequencenr seqnr,
+    incompletecall *call,
     acquirestxlock atl,
     onconnectionthread oct) {
     txlock(atl).locked([this, &doit, seqnr, oct] (mutex_t::token txtoken) {
@@ -536,28 +543,33 @@ rpcservice2::connworker::complete(
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, Success).serialise(s);
             doit(s, txtoken, oct);
-            txcomplete(startavail, txtoken, oct); }); }
+            txcomplete(startavail, txtoken, oct); });
+    delete call; }
 
 void
 rpcservice2::connworker::fail(error err,
                               proto::sequencenr seqnr,
+                              incompletecall *call,
                               acquirestxlock atl,
                               onconnectionthread oct) {
     txlock(atl).locked([this, err, seqnr, oct] (mutex_t::token txtoken) {
             auto startavail(txbuffer.avail());
             serialise1 s(txbuffer);
             proto::respheader(-1, seqnr, err).serialise(s);
-            txcomplete(startavail, txtoken, oct); }); }
+            txcomplete(startavail, txtoken, oct); });
+    delete call; }
 
 void
 rpcservice2::connworker::complete(orerror<void> res,
                                   proto::sequencenr seqnr,
+                                  incompletecall *call,
                                   acquirestxlock atl,
                                   onconnectionthread oct) {
-    if (res.isfailure()) fail(res.failure(), seqnr, atl, oct);
+    if (res.isfailure()) fail(res.failure(), seqnr, call, atl, oct);
     else complete(
         [] (serialise1 &, mutex_t::token, onconnectionthread) {},
         seqnr,
+        call,
         atl,
         oct); }
 
