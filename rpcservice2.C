@@ -49,8 +49,10 @@ class rpcservice2::connworker final : public thread {
 public: waitbox<void> shutdown;
 public: mutex_t _txlock;
 public: mutex_t &txlock(acquirestxlock) { return _txlock; }
-public: buffer txbuffer;
-public: unsigned outstandingcalls;
+public: buffer _txbuffer;
+public: buffer &txbuffer(mutex_t::token) { return _txbuffer; }
+public: unsigned _outstandingcalls;
+public: unsigned &outstandingcalls(mutex_t::token) { return _outstandingcalls; }
 public: rootthread &owner;
 public: socket_t const fd;
 public: publisher completedcall;
@@ -62,8 +64,8 @@ public: connworker(
     : thread(token),
       shutdown(),
       _txlock(),
-      txbuffer(),
-      outstandingcalls(0),
+      _txbuffer(),
+      _outstandingcalls(0),
       owner(_owner),
       fd(_fd),
       completedcall() {}
@@ -85,14 +87,10 @@ public: void complete(
     incompletecall *,
     acquirestxlock,
     onconnectionthread oct);
-
-public: void txcomplete(unsigned long, mutex_t::token);
-public: void txcomplete(unsigned long, mutex_t::token, onconnectionthread);
-public: orerror<void> calledhello(
-        deserialise1 &ds,
-        nnp<incompletecall> ic,
-        acquirestxlock,
-        onconnectionthread); };
+public: orerror<void> calledhello(deserialise1 &ds,
+                                  nnp<incompletecall> ic,
+                                  acquirestxlock atl,
+                                  onconnectionthread oct); };
 
 rpcservice2config::rpcservice2config(const beaconserverconfig &_beacon,
                                      unsigned _maxoutstandingcalls,
@@ -323,7 +321,7 @@ rpcservice2::connworker::run(clientio io) {
 
     /* Shouldn't have stuff to transmit yet, because we've not
      * processed any calls and can't have any responses. */
-    assert(txbuffer.empty());
+    assert(_txbuffer.empty());
 
     bool donehello = false;
     bool failed;
@@ -331,31 +329,36 @@ rpcservice2::connworker::run(clientio io) {
 
     acquirestxlock atl(io);
 
+    /* Set if there's any point trying to deserialise out of the
+     * rxbuffer without doing a further receive. */
+    bool tryrecv = false;
     while (!failed && !owner.shutdown.ready()) {
         /* The obvious races here are all handled by re-checking
          * everything when completedsub gets notified. */
-        if (!insubarmed &&
-            atomicload(outstandingcalls) < config.maxoutstandingcalls &&
-            txbuffer.avail() < config.txbufferlimit) {
-            insub.rearm();
-            insubarmed = true; }
-        if (!outsubarmed && !txbuffer.empty()) {
-            outsub.rearm();
-            outsubarmed = true; }
         subscriptionbase *s;
         bool trysend = false;
-        bool tryrecv = false;
-        if (rxbuffer.empty() ||
-            atomicload(outstandingcalls) >= config.maxoutstandingcalls ||
-            txbuffer.avail() >= config.txbufferlimit) {
-            s = sub.wait(io); }
+        if (tryrecv) s = NULL;
         else {
-            s = NULL;
-            tryrecv = true; }
-        if (/* Handled by loop condition */
-            s == &ss ||
-            /* Handled by the rearm block above sub.wait() */
-            s == &completedsub) {
+            if (!insubarmed || !outsubarmed) {
+                txlock(atl).locked([&] (mutex_t::token tok) {
+                        if (!insubarmed &&
+                            outstandingcalls(tok) <
+                                config.maxoutstandingcalls &&
+                            txbuffer(tok).avail() < config.txbufferlimit) {
+                            insub.rearm();
+                            insubarmed = true; }
+                        if (!outsubarmed && !txbuffer(tok).empty()) {
+                            outsub.rearm();
+                            outsubarmed = true; } }); }
+            s = sub.wait(io); }
+
+        /* Handled by loop condition */
+        if (s == &ss) continue;
+        if (s == &completedsub) {
+            tryrecv = txlock(atl).locked<bool>(
+                [this, &config] (mutex_t::token tok) {
+                    return outstandingcalls(tok) < config.maxoutstandingcalls &&
+                           txbuffer(tok).avail() < config.txbufferlimit; });
             continue; }
         if (s == &insub || s == &errsub) {
             if (s == &insub) {
@@ -373,12 +376,26 @@ rpcservice2::connworker::run(clientio io) {
                     continue; } }
             tryrecv = true; }
         if (tryrecv) {
-            while (atomicload(outstandingcalls)
-                       < config.maxoutstandingcalls &&
-                   txbuffer.avail() < config.txbufferlimit) {
+            while (true) {
+                bool hitquota = txlock(atl).locked<bool>(
+                        [this, &config] (mutex_t::token tok) {
+                            return outstandingcalls(tok) >=
+                                       config.maxoutstandingcalls ||
+                                   txbuffer(tok).avail() >=
+                                       config.txbufferlimit; });
+                if (hitquota) {
+                    /* Calls might complete while after we've dropped
+                     * the lock, but that's okay because it'll notify
+                     * the completed publisher and we'll pick it up
+                     * next time around. */
+                    tryrecv = false;
+                    break; }
+
                 deserialise1 ds(rxbuffer);
                 proto::reqheader hdr(ds);
-                if (ds.status() == error::underflowed) break;
+                if (ds.status() == error::underflowed) {
+                    tryrecv = false;
+                    break; }
                 if (ds.isfailure()) {
                     ds.failure().warn("parsing message header from " +
                                       fields::mk(peer));
@@ -397,8 +414,11 @@ rpcservice2::connworker::run(clientio io) {
                      * sleep.  Ignore failures here; we'll pick them
                      * up later. */
                     (void)rxbuffer.receivefast(fd);
-                    if (hdr.size > rxbuffer.avail()) break; }
-                atomicinc(outstandingcalls);
+                    if (hdr.size > rxbuffer.avail()) {
+                        tryrecv = false;
+                        break; } }
+                txlock(atl).locked([this] (mutex_t::token tok) {
+                        outstandingcalls(tok)++; });
                 auto ic(_nnp(*new incompletecall(*this, hdr.seq)));
                 onconnectionthread oct;
                 orerror<void> res(Success);
@@ -448,24 +468,29 @@ rpcservice2::connworker::run(clientio io) {
             assert(outsubarmed);
             outsubarmed = false;
             trysend = true; }
-        if (trysend && !txbuffer.empty()) {
-            auto res(txlock(atl).locked<orerror<void> >([this] {
-                        return txbuffer.sendfast(fd); }));
+        if (trysend) {
+            auto res(txlock(atl).locked<orerror<void> >(
+                         [this] (mutex_t::token tok){
+                             return txbuffer(tok).sendfast(fd); }));
             if (res.isfailure() && res != error::wouldblock) failed = true; } }
-    /* Tell outstanding calls to abort.  Under the TX lock to avoid a
-     * race with fast TX. */
-    txlock(atl).locked([this] { shutdown.set(); });
-    /* Wait for them to finish. */
-    {   auto laststatus(timestamp::now());
+    /* Tell outstanding calls to abort. */
+    shutdown.set();
+    {   auto token(txlock(atl).lock());
+        /* Wait for them to finish. */
+        auto laststatus(timestamp::now());
         subscriber smallsub;
         subscription c(smallsub, completedcall);
-        while (atomicload(outstandingcalls) > 0) {
-            if (smallsub.wait(io, laststatus + timedelta::seconds(1)) == NULL) {
+        while (outstandingcalls(token) > 0) {
+            txlock(atl).unlock(&token);
+            auto sss = smallsub.wait(io, laststatus + timedelta::seconds(1));
+            token = txlock(atl).lock();
+            if (sss == NULL) {
                 logmsg(loglevel::info,
                        "waiting to shut down service to " + fields::mk(peer) +
-                       "; " + fields::mk(atomicload(outstandingcalls)) +
+                       "; " + fields::mk(outstandingcalls(token)) +
                        " left");
-                laststatus = timestamp::now(); } } }
+                laststatus = timestamp::now(); } }
+        txlock(atl).unlock(&token); }
     /* We're done */
     fd.close(); }
 
@@ -477,11 +502,41 @@ rpcservice2::connworker::complete(
     incompletecall *call,
     acquirestxlock atl) {
     txlock(atl).locked([this, &doit, res, seqnr] (mutex_t::token txtoken) {
-            auto oldavail(txbuffer.avail());
-            serialise1 s(txbuffer);
+            auto &txb(txbuffer(txtoken));
+            auto oldavail(txb.avail());
+            serialise1 s(txb);
             proto::respheader(-1, seqnr, res).serialise(s);
             doit(s, txtoken);
-            txcomplete(oldavail, txtoken); });
+
+            auto &config(owner.owner.config);
+            auto sz = txb.avail() - oldavail;
+            assert(sz < proto::maxmsgsize);
+            *txb.linearise<unsigned>(oldavail + txb.offset()) = (unsigned)sz;
+
+            /* Tell the worker that we're finishing.  After we've done
+             * this, the worker can exit as soon as we drop the
+             * lock. */
+            auto oldnroutstanding(outstandingcalls(txtoken)--);
+
+            /* Try a fast synchronous send rather than waking the
+             * worker thread.  No point if there was stuff in the
+             * buffer before we started: whoever put it there was
+             * either the conn thread, in which case the conn thread
+             * is about to try a transmit and we don't gain anything
+             * by doing another one here, or they weren't, in which
+             * case their send must have failed (or the buffer would
+             * now be empty) and ours probably would as well. */
+            if (oldavail == 0 && !shutdown.ready()) (void)txb.sendfast(fd);
+            /* Need to kick if either we've moved the TX to non-empty
+             * (because TX sub might be disarmed), or if we've moved
+             * sufficiently clear of the RX quota, or if we're
+             * shutting down and this is the last call. */
+            if ((oldavail == 0 && !txb.empty()) ||
+                oldnroutstanding == (config.maxoutstandingcalls * 3 / 4) ||
+                (oldavail >= config.txbufferlimit * 3 / 4 &&
+                 txb.avail() < config.txbufferlimit * 3 / 4) ||
+                (oldnroutstanding == 1 && owner.shutdown.ready())) {
+                completedcall.publish(); } });
     delete call; }
 
 /* Marginally faster version for when we're already on the connection
@@ -499,63 +554,20 @@ rpcservice2::connworker::complete(
     acquirestxlock atl,
     onconnectionthread oct) {
     txlock(atl).locked([this, &doit, res, seqnr, oct] (mutex_t::token txtoken) {
-            auto startavail(txbuffer.avail());
-            serialise1 s(txbuffer);
+            auto &txb(txbuffer(txtoken));
+            auto startavail(txb.avail());
+            serialise1 s(txb);
             proto::respheader(-1, seqnr, res).serialise(s);
             doit(s, txtoken, oct);
-            txcomplete(startavail, txtoken, oct); });
+            auto sz = txb.avail() - startavail;
+            assert(sz < proto::maxmsgsize);
+            *txb.linearise<unsigned>(startavail + txb.offset()) = (unsigned)sz;
+            /* No fast transmit: the conn thread will check for TX as
+             * soon as we return, and it's not worth the loss of
+             * batching to transmit early when we've already paid the
+             * scheduling costs. */
+            outstandingcalls(txtoken)--; });
     delete call; }
-
-/* Tail end of transmitting a reply.  Set the size in the reply,
- * remove it from the outstandingcalls quota, try a fast send, and
- * kick the connection thread, if necessary.  There's another variant
- * for when we're already guaranteed to be on the conn thread; this
- * one is supposed to work from any thread. */
-void
-rpcservice2::connworker::txcomplete(unsigned long oldavail,
-                                    mutex_t::token /* txlock */) {
-    auto &config(owner.owner.config);
-    auto sz = txbuffer.avail() - oldavail;
-    assert(sz < proto::maxmsgsize);
-    *txbuffer.linearise<unsigned>(oldavail + txbuffer.offset()) = (unsigned)sz;
-
-    auto oldnroutstanding(atomicloaddec(outstandingcalls));
-
-    /* Try a fast synchronous send rather than waking the worker
-     * thread.  No point if there was stuff in the buffer before we
-     * started: whoever put it there was either the conn thread, in
-     * which case the conn thread is about to try a transmit and we
-     * don't gain anything by doing another one here, or they weren't,
-     * in which case their send must have failed (or the buffer would
-     * now be empty) and ours probably would as well. */
-    if (oldavail == 0 && !shutdown.ready()) (void)txbuffer.sendfast(fd);
-    /* Need to kick if either we've moved the TX to non-empty (because
-     * TX sub might be disarmed), or if we've moved sufficiently clear
-     * of the RX quota, or if we're shutting down and this is the last
-     * call. */
-    if ((oldavail == 0 && !txbuffer.empty()) ||
-        oldnroutstanding == (config.maxoutstandingcalls * 3 / 4) ||
-        (oldavail >= config.txbufferlimit * 3 / 4 &&
-         txbuffer.avail() < config.txbufferlimit * 3 / 4) ||
-        (oldnroutstanding == 1 && owner.shutdown.ready())) {
-        completedcall.publish(); } }
-
-/* txcomplete() specialised for when we already happen to be on the
- * conn thread. */
-void
-rpcservice2::connworker::txcomplete(unsigned long oldavail,
-                                    mutex_t::token /* txlock */,
-                                    onconnectionthread) {
-    auto sz = txbuffer.avail() - oldavail;
-    assert(sz < proto::maxmsgsize);
-    *txbuffer.linearise<unsigned>(oldavail + txbuffer.offset()) = (unsigned)sz;
-    /* No fast transmit: the conn thread will check for TX as soon as
-     * we return, and it's not worth the loss of batching to transmit
-     * early when we've already paid the scheduling costs. */
-    /* Not sync: only the conn thread and holders of the TX lock touch
-     * it, and we're on the conn thread and hold the lock, so can't
-     * race. */
-    outstandingcalls--; }
 
 orerror<void>
 rpcservice2::connworker::calledhello(deserialise1 &ds,
