@@ -6,6 +6,7 @@
 class deserialise1;
 class quickcheck;
 template <typename> class list;
+template <typename> class nnp;
 class serialise1;
 
 /* Sorting a linked list is usually a hint that you're doing something
@@ -86,6 +87,8 @@ public:
      * small items (e.g. pointers). */
     /* Remove the first item from the list and return a copy of it. */
     t pophead();
+    /* Remove the first element and discard it. */
+    void drophead();
     /* Remove the last item from the list and return a copy of it. */
     t poptail();
     /* Peek at the first item in the list. */
@@ -126,6 +129,19 @@ public:
         std::function<other_t (const t&)> what) const;
 
     bool operator==(const list &o) const;
+
+    /* A scheme for allocating a list entry before hooking it into the
+     * list.  Occasionally useful to make the synchronisation work out
+     * a bit better. */
+public: class partial : private member {
+        friend t &list::pushtail(nnp<partial>);
+        /* Would be private if I could figure out the friend
+         * declarations. */
+    public: template <typename ... args> explicit partial(args && ...);
+    public: t &val();
+    public: const t &val() const; };
+public: template <typename ... args> static nnp<partial> mkpartial(args &&...);
+public: t &pushtail(nnp<partial>);
 };
 
 template <typename t, typename ... args> list<t> mklist(const t &, args &&...);

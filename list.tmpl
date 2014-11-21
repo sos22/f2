@@ -486,4 +486,33 @@ template <typename t, typename ... args> list<t>
 mklist(const t &first, args &&...rest) {
     return list<t>::mk(first, std::forward<args>(rest)...); }
 
+template <typename t> template <typename ... args>
+list<t>::partial::partial(args &&...params)
+    : member(NULL, NULL, 5, std::forward<args>(params)...) {}
+
+template <typename t> template <typename ... args>
+    nnp<typename list<t>::partial>
+list<t>::mkpartial(args &&...params) {
+    return _nnp(*new partial(std::forward<args>(params)...)); }
+
+template <typename t> t &
+list<t>::partial::val() { return member::value; }
+
+template <typename t> const t &
+list<t>::partial::val() const { return member::value; }
+
+template <typename t> t &
+list<t>::pushtail(nnp<partial> what) {
+    assert(what->next == NULL);
+    assert(what->prev == NULL);
+    what->prev = tail;
+    if (tail == NULL) {
+        assert(head == NULL);
+        head = what; }
+    else {
+        assert(tail->next == NULL);
+        tail->next = what; }
+    tail = what;
+    return what->value; }
+
 #endif /* !LIST_TMPL__ */

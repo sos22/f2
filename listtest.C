@@ -1,4 +1,5 @@
 #include "list.H"
+#include "string.H"
 #include "test.H"
 
 #include "list.tmpl"
@@ -45,13 +46,13 @@ tests::_list() {
             assert(one == mklist(5));
             auto two1(mklist(5, 6));
             sort(two1);
-            assert(two1 == mklist(6, 5));
+            assert(two1 == mklist(5, 6));
             auto two2(mklist(6, 5));
             sort(two2);
-            assert(two2 == mklist(6, 5));
+            assert(two2 == mklist(5, 6));
             auto two3(mklist(5, 6));
-            sort<int>(two3, [] (const int &a, const int &b) { return a > b; });
-            assert(two3 == mklist(5, 6)); });
+            sort<int>(two3, [] (const int &a, const int &b) { return a < b; });
+            assert(two3 == mklist(6, 5)); });
     testcaseV("list", "=", [] {
             auto l1(mklist(5,6,7,8));
             l1 = list<int>::mk();
@@ -59,4 +60,21 @@ tests::_list() {
             l1 = mklist(1,2,3);
             assert(l1 == mklist(1,2,3));
             l1 = mklist(4,5);
-            assert(l1 == mklist(4,5)); }); }
+            assert(l1 == mklist(4,5)); });
+    testcaseV("list", "partial", [] {
+            list<string> l;
+            auto p(l.mkpartial("foo"));
+            p->val().truncate(1);
+            auto p2(l.mkpartial("bar"));
+            l.pushtail(p);
+            auto p3(l.mkpartial());
+            p3->val() = string("wibble");
+            l.pushtail(p3);
+            l.pushtail(p2);
+            assert(l.pophead() == "f");
+            auto p4(l.mkpartial());
+            l.pushtail(p4) = string("moo");
+            assert(l.pophead() == "wibble");
+            assert(l.pophead() == "bar");
+            assert(l.pophead() == "moo"); });
+}
