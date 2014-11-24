@@ -353,17 +353,19 @@ rpcservice2::connworker::run(clientio io) {
         /* Handled by loop condition */
         if (s == &ss) continue;
         if (s == &completedsub) {
-            tryrecv = txlock(atl).locked<bool>(
-                [this, &config] (mutex_t::token tok) {
-                    return outstandingcalls(tok) < config.maxoutstandingcalls &&
-                           txbuffer(tok).avail() < config.txbufferlimit; });
+            if (!tryrecv) {
+                tryrecv = txlock(atl).locked<bool>(
+                    [this, &config] (mutex_t::token tok) {
+                        return outstandingcalls(tok) <
+                                   config.maxoutstandingcalls &&
+                               txbuffer(tok).avail() < config.txbufferlimit;});}
             continue; }
         if (s == &insub || s == &errsub) {
             if (s == &insub) {
                 assert(insubarmed);
                 insubarmed = false; }
             else {
-                /* Use a quick RX check to pick up any errors, and to
+                /* Use a quick RX check to pick up any errors and to
                  * filter out spurious wake-ups. */
                 errsub.rearm(); }
             {   auto res(rxbuffer.receivefast(fd));
@@ -479,7 +481,14 @@ rpcservice2::connworker::run(clientio io) {
                          [this] (mutex_t::token tok) -> orerror<void> {
                              if (txbuffer(tok).empty()) return Success;
                              else return txbuffer(tok).sendfast(fd); }));
-            if (res.isfailure() && res != error::wouldblock) failed = true; } }
+            if (res.isfailure() && res != error::wouldblock) failed = true;
+            if (!tryrecv &&
+                !rxbuffer.empty() &&
+                txlock(atl).locked<bool>([&] (mutex_t::token tok) {
+                        return outstandingcalls(tok) <
+                                   config.maxoutstandingcalls &&
+                               txbuffer(tok).avail() < config.txbufferlimit;})){
+                tryrecv = true; } } }
     /* Tell outstanding calls to abort. */
     shutdown.set();
     {   auto token(txlock(atl).lock());
