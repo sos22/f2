@@ -324,8 +324,7 @@ rpcservice2::connworker::run(clientio io) {
     assert(_txbuffer.empty());
 
     bool donehello = false;
-    bool failed;
-    failed = false;
+    bool failed = false;
 
     acquirestxlock atl(io);
 
@@ -440,7 +439,7 @@ rpcservice2::connworker::run(clientio io) {
                     if (donehello) {
                         logmsg(loglevel::info,
                                "peer " + fields::mk(peer) +
-                               " sent mulitple HELLOs");
+                               " sent multiple HELLOs");
                         res = error::toolate; }
                     else {
                         res = calledhello(ds, ic, atl, oct);
@@ -470,8 +469,9 @@ rpcservice2::connworker::run(clientio io) {
             trysend = true; }
         if (trysend) {
             auto res(txlock(atl).locked<orerror<void> >(
-                         [this] (mutex_t::token tok){
-                             return txbuffer(tok).sendfast(fd); }));
+                         [this] (mutex_t::token tok) -> orerror<void> {
+                             if (txbuffer(tok).empty()) return Success;
+                             else return txbuffer(tok).sendfast(fd); }));
             if (res.isfailure() && res != error::wouldblock) failed = true; } }
     /* Tell outstanding calls to abort. */
     shutdown.set();
