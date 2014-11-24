@@ -543,7 +543,6 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
     if (!connected) {
         mux.locked([this, &calls] (mutex_t::token tok) {
                 calls.transfer(newcalls(tok)); }); }
-    logmsg(loglevel::info, "done checktimeouts transfer");
 
     list<nnp<CALL> > aborts;
     mux.locked([this, &aborts] (mutex_t::token tok) {
@@ -621,7 +620,6 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                 return checktimeouts(calls, cl, idledat, connected); } }
         /* Waiting for idle timeout. */
         return r; }
-    logmsg(loglevel::debug, "active");
     /* Otherwise, take the soonest call timeout. */
     auto it(calls.start());
     auto res((*it)->deadline);
@@ -842,7 +840,7 @@ CONN::connectphase(
                          interfacetype::meta,
                          helloseq)
             .serialise(s);
-        proto::hello::req().serialise(s);
+        proto::meta::tag::hello.serialise(s);
         assert(txbuf.avail() <= proto::maxmsgsize);
         *txbuf.linearise<unsigned>(txbuf.offset()) = (unsigned)txbuf.avail();
         iosubscription out(sub, fd_t(sock).poll(POLLOUT));
@@ -875,7 +873,9 @@ CONN::connectphase(
     while (true) {
         deserialise1 ds(rxbuffer);
         proto::respheader hdr(ds);
-        proto::hello::resp resp(ds);
+        version minv(ds);
+        version maxv(ds);
+        list<interfacetype> types(ds);
         if (ds.status() == error::underflowed) {
             auto err(rxbuffer.receivefast(fd_t(sock)));
             if (err == error::wouldblock) {
@@ -892,7 +892,8 @@ CONN::connectphase(
         else if (hdr.size > proto::maxmsgsize) ds.fail(error::overflowed);
         else if (hdr.seq != helloseq) ds.fail(error::invalidmessage);
         else if (hdr.size != rxbuffer.avail()) ds.fail(error::invalidmessage);
-        else if (resp.min > version::current || resp.max < version::current) {
+        else if (types.empty()) ds.fail(error::invalidmessage);
+        else if (minv > version::current || maxv < version::current) {
             ds.fail(error::badversion); }
         if (ds.isfailure()) {
             /* Getting an error back from HELLO is a hard failure. */

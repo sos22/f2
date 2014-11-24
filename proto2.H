@@ -54,19 +54,18 @@ public: empty() {}
 public: empty(deserialise1 &) {}
 public: void serialise(serialise1 &) {} };
 
-namespace hello {
-typedef empty req;
-class resp {
-private: resp() = delete;
-    /* Versions supported by the server.  Client either accepts these
-     * or disconnects again. */
-public:  version min;
-public:  version max;
-    /* Interfaces supported by the server.  Again, if the client needs
-     * an interface not in the list then it should just disconnect. */
-public:  list<interfacetype> type;
-public:  resp(version _min, version _max, const list<interfacetype> &_type);
-public:  explicit resp(deserialise1 &);
-public:  void serialise(serialise1 &); }; } }
+namespace meta {
+class tag {
+private: unsigned v;
+private: explicit tag(unsigned _v) : v(_v) {}
+    /* Inputs: None.  Outputs: version min, version max,
+     * list<interfacetype>, giving the mininum and maximum acceptable
+     * protocol versions and all supported interfaces.  Only ever sent
+     * at the very start of a connection. */
+public:  static const tag hello;
+public:  bool operator==(tag o) const { return v == o.v; }
+public:  bool operator!=(tag o) const { return v != o.v; }
+public:  explicit tag(deserialise1 &ds);
+public:  void serialise(serialise1 &s) const; }; } }
 
 #endif /* !PROTO2_H__ */

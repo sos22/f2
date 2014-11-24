@@ -5,6 +5,9 @@
 
 #include "list.tmpl"
 
+const proto::meta::tag
+proto::meta::tag::hello(1);
+
 proto::sequencenr::sequencenr(deserialise1 &ds)
     : val(ds) {}
 
@@ -51,20 +54,9 @@ proto::respheader::serialise(serialise1 &s) {
     seq.serialise(s);
     status.serialise(s); }
 
-proto::hello::resp::resp(version _min,
-                         version _max,
-                         const list<interfacetype> &_type)
-    : min(_min),
-      max(_max),
-      type(_type) {}
-
-proto::hello::resp::resp(deserialise1 &ds)
-    : min(ds),
-      max(ds),
-      type(ds) {}
+proto::meta::tag::tag(deserialise1 &ds)
+    : v(ds) {
+    if (*this != hello) ds.fail(error::invalidmessage); }
 
 void
-proto::hello::resp::serialise(serialise1 &s) {
-    min.serialise(s);
-    max.serialise(s);
-    type.serialise(s); }
+proto::meta::tag::serialise(serialise1 &s) const { s.push(v); }

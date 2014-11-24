@@ -87,10 +87,9 @@ public: void complete(
     incompletecall *,
     acquirestxlock,
     onconnectionthread oct);
-public: orerror<void> calledhello(deserialise1 &ds,
-                                  nnp<incompletecall> ic,
-                                  acquirestxlock atl,
-                                  onconnectionthread oct); };
+public: void calledhello(nnp<incompletecall> ic,
+                         acquirestxlock atl,
+                         onconnectionthread oct); };
 
 rpcservice2config::rpcservice2config(const beaconserverconfig &_beacon,
                                      unsigned _maxoutstandingcalls,
@@ -436,14 +435,22 @@ rpcservice2::connworker::run(clientio io) {
                            fields::mk(owner.type));
                     res = error::badinterface; }
                 else if (hdr.type == interfacetype::meta) {
-                    if (donehello) {
+                    proto::meta::tag t(ds);
+                    if (t == proto::meta::tag::hello) {
+                        if (donehello) {
+                            logmsg(loglevel::info,
+                                   "peer " + fields::mk(peer) +
+                                   " sent multiple HELLOs");
+                            res = error::toolate; }
+                        else {
+                            calledhello(ic, atl, oct);
+                            res = Success;
+                            donehello = true; } }
+                    else {
                         logmsg(loglevel::info,
                                "peer " + fields::mk(peer) +
-                               " sent multiple HELLOs");
-                        res = error::toolate; }
-                    else {
-                        res = calledhello(ds, ic, atl, oct);
-                        donehello = true; } }
+                               " sent unrecognised meta request");
+                        res = error::invalidmessage; } }
                 else if (!donehello) {
                     logmsg(loglevel::info,
                            "peer " + fields::mk(peer) +
@@ -569,22 +576,19 @@ rpcservice2::connworker::complete(
             outstandingcalls(txtoken)--; });
     delete call; }
 
-orerror<void>
-rpcservice2::connworker::calledhello(deserialise1 &ds,
-                                     nnp<incompletecall> ic,
+void
+rpcservice2::connworker::calledhello(nnp<incompletecall> ic,
                                      acquirestxlock atl,
                                      onconnectionthread oct) {
-    proto::hello::req h(ds);
-    if (ds.isfailure()) ds.failure().warn("parsing HELLO request");
-    else {
-        ic->complete([this]
-                     (serialise1 &s,
-                      mutex_t::token /* txlock */,
-                      onconnectionthread) {
-                         proto::hello::resp(version::current,
-                                            version::current,
-                                            owner.type)
-                             .serialise(s); },
-                     atl,
-                     oct); }
-    return ds.status(); }
+    ic->complete([this]
+                 (serialise1 &s,
+                  mutex_t::token /* txlock */,
+                  onconnectionthread) {
+                     /* min */
+                     version::current.serialise(s);
+                     /* max */
+                     version::current.serialise(s);
+                     /* types */
+                     owner.type.serialise(s); },
+                 atl,
+                 oct); }
