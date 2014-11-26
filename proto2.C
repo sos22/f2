@@ -7,6 +7,8 @@
 
 const proto::meta::tag
 proto::meta::tag::hello(1);
+const proto::meta::tag
+proto::meta::tag::abort(2);
 
 proto::sequencenr::sequencenr(deserialise1 &ds)
     : val(ds) {}
@@ -56,7 +58,7 @@ proto::respheader::serialise(serialise1 &s) {
 
 proto::meta::tag::tag(deserialise1 &ds)
     : v(ds) {
-    if (*this != hello) ds.fail(error::invalidmessage); }
+    if (*this != hello && *this != abort) ds.fail(error::invalidmessage); }
 
 void
 proto::meta::tag::serialise(serialise1 &s) const { s.push(v); }

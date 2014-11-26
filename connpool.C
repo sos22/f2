@@ -76,7 +76,7 @@ public: mutex_t mux;
     /* Connects the pool subscriber to the thread death publisher. */
 public: subscription deathsub;
     /* To whom are we supposed to be connected? */
-    public: const slavename slave;
+public: const slavename slave;
 
     /* Set once the connection is far enough through its shutdown
      * sequence that it can't accept more calls.  dying == true should
@@ -121,10 +121,12 @@ public: void harderror(list<nnp<CALL> > &what, error err, connlock cl);
     /* This also does a lot of other interesting work: processing call
      * timeouts, maintaining idledat, processing call aborts, and, if
      * we're not connected, pull new calls into the call list.  */
+    /* txbuffer should be non-NULL iff connected is true. */
 public: timestamp checktimeouts(list<nnp<CALL> > &calls,
                                 connlock cl,
                                 maybe<timestamp> &idledat,
-                                bool connected);
+                                bool connected,
+                                buffer *txbuffer);
 
     /* Simple wrapper around getsockopt(SO_ERROR) */
 public: orerror<void> socketerr(int sock, const peername &_peer);
@@ -538,12 +540,15 @@ timestamp
 CONN::checktimeouts(list<nnp<CALL> > &calls,
                     connlock cl,
                     maybe<timestamp> &idledat,
-                    bool connected) {
+                    bool connected,
+                    buffer *txbuffer) {
+    assert((txbuffer == NULL) == !connected);
     /* If we're not connected then we pick up incoming calls now. */
     if (!connected) {
         mux.locked([this, &calls] (mutex_t::token tok) {
                 calls.transfer(newcalls(tok)); }); }
 
+    bool quick = false;
     list<nnp<CALL> > aborts;
     mux.locked([this, &aborts] (mutex_t::token tok) {
             aborts.transfer(aborted(tok)); });
@@ -554,6 +559,23 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         for (auto it2(calls.start()); !it2.finished(); it2.next()) {
             if (*it2 == c) {
                 found = true;
+                if (connected) {
+                    /* The message was already sent.  Queue up an
+                     * abort. */
+                    bool wasempty = txbuffer->empty();
+                    auto startoff(txbuffer->offset() + txbuffer->avail());
+                    serialise1 s(*txbuffer);
+                    proto::reqheader(-1,
+                                     version::current,
+                                     interfacetype::meta,
+                                     c->seqnr(cl).just())
+                        .serialise(s);
+                    proto::meta::tag::abort.serialise(s);
+                    auto sz(txbuffer->offset() + txbuffer->avail() - startoff);
+                    assert(sz <= proto::maxmsgsize);
+                    *txbuffer->linearise<unsigned>(startoff) = (unsigned)sz;
+                    /* Tell caller they have work to do. */
+                    quick |= wasempty; }
                 it2.remove();
                 break; } }
         if (!found) {
@@ -570,6 +592,9 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                             return; } }
                     /* finished before abort().  Fine. */}); }
         failcall(c, error::aborted, cl); }
+    /* If we queued up an abort then the caller needs to wake up
+     * immediately to process it. */
+    if (quick) return timestamp::now();
     /* Zap anything which has already timed out. */
     list<nnp<CALL> > timeout;
     for (auto it(calls.start()); !it.finished(); /**/) {
@@ -593,14 +618,19 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
      * between idling and setting the time), but it'll be a short lag,
      * so it's probably good enough. */
     if (idledat.isjust() != calls.empty()) {
-        if (calls.empty()) idledat = timestamp::now();
-        else idledat = Nothing; }
+        if (calls.empty()) {
+            idledat = timestamp::now();
+            logmsg(loglevel::debug,
+                   "connection to " + fields::mk(slave) + " entered idle"); }
+        else {
+            idledat = Nothing;
+            logmsg(loglevel::debug,
+                   "connection to " + fields::mk(slave) + " left idle"); } }
     assert(idledat.isjust() == calls.empty());
 
     /* If we're currently idle then the only (and therefore next)
      * timeout is the idle timeout. */
     if (idledat.isjust()) {
-        logmsg(loglevel::debug, "idle");
         if (dying(cl)) {
             /* We're trying to shut down and have no outstanding calls
              * -> return immediately. */
@@ -617,7 +647,10 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
             if (raced) {
                 /* More calls arrived just in time to stop us timing
                  * out.  Try again from the top. */
-                return checktimeouts(calls, cl, idledat, connected); } }
+                return checktimeouts(calls, cl, idledat, connected, txbuffer);}
+            else {
+                logmsg(loglevel::debug,
+                       "connection to " + fields::mk(slave) + " timed out"); } }
         /* Waiting for idle timeout. */
         return r; }
     /* Otherwise, take the soonest call timeout. */
@@ -750,7 +783,7 @@ CONN::connectphase(
          * until it does. */
         subscription beaconsub(sub, pool.beacon->changed());
         logmsg(loglevel::debug, "waiting for beacon");
-        sub.wait(io, checktimeouts(calls, cl, idledat, false));
+        sub.wait(io, checktimeouts(calls, cl, idledat, false, NULL));
         return Nothing; }
     auto &peer(_beaconres.just().name);
 
@@ -760,7 +793,7 @@ CONN::connectphase(
         /* Tried to connect recently -> wait a bit before retrying on
          * the same peer. */
         subscription beaconsub(sub, pool.beacon->changed());
-        sub.wait(io, min(checktimeouts(calls, cl, idledat, false),
+        sub.wait(io, min(checktimeouts(calls, cl, idledat, false, NULL),
                          debounceconnect.just().second()));
         return Nothing; }
 
@@ -802,8 +835,9 @@ CONN::connectphase(
                 /* No debounce this time: the connect timeout achieves the
                  * same thing. */
                 return Nothing; }
-            auto ss(sub.wait(io, min(checktimeouts(calls, cl, idledat, false),
-                                     deadline)));
+            auto ss(sub.wait(
+                        io, min(checktimeouts(calls, cl, idledat, false, NULL),
+                                deadline)));
             if (finished(calls, cl)) {
                 ::close(sock);
                 return Nothing; }
@@ -856,8 +890,9 @@ CONN::connectphase(
                        "timeout sending hello to " + fields::mk(slave));
                 ::close(sock);
                 return Nothing; }
-            auto ss(sub.wait(io, min(checktimeouts(calls, cl, idledat, false),
-                                     deadline)));
+            auto ss(sub.wait(
+                        io, min(checktimeouts(calls, cl, idledat, false, NULL),
+                                deadline)));
             if (finished(calls, cl)) {
                 ::close(sock);
                 return Nothing; }
@@ -879,7 +914,9 @@ CONN::connectphase(
         if (ds.status() == error::underflowed) {
             auto err(rxbuffer.receivefast(fd_t(sock)));
             if (err == error::wouldblock) {
-                auto ss(sub.wait(io, checktimeouts(calls, cl, idledat, false)));
+                auto ss(
+                    sub.wait(
+                        io, checktimeouts(calls, cl, idledat, false, NULL)));
                 if (finished(calls, cl)) {
                     ::close(sock);
                     return Nothing; }
@@ -937,7 +974,8 @@ CONN::workphase(clientio io,
         if (!txbuffer.empty() && !outarmed) {
             outsub.rearm();
             outarmed = true; }
-        auto ss(sub.wait(io, checktimeouts(calls, cl, idledat, true)));
+        auto ss(sub.wait(
+                    io, checktimeouts(calls, cl, idledat, true, &txbuffer)));
         if (ss == NULL || ss == &shutdownsub) {
             if (finished(calls, cl)) return; }
         else if (ss == &newcallssub) {

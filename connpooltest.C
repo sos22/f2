@@ -86,8 +86,7 @@ public: orerror<void> called(
                 while (deadline.infuture() && !ic->abandoned().ready()) {
                     sub.wait(clientio::CLIENTIO, deadline); } }
             ic->complete(
-                [key] (serialise1 &s, mutex_t::token) {
-                    s.push(key); },
+                [key] (serialise1 &s, mutex_t::token) { s.push(key); },
                 acquirestxlock(clientio::CLIENTIO)); });
     return Success; } };
 
@@ -153,7 +152,32 @@ public: orerror<void> called(
         oct);
     return Success; } };
 
-}
+class abortservice : public rpcservice2 {
+public: waitbox<void> &callstarted;
+public: waitbox<void> &callaborted;
+public: maybe<spark<void> > worker;
+public: abortservice(const constoken &t,
+                     waitbox<void> &_callstarted,
+                     waitbox<void> &_callaborted)
+    : rpcservice2(t, interfacetype::test),
+      callstarted(_callstarted),
+      callaborted(_callaborted),
+      worker(Nothing) {}
+public: orerror<void> called(
+    clientio,
+    deserialise1 &,
+    interfacetype,
+    nnp<incompletecall> ic,
+    onconnectionthread) final {
+    callstarted.set();
+    assert(worker == Nothing);
+    worker.mkjust([this, ic] {
+            {   subscriber sub;
+                subscription ss(sub, ic->abandoned().pub);
+                while (!ic->abandoned().ready()) sub.wait(clientio::CLIENTIO); }
+            callaborted.set();
+            ic->fail(error::toosoon, acquirestxlock(clientio::CLIENTIO)); });
+    return Success; } }; }
 
 void
 tests::_connpool() {
@@ -629,6 +653,80 @@ tests::_connpool() {
                            return (::buffer)ds; })
                    .fatal("calling buffer service"));
             assert(!memcmp(b.linearise(0, 7), "GOODBYE", 7));
+            pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "slowcall", [] (clientio io) {
+            /* The conn pool shouldn't drop connections which still
+             * have outstanding calls. */
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<slowservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting slow service"));
+            auto config(connpool::config::dflt(cn));
+            config.idletimeout = timedelta::milliseconds(50);
+            auto pool(connpool::build(config).fatal("building connpool"));
+            maybe<timestamp> finished(Nothing);
+            auto start(timestamp::now());
+            pool->call(
+                io,
+                sn,
+                interfacetype::test,
+                timestamp::now() + timedelta::hours(1),
+                [] (serialise1 &s, connpool::connlock) {
+                    timedelta::milliseconds(200).serialise(s);
+                    s.push((unsigned)12345678); },
+                [&finished]
+                (orerror<nnp<deserialise1> > d, connpool::connlock)
+                    -> orerror<void> {
+                    d.fatal("getting response from slow service");
+                    unsigned k(*d.success());
+                    assert(k == 12345678);
+                    assert(finished == Nothing);
+                    finished = timestamp::now();
+                    return Success; })
+                .fatal("doing call");
+            auto end(timestamp::now());
+            /* Must have made it to the target time, even though the
+             * idle timeout on the pool is only 50ms. */
+            assert(finished.just() - start > timedelta::milliseconds(200));
+            /* But not too far past it. */
+            assert(end - finished.just() < timedelta::milliseconds(20));
+            assert(end - start < timedelta::milliseconds(250));
+            pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "abort", [] (clientio io) {
+            initlogging("T");
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            waitbox<void> callstarted;
+            waitbox<void> callaborted;
+            auto srv(rpcservice2::listen<abortservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any),
+                         callstarted,
+                         callaborted)
+                     .fatal("starting abort service"));
+            auto pool(connpool::build(cn).fatal("building pool"));
+            auto b(pool->call(
+                       sn,
+                       interfacetype::test,
+                       timestamp::now() + timedelta::hours(1),
+                       [] (serialise1 &, connpool::connlock) {},
+                       [] (deserialise1 &, connpool::connlock)
+                           -> orerror<void> {
+                           abort(); }));
+            callstarted.get(io);
+            assert(b->abort() == error::aborted);
+            assert(timedelta::time([&callaborted, io] { callaborted.get(io); })
+                   < timedelta::milliseconds(50));
             pool->destroy();
             srv->destroy(io); });
 

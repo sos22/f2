@@ -63,6 +63,14 @@ private: explicit tag(unsigned _v) : v(_v) {}
      * protocol versions and all supported interfaces.  Only ever sent
      * at the very start of a connection. */
 public:  static const tag hello;
+    /* Abort a message.  This is quite special: the sequence number is
+     * the same as the message being aborted and there is no reply at
+     * all.  This is a best-effort abort only: the server is allowed
+     * to abort the call, or it can process it to completion if that's
+     * more convenient.  The server must still generate a reply to the
+     * original message, even if it's aborted (in which case the
+     * returned status should be error::aborted). */
+public:  static const tag abort;
 public:  bool operator==(tag o) const { return v == o.v; }
 public:  bool operator!=(tag o) const { return v != o.v; }
 public:  explicit tag(deserialise1 &ds);
