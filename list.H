@@ -99,6 +99,10 @@ public:
     void pushtail();
     template <typename ... args> void pushtail(const t &, args &&...);
 
+    /* Remove an element from the list by value.  It must be present
+     * precisely once, and the type must have an == operator. */
+    void drop(const t &);
+
     /* Grab a reference to an element of the list given its zero-based
        index.  The index must be within bounds. */
     t &idx(unsigned);

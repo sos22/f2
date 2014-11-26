@@ -515,4 +515,14 @@ list<t>::pushtail(nnp<partial> what) {
     tail = what;
     return what->value; }
 
+template <typename t> void
+list<t>::drop(const t &what) {
+    bool found = false;
+    bool remove;
+    for (auto it(start()); !it.finished(); remove ? it.remove() : it.next()) {
+        remove = *it == what;
+        if (found) assert(!remove);
+        else found = remove; }
+    assert(found); }
+
 #endif /* !LIST_TMPL__ */

@@ -169,10 +169,16 @@ public:    class incompletecall {
     private: incompletecall() = delete;
     private: incompletecall(const incompletecall &) = delete;
     private: void operator=(const incompletecall &) = delete;
-    private: incompletecall(connworker &_owner, proto::sequencenr _seqnr);
+    private: incompletecall(connworker &_conn, proto::sequencenr _seqnr);
 
-    private: connworker &owner;
+    private: connworker &conn;
     private: proto::sequencenr const seqnr;
+    private: waitbox<void> _abandoned;
+
+        /* abandoned can only be set under the TX lock, to prevent
+         * problems with a call getting aborted at the same time as
+         * the thread tries to shut down.  */
+    private: waitbox<void> &abandoned(mutex_t::token) { return _abandoned; }
 
         /* Receive a waitbox which will be set if the client has
          * abandoned the call (usually by disconnecting).  If this is
@@ -181,7 +187,7 @@ public:    class incompletecall {
          * quickly.  The service implementation must arrange that it
          * does not wait for a long time once the abandoned waitbox is
          * set. */
-    public:  const waitbox<void> &abandoned() const;
+    public:  const waitbox<void> &abandoned() const { return _abandoned; }
         /* Mark a call as complete.  @doit will be called
          * (synchronously, before complete() returns) with a
          * serialiser set up to serialise directly into the connection

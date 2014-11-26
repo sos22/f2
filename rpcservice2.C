@@ -44,15 +44,20 @@ public: rootthread(const constoken &token,
 public: void run(clientio) final; };
 
 class rpcservice2::connworker final : public thread {
-    /* Shutdown box used by the conn thread to request shutdown of
-     * outstanding incomplete calls. */
-public: waitbox<void> shutdown;
-public: mutex_t _txlock;
-public: mutex_t &txlock(acquirestxlock) { return _txlock; }
+    /* Acquired from the const quotaavail() method */
+public: mutable mutex_t _txlock;
+public: mutex_t &txlock(acquirestxlock) const { return _txlock; }
 public: buffer _txbuffer;
 public: buffer &txbuffer(mutex_t::token) { return _txbuffer; }
-public: unsigned _outstandingcalls;
-public: unsigned &outstandingcalls(mutex_t::token) { return _outstandingcalls; }
+public: const buffer &txbuffer(mutex_t::token) const { return _txbuffer; }
+    /* XXX should maybe cache the length of this somewhere?  We need it
+     * rather a lot. */
+public: list<nnp<incompletecall> > _outstandingcalls;
+public: list<nnp<incompletecall> > &outstandingcalls(mutex_t::token) {
+        return _outstandingcalls; }
+public: const list<nnp<incompletecall> > &
+            outstandingcalls(mutex_t::token) const {
+        return _outstandingcalls; }
 public: rootthread &owner;
 public: socket_t const fd;
 public: publisher completedcall;
@@ -62,10 +67,9 @@ public: connworker(
     rootthread &_owner,
     socket_t _fd)
     : thread(token),
-      shutdown(),
       _txlock(),
       _txbuffer(),
-      _outstandingcalls(0),
+      _outstandingcalls(),
       owner(_owner),
       fd(_fd),
       completedcall() {}
@@ -76,7 +80,7 @@ public: void complete(
     orerror<void>,
     const std::function<void (serialise1 &, mutex_t::token)> &,
     proto::sequencenr,
-    incompletecall *,
+    nnp<incompletecall>,
     acquirestxlock);
 public: void complete(
     orerror<void>,
@@ -84,12 +88,16 @@ public: void complete(
                               mutex_t::token,
                               onconnectionthread)> &doit,
     proto::sequencenr,
-    incompletecall *,
+    nnp<incompletecall>,
     acquirestxlock,
     onconnectionthread oct);
 public: void calledhello(nnp<incompletecall> ic,
                          acquirestxlock atl,
-                         onconnectionthread oct); };
+                         onconnectionthread oct);
+    /* Check whether we have tx buffer and outstanding call quota left
+     * to accept another call from the peer. */
+public: bool quotaavail(acquirestxlock) const;
+public: bool quotaavail(mutex_t::token) const; };
 
 rpcservice2config::rpcservice2config(const beaconserverconfig &_beacon,
                                      unsigned _maxoutstandingcalls,
@@ -168,27 +176,24 @@ rpcservice2::port() const { return root->fd.localname().getport(); }
 rpcservice2::onconnectionthread::onconnectionthread() {}
 
 rpcservice2::incompletecall::incompletecall(
-    connworker &_owner,
+    connworker &_conn,
     proto::sequencenr _seqnr)
-    : owner(_owner),
+    : conn(_conn),
       seqnr(_seqnr) {}
-
-const waitbox<void> &
-rpcservice2::incompletecall::abandoned() const { return owner.shutdown; }
 
 void
 rpcservice2::incompletecall::complete(
     const std::function<void (serialise1 &, mutex_t::token)> &doit,
     acquirestxlock atl) {
-    owner.complete(Success, doit, seqnr, this, atl); }
+    conn.complete(Success, doit, seqnr, *this, atl); }
 
 void
 rpcservice2::incompletecall::fail(error e, acquirestxlock atl) {
-    owner.complete(
+    conn.complete(
         e,
         [] (serialise1 &, mutex_t::token) {},
         seqnr,
-        this,
+        *this,
         atl); }
 
 void
@@ -198,19 +203,19 @@ rpcservice2::incompletecall::complete(
                               onconnectionthread)> &doit,
     acquirestxlock atl,
     onconnectionthread oct) {
-    owner.complete(Success, doit, seqnr, this, atl, oct); }
+    conn.complete(Success, doit, seqnr, *this, atl, oct); }
 
 void
 rpcservice2::incompletecall::fail(
     error e,
     acquirestxlock atl,
     onconnectionthread oct) {
-    owner.complete(e,
-                   [] (serialise1 &, mutex_t::token, onconnectionthread) {},
-                   seqnr,
-                   this,
-                   atl,
-                   oct); }
+    conn.complete(e,
+                  [] (serialise1 &, mutex_t::token, onconnectionthread) {},
+                  seqnr,
+                  *this,
+                  atl,
+                  oct); }
 
 rpcservice2::incompletecall::~incompletecall() {}
 
@@ -339,10 +344,7 @@ rpcservice2::connworker::run(clientio io) {
         else {
             if (!insubarmed || !outsubarmed) {
                 txlock(atl).locked([&] (mutex_t::token tok) {
-                        if (!insubarmed &&
-                            outstandingcalls(tok) <
-                                config.maxoutstandingcalls &&
-                            txbuffer(tok).avail() < config.txbufferlimit) {
+                        if (!insubarmed && quotaavail(tok)) {
                             insub.rearm();
                             insubarmed = true; }
                         if (!outsubarmed && !txbuffer(tok).empty()) {
@@ -353,12 +355,7 @@ rpcservice2::connworker::run(clientio io) {
         /* Handled by loop condition */
         if (s == &ss) continue;
         if (s == &completedsub) {
-            if (!tryrecv) {
-                tryrecv = txlock(atl).locked<bool>(
-                    [this, &config] (mutex_t::token tok) {
-                        return outstandingcalls(tok) <
-                                   config.maxoutstandingcalls &&
-                               txbuffer(tok).avail() < config.txbufferlimit;});}
+            tryrecv = quotaavail(atl);
             continue; }
         if (s == &insub || s == &errsub) {
             if (s == &insub) {
@@ -377,13 +374,7 @@ rpcservice2::connworker::run(clientio io) {
             tryrecv = true; }
         if (tryrecv) {
             while (true) {
-                bool hitquota = txlock(atl).locked<bool>(
-                        [this, &config] (mutex_t::token tok) {
-                            return outstandingcalls(tok) >=
-                                       config.maxoutstandingcalls ||
-                                   txbuffer(tok).avail() >=
-                                       config.txbufferlimit; });
-                if (hitquota) {
+                if (!quotaavail(atl)) {
                     /* Calls might complete while after we've dropped
                      * the lock, but that's okay because it'll notify
                      * the completed publisher and we'll pick it up
@@ -417,9 +408,9 @@ rpcservice2::connworker::run(clientio io) {
                     if (hdr.size > rxbuffer.avail()) {
                         tryrecv = false;
                         break; } }
-                txlock(atl).locked([this] (mutex_t::token tok) {
-                        outstandingcalls(tok)++; });
                 auto ic(_nnp(*new incompletecall(*this, hdr.seq)));
+                txlock(atl).locked([this, ic] (mutex_t::token tok) {
+                        outstandingcalls(tok).pushtail(ic); });
                 onconnectionthread oct;
                 orerror<void> res(Success);
 
@@ -484,26 +475,29 @@ rpcservice2::connworker::run(clientio io) {
             if (res.isfailure() && res != error::wouldblock) failed = true;
             if (!tryrecv &&
                 !rxbuffer.empty() &&
-                txlock(atl).locked<bool>([&] (mutex_t::token tok) {
-                        return outstandingcalls(tok) <
-                                   config.maxoutstandingcalls &&
-                               txbuffer(tok).avail() < config.txbufferlimit;})){
+                quotaavail(atl)) {
                 tryrecv = true; } } }
-    /* Tell outstanding calls to abort. */
-    shutdown.set();
     {   auto token(txlock(atl).lock());
+
+        /* Tell outstanding calls to abort. */
+        for (auto it(outstandingcalls(token).start());
+             !it.finished();
+             it.next()) {
+            auto i(*it);
+            if (!i->abandoned(token).ready()) i->abandoned(token).set(); }
+
         /* Wait for them to finish. */
         auto laststatus(timestamp::now());
         subscriber smallsub;
         subscription c(smallsub, completedcall);
-        while (outstandingcalls(token) > 0) {
+        while (!outstandingcalls(token).empty()) {
             txlock(atl).unlock(&token);
             auto sss = smallsub.wait(io, laststatus + timedelta::seconds(1));
             token = txlock(atl).lock();
             if (sss == NULL) {
                 logmsg(loglevel::info,
                        "waiting to shut down service to " + fields::mk(peer) +
-                       "; " + fields::mk(outstandingcalls(token)) +
+                       "; " + fields::mk(outstandingcalls(token).length()) +
                        " left");
                 laststatus = timestamp::now(); } }
         txlock(atl).unlock(&token); }
@@ -515,9 +509,9 @@ rpcservice2::connworker::complete(
     orerror<void> res,
     const std::function<void (serialise1 &, mutex_t::token)> &doit,
     proto::sequencenr seqnr,
-    incompletecall *call,
+    nnp<incompletecall> call,
     acquirestxlock atl) {
-    txlock(atl).locked([this, &doit, res, seqnr] (mutex_t::token txtoken) {
+    txlock(atl).locked([this, call, &doit, res, seqnr] (mutex_t::token txtoken){
             auto &txb(txbuffer(txtoken));
             auto oldavail(txb.avail());
             serialise1 s(txb);
@@ -532,7 +526,8 @@ rpcservice2::connworker::complete(
             /* Tell the worker that we're finishing.  After we've done
              * this, the worker can exit as soon as we drop the
              * lock. */
-            auto oldnroutstanding(outstandingcalls(txtoken)--);
+            auto oldnroutstanding(outstandingcalls(txtoken).length());
+            outstandingcalls(txtoken).drop(*call);
 
             /* Try a fast synchronous send rather than waking the
              * worker thread.  No point if there was stuff in the
@@ -542,7 +537,8 @@ rpcservice2::connworker::complete(
              * by doing another one here, or they weren't, in which
              * case their send must have failed (or the buffer would
              * now be empty) and ours probably would as well. */
-            if (oldavail == 0 && !shutdown.ready()) (void)txb.sendfast(fd);
+            if (oldavail == 0 && !call->abandoned().ready()) {
+                (void)txb.sendfast(fd); }
             /* Need to kick if either we've moved the TX to non-empty
              * (because TX sub might be disarmed), or if we've moved
              * sufficiently clear of the RX quota, or if we're
@@ -566,10 +562,11 @@ rpcservice2::connworker::complete(
                               mutex_t::token,
                               onconnectionthread)> &doit,
     proto::sequencenr seqnr,
-    incompletecall *call,
+    nnp<incompletecall> call,
     acquirestxlock atl,
     onconnectionthread oct) {
-    txlock(atl).locked([this, &doit, res, seqnr, oct] (mutex_t::token txtoken) {
+    txlock(atl).locked(
+        [this, &call, &doit, res, seqnr, oct] (mutex_t::token txtoken) {
             auto &txb(txbuffer(txtoken));
             auto startavail(txb.avail());
             serialise1 s(txb);
@@ -582,8 +579,8 @@ rpcservice2::connworker::complete(
              * soon as we return, and it's not worth the loss of
              * batching to transmit early when we've already paid the
              * scheduling costs. */
-            outstandingcalls(txtoken)--; });
-    delete call; }
+            outstandingcalls(txtoken).drop(call); });
+    delete &*call; }
 
 void
 rpcservice2::connworker::calledhello(nnp<incompletecall> ic,
@@ -601,3 +598,14 @@ rpcservice2::connworker::calledhello(nnp<incompletecall> ic,
                      owner.type.serialise(s); },
                  atl,
                  oct); }
+
+bool
+rpcservice2::connworker::quotaavail(acquirestxlock atl) const {
+    return txlock(atl).locked<bool>([this] (mutex_t::token tok) {
+            return quotaavail(tok); }); }
+
+bool
+rpcservice2::connworker::quotaavail(mutex_t::token tok) const {
+    auto &config(owner.owner.config);
+    return outstandingcalls(tok).length() < config.maxoutstandingcalls &&
+           txbuffer(tok).avail() < config.txbufferlimit; }
