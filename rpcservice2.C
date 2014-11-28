@@ -91,7 +91,14 @@ public: void complete(
     nnp<incompletecall>,
     acquirestxlock,
     onconnectionthread oct);
-public: void calledhello(nnp<incompletecall> ic,
+public: orerror<void> processmessage(
+    clientio io,
+    const orerror<peername> &peer,
+    const proto::reqheader &hdr,
+    bool &donehello,
+    deserialise1 &ds,
+    onconnectionthread oct);
+public: void calledhello(proto::sequencenr snr,
                          acquirestxlock atl,
                          onconnectionthread oct);
     /* Check whether we have tx buffer and outstanding call quota left
@@ -408,57 +415,28 @@ rpcservice2::connworker::run(clientio io) {
                     if (hdr.size > rxbuffer.avail()) {
                         tryrecv = false;
                         break; } }
-                auto ic(_nnp(*new incompletecall(*this, hdr.seq)));
-                txlock(atl).locked([this, ic] (mutex_t::token tok) {
-                        outstandingcalls(tok).pushtail(ic); });
-                onconnectionthread oct;
-                orerror<void> res(Success);
-
-                if (hdr.vers != version::current) {
-                    logmsg(loglevel::info,
-                           "peer " + fields::mk(peer) +
-                           " requested version " + fields::mk(hdr.vers) +
-                           "; we only support " + fields::mk(version::current));
-                    res = error::badversion; }
-                else if (!owner.type.contains(hdr.type)) {
-                    logmsg(loglevel::info,
-                           "peer " + fields::mk(peer) +
-                           " requested interface " + fields::mk(hdr.type) +
-                           " on a service supporting " +
-                           fields::mk(owner.type));
-                    res = error::badinterface; }
-                else if (hdr.type == interfacetype::meta) {
-                    proto::meta::tag t(ds);
-                    if (t == proto::meta::tag::hello) {
-                        if (donehello) {
-                            logmsg(loglevel::info,
-                                   "peer " + fields::mk(peer) +
-                                   " sent multiple HELLOs");
-                            res = error::toolate; }
-                        else {
-                            calledhello(ic, atl, oct);
-                            res = Success;
-                            donehello = true; } }
-                    else {
-                        logmsg(loglevel::info,
-                               "peer " + fields::mk(peer) +
-                               " sent unrecognised meta request");
-                        res = error::invalidmessage; } }
-                else if (!donehello) {
-                    logmsg(loglevel::info,
-                           "peer " + fields::mk(peer) +
-                           " sent request before sending HELLO?");
-                    res = error::toosoon; }
-                else res = owner.owner.called(io, ds, hdr.type, ic, oct);
-
-                if (res.isfailure()) ic->fail(res.failure(), atl);
-                else if (ds.offset() != rxbuffer.offset() + hdr.size) {
+                auto res(processmessage(
+                             io,
+                             peer,
+                             hdr,
+                             donehello,
+                             ds,
+                             onconnectionthread()));
+                if (res.issuccess() &&
+                    ds.offset() != rxbuffer.offset() + hdr.size) {
                     logmsg(loglevel::error,
                            "expected message to go from " +
                            fields::mk(rxbuffer.offset()) + " to " +
                            fields::mk(rxbuffer.offset() + hdr.size) +
                            "; actually went to " +
                            fields::mk(ds.offset()));
+                    res = error::invalidparameter; }
+                if (res.isfailure()) {
+                    logmsg(loglevel::debug,
+                           "error " +
+                           fields::mk(res.failure()) +
+                           " on connection to " +
+                           fields::mk(peer));
                     failed = true;
                     break; }
                 rxbuffer.discard(hdr.size); }
@@ -582,10 +560,109 @@ rpcservice2::connworker::complete(
             outstandingcalls(txtoken).drop(call); });
     delete &*call; }
 
+/* Process a single incoming message off of the queue.  The caller
+ * must have already parsed the message header; this handles the rest.
+ * Returns Success normally (including when the application-level
+ * called() method indicates an application-level error) or an error
+ * if we hit a fatal error which requires the connection to be torn
+ * down. */
+orerror<void>
+rpcservice2::connworker::processmessage(
+    clientio io,
+    const orerror<peername> &peer,
+    const proto::reqheader &hdr,
+    bool &donehello,
+    deserialise1 &ds,
+    onconnectionthread oct) {
+    acquirestxlock atl(io);
+    if (hdr.vers != version::current) {
+        logmsg(loglevel::info,
+               "peer " + fields::mk(peer) +
+               " requested version " + fields::mk(hdr.vers) +
+               "; we only support " + fields::mk(version::current));
+        return error::badversion; }
+    if (!owner.type.contains(hdr.type)) {
+        logmsg(loglevel::info,
+               "peer " + fields::mk(peer) +
+               " requested interface " + fields::mk(hdr.type) +
+               " on a service supporting " +
+               fields::mk(owner.type));
+        return error::badinterface; }
+    if (hdr.type == interfacetype::meta) {
+        proto::meta::tag t(ds);
+        if (t == proto::meta::tag::hello) {
+            if (donehello) {
+                logmsg(loglevel::info,
+                       "peer " + fields::mk(peer) + " sent multiple HELLOs?");
+                return error::toolate; }
+            calledhello(hdr.seq, atl, oct);
+            donehello = true;
+            return Success; }
+        else if (t == proto::meta::tag::abort) {
+            /* XXX running aborts over the same socket as requests is
+             * a little bit dodgy; we should arguably arrange things
+             * so that aborts can go through even when the main
+             * machine is backed up.  Doing it this way looks really
+             * quite deadlock-prone.  That's a bit harder to get
+             * right, though, so let's leave it like this for now. */
+            if (!donehello) {
+                logmsg(loglevel::info,
+                       "peer " + fields::mk(peer) +
+                       " sent abort before HELLO?");
+                return error::toosoon; }
+            txlock(atl).locked([this, &hdr] (mutex_t::token tok) {
+                    for (auto it(outstandingcalls(tok).start());
+                         !it.finished();
+                         it.next()) {
+                        auto i(*it);
+                        if (i->seqnr != hdr.seq) continue;
+                        if (!i->abandoned(tok).ready()) {
+                            logmsg(loglevel::debug, "aborting call");
+                            i->abandoned(tok).set(); }
+                        else logmsg(loglevel::debug, "double abort?");
+                        return; }
+                    logmsg(loglevel::debug, "too-late abort"); } );
+            /* Aborts generate no reply. */
+            return Success; }
+        else {
+            logmsg(loglevel::info,
+                   "peer " + fields::mk(peer) +
+                   " sent unrecognised meta request");
+            return error::invalidmessage; } }
+    if (!donehello) {
+        logmsg(loglevel::info,
+               "peer " + fields::mk(peer) +
+               " sent request before sending HELLO?");
+        return error::toosoon; }
+    if (txlock(atl).locked<bool>([this, &hdr] (mutex_t::token tok) {
+                for (auto it(outstandingcalls(tok).start());
+                     !it.finished();
+                     it.next()) {
+                    if ((*it)->seqnr == hdr.seq) return true; }
+                return false; })) {
+        logmsg(loglevel::info,
+               "peer " + fields::mk(peer) +
+               " sent duplicate sequence number " +
+               hdr.seq.field());
+        return error::invalidmessage; }
+    /* We drop the lock to allocate the call, so something might get
+     * removed from the list, but that's fine because it can't cause a
+     * non-dupe to become a duplicate.  It's only really a debug
+     * check, anyway. */
+    auto ic(_nnp(*new incompletecall(*this, hdr.seq)));
+    txlock(atl).locked([this, ic] (mutex_t::token tok) {
+            outstandingcalls(tok).pushtail(ic); });
+    auto res(owner.owner.called(io, ds, hdr.type, ic, oct));
+    if (res.isfailure()) ic->fail(res.failure(), atl);
+    return Success; }
+
 void
-rpcservice2::connworker::calledhello(nnp<incompletecall> ic,
+rpcservice2::connworker::calledhello(proto::sequencenr seq,
                                      acquirestxlock atl,
                                      onconnectionthread oct) {
+    auto ic(_nnp(*new incompletecall(*this, seq)));
+    txlock(atl).locked([this, ic] (mutex_t::token tok) {
+            outstandingcalls(tok).pushtail(ic); });
     ic->complete([this]
                  (serialise1 &s,
                   mutex_t::token /* txlock */,

@@ -6,6 +6,8 @@
 #include "orerror.H"
 #include "version.H"
 
+namespace fields { class field; }
+
 namespace proto {
 class sequencenr {
 private: sequencenr() = delete;
@@ -15,7 +17,8 @@ public:  explicit sequencenr(unsigned long _val) : val(_val) {}
 public:  void operator++(int) { val++; }
 public:  void serialise(serialise1 &) const;
 public:  bool operator==(sequencenr o) const { return val == o.val; }
-public:  bool operator!=(sequencenr o) const { return val != o.val; } };
+public:  bool operator!=(sequencenr o) const { return val != o.val; }
+public:  const fields::field &field() const; };
 
 class reqheader {
 private: reqheader() = delete;

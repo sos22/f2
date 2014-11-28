@@ -16,6 +16,10 @@ proto::sequencenr::sequencenr(deserialise1 &ds)
 void
 proto::sequencenr::serialise(serialise1 &s) const { s.push(val); }
 
+const fields::field &
+proto::sequencenr::field() const {
+    return "<seq:" + fields::mk(val) + ">"; }
+
 proto::reqheader::reqheader(unsigned _size,
                             version _vers,
                             interfacetype _type,

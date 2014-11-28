@@ -700,7 +700,6 @@ tests::_connpool() {
             pool->destroy();
             srv->destroy(io); });
     testcaseIO("connpool", "abort", [] (clientio io) {
-            initlogging("T");
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
