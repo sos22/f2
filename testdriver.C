@@ -63,6 +63,11 @@ main(int argc, char *argv[])
 
     signal(SIGPIPE, SIG_IGN);
 
+    if (!strcmp(argv[1], "--verbose")) {
+        initlogging("tests");
+        argv++;
+        argc--; }
+
     switch (argc) {
     case 1: tests::listcomponents(); break;
     case 2: tests::listtests(argv[1]); break;
