@@ -8,6 +8,7 @@ cc either.C
 cc listtest.C
 cc testdriver.C
 cc testserialise.C
-ld test beacontest.o connpooltest.o either.o listtest.o testdriver.o testserialise.o lib.a
+cc testwaitqueue.C
+ld test beacontest.o connpooltest.o either.o listtest.o testdriver.o testserialise.o testwaitqueue.o lib.a
 
 target test
