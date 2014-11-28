@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 
     signal(SIGPIPE, SIG_IGN);
 
-    if (!strcmp(argv[1], "--verbose")) {
+    if (argc > 1 && !strcmp(argv[1], "--verbose")) {
         initlogging("tests");
         argv++;
         argc--; }
