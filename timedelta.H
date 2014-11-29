@@ -52,6 +52,8 @@ public:
     bool operator<=(timedelta o) const { return v <= o.v; }
     bool operator<(timedelta o) const { return v < o.v; }
 
+    timestamp future() const;
+
     long as_milliseconds() const { return (v + 500000) / 1000000; }
 
     template <typename t> static timeres<t> time(std::function<t ()>);

@@ -43,6 +43,9 @@ parsers::_timedelta() {
     return ("<timedelta:" + intparser<long>() + "ns>")
         .map<timedelta>([] (long l) { return timedelta::nanoseconds(l); }); }
 
+timestamp
+timedelta::future() const { return timestamp::now() + *this; }
+
 timedelta
 timedelta::time(std::function<void ()> what) {
     auto start(timestamp::now());
