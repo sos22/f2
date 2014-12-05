@@ -168,6 +168,11 @@ list<t>::peekhead() const {
     assert(!empty());
     return *start(); }
 
+template <typename t> t &
+list<t>::peekhead() {
+    assert(!empty());
+    return *start(); }
+
 template <typename t> void
 list<t>::pushhead(const t &what)
 {

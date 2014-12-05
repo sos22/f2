@@ -93,9 +93,13 @@ public:
     t poptail();
     /* Peek at the first item in the list. */
     const t &peekhead() const;
+    t &peekhead();
     /* Add a copy of an item to the front of the list */
     void pushhead(const t &);
     /* Copy some items to the tail of the list, in order */
+    /* Not the same as append, despite the similar prototypes: this
+     * pushes a sequence of t's taken from its varargs, whereas append
+     * constructs a single t from its varargs. */
     void pushtail();
     template <typename ... args> void pushtail(const t &, args &&...);
 
