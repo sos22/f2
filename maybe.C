@@ -1,5 +1,6 @@
 #include "maybe.H"
 
+#include "fields.H"
 #include "quickcheck.H"
 #include "test.H"
 

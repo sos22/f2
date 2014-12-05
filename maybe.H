@@ -121,6 +121,8 @@ public:
         else return f(just()); }
 
     void serialise(serialise1 &) const;
+
+    const fields::field &field() const;
 };
 template <typename t> maybe<t> mkjust(const t &);
 

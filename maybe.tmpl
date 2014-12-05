@@ -9,6 +9,11 @@ maybe<t>::maybe(quickcheck &o)
     : r(o) {
     if (!r) new (content) t(o); }
 
+template <typename t> const fields::field &
+maybe<t>::field() const {
+    if (isnothing()) return fields::mk("Nothing");
+    else return "<" + just().field() + ">"; }
+
 template <typename t> template <typename ... args> void
 maybe<t>::mkjust(args &&...params) {
     if (!r) just().~t();
