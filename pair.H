@@ -1,6 +1,8 @@
 #ifndef PAIR_H__
 #define PAIR_H__
 
+#include "serialise.H"
+
 template <typename a, typename b>
 class pair {
 private: a fst;
@@ -11,6 +13,12 @@ public:  pair(const a &_fst, const b &_snd)
 public:  pair(const pair<a, b> &o)
     : fst(o.fst),
       snd(o.snd) {}
+public:  explicit pair(deserialise1 &ds)
+    : fst(ds),
+      snd(ds) {}
+public:  void serialise(serialise1 &s) const {
+    s.push(fst);
+    s.push(snd); }
 public:  void operator=(const pair<a, b> &o) {
     fst = o.fst;
     snd = o.snd; }
