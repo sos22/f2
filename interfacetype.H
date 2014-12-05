@@ -20,6 +20,7 @@ public:  const fields::field &field() const;
 public:  static const ::parser<interfacetype> &parser();
 public:  static const interfacetype meta;
 public:  static const interfacetype storage;
+public:  static const interfacetype eq; /* Event queues */
 public:  static const interfacetype test;
 public:  static const interfacetype test2;
 

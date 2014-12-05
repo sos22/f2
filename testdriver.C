@@ -43,6 +43,7 @@ main(int argc, char *argv[])
     tests::cond();
     tests::_connpool();
     tests::either();
+    tests::_eqtest();
     tests::_error();
     tests::fd();
     tests::fields();

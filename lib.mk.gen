@@ -16,6 +16,9 @@ function bits() {
     _ cond
     _ connpool
     _ digest
+    _ eq
+    _ eqclient
+    _ eqserver
     _ error
     _ fd
     _ fields

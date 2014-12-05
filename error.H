@@ -86,6 +86,9 @@ public:
     static const error range; /* Parameter is out of range. */
     static const error badinterface; /* Interface not supported. */
     static const error aborted; /* Call aborted. */
+    static const error badqueue; /* Event queue not currently live. */
+    static const error eventsdropped; /* Queue dropped one or more events. */
+    static const error badsubscription; /* Unknown EQ subscription. */
 };
 
 namespace fields {

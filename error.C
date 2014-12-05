@@ -46,7 +46,10 @@ const error error::shutdown(-24);
 const error error::range(-25);
 const error error::badinterface(-26);
 const error error::aborted(-27);
-static const int lasterror = 27;
+const error error::badqueue(-28);
+const error error::eventsdropped(-29);
+const error error::badsubscription(-30);
+static const int lasterror = 30;
 
 error::error(const quickcheck &q) {
     if ((bool)q) e = (unsigned)q % 300 + 1;
@@ -120,6 +123,12 @@ public:
                 buf.push("badinterface");
             } else if (content == error::aborted) {
                 buf.push("aborted");
+            } else if (content == error::badqueue) {
+                buf.push("badqueue");
+            } else if (content == error::eventsdropped) {
+                buf.push("eventsdroped");
+            } else if (content == error::badsubscription) {
+                buf.push("badsubscription");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };
