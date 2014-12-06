@@ -369,10 +369,9 @@ tests::beacon() {
             c->destroy();
             s->destroy(io); });
 #if TESTING
-    testcaseIO("beacon", "sillyiterator", [] (clientio io) {
+    testcaseIO("beacon", "sillyiterator", [] (clientio) {
             auto c(beaconclient::build(
-                       beaconclientconfig(quickcheck(),
-                                          mklist(interfacetype::test)))
+                       beaconclientconfig(quickcheck()))
                    .fatal("creating beacon client"));
             unsigned nr = 0;
             eventwaiter< ::loglevel> waiter(
