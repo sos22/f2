@@ -454,9 +454,7 @@ POOL::call(const slavename &sn,
      * lock. */
     mux.unlock(&token);
     auto &w(worker.just());
-    logmsg(loglevel::debug, "queueing call");
     auto res(_nnp(w.first()->call(deadline, type, s, ds, w.second())->api));
-    logmsg(loglevel::debug, "queued call");
     /* Conn now responsible for completing the call -> no longer need
      * the lock. */
     w.first()->mux.unlock(&w.second());
@@ -569,14 +567,8 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
      * between idling and setting the time), but it'll be a short lag,
      * so it's probably good enough. */
     if (idledat.isjust() != calls.empty()) {
-        if (calls.empty()) {
-            idledat = timestamp::now();
-            logmsg(loglevel::debug,
-                   "connection to " + fields::mk(slave) + " entered idle"); }
-        else {
-            idledat = Nothing;
-            logmsg(loglevel::debug,
-                   "connection to " + fields::mk(slave) + " left idle"); } }
+        if (calls.empty()) idledat = timestamp::now();
+        else idledat = Nothing; }
     assert(idledat.isjust() == calls.empty());
 
     /* If we're currently idle then the only (and therefore next)
@@ -953,6 +945,7 @@ CONN::workphase(clientio io,
         else if (ss == &outsub) {
             assert(outarmed);
             outarmed = false;
+            if (txbuffer.empty()) continue;
             auto err(txbuffer.sendfast(fd));
             if (err == error::wouldblock) continue;
             if (err.isfailure()) {
@@ -995,8 +988,6 @@ CONN::call(maybe<timestamp> deadline,
      * connection) */
     auto res(_nnp(*new CALL(*this, deadline, type, s, ds)));
     newcalls(token).pushtail(res);
-    logmsg(loglevel::debug,
-           "queue call, empty " + fields::mk(newcalls(token).empty()));
     callschanged.publish();
     return res; }
 
