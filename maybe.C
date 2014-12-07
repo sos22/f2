@@ -104,8 +104,9 @@ tests::_maybe()
             bool haveanyjust = false;
             bool havediffjust = false;
             unsigned firstjust;
+            quickcheck q;
             for (unsigned x = 0; x < 10; x++) {
-                ::maybe<unsigned> y((quickcheck()));
+                ::maybe<unsigned> y(q);
                 if (y == Nothing) {
                     havenothing = true; }
                 else if (!haveanyjust) {

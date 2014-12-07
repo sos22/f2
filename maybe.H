@@ -28,7 +28,7 @@ class maybe {
     maybe() = delete;
 public:
     maybe(deserialise1 &);
-    maybe(quickcheck &);
+    explicit maybe(quickcheck &);
     maybe(const maybe &o)
         : _isnothing(o._isnothing)
         {
