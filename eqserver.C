@@ -204,14 +204,21 @@ geneventqueue::queuectxt::finish(geneventqueue &q,
     
     /* Add it to the queue. */
     inner->val().id = qi.nextid(token);
-    logmsg(loglevel::verbose, "queue event " + inner->val().id.field());
     qi.nextid(token)++;
     auto &e(qi.events(token).pushtail(*inner));
-    if (qi.events(token).length() >= qi.config.queuelimit) {
+    if (qi.events(token).length() > qi.config.queuelimit) {
+        logmsg(loglevel::verbose,
+               "drop event: queue " + q.name.field() + " overflowed");
         assert(qi.lastdropped(token) < qi.events(token).peekhead().id.just());
         qi.lastdropped(token) = qi.events(token).peekhead().id.just();
         qi.events(token).drophead();
-        assert(qi.events(token).length() < qi.config.queuelimit); }
+        assert(qi.events(token).length() <= qi.config.queuelimit); }
+    else {
+        logmsg(loglevel::debug,
+               "queue event " + inner->val().id.field() +
+               " on " + q.name.field() + " with no drop; " +
+               fields::mk(qi.events(token).length()) + " of " +
+               fields::mk(qi.config.queuelimit) + " outstanding"); }
     /* Wake up everyone who's polling for events. */
     for (auto it(qi.polls(token).start()); !it.finished(); it.next()) {
         auto &p(*it);
@@ -528,12 +535,18 @@ eqserver::impl::wait(
     auto q(_q.success().first());
     auto token(_q.success().second());
     
-    if (q->nextid(token) < eid) {
+    if (q->nextid(token) > eid) {
         /* It's already ready. */
         q->mux.unlock(&token);
+        logmsg(loglevel::debug,
+               "wait for " + eid.field() + " on " + subid.field() +
+               "; already ready");
         ic->complete(Success, rpcservice2::acquirestxlock(io), oct); }
     else {
         /* queue up a poller. */
+        logmsg(loglevel::debug,
+               "wait for " + eid.field() + " on " + subid.field() +
+               "; not ready (" + q->nextid(token).field() + " next)");
         q->polls(token).append(ic, subid, sub, eid);
         q->mux.unlock(&token); }
     return Success; }
