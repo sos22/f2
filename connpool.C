@@ -533,15 +533,16 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
              * abort()s it before we pull it out of the newcalls list
              * or if they abort() it after we've finished processing.
              * Check the newcalls list as well. */
-            mux.locked([this, c] (mutex_t::token tok) {
+            mux.locked([this, c, &found] (mutex_t::token tok) {
                     for (auto it2(newcalls(tok).start());
                          !it2.finished();
                          it2.next()) {
                         if (*it2 == c) {
                             it2.remove();
+                            found = true;
                             return; } }
                     /* finished before abort().  Fine. */}); }
-        failcall(c, error::aborted, cl); }
+        if (found) failcall(c, error::aborted, cl); }
     /* If we queued up an abort then the caller needs to wake up
      * immediately to process it. */
     if (quick) return timestamp::now();
