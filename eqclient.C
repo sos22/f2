@@ -259,8 +259,7 @@ CLIENT::run(clientio io) {
                     trimmer = pool.call(
                         slave,
                         interfacetype::eq,
-                        /* XXX this should be configurable. */
-                        timedelta::hours(1).future(),
+                        Nothing,
                         [this] (serialise1 &s, connpool::connlock) {
                             proto::eq::tag::trim.serialise(s);
                             queuename.serialise(s);
