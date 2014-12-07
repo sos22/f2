@@ -6,8 +6,8 @@
 
 template <typename t>
 maybe<t>::maybe(quickcheck &o)
-    : r(o) {
-    if (!r) new (content) t(o); }
+    : _isnothing(o) {
+    if (!isnothing()) new (content) t(o); }
 
 template <typename t> const fields::field &
 maybe<t>::field() const {
@@ -16,33 +16,33 @@ maybe<t>::field() const {
 
 template <typename t> template <typename ... args> void
 maybe<t>::mkjust(args &&...params) {
-    if (!r) just().~t();
-    r = false;
+    if (isjust()) just().~t();
+    _isnothing = false;
     ::new (content) t(std::forward<args>(params)...); }
 
 template <typename t> void
 maybe<t>::serialise(serialise1 &s) const {
-    s.push(r);
+    s.push(_isnothing);
     if (isjust()) s.push(just()); }
 
 template <typename t>
 maybe<t>::maybe(deserialise1 &ds)
-    : r(ds) {
-    if (!r) new (content) t(ds); }
+    : _isnothing(ds) {
+    if (!_isnothing) new (content) t(ds); }
 
 template <typename t> void
 maybe<t>::operator=(deserialise1 &ds) {
-    bool newr(ds);
-    if (newr) {
-        if (r) { }
+    bool newisnothing(ds);
+    if (newisnothing) {
+        if (isnothing()) { }
         else {
             ((t *)content)->~t();
-            r = true; } }
+            _isnothing = true; } }
     else {
-        if (!r) *((t *)content) = ds;
+        if (isjust()) *((t *)content) = ds;
         else {
             new (content) t(ds);
-            r = false; } } }
+            _isnothing = false; } } }
 
 namespace parsers {
 template <typename t> const parser<maybe<t> > &

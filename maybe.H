@@ -23,22 +23,22 @@ const class _Nothing Nothing;
 
 template <typename t>
 class maybe {
-    bool r;
+    bool _isnothing;
     unsigned char content[sizeof(t)];
     maybe() = delete;
 public:
     maybe(deserialise1 &);
     maybe(quickcheck &);
     maybe(const maybe &o)
-        : r(o.r)
+        : _isnothing(o._isnothing)
         {
-            if (!r)
+            if (!_isnothing)
                 new (content) t(o.just());
         }
     maybe(maybe &&o)
-        : r(o.r)
+        : _isnothing(o._isnothing)
         {
-            if (!r)
+            if (!_isnothing)
                 new (content) t(std::move(o.just()));
         }
     ~maybe()
@@ -46,18 +46,18 @@ public:
             if (isjust()) ((t *)content)->~t();
         }
     maybe(_Nothing)
-        : r(true)
+        : _isnothing(true)
         {
             /* Shut the compiler up */
             memset(content, 0xbb, sizeof(content));
         }
     maybe(const t &what)
-        : r(false)
+        : _isnothing(false)
         {
             ::new (content) t(what);
         }
     maybe(t &&what)
-        : r(false)
+        : _isnothing(false)
         {
             ::new (content) t(what);
         }
@@ -66,18 +66,18 @@ public:
         {
             if (isjust())
                 just().~t();
-            r = o.r;
+            _isnothing = o._isnothing;
             if (isjust())
                 new (content) t(o.just());
         }
     void operator=(deserialise1 &);
     void operator=(const t &o) {
         if (isjust()) just().~t();
-        r = false;
+        _isnothing = false;
         new (content) t(o); }
-    bool isnothing() const { return r; }
+    bool isnothing() const { return _isnothing; }
     bool operator!() const { return isnothing(); }
-    bool isjust() const { return !r; }
+    bool isjust() const { return !isnothing(); }
     const t &just() const {
         assert(isjust());
         return *(t *)content;
