@@ -44,6 +44,15 @@ public:  timedelta get;
      * number of messages we need to send.  This should usually be on
      * the order of a minute or so. */
 public:  timedelta wait;
+    /* Maximum number of events to queue up on the client side (in
+     * addition to the queue maintained on the server side).  This is
+     * there to cover the gap between the queue thread receiving an
+     * event and something higher up picking it up.  Making it too
+     * small risks unnecessarily dropping events; making it too big
+     * wastes memory and risks buffer bloat-like problems by making it
+     * harder to detect when the client is overloaded.  Something on
+     * the order of a few hundred is usually reasonable. */
+public:  unsigned maxqueue;
     /* Generate a reasonable default configuration. */
 public:  static eqclientconfig dflt(); };
 

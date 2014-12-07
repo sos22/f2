@@ -63,7 +63,8 @@ public: ~impl(); };
 eqclientconfig::eqclientconfig()
     : unsubscribe(timedelta::seconds(1)),
       get(timedelta::seconds(10)),
-      wait(timedelta::minutes(1)) {}
+      wait(timedelta::minutes(1)),
+      maxqueue(200) {}
 
 eqclientconfig
 eqclientconfig::dflt() { return eqclientconfig(); }
@@ -298,6 +299,21 @@ CLIENT::run(clientio io) {
                     logmsg(loglevel::verbose,
                            "grabbed event " + _cursor.field());
                     cursor(oqt)++;
+                    /* Artificially limit the size of the backlog,
+                     * failing the queue when it overflows.  This is
+                     * mostly a safety catch: growing the queue when
+                     * nothing's draining (e.g. because the thing
+                     * which is supposed to drain it is overloaded) it
+                     * is pointless, and it's better to find out that
+                     * things are going wrong sooner rather than
+                     * later. */
+                    if (mux.locked<bool>([&] (mutex_t::token tok) {
+                                return queue(tok).length()>config.maxqueue; })){
+                        logmsg(loglevel::info,
+                               "queue " + queuename.field() + " sub " +
+                               subid.field() + " overflowed locally");
+                        failqueue(error::eventsdropped);
+                        break; }
                     getter = startgetter(oqt);
                     gettersub.mkjust(sub, getter->pub());
                     /* Need to restart to avoid lost wakeups setting

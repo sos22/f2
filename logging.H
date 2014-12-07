@@ -28,19 +28,25 @@ class loglevel {
         : level(_level)
         {}
 public:
-    /* Something went wrong and we're going to crash. */
+    /* Frequency estimates are all for a healthy system. */
+    /* Something went wrong and we're going to crash.  Should never
+     * happen. */
     static const loglevel emergency;
-    /* Something went wrong and functionality will be reduced. */
+    /* Something went wrong and functionality will be reduced.  Should
+     * never happen. */
     static const loglevel error;
-    /* Important status messages */
+    /* Important status messages. Shouldn't happen more than about
+     * once a minute. */
     static const loglevel notice;
-    /* Something went wrong and we're going to try to recover. */
+    /* Something went wrong and we're going to try to recover.
+     * Shouldn't happen more than about once a minute. */
     static const loglevel failure;
-    /* Less important status messages */
+    /* Less important status messages.  Can happen on the order of
+     * every few seconds. */
     static const loglevel info;
-    /* Debug messages */
+    /* Debug messages.  Can happen a couple of times a second. */
     static const loglevel debug;
-    /* Verbose tracing messages */
+    /* Verbose tracing messages.  Can happen at high frequency.  */
     static const loglevel verbose;
 
     /* x >= y is true if x is equal to or more serious than y */
