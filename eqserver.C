@@ -220,13 +220,17 @@ geneventqueue::queuectxt::finish(geneventqueue &q,
                fields::mk(qi.events(token).length()) + " of " +
                fields::mk(qi.config.queuelimit) + " outstanding"); }
     /* Wake up everyone who's polling for events. */
-    for (auto it(qi.polls(token).start()); !it.finished(); it.next()) {
-        auto &p(*it);
-        logmsg(loglevel::verbose, "wake poller");
-        p.ic->complete(
+    while (!qi.polls(token).empty()) {
+        auto &p(qi.polls(token).peekhead());
+        auto ic(p.ic);
+        logmsg(loglevel::debug,
+               "wake poller for " + p.eid.field() +
+               " on " + p.subid.field());
+        /* Kill abandonment sub before completing the call. */
+        qi.polls(token).drophead();
+        ic->complete(
             [e] (serialise1 &s, mutex_t::token) {  s.push(e.content); },
             atl); }
-    qi.polls(token).flush();
     qi.mux.unlock(&token); }
 
 void
@@ -257,9 +261,10 @@ geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
     /* Privatised structure -> no longer need lock. */
     i.mux.unlock(&qtoken);
     /* Pending polls will now never complete. */
-    for (auto it(i._polls.start()); !it.finished(); it.next()) {
-        it->ic->fail(error::badqueue, atl); }
-    i._polls.flush();
+    while (!i._polls.empty()) {
+        auto ic(i._polls.peekhead().ic);
+        i._polls.drophead();
+        ic->fail(error::badqueue, atl); }
     /* Drop all outstanding events. */
     i._events.flush();
     delete &i; }
