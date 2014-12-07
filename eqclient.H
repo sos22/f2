@@ -25,6 +25,7 @@ class connpool;
 template <typename> class nnp;
 template <typename> class orerror;
 class slavename;
+namespace tests { template <typename, typename...> class hookpoint; }
 
 class eqclientconfig {
 private: eqclientconfig();
@@ -73,7 +74,8 @@ public:  static orerror<nnp<geneqclient> > connect(
 public:  const publisher &pub() const;
 public:  maybe<orerror<buffer> > pop();
 public:  void destroy(clientio);
-private: ~geneqclient(); };
+private: ~geneqclient();
+public:  static tests::hookpoint<void> startingwaiter; };
 
 template <typename t> class eqclient final : private geneqclient {
 private: eqclient();
@@ -131,7 +133,6 @@ public:  orerror<t> pop(clientio io) {
 public:  void destroy(clientio io) { geneqclient::destroy(io); }
 
     /* Never actually called: base class destructor is non-virtual. */
-private: ~eqclient() = delete;
-};
+private: ~eqclient() = delete; };
 
 #endif /* !EQCLIENT_H__ */

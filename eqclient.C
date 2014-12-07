@@ -6,6 +6,7 @@
 #include "nnp.H"
 #include "pair.H"
 #include "slavename.H"
+#include "test.H"
 #include "thread.H"
 #include "util.H"
 
@@ -152,6 +153,9 @@ geneqclient::destroy(clientio io) {
 
 geneqclient::~geneqclient() {}
 
+tests::hookpoint<void>
+geneqclient::startingwaiter([] {});
+
 /* ------------------------ geneqclient implementation --------------------- */
 CLIENT::impl(const constoken &token,
              connpool &_pool,
@@ -202,6 +206,7 @@ CLIENT::startgetter(onqueuethread oqt) {
 
 nnp<connpool::asynccall>
 CLIENT::startwaiter(onqueuethread oqt) {
+    geneqclient::startingwaiter();
     return pool.call(
         slave,
         interfacetype::eq,

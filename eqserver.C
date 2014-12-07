@@ -68,7 +68,8 @@ public: class poll {
     public: poll(nnp<rpcservice2::incompletecall> ic,
                  proto::eq::subscriptionid subid,
                  subscriber &,
-                 proto::eq::eventid); };
+                 proto::eq::eventid,
+                 QUEUE *q); };
 public: geneventqueue api;
 public: const eventqueueconfig config;
 
@@ -267,6 +268,8 @@ geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
         ic->fail(error::badqueue, atl); }
     /* Drop all outstanding events. */
     i._events.flush();
+    logmsg(loglevel::verbose,
+           "destroy " + fields::mk((unsigned long)this).base(16));
     delete &i; }
 
 geneventqueue::~geneventqueue() {}
@@ -275,11 +278,12 @@ geneventqueue::~geneventqueue() {}
 QUEUE::poll::poll(nnp<rpcservice2::incompletecall> _ic,
                   proto::eq::subscriptionid _subid,
                   subscriber &subscribe,
-                  proto::eq::eventid _eid)
+                  proto::eq::eventid _eid,
+                  QUEUE *q)
     : ic(_ic),
       subid(_subid),
       eid(_eid),
-      abandonmentsub(subscribe, _ic->abandoned().pub) {}
+      abandonmentsub(subscribe, _ic->abandoned().pub, q) {}
 
 void
 QUEUE::trim(mutex_t::token tok) {
@@ -400,7 +404,8 @@ SERVER::run(clientio io) {
         if (q != NULL) {
             /* Not a big thing, but probably worth a debug message. */
             logmsg(loglevel::debug,
-                   "received poll abandonment notifciation on queue "
+                   "received poll abandonment notification on queue " +
+                   fields::mk((unsigned long)q).base(16) +
                    " after it was shut down"); } }
     /* Detach all the remaining queues. */
     auto dt(detachlock.lock());
@@ -493,7 +498,7 @@ SERVER::get(clientio io,
         if (q->nextid(token) <= eid) {
             logmsg(loglevel::verbose,
                    "get " + eid.field() + " which is not ready "
-                   "(have to " + q->nextid(token).field() + ")");
+                   "(have to " + q->nextid(token).field() + "-1)");
             q->mux.unlock(&token);
             ic->complete(
                 [] (serialise1 &s,
@@ -552,7 +557,7 @@ eqserver::impl::wait(
         logmsg(loglevel::debug,
                "wait for " + eid.field() + " on " + subid.field() +
                "; not ready (" + q->nextid(token).field() + " next)");
-        q->polls(token).append(ic, subid, sub, eid);
+        q->polls(token).append(ic, subid, sub, eid, q);
         q->mux.unlock(&token); }
     return Success; }
 

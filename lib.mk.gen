@@ -86,6 +86,7 @@ testmodule cond cond.C cond.H
 testmodule either either.C either.H either.tmpl
 testmodule clustername clustername.C clustername.H
 testmodule connpool connpool.C connpool.H
+testmodule eq eqclient.C eqclient.H eqserver.C eqserver.H
 testmodule error error.C error.H
 testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
