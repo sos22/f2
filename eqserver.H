@@ -11,6 +11,15 @@
 
 class eqserver;
 
+class eventqueueconfig {
+private: eventqueueconfig();
+    /* Maximum number of events in a queue.  We drop anything past
+     * this limit, even if some clients still need them. */
+public:  unsigned queuelimit;
+    
+    /* Generate an eqserverconfig with reasonable defaults. */
+public:  static eventqueueconfig dflt(); };
+
 /* Bits of the event queue which are common to all event types.  You
  * basically never want to instantiate this directly; the
  * eqserver/geneqserver split is just an implementation detail. */
@@ -27,8 +36,9 @@ public:    impl &implementation();
 
 public:    const proto::eq::genname name;
 
-private:   explicit geneventqueue(const proto::eq::genname &);
-private:   static nnp<geneventqueue> build(const proto::eq::genname &);
+private:   geneventqueue(const proto::eq::genname &);
+private:   static nnp<geneventqueue> build(const proto::eq::genname &,
+                                           const eventqueueconfig &config);
 
 private:   class event;
 
@@ -107,8 +117,9 @@ public:  orerror<void> called(clientio io,
      * return it.  The queue is initially empty.  It is accessible to
      * clients over the RPC interface as soon as this returns. */
 public:  template <typename t> nnp<eventqueue<t> > mkqueue(
-    proto::eq::name<t> name) {
-        auto n(geneventqueue::build(name));
+    proto::eq::name<t> name,
+    const eventqueueconfig &config = eventqueueconfig::dflt()) {
+        auto n(geneventqueue::build(name, config));
         registerqueue(*n);
         return _nnp(*(eventqueue<t> *)&*n); }
 

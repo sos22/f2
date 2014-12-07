@@ -17,6 +17,7 @@
 #include "eq.H"
 #include "maybe.H"
 #include "pubsub.H"
+#include "timedelta.H"
 #include "timestamp.H"
 
 class buffer;
@@ -24,6 +25,27 @@ class connpool;
 template <typename> class nnp;
 template <typename> class orerror;
 class slavename;
+
+class eqclientconfig {
+private: eqclientconfig();
+    /* How long to wait for the server to respond to unsubscribe
+     * messages before we just give up and shut down anyway.  It
+     * should usually be short; seconds at most. */
+public:  timedelta unsubscribe;
+    /* Timeout on get requests before we conclude that the queue has
+     * died and indicate an error to the higher levels.  This is the
+     * minimum time the server must be uncontactable for before we
+     * give up; the maximum is this plus the wait time.  This should
+     * usually be on the order of a few seconds. */
+public:  timedelta get;
+    /* Timeout on wait requests before we give up and switch to
+     * running get again.  Setting a short timeout here will allow us
+     * to detect dead servers more quickly but will increase the
+     * number of messages we need to send.  This should usually be on
+     * the order of a minute or so. */
+public:  timedelta wait;
+    /* Generate a reasonable default configuration. */
+public:  static eqclientconfig dflt(); };
 
 /* Implementation detail of eqclient. */
 class geneqclient {
@@ -37,7 +59,8 @@ public:  static orerror<nnp<geneqclient> > connect(
     connpool &pool,
     const slavename &sn,
     const proto::eq::genname &,
-    timestamp deadline);
+    timestamp deadline,
+    const eqclientconfig &config);
 public:  const publisher &pub() const;
 public:  maybe<orerror<buffer> > pop();
 public:  void destroy(clientio);
@@ -58,8 +81,9 @@ public:  static orerror<nnp<eqclient> > connect(
     connpool &pool,
     const slavename &sn,
     const proto::eq::name<t> &queue,
-    timestamp d) {
-        auto r(geneqclient::connect(io, pool, sn, queue, d));
+    timestamp d,
+    const eqclientconfig &config = eqclientconfig::dflt()) {
+        auto r(geneqclient::connect(io, pool, sn, queue, d, config));
         if (r.isfailure()) return r.failure();
         else return _nnp(*static_cast<eqclient *>(&*r.success())); }
 

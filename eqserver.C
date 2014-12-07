@@ -70,6 +70,7 @@ public: class poll {
                  subscriber &,
                  proto::eq::eventid); };
 public: geneventqueue api;
+public: const eventqueueconfig config;
 
 public: mutex_t mux;
 
@@ -100,8 +101,10 @@ public: list<poll> &polls(mutex_t::token) { return _polls; }
 public: SERVER *_server;
 public: SERVER *&server(mutex_t::token) { return _server; }
 
-public: explicit impl(const proto::eq::genname &_name)
+public: impl(const proto::eq::genname &_name,
+             const eventqueueconfig &_config)
     : api(_name),
+      config(_config),
       mux(),
       _lastdropped(proto::eq::eventid(0)),
       _nextid(proto::eq::eventid(1000)),
@@ -157,6 +160,11 @@ public: orerror<void> unsubscribe(clientio,
                                   nnp<rpcservice2::incompletecall>,
                                   rpcservice2::onconnectionthread); };
 
+eventqueueconfig::eventqueueconfig() : queuelimit(50) {}
+
+eventqueueconfig
+eventqueueconfig::dflt() { return eventqueueconfig(); }
+
 /* --------------------------- geneventqueue API -------------------------- */
 geneventqueue::impl &
 geneventqueue::implementation() { return *containerof(this, impl, api); }
@@ -165,8 +173,9 @@ geneventqueue::geneventqueue(const proto::eq::genname &_name)
     : name(_name) {}
 
 nnp<geneventqueue>
-geneventqueue::build(const proto::eq::genname &_name) {
-    return _nnp((new QUEUE(_name))->api); }
+geneventqueue::build(const proto::eq::genname &_name,
+                     const eventqueueconfig &_config) {
+    return _nnp((new QUEUE(_name, _config))->api); }
 
 geneventqueue::queuectxt::queuectxt(geneventqueue &q)
     : inner(NULL),
@@ -193,13 +202,16 @@ geneventqueue::queuectxt::finish(geneventqueue &q,
         qi.mux.unlock(&token);
         return; }
     
-    /* XXX drop old events if we've hit the quota. */
-    
     /* Add it to the queue. */
     inner->val().id = qi.nextid(token);
     logmsg(loglevel::verbose, "queue event " + inner->val().id.field());
     qi.nextid(token)++;
     auto &e(qi.events(token).pushtail(*inner));
+    if (qi.events(token).length() >= qi.config.queuelimit) {
+        assert(qi.lastdropped(token) < qi.events(token).peekhead().id.just());
+        qi.lastdropped(token) = qi.events(token).peekhead().id.just();
+        qi.events(token).drophead();
+        assert(qi.events(token).length() < qi.config.queuelimit); }
     /* Wake up everyone who's polling for events. */
     for (auto it(qi.polls(token).start()); !it.finished(); it.next()) {
         auto &p(*it);

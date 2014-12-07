@@ -22,6 +22,7 @@ public: connpool &pool;
 public: const slavename slave;
 public: const proto::eq::genname queuename;
 public: const proto::eq::subscriptionid subid;
+public: const eqclientconfig config;
 
 public: mutex_t mux;
 public: orerror<void> _status;
@@ -50,13 +51,22 @@ public: impl(const constoken &,
              const slavename &_slave,
              proto::eq::subscriptionid _subid,
              proto::eq::genname _name,
-             proto::eq::eventid _cursor);
+             proto::eq::eventid _cursor,
+             const eqclientconfig &config);
 public: nnp<connpool::asynccallT<bool> > startgetter(onqueuethread);
 public: nnp<connpool::asynccall> startwaiter(onqueuethread);
 public: void addeventtoqueue(buffer &buf, connpool::connlock);
 public: void failqueue(error);
 public: void run(clientio);
 public: ~impl(); };
+
+eqclientconfig::eqclientconfig()
+    : unsubscribe(timedelta::seconds(1)),
+      get(timedelta::seconds(10)),
+      wait(timedelta::minutes(1)) {}
+
+eqclientconfig
+eqclientconfig::dflt() { return eqclientconfig(); }
 
 /* ---------------------------- geneqclient API ----------------------- */
 CLIENT &
@@ -70,7 +80,8 @@ geneqclient::connect(clientio io,
                      connpool &pool,
                      const slavename &sn,
                      const proto::eq::genname &name,
-                     timestamp deadline) {
+                     timestamp deadline,
+                     const eqclientconfig &config) {
     using namespace proto::eq;
     typedef pair<subscriptionid, eventid> r_t;
     auto r(pool.call<r_t>(
@@ -91,7 +102,8 @@ geneqclient::connect(clientio io,
             sn,
             r.success().first(),
             name,
-            r.success().second())->api); }
+            r.success().second(),
+            config)->api); }
 
 const publisher &
 geneqclient::pub() const { return implementation().pub; }
@@ -127,8 +139,7 @@ geneqclient::destroy(clientio io) {
     i.pool.call(io,
                 i.slave,
                 interfacetype::eq,
-                /* XXX should be configurable */
-                timedelta::seconds(1).future(),
+                i.config.unsubscribe.future(),
                 [&i] (serialise1 &s, connpool::connlock) {
                     proto::eq::tag::unsubscribe.serialise(s);
                     i.queuename.serialise(s);
@@ -146,12 +157,14 @@ CLIENT::impl(const constoken &token,
              const slavename &_slave,
              proto::eq::subscriptionid _subid,
              proto::eq::genname _name,
-             proto::eq::eventid __cursor)
+             proto::eq::eventid __cursor,
+             const eqclientconfig &_config)
     : thread(token),
       pool(_pool),
       slave(_slave),
       queuename(_name),
       subid(_subid),
+      config(_config),
       mux(),
       _status(Success),
       _queue(),
@@ -171,8 +184,7 @@ CLIENT::startgetter(onqueuethread oqt) {
     return pool.call<bool>(
         slave,
         interfacetype::eq,
-        /* XXX this should be configurable. */
-        timedelta::seconds(10).future(),
+        config.get.future(),
         [this, c] (serialise1 &s, connpool::connlock) {
             proto::eq::tag::get.serialise(s);
             queuename.serialise(s);
@@ -192,8 +204,7 @@ CLIENT::startwaiter(onqueuethread oqt) {
     return pool.call(
         slave,
         interfacetype::eq,
-        /* XXX this should be configurable. */
-        timedelta::seconds(60).future(),
+        config.wait.future(),
         [this, oqt] (serialise1 &s, connpool::connlock) {
             proto::eq::tag::wait.serialise(s);
             queuename.serialise(s);

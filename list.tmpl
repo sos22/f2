@@ -153,6 +153,9 @@ list<t>::pophead()
     return res;
 }
 
+template <typename t> void
+list<t>::drophead() { start().remove(); }
+
 template <typename t> t
 list<t>::poptail()
 {
