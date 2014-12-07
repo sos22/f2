@@ -483,7 +483,8 @@ CONN::failcall(nnp<CALL> what, error err, connlock cl) const {
 void
 CONN::harderror(list<nnp<CALL> > &calls, error e, connlock cl) {
     for (auto it(calls.start()); !it.finished(); it.remove()) {
-        failcall(*it, e, cl); } }
+        failcall(*it, e, cl); }
+    calls.flush(); }
 
 maybe<timestamp>
 CONN::checktimeouts(list<nnp<CALL> > &calls,
