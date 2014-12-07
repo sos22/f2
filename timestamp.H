@@ -39,6 +39,9 @@ public:
     bool infuture() const { return *this > now(); }
     bool inpast() const { return *this < now(); }
 
+    bool after(timestamp o) const { return *this > o; }
+    bool before(timestamp o) const { return *this < o; }
+
     /* Sleep until the represented time has passed. */
     void sleep(clientio) const;
 

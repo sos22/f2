@@ -66,7 +66,7 @@ public: void run(clientio);
     /* Implementations of our public API, proxied through api. */
 public: nnp<connpool::asynccall> call(const slavename &sn,
                                       interfacetype type,
-                                      timestamp deadline,
+                                      maybe<timestamp> deadline,
                                       const std::function<serialise> &s,
                                       const std::function<deserialise> &ds); };
 
@@ -117,16 +117,19 @@ public: void harderror(list<nnp<CALL> > &what, error err, connlock cl);
      * if we have any calls outstanding, or the idle timeout, if we
      * don't).  It's important not to adjust the live calls list
      * between calling this and using the result, because otherwise
-     * you'll wait for the wrong thing. */
+     * you'll wait for the wrong thing.  Returns Nothing if we don't
+     * have any outstanding timeouts (which can only happen if there's
+     * a call outstanding (so that we don't have an idle timeout) and
+     * that call has no timeout itself). */
     /* This also does a lot of other interesting work: processing call
      * timeouts, maintaining idledat, processing call aborts, and, if
      * we're not connected, pull new calls into the call list.  */
     /* txbuffer should be non-NULL iff connected is true. */
-public: timestamp checktimeouts(list<nnp<CALL> > &calls,
-                                connlock cl,
-                                maybe<timestamp> &idledat,
-                                bool connected,
-                                buffer *txbuffer);
+public: maybe<timestamp> checktimeouts(list<nnp<CALL> > &calls,
+                                       connlock cl,
+                                       maybe<timestamp> &idledat,
+                                       bool connected,
+                                       buffer *txbuffer);
 
     /* Simple wrapper around getsockopt(SO_ERROR) */
 public: orerror<void> socketerr(int sock, const peername &_peer);
@@ -180,7 +183,7 @@ public: void delayconnect(
      * call machine until it completes.  Only safe if dying is false,
      * so since dying is protected by the mux this can only be called
      * under the mux. */
-public: nnp<CALL> call(timestamp,
+public: nnp<CALL> call(maybe<timestamp>,
                        interfacetype type,
                        const std::function<serialise> &,
                        const std::function<deserialise> &,
@@ -204,7 +207,7 @@ class CALL {
 public: connpool::asynccall api;
 public: CONN &conn;
 
-public: const timestamp deadline;
+public: const maybe<timestamp> deadline;
 public: const interfacetype type;
 public: const std::function<serialise> serialiser;
 public: const std::function<deserialise> deserialiser;
@@ -230,7 +233,7 @@ public: maybe<proto::sequencenr> _seqnr;
 public: maybe<proto::sequencenr> &seqnr(connlock) { return _seqnr; }
 
 public: impl(CONN &_conn,
-             timestamp _deadline,
+             maybe<timestamp> _deadline,
              interfacetype _type,
              const std::function<serialise> &_serialiser,
              const std::function<deserialise> &_deserialiser);
@@ -308,62 +311,10 @@ connpool::voidcallV(orerror<nnp<deserialise1> > ds, connlock) {
 nnp<connpool::asynccall>
 connpool::call(const slavename &sn,
                interfacetype type,
-               timestamp deadline,
+               maybe<timestamp> deadline,
                const std::function<serialise> &s,
                const std::function<deserialise> &ds) {
     return implementation().call(sn, type, deadline, s, ds); }
-
-nnp<connpool::asynccall>
-connpool::call(
-    const slavename &sn,
-    interfacetype type,
-    timestamp deadline,
-    const std::function<serialise> &s,
-    const std::function<orerror<void> (deserialise1 &ds, connlock)> &ds) {
-    return call(
-        sn,
-        type,
-        deadline,
-        s,
-        [ds] (asynccall &, orerror<nnp<deserialise1> > ds1, connlock cl)
-            -> orerror<void> {
-            if (ds1.isfailure()) return ds1.failure();
-            else return ds(*ds1.success(), cl); }); }
-
-nnp<connpool::asynccall>
-connpool::call(
-    const slavename &sn,
-    interfacetype type,
-    timestamp deadline,
-    const std::function<serialise> &s,
-    const std::function<deserialiseV> &ds) {
-    return call(
-        sn,
-        type,
-        deadline,
-        s,
-        [ds] (asynccall &, orerror<nnp<deserialise1> > ds1, connlock cl)
-            -> orerror<void> {
-            return ds(ds1, cl); }); }
-
-nnp<connpool::asynccall>
-connpool::call(
-    const slavename &sn,
-    interfacetype type,
-    timestamp deadline,
-    const std::function<serialise> &s,
-    const std::function<orerror<void> (asynccall &,
-                                       deserialise1 &,
-                                       connlock)> &ds) {
-    return call(sn,
-                type,
-                deadline,
-                s,
-                [ds]
-                (asynccall &ths, orerror<nnp<deserialise1> > ds1, connlock cl)
-                    -> orerror<void> {
-                    if (ds1.isfailure()) return ds1.failure();
-                    else return ds(ths, *ds1.success(), cl); }); }
 
 orerror<nnp<connpool> >
 connpool::build(const config &cfg) {
@@ -469,7 +420,7 @@ POOL::run(clientio io) {
 nnp<connpool::asynccall>
 POOL::call(const slavename &sn,
            interfacetype type,
-           timestamp deadline,
+           maybe<timestamp> deadline,
            const std::function<serialise> &s,
            const std::function<deserialise> &ds) {
     assert(!shutdown.ready());
@@ -536,7 +487,7 @@ CONN::harderror(list<nnp<CALL> > &calls, error e, connlock cl) {
     for (auto it(calls.start()); !it.finished(); it.remove()) {
         failcall(*it, e, cl); } }
 
-timestamp
+maybe<timestamp>
 CONN::checktimeouts(list<nnp<CALL> > &calls,
                     connlock cl,
                     maybe<timestamp> &idledat,
@@ -599,7 +550,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
     list<nnp<CALL> > timeout;
     for (auto it(calls.start()); !it.finished(); /**/) {
         auto c(*it);
-        if (c->deadline.inpast()) {
+        if (c->deadline != Nothing && c->deadline.just().inpast()) {
             it.remove();
             failcall(c, error::timeout, cl); }
         else it.next(); }
@@ -654,12 +605,13 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         /* Waiting for idle timeout. */
         return r; }
     /* Otherwise, take the soonest call timeout. */
-    auto it(calls.start());
-    auto res((*it)->deadline);
-    while (!it.finished()) {
-        res = min(res, (*it)->deadline);
-        it.next(); }
-    return res; }
+    maybe<timestamp> res(Nothing);
+    for (auto it(calls.start()); !it.finished(); it.next()) {
+        if (res == Nothing) res = (*it)->deadline;
+        else if ((*it)->deadline != Nothing &&
+                 res.just().after((*it)->deadline.just())) {
+            res = (*it)->deadline; } }
+   return res; }
 
 orerror<void>
 CONN::socketerr(int sock, const peername &_peer) {
@@ -698,7 +650,7 @@ CONN::queuetx(list<nnp<CALL> > &calls,
             remove = true;
             continue; }
         /* This is also a good place to check for timeouts. */
-        if (c->deadline.inpast()) {
+        if (c->deadline != Nothing && c->deadline.just().inpast()) {
             failcall(c, error::timeout, cl);
             remove = true;
             continue; }
@@ -793,8 +745,12 @@ CONN::connectphase(
         /* Tried to connect recently -> wait a bit before retrying on
          * the same peer. */
         subscription beaconsub(sub, pool.beacon->changed());
-        sub.wait(io, min(checktimeouts(calls, cl, idledat, false, NULL),
-                         debounceconnect.just().second()));
+        auto deadline(checktimeouts(calls, cl, idledat, false, NULL));
+        if (deadline == Nothing ||
+            deadline.just().after(debounceconnect.just().second()))
+            deadline = debounceconnect.just().second();
+        assert(deadline.isjust());
+        sub.wait(io, deadline);
         return Nothing; }
 
     /* Know where we're supposed to be connecting to -> do it. */
@@ -835,9 +791,10 @@ CONN::connectphase(
                 /* No debounce this time: the connect timeout achieves the
                  * same thing. */
                 return Nothing; }
-            auto ss(sub.wait(
-                        io, min(checktimeouts(calls, cl, idledat, false, NULL),
-                                deadline)));
+            auto _deadline(checktimeouts(calls, cl, idledat, false, NULL));
+            if (_deadline == Nothing || _deadline.just().after(deadline)) {
+                _deadline = deadline; }
+            auto ss(sub.wait(io, _deadline));
             if (finished(calls, cl)) {
                 ::close(sock);
                 return Nothing; }
@@ -890,9 +847,10 @@ CONN::connectphase(
                        "timeout sending hello to " + fields::mk(slave));
                 ::close(sock);
                 return Nothing; }
-            auto ss(sub.wait(
-                        io, min(checktimeouts(calls, cl, idledat, false, NULL),
-                                deadline)));
+            auto _deadline(checktimeouts(calls, cl, idledat, false, NULL));
+            if (_deadline == Nothing || _deadline.just().after(deadline)) {
+                _deadline = deadline; }
+            auto ss(sub.wait(io, _deadline));
             if (finished(calls, cl)) {
                 ::close(sock);
                 return Nothing; }
@@ -1026,7 +984,7 @@ CONN::delayconnect(maybe<pair<peername, timestamp> > &debounceconnect,
         mkpair(peer, timestamp::now() + pool.cfg.debounceconnect); }
 
 nnp<CALL>
-CONN::call(timestamp deadline,
+CONN::call(maybe<timestamp> deadline,
            interfacetype type,
            const std::function<serialise> &s,
            const std::function<deserialise> &ds,
@@ -1105,7 +1063,7 @@ CONN::run(clientio io) {
 
 /* --------------------------- Call implementation ------------------------ */
 CALL::impl(CONN &_conn,
-           timestamp _deadline,
+           maybe<timestamp> _deadline,
            interfacetype _type,
            const std::function<serialise> &_serialiser,
            const std::function<deserialise> &_deserialiser)
