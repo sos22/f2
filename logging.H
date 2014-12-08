@@ -28,7 +28,10 @@ class loglevel {
         : level(_level)
         {}
 public:
-    /* Frequency estimates are all for a healthy system. */
+    /* Frequency estimates are all for a healthy system.  Ordinary
+     * hardware errors (host crash, network down, etc) can bump things
+     * up by one level.  Abnormal hardware errors (checksums, mostly)
+     * bump things up by two levels. */
     /* Something went wrong and we're going to crash.  Should never
      * happen. */
     static const loglevel emergency;

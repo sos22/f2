@@ -8,6 +8,8 @@
 
 #include "rpcservice2.tmpl"
 
+#include "fieldfinal.H"
+
 class eqtestserver : public rpcservice2 {
 public: eqserver &eqs;
 public: eqtestserver(const constoken &tok, eqserver &_eqs)
@@ -213,7 +215,7 @@ tests::_eqtest() {
                                error::timeout); }));
             assert(t >= timedelta::milliseconds(100));
             assert(t < timedelta::milliseconds(200)); });
-    testcaseIO("eq", "failwaiter", [] (clientio io) {
+    testcaseIO("eq", "failwaiter1", [] (clientio io) {
             clustername cn((quickcheck()));
             slavename sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
@@ -252,6 +254,82 @@ tests::_eqtest() {
                    cconfig.get + cconfig.wait + timedelta::milliseconds(100));
             c->destroy(io);
             pool->destroy(); });
+    testcaseIO("eq", "failwaiter2", [] (clientio io) {
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn).fatal("starting conn pool"));
+            auto server(eqserver::build());
+            auto s(rpcservice2::listen<eqtestserver>(
+                       io,
+                       cn,
+                       sn,
+                       peername::all(peername::port::any),
+                       *server)
+                   .fatal("starting service"));
+            auto q(server->mkqueue(proto::eq::names::testunsigned));
+            waitbox<void> startedwaiter;
+            tests::hook<void> h(geneqclient::startingwaiter,
+                                [&startedwaiter] { startedwaiter.set(); });
+            auto cconfig(eqclientconfig::dflt());
+            cconfig.get = timedelta::milliseconds(100);
+            cconfig.wait = timedelta::milliseconds(100);
+            auto c(eqclient<unsigned>::connect(
+                       io,
+                       *pool,
+                       sn,
+                       proto::eq::names::testunsigned,
+                       timedelta::seconds(1).future(),
+                       cconfig)
+                   .fatal("connecting eqclient"));
+            startedwaiter.get(io);
+            q->destroy(io);
+            auto t(timedelta::time(
+                       [&] { assert(c->pop(io) == error::badqueue); }));
+            assert(t <= cconfig.wait + timedelta::milliseconds(100));
+            s->destroy(io);
+            server->destroy();
+            c->destroy(io);
+            pool->destroy(); });
+    testcaseIO("eq", "pushlostsub", [] (clientio io) {
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn).fatal("starting conn pool"));
+            auto server(eqserver::build());
+            auto s(rpcservice2::listen<eqtestserver>(
+                       io,
+                       cn,
+                       sn,
+                       peername::all(peername::port::any),
+                       *server)
+                   .fatal("starting service"));
+            auto q(server->mkqueue(proto::eq::names::testunsigned));
+            waitbox<void> startedwaiter;
+            tests::hook<void> h(geneqclient::startingwaiter,
+                                [&startedwaiter] { startedwaiter.set(); });
+            auto cconfig(eqclientconfig::dflt());
+            cconfig.get = timedelta::milliseconds(100);
+            cconfig.wait = timedelta::milliseconds(100);
+            auto c(&*eqclient<unsigned>::connect(
+                       io,
+                       *pool,
+                       sn,
+                       proto::eq::names::testunsigned,
+                       timedelta::seconds(1).future(),
+                       cconfig)
+                   .fatal("connecting eqclient"));
+            /* Make sure it's properly subscribed. */
+            startedwaiter.get(io);
+            /* Arrange to unsubscribe while the server is halfway
+             * through pushing a new event. */
+            tests::hook<void> h2(geneventqueue::finishingpush,
+                                 [&] {
+                                     c->destroy(io);
+                                     c = NULL; });
+            q->queue(1, rpcservice2::acquirestxlock(io));
+            assert(c == NULL);
+            pool->destroy();
+            s->destroy(io);
+            server->destroy(); });
     testcaseIO("eq", "shutdownwaiter", [] (clientio io) {
             clustername cn((quickcheck()));
             slavename sn((quickcheck()));
@@ -315,4 +393,52 @@ tests::_eqtest() {
             s->destroy(io);
             server->destroy();
             q->destroy(io); });
+    testcaseIO("eq", "multiqueue", [] (clientio io) {
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn).fatal("starting conn pool"));
+            auto server(eqserver::build());
+            auto s(rpcservice2::listen<eqtestserver>(
+                       io,
+                       cn,
+                       sn,
+                       peername::all(peername::port::any),
+                       *server)
+                   .fatal("starting service"));
+            auto q1(server->mkqueue(proto::eq::names::testunsigned));
+            auto q2(server->mkqueue(proto::eq::names::teststring));
+            auto cconfig(eqclientconfig::dflt());
+            cconfig.get = timedelta::milliseconds(100);
+            cconfig.wait = timedelta::milliseconds(100);
+            auto c1(eqclient<unsigned>::connect(
+                        io,
+                        *pool,
+                        sn,
+                        proto::eq::names::testunsigned,
+                        timedelta::seconds(1).future(),
+                        cconfig)
+                    .fatal("connecting eqclient"));
+            auto c2(eqclient<string>::connect(
+                        io,
+                        *pool,
+                        sn,
+                        proto::eq::names::teststring,
+                        timedelta::seconds(1).future(),
+                        cconfig)
+                    .fatal("connecting eqclient"));
+            q1->queue(99, rpcservice2::acquirestxlock(io));
+            q2->queue("Hello", rpcservice2::acquirestxlock(io));
+            {   auto r(c1->pop(io));
+                if (r != 99) {
+                    ::logmsg(loglevel::emergency,
+                             "expected 99, got " + fields::mk(r));
+                    abort(); } }
+            assert(c2->pop(io) == "Hello");
+            c1->destroy(io);
+            q2->destroy(io);
+            s->destroy(io);
+            server->destroy();
+            q1->destroy(io);
+            c2->destroy(io);
+            pool->destroy(); });
 }

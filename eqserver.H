@@ -55,7 +55,8 @@ protected: class queuectxt {
     friend class queuectxt;
 
 protected: void destroy(rpcservice2::acquirestxlock);
-protected: ~geneventqueue(); };
+protected: ~geneventqueue();
+public:    static tests::hookpoint<void> finishingpush; };
 
 /* Event queue parameterised on the type of event (which must support
  * the serialise/deserialise protocol).  Most of the actual work is

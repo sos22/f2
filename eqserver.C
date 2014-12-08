@@ -192,6 +192,7 @@ geneventqueue::queuectxt::queuectxt(geneventqueue &q)
 void
 geneventqueue::queuectxt::finish(geneventqueue &q,
                                  rpcservice2::acquirestxlock atl) {
+    geneventqueue::finishingpush();
     assert(inner != NULL);
     auto &qi(q.implementation());
     auto token(qi.mux.lock());
@@ -273,6 +274,9 @@ geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
     delete &i; }
 
 geneventqueue::~geneventqueue() {}
+
+tests::hookpoint<void>
+geneventqueue::finishingpush([] {});
 
 /* ---------------------- geneventqueue implementation --------------------- */
 QUEUE::poll::poll(nnp<rpcservice2::incompletecall> _ic,
