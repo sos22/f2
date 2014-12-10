@@ -249,11 +249,15 @@ CLIENT::run(clientio io) {
     auto getter(&*startgetter(oqt));
     connpool::asynccall *waiter(NULL);
     
-    /* We start a trim whenever the getter finishes.  If it's still
-     * not finished when the next getter starts we abort it and try
-     * again.  We never actually try to pick up the results of the
-     * trim; we just abort it. */
-    connpool::asynccall *trimmer(NULL);
+    /* Trim state: the outstanding trimmer and the thing it's trying
+     * to trim, if we have an outstanding trimmer, or Nothing
+     * otherwise. */
+    maybe<pair<proto::eq::eventid, nnp<connpool::asynccall> > >
+        trimmer(Nothing);
+
+    /* The last thing we've successfully trimmed, or Nothing if we
+     * haven't trimmed anything yet. */
+    maybe<proto::eq::eventid> trimmedto(Nothing);
     
     gettersub.mkjust(sub, getter->pub());
     
@@ -270,19 +274,33 @@ CLIENT::run(clientio io) {
                 gettersub = Nothing;
                 auto getterres(getter->pop(gettertok.just()));
                 getter = NULL;
-                if (trimmer != NULL) trimmer->abort();
-                if (trim != Nothing) {
+                if (trimmer != Nothing) {
+                    auto trimmertok(trimmer.just().second()->finished());
+                    if (trimmertok.isjust()) {
+                        logmsg(loglevel::verbose, "trimmer finished");
+                        auto r(trimmer.just().second()->pop(trimmertok.just()));
+                        if (r.isfailure()) r.failure().warn("trimming queue");
+                        else trimmedto = trimmer.just().first();
+                        trimmer = Nothing; } }
+                if (trimmer == Nothing &&
+                    trim != Nothing &&
+                    (trimmedto == Nothing ||
+                     trimmedto.just() < trim.just())) {
                     logmsg(loglevel::verbose, "starting trimmer");
-                    trimmer = pool.call(
-                        slave,
-                        interfacetype::eq,
-                        Nothing,
-                        [this] (serialise1 &s, connpool::connlock) {
-                            proto::eq::tag::trim.serialise(s);
-                            queuename.serialise(s);
-                            subid.serialise(s);
-                            trim.just().serialise(s); },
-                        connpool::voidcallV); }
+                    trimmer =
+                        mkpair(
+                            trim.just(),
+                            _nnp(
+                                *pool.call(
+                                    slave,
+                                    interfacetype::eq,
+                                    Nothing,
+                                    [this] (serialise1 &s, connpool::connlock) {
+                                        proto::eq::tag::trim.serialise(s);
+                                        queuename.serialise(s);
+                                        subid.serialise(s);
+                                        trim.just().serialise(s); },
+                                    connpool::voidcallV))); }
                 if (getterres.isfailure()) {
                     logmsg(loglevel::verbose, "getter failed");
                     failqueue(getterres.failure());
@@ -354,7 +372,7 @@ CLIENT::run(clientio io) {
         /* No work, so go to sleep. */
         sub.wait(io); }
     
-    if (trimmer != NULL) trimmer->abort();
+    if (trimmer != Nothing) trimmer.just().second()->abort();
     if (gettersub == Nothing) assert(getter == NULL);
     else {
         gettersub = Nothing;

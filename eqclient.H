@@ -52,7 +52,8 @@ public:  timedelta wait;
      * small risks unnecessarily dropping events; making it too big
      * wastes memory and risks buffer bloat-like problems by making it
      * harder to detect when the client is overloaded.  Something on
-     * the order of a few hundred is usually reasonable. */
+     * the order of a few hundred is usually reasonable.  Less than
+     * two will cause unpredictable behaviour. */
 public:  unsigned maxqueue;
     /* Generate a reasonable default configuration. */
 public:  static eqclientconfig dflt(); };

@@ -583,8 +583,11 @@ eqserver::impl::trim(
         q->mux.unlock(&token);
         ic->complete(Success, io, oct);
         return Success; }
-    if (q->nextid(token) >= eid) {
+    if (q->nextid(token) <= eid) {
         /* Can't trim past the end of the queue */
+        logmsg(loglevel::verbose,
+               "trim to " + eid.field() + ", but only have to " +
+               q->nextid(token).field());
         q->mux.unlock(&token);
         return error::toosoon; }
     maybe<nnp<QUEUE::sub> > subs(Nothing);
