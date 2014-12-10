@@ -472,4 +472,50 @@ tests::_eqtest() {
             s->destroy(io);
             server->destroy();
             pool->destroy(); });
+    testcaseIO("eq", "multiclient2", [] (clientio io) {
+            /* Slightly more interesting variant of abandoning a
+             * wait. */
+            auto qconf(eventqueueconfig::dflt());
+            qconf.queuelimit = 2;
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn)
+                      .fatal("starting conn pool"));
+            auto server(eqserver::build());
+            auto s(rpcservice2::listen<eqtestserver>(
+                       io,
+                       cn,
+                       sn,
+                       peername::all(peername::port::any),
+                       *server)
+                   .fatal("starting service"));
+            auto q(server->mkqueue(proto::eq::names::testunsigned, qconf));
+            unsigned nrwaiters = 0;
+            tests::hook<void> h(geneqclient::startingwaiter,
+                                [&] { nrwaiters++; });
+            auto c1(eqclient<unsigned>::connect(
+                        io,
+                        *pool,
+                        sn,
+                        proto::eq::names::testunsigned,
+                        timedelta::seconds(1).future())
+                    .fatal("connecting eqclient"));
+            while (nrwaiters == 0)timedelta::milliseconds(1).future().sleep(io);
+            assert(nrwaiters == 1);
+            auto c2(eqclient<unsigned>::connect(
+                        io,
+                        *pool,
+                        sn,
+                        proto::eq::names::testunsigned,
+                        timedelta::seconds(1).future())
+                    .fatal("connecting eqclient"));
+            while (nrwaiters == 1)timedelta::milliseconds(1).future().sleep(io);
+            assert(nrwaiters == 2);
+            c2->destroy(io);
+            /* Ick */
+            timedelta::milliseconds(200).future().sleep(io);
+            c1->destroy(io);
+            s->destroy(io);
+            server->destroy();
+            pool->destroy(); });
 }
