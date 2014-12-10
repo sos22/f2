@@ -303,9 +303,10 @@ QUEUE::trim(mutex_t::token tok) {
     maybe<proto::eq::eventid> trimto(Nothing);
     for (auto it(subscriptions(tok).start()); !it.finished(); it.next()) {
         if (trimto == Nothing || trimto.just() > it->next) trimto = it->next; }
-    /* trimto can never move backwards. */
-    assert(trimto.just() >= lastdropped(tok));
-    if (trimto == lastdropped(tok)) return;
+    /* We can sometimes drop an event before the trimto point reaches
+     * it, if the queue overflows.  No need to do anything in that
+     * case. */
+    if (trimto.just() <= lastdropped(tok)) return;
     /* Apply the trim. */
     for (auto it(events(tok).start());
          !it.finished() && it->id.just() <= trimto.just();
@@ -652,6 +653,7 @@ eqserver::impl::unsubscribe(
          it.next()) {
         if (it->id != subid) continue;
         it.remove();
+        q->trim(token);
         q->mux.unlock(&token);
         ic->complete(Success, io, oct);
         return Success; }
