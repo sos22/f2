@@ -441,4 +441,35 @@ tests::_eqtest() {
             q1->destroy(io);
             c2->destroy(io);
             pool->destroy(); });
+    testcaseIO("eq", "pipeline", [] (clientio io) {
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn).fatal("starting conn pool"));
+            auto server(eqserver::build());
+            auto s(rpcservice2::listen<eqtestserver>(
+                       io,
+                       cn,
+                       sn,
+                       peername::all(peername::port::any),
+                       *server)
+                   .fatal("starting service"));
+            auto q(server->mkqueue(proto::eq::names::testunsigned));
+            auto cconfig(eqclientconfig::dflt());
+            cconfig.maxqueue = 2;
+            auto c(eqclient<unsigned>::connect(
+                       io,
+                       *pool,
+                       sn,
+                       proto::eq::names::testunsigned,
+                       timedelta::seconds(1).future(),
+                       cconfig)
+                   .fatal("connecting eqclient"));
+            q->queue(0, rpcservice2::acquirestxlock(io));
+            for (unsigned x = 0; x < 1000; x++) {
+                q->queue(x+1, rpcservice2::acquirestxlock(io));
+                assert(c->pop(io) == x); }
+            c->destroy(io);
+            s->destroy(io);
+            server->destroy();
+            pool->destroy(); });
 }
