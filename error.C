@@ -15,6 +15,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 #include "test.tmpl"
 
 static const int firsterror = 0;
@@ -230,6 +231,9 @@ tests::_error() {
     testcaseV("error", "fmtinvalid", [] {
             assert(!strcmp(fields::mk(error(-99)).c_str(),
                            "<invalid error -99>")); });
+    testcaseV("error", "serialise", [] {
+            quickcheck q;
+            serialise<error>(q); });
 #if TESTING
     testcaseV("error", "warn", [] {
             bool warned = false;
