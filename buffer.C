@@ -24,20 +24,6 @@
 #include "spark.tmpl"
 #include "timedelta.tmpl"
 
-const fields::field &
-fields::mk(const buffer::status_t &o) {
-    return "<prod:" + mk(o.prod) +
-        " cons:" + mk(o.cons) +
-        ">"; }
-bufferstatus::bufferstatus(quickcheck &q) {
-    do {
-        prod = q;
-        cons = q;
-    } while (prod > cons); }
-bool
-bufferstatus::operator==(const bufferstatus &o) const {
-    return prod == o.prod && cons == o.cons; }
-
 buffer::subbuf *
 buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
 {
@@ -442,10 +428,6 @@ buffer::contenteq(const buffer &o) const {
     assert(!cursor2);
     return true; }
 
-buffer::status_t
-buffer::status() const {
-    return status_t(prod, cons); }
-
 const bufferfield &
 fields::mk(const buffer &b) {
     return bufferfield::mk(false, bufferfield::c_ascii, true, b); }
@@ -778,18 +760,6 @@ tests::buffer(void)
         });
 
     /* A couple more test cases to get to 100% coverage */
-    testcaseV("buffer", "status", [] () {
-            ::buffer buf;
-            buf.queue("Hello", 5);
-            char b[3];
-            buf.fetch(b, 3);
-            auto s(buf.status());
-            assert(s.prod == 5);
-            assert(s.cons == 3);
-            fields::fieldbuf fb;
-            fields::mk(s).fmt(fb);
-            assert(!strcmp(fb.c_str(), "<prod:5 cons:3>")); } );
-
     testcaseV("buffer", "pushbackempty", [] () {
             ::buffer buf;
             buf.queue("Hello", 5);

@@ -18,22 +18,10 @@ class subscriber;
 class subscriptionbase;
 class test;
 
-class bufferstatus {
-public: unsigned long prod;
-public: unsigned long cons;
-public: bufferstatus(
-    unsigned long _prod,
-    unsigned long _cons)
-    : prod(_prod),
-      cons(_cons) {}
-public: bufferstatus(quickcheck &);
-public: bool operator==(const bufferstatus &) const; };
-
 class buffer;
 class bufferfield;
 
 namespace fields {
-const field &mk(const bufferstatus &);
 const bufferfield &mk(const buffer &);
 }
 
@@ -175,12 +163,7 @@ public:  void serialise(serialise1 &) const;
 
     /* Byte-by-byte comparison of two buffers.  Only considers the
      * content, and not the producer or consumer values. */
-public: bool contenteq(const buffer &) const;
-
-public: typedef bufferstatus status_t;
-public: status_t status() const;
-
-};
+public: bool contenteq(const buffer &) const; };
 
 class bufferfield : public fields::field {
 private: bool showshape_;
