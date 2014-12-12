@@ -25,7 +25,6 @@ class error {
 public:
     error(deserialise1 &);
     error() : e(unknown.e) {}
-    error(const quickcheck &q);
 
     bool operator==(const error &o) const { return e == o.e; }
     bool operator!=(const error &o) const { return e != o.e; }

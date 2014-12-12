@@ -51,10 +51,6 @@ const error error::eventsdropped(-29);
 const error error::badsubscription(-30);
 static const int lasterror = 30;
 
-error::error(const quickcheck &q) {
-    if ((bool)q) e = (unsigned)q % 300 + 1;
-    else e = firsterror - ((unsigned)q % (lasterror+1)); }
-
 class errorfield : public fields::field {
     error content;
     errorfield(const error &_content)
