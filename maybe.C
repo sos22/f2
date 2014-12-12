@@ -2,9 +2,14 @@
 
 #include "fields.H"
 #include "quickcheck.H"
+#include "string.H"
 #include "test.H"
 
 #include "maybe.tmpl"
+#include "parsers.tmpl"
+#include "serialise.tmpl"
+
+#include "fieldfinal.H"
 
 maybe<void>
 maybe<void>::just;
@@ -129,4 +134,16 @@ tests::_maybe()
             assert(c.isjust());
             assert(c.just().val1 == 71);
             assert(c.just().val2 == s); });
+    testcaseV("maybe", "field", [] {
+            assert(!strcmp(maybe<string>(Nothing).field().c_str(),
+                           "Nothing"));
+            assert(!strcmp(maybe<string>("foo").field().c_str(),
+                           "<foo>")); });
+    testcaseV("maybe", "serialise", [] {
+            quickcheck q;
+            serialise<maybe<unsigned> >(q);
+            serialise<maybe<string> >(q); });
+    testcaseV("maybe", "parser", [] {
+            parsers::roundtrip(
+                parsers::_maybe(parsers::intparser<unsigned>())); });
 }

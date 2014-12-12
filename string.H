@@ -46,6 +46,8 @@ public:  void truncate(size_t sz);
        valid as long as this does. */
     /* XXX Really rather skanky XXX */
 public:  const char *c_str() const;
+
+public:  const fields::strfield &field() const { return fields::mk(*this); }
 };
 
 #endif /* !STRING_H__ */
