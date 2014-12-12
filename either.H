@@ -38,8 +38,6 @@ public:  const b &right() const {
 public:  b &right() {
     assert(isright());
     return *(b *)content; }
-public:  void mkright(const b &);
-public:  void mkleft(const a &);
 public:  ~either() {
     if (isleft_) left().~a();
     else right().~b(); }
