@@ -442,9 +442,10 @@ buffer::buffer(deserialise1 &ds)
         prod = 0;
         cons = 0;
         return; }
+    if (prod == cons) return;
     auto s(unlinked_subbuf(prod - cons));
-    s->prod = prod;
-    s->cons = cons;
+    s->prod = prod - cons;
+    s->cons = 0;
     ds.bytes(s->payload, prod - cons);
     if (ds.isfailure()) {
         free(s);
@@ -460,7 +461,7 @@ buffer::serialise(serialise1 &s) const {
     s.push(prod);
     s.push(cons);
     for (auto it(first); it != NULL; it = it->next) {
-        s.bytes(it->payload, it->prod - it->cons); } }
+        s.bytes(it->payload + it->cons, it->prod - it->cons); } }
 
 const bufferfield &
 bufferfield::mk(bool _showshape,
@@ -770,6 +771,48 @@ tests::buffer(void)
             buf.fetch(b2, 5);
             assert(!memcmp(b2, "Hello", 5)); });
 
+    testcaseV("buffer", "serialise", [] {
+            /* Normal case. */
+            {   ::buffer inner;
+                inner.queue("InNeR", 5);
+                char ign;
+                inner.fetch(&ign, 1);
+                ::buffer outer;
+                serialise1(outer).push(inner);
+                deserialise1 ds(outer);
+                ::buffer output(ds);
+                assert(output.contenteq(inner));
+                /* Not sure whether it matters that the offset is
+                 * preserved, but might as well test it. */
+                assert(output.offset() == inner.offset()); }
+            /* Empty buffers should work. */
+            {   ::buffer inner;
+                ::buffer outer;
+                serialise1(outer).push(inner);
+                deserialise1 ds(outer);
+                ::buffer output(ds);
+                assert(output.contenteq(inner)); }
+            /* Implausibly enormous buffers should fail without
+             * exploding. */
+            {   ::buffer buf;
+                serialise1 s(buf);
+                s.push(1ul << 50);
+                s.push(0ul);
+                deserialise1 ds(buf);
+                ::buffer output(ds);
+                assert(ds.isfailure());
+                assert(output.avail() == 0); }
+            /* Similarly buffer lengths longer than the input. */
+            {   ::buffer buf;
+                serialise1 s(buf);
+                s.push(2ul);
+                s.push(0ul);
+                s.push('X');
+                deserialise1 ds(buf);
+                ::buffer output(ds);
+                assert(ds.isfailure());
+                assert(output.avail() == 0); } });
+
     testcaseIO("buffer", "send", [] (clientio io) {
             auto pipe(fd_t::pipe());
             assert(pipe.issuccess());
@@ -884,6 +927,20 @@ tests::buffer(void)
             char *z = (char *)buf.linearise(sizeof(b), sizeof(b) * 31);
             for (unsigned i = 0; i < sizeof(b) * 30; i++) {
                 assert(z[i] == 'Z'); } });
+
+    testcaseV("buffer", "linearisetype", [] {
+            ::buffer buf;
+            unsigned z = 12345;
+            buf.queue("X", 1);
+            buf.queue(&z, sizeof(z));
+            unsigned *Z = buf.linearise<unsigned>(1);
+            assert(*Z == z);
+            *Z = 782;
+            char chr;
+            buf.fetch(&chr, 1);
+            assert(chr == 'X');
+            buf.fetch(&z, sizeof(z));
+            assert(z == 782); });
 
     testcaseIO("buffer", "receivenotify", [] (clientio io) {
             ::buffer buf;
