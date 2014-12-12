@@ -61,6 +61,7 @@ tests::mutex() {
             unsigned holders[nr_muxes];
             memset(holders, 0, sizeof(holders));
             volatile bool shutdown(false);
+            muxes[0].DUMMY();
             struct thr : public thread {
                 mutex_t *const _muxes;
                 unsigned *const _holders;
@@ -79,7 +80,7 @@ tests::mutex() {
                 void run(clientio) {
                     while (!_shutdown) {
                         unsigned i((unsigned long)random() % nr_muxes);
-                        switch (random() % 3) {
+                        switch (random() % 4) {
                         case 0: {
                             auto token(_muxes[i].lock());
                             assert(!_holders[i]);
@@ -91,15 +92,23 @@ tests::mutex() {
                             break; }
                         case 1:
                             _muxes[i].locked(
-                                [this, i] (mutex_t::token token) {
-                                    token.formux(_muxes[i]);
+                                [this, i] {
                                     assert(!_holders[i]);
                                     _holders[i] = ident;
                                     pthread_yield();
                                     assert(_holders[i] == ident);
                                     _holders[i] = 0; });
                             break;
-                        case 2: {
+                        case 2:
+                            _muxes[i].locked(
+                                [this, i] (mutex_t::token) {
+                                    assert(!_holders[i]);
+                                    _holders[i] = ident;
+                                    pthread_yield();
+                                    assert(_holders[i] == ident);
+                                    _holders[i] = 0; });
+                            break;
+                        case 3: {
                             long q;
                             long r;
                             r = _muxes[i].locked<long>(
