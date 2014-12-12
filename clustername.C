@@ -8,6 +8,7 @@
 #include "test.H"
 
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 
 const unsigned
 clustername::maxsize = 100;
@@ -55,4 +56,15 @@ parsers::__clustername() {
 void
 tests::__clustername() {
     testcaseV("clustername", "parsers", [] {
-            parsers::roundtrip(parsers::__clustername()); }); }
+            parsers::roundtrip(parsers::__clustername()); });
+    testcaseV("clustername", "serialise", [] {
+            quickcheck q;
+            serialise<clustername>(q); });
+    testcaseV("clustername", "baddeserialise", [] {
+            string s = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+            while (s.len() < clustername::maxsize) s = s + s;
+            ::buffer b;
+            serialise1(b).push(s);
+            deserialise1 ds(b);
+            clustername cn(ds);
+            assert(ds.isfailure()); }); }
