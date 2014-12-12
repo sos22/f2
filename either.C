@@ -27,6 +27,13 @@ tests::either() {
             auto x(::either<int, int>::right(93));
             assert(x.isright());
             assert(x.right() == 93); });
+    testcaseV("either", "cons", [] {
+            {   ::either<int, const char *> x(left<const char *>(97));
+                assert(x.isleft());
+                assert(x.left() == 97); }
+            {   ::either<const char *, int> x(right<const char *>(97));
+                assert(x.isright());
+                assert(x.right() == 97); } });
     testcaseV("either", "copyleft", [] {
             auto x(::either<copy, int>::left(copy()));
             ::either<copy, int> y(x);
