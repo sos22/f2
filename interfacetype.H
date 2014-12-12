@@ -11,8 +11,8 @@ class serialise1;
 class interfacetype {
 private: unsigned v;
 private: explicit interfacetype(unsigned);
-public:  interfacetype(quickcheck &);
-public:  interfacetype(deserialise1 &);
+public:  explicit interfacetype(quickcheck &);
+public:  explicit interfacetype(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  bool operator==(interfacetype o) const { return v == o.v; }
 public:  bool operator!=(interfacetype o) const { return v != o.v; }

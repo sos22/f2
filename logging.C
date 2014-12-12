@@ -320,6 +320,12 @@ loglevel::operator >=(const loglevel &o) const
 }
 
 bool
+loglevel::operator >(const loglevel &o) const
+{
+    return level < o.level;
+}
+
+bool
 loglevel::operator ==(const loglevel &o) const
 {
     return level == o.level;

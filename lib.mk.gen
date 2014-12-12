@@ -83,7 +83,7 @@ testmodule actortype actortype.C
 testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H
 testmodule buffer buffer.C buffer.H
 testmodule cond cond.C cond.H
-testmodule either either.C either.H either.tmpl
+testmodule either either.C either.H
 testmodule clustername clustername.C clustername.H
 testmodule connpool connpool.C connpool.H
 testmodule eq eqclient.C eqclient.H eqserver.C eqserver.H
@@ -97,8 +97,6 @@ testmodule mutex mutex.C mutex.H mutex.tmpl
 testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
-testmodule registrationsecret registrationsecret.C registrationsecret.H
-testmodule rpc rpcservice.C rpcservice.H rpcservice.tmpl rpcclient.C rpcclient.H
 testmodule rpctest2 rpcservice2.C rpcservice2.tmpl rpcservice2.H rpcclient2.C rpcclient2.tmpl rpcclient2.H
 testmodule serialise serialise.C serialise.H serialise.tmpl
 testmodule spawn spawn.C spawn.H
@@ -106,7 +104,6 @@ testmodule storageconfig storageconfig.C storageconfig.H
 testmodule thread thread.C thread.tmpl thread.H
 testmodule timedelta timedelta.C timedelta.H
 testmodule walltime walltime.C
-testmodule wireproto wireproto.C wireproto.H wireproto.tmpl
 
 cat <<EOF
 spawn-cov-report: tests/abort/abort

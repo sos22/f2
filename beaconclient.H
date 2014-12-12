@@ -51,7 +51,6 @@ private: timedelta _broadcastinterval;
 public:  timedelta broadcastinterval() const { return _broadcastinterval; }
 public:  const maybe<slavename> &name() const { return _name; }
 
-public:  beaconclientconfig(quickcheck &);
     /* The type system guarantees that some fields can be overridden
      * without an error, so if you're only overriding those you can
      * use an ordinary constructor.  For others you might get an

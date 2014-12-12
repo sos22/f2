@@ -54,6 +54,7 @@ public:
 
     /* x >= y is true if x is equal to or more serious than y */
     bool operator>=(const loglevel &o) const;
+    bool operator>(const loglevel &o) const;
 
     /* simple test for equality */
     bool operator==(const loglevel &o) const;

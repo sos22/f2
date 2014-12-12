@@ -15,18 +15,6 @@
 
 #include "fieldfinal.H"
 
-beaconclientconfig::beaconclientconfig(quickcheck &q)
-    : _cluster(q),
-      _type(q),
-      _name(q),
-      _proto(q),
-      _queryinterval(q),
-      _broadcastinterval(q) {
-    while (_queryinterval < timedelta::seconds(1)) {
-        _queryinterval = q; }
-    while (_broadcastinterval < timedelta::seconds(1)) {
-        _broadcastinterval = q; } }
-
 beaconclientconfig::beaconclientconfig(
     const clustername &__cluster,
     maybe<interfacetype> __type,

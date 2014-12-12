@@ -370,8 +370,9 @@ tests::beacon() {
             s->destroy(io); });
 #if TESTING
     testcaseIO("beacon", "sillyiterator", [] (clientio) {
-            auto c(beaconclient::build(
-                       beaconclientconfig(quickcheck()))
+            clustername cn((quickcheck()));
+            beaconclientconfig config(cn, interfacetype::eq);
+            auto c(beaconclient::build(config)
                    .fatal("creating beacon client"));
             unsigned nr = 0;
             eventwaiter< ::loglevel> waiter(
@@ -479,4 +480,106 @@ tests::beacon() {
                         assert(c->query(io, slave).name.getport() == port); })
                 <= timedelta::milliseconds(300));
             c->destroy();
-            s->destroy(io); }); }
+            s->destroy(io); });
+#if TESTING
+    testcaseIO("beacon", "badserver", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            beaconconfig underlying(q);
+            auto c(beaconclient::build(beaconclientconfig(cn,
+                                                          Nothing,
+                                                          Nothing,
+                                                          underlying))
+                   .fatal("beaconclient::build"));
+            /* Send a couple of deliberately malformed packets. */
+            auto sender(udpsocket::client().fatal("udp client"));
+            /* Shouldn't spam the logs too much */
+            unsigned loudmsgs = 0;
+            unsigned quietmsgs = 0;
+            eventwaiter< ::loglevel> waiter(
+                tests::logmsg,
+                [&loudmsgs, &quietmsgs] (loglevel level) {
+                    if (level > loglevel::debug) loudmsgs++;
+                    else quietmsgs++; });
+            /* Something which can't be decoded at all */
+            {   ::buffer b;
+                serialise1(b).push((unsigned) 123);
+                sender.send(b, peername::loopback(underlying.respport))
+                    .fatal("sending bad packet"); }
+            /* Something which decodes and gives a bad version. */
+            peername::port port(q);
+            slavename sn(q);
+            {   ::buffer b;
+                interfacetype t(q);
+                timedelta ct(q);
+                proto::beacon::resp rsp(cn,
+                                        sn,
+                                        list<interfacetype>::mk(t),
+                                        port,
+                                        ct);
+                rsp.version = ::version::invalid;
+                serialise1(b).push(rsp);
+                sender.send(b,
+                            peername::loopback(underlying.respport))
+                    .fatal("sending bad version packet"); }
+            sender.close();
+            /* Give it a moment to go through. */
+            timedelta::milliseconds(100).future().sleep(io);
+            assert(quietmsgs > 2);
+            assert(loudmsgs == 0);
+            assert(c->poll(sn) == Nothing);
+            /* Make sure that the client still works. */
+            auto s(beaconserver::build(
+                       beaconserverconfig(
+                           underlying,
+                           cn,
+                           sn,
+                           timedelta::seconds(1)),
+                       mklist(interfacetype::test),
+                       port)
+                   .fatal("starting beacon server"));
+            assert(c->query(io, sn).name.getport() == port);
+            c->status(loglevel::emergency);
+            assert(loudmsgs > 0);
+            s->destroy(io);
+            c->destroy(); });
+    testcaseIO("beacon", "badclient", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            beaconconfig underlying(q);
+            peername::port port(q);
+            slavename sn(q);
+            auto s(beaconserver::build(
+                       beaconserverconfig(
+                           underlying,
+                           cn,
+                           sn,
+                           timedelta::seconds(1)),
+                       mklist(interfacetype::test),
+                       port)
+                   .fatal("starting beacon server"));
+            unsigned msgs = 0;
+            eventwaiter< ::loglevel> waiter(
+                tests::logmsg,
+                [&msgs] (loglevel level) { if (level>loglevel::debug) msgs++;});
+            /* Send a bad request */
+            {   auto sender(udpsocket::client().fatal("udp client"));
+                ::buffer b;
+                serialise1(b).push((unsigned) 123);
+                sender.send(b, peername::loopback(underlying.reqport))
+                    .fatal("sending bad packet");
+                sender.close(); }
+            /* Shouldn't produce any log messages. */
+            timedelta::milliseconds(100).future().sleep(io);
+            assert(msgs == 0);
+            /* Check the server still works. */
+            auto c(beaconclient::build(beaconclientconfig(cn,
+                                                          Nothing,
+                                                          Nothing,
+                                                          underlying))
+                   .fatal("beaconclient::build"));
+            assert(c->query(io, sn).name.getport() == port);
+            s->destroy(io);
+            c->destroy(); });
+#endif
+}
