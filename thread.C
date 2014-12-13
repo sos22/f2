@@ -171,6 +171,20 @@ tests::thread() {
             /* And that does run the destructor. */
             assert(died); });
 
+    testcaseIO("thread", "start", [] (clientio io) {
+            class testthr : public thread {
+            public: bool &go;
+            public: testthr(constoken token, bool &_go)
+                : thread(token),
+                  go(_go) {}
+            public: void run(clientio) {
+                assert(!go);
+                go = true;
+                assert(!strcmp(myname(), "foo")); } };
+            bool go(false);
+            thread::start<testthr>(fields::mk("foo"), go)->join(io);
+            assert(go); });
+
     testcaseV("thread", "joinpaused", [] () {
             class testthr : public thread {
             public: bool &_destructed;
