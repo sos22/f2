@@ -21,6 +21,7 @@
 #include "util.H"
 
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 #include "spark.tmpl"
 
 #include "fieldfinal.H"
@@ -536,4 +537,22 @@ tests::_peername() {
                    .match("ip6://[::]:99999/")
                    == error::noparse); });
     testcaseV("peername", "peernameport", [] {
-            parsers::roundtrip(parsers::_peernameport()); }); }
+            parsers::roundtrip(parsers::_peernameport());
+            quickcheck q;
+            serialise<peername::port>(q);
+            assert(!peername::local(filename(q)).fatal("huh?").isbroadcast());
+            {   auto p(peername::loopback(peername::port(q)));
+                assert(!p.isbroadcast());
+                for (unsigned x = 0; x < 100; x++) {
+                    peername::port prt(q);
+                    assert(p.setport(prt).getport() == prt); } }
+            {   struct sockaddr_in6 sin6;
+                memset(&sin6, 0, sizeof(sin6));
+                sin6.sin6_family = AF_INET6;
+                peername p((struct sockaddr *)&sin6, sizeof(sin6));
+                assert(!p.isbroadcast());
+                for (unsigned x = 0; x < 100; x++) {
+                    peername::port prt(q);
+                    assert(p.setport(prt).getport() == prt); } }
+        });
+}
