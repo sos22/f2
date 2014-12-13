@@ -66,12 +66,16 @@ static inline timedelta operator*(double scale, timedelta v) {
     return v * scale; }
 
 template <typename t> class timeres {
+private: timeres() = delete;
 public: class timedelta td;
 public: t v;
 public: timeres(const timedelta &_td, const t &_v)
     : td(_td), v(_v) {}
 public: operator t&() { return v; }
 public: operator class timedelta &() { return td; }
+    /* If we don't have a destructor then we get a coverage failure.
+     * I'm not sure why. */
+public: ~timeres() {}
 };
 
 template <typename> class parser;

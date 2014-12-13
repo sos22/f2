@@ -9,6 +9,7 @@
 #include "timestamp.H"
 
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 #include "timedelta.tmpl"
 
 timedelta::timedelta(const quickcheck &q, timedelta min, timedelta max)
@@ -83,7 +84,14 @@ tests::_timedelta() {
             assert(timedelta::seconds(1) * 2 == timedelta::seconds(2));
             assert(timedelta::seconds(2) / 2 == timedelta::seconds(1));
             assert(2 * timedelta::milliseconds(500) ==
-                   timedelta::seconds(1)); });
+                   timedelta::seconds(1));
+            assert(timedelta::minutes(2) == timedelta::seconds(120));
+            assert(timedelta::hours(1) == timedelta::minutes(60));
+            assert(timedelta::days(2) == timedelta::hours(48));
+            assert(timedelta::weeks(3) == timedelta::days(21));
+            assert(timedelta::minutes(1) != timedelta::seconds(1));
+            assert(!(timedelta::minutes(1) != timedelta::minutes(1)));
+            assert(timedelta::hours(1) > timedelta::minutes(59)); });
     testcaseV("timedelta", "randrange", [] {
             for (unsigned x = 0; x < 1000; x++) {
                 timedelta a((quickcheck()));
@@ -98,6 +106,17 @@ tests::_timedelta() {
                     assert(c <= a);
                     assert((c == a) == (a == b)); }
                 assert(timedelta(quickcheck(), a, a) == a); } } );
+    testcaseV("timedelta", "serialise", [] {
+            quickcheck q;
+            serialise<timedelta>(q); });
+    testcaseV("timedelta", "future", [] {
+            quickcheck q;
+            for (unsigned x = 0; x < 100; x++) {
+                timedelta td(q);
+                auto pls(td.future());
+                assert(pls < timestamp::now() + td);
+                assert(pls >
+                       timestamp::now()+td-timedelta::milliseconds(10)); } });
     testcaseV("timedelta", "time", [] {
             auto t(timedelta::time<int>([] {
                         (timestamp::now()+timedelta::milliseconds(100))
