@@ -20,12 +20,13 @@ string::string()
 string
 string::steal(char *&c) {
     string res;
-    res.content = c;
+    if (c != NULL && c[0] == '\0') res.content = NULL;
+    else res.content = c;
     c = (char *)0xf001ul;
     return res; }
 
 string::string(const char *c)
-    : content(strdup(c)) {}
+    : content(c == NULL ? NULL : strdup(c)) {}
 
 string::string(const string &o)
     : content(o.content
@@ -55,7 +56,7 @@ string::string(deserialise1 &ds) {
 void
 string::operator=(const string &o) {
     free((void *)content);
-    content = o.content
+    content = o.content != NULL
         ? (char *)strdup(o.content)
         : NULL; }
 
@@ -88,7 +89,7 @@ string::operator>(const string &o) const {
 
 size_t
 string::len() const {
-    return strlen(content); }
+    return strlen(c_str()); }
 
 void
 string::truncate(size_t sz) {
