@@ -45,10 +45,12 @@ string::string(deserialise1 &ds) {
             ds.fail(error::invalidmessage);
             content = strdup("<bad>");
             return; }
-        auto c = (char *)malloc(sz + 1);
-        ds.bytes(c, sz);
-        c[sz] = '\0';
-        content = c; } }
+        if (sz == 0) content = NULL;
+        else {
+            auto c = (char *)malloc(sz + 1);
+            ds.bytes(c, sz);
+            c[sz] = '\0';
+            content = c; } } }
 
 void
 string::operator=(const string &o) {
@@ -98,7 +100,7 @@ string::~string() {
 
 void
 string::serialise(serialise1 &s) const {
-    size_t sz(strlen(content));
+    size_t sz(content == NULL ? 0 : strlen(content));
     s.push(sz);
     s.bytes(content, sz); }
 
