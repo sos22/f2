@@ -112,6 +112,10 @@ public:
     void serialise(serialise1 &s) const;
 };
 
+template <typename t> bool
+operator==(const t &a, const orerror<t> &b) {
+    return b.issuccess() && a == b.success(); }
+
 /* Special case for things which just return an error indication.
    This gives a slightly nicer API than maybe<error> (or at least a
    more consistent one). */
