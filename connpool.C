@@ -27,6 +27,8 @@
 #define CALL connpool::asynccall::impl
 #define CONN POOL::conn
 
+tests::hookpoint<void> connpool::reapedconnthread([] {});
+
 /* The pool thread itself is responsible for establishing and
  * destroying connections to remote machines when appropriate. */
 class POOL : public thread {
@@ -291,6 +293,15 @@ connpool::config::dflt(const clustername &cn) {
     /* Can't fail with all defaults. */
     return mk(beaconclientconfig(cn)).success(); }
 
+bool
+connpool::config::operator==(const config &o) const {
+    return beacon == o.beacon &&
+        forceretry == o.forceretry &&
+        idletimeout == o.idletimeout &&
+        connecttimeout == o.connecttimeout &&
+        hellotimeout == o.hellotimeout &&
+        debounceconnect == o.debounceconnect; }
+
 /* -------------------------- connpool API proxies ---------------------- */
 POOL &
 connpool::implementation() { return *containerof(this, impl, api); }
@@ -388,6 +399,7 @@ POOL::run(clientio io) {
         auto c = (conn *)s->data;
         auto t(c->hasdied());
         if (t == Nothing) continue;
+        logmsg(loglevel::debug, "reaping " + fields::mk(c->slave));
         /* Thread must declare itself to be dying before exiting (and
          * that's necessary for us to get away with not taking the
          * connection lock here). */
@@ -403,6 +415,7 @@ POOL::run(clientio io) {
          * down. */
         assert(c->_newcalls.empty());
         assert(c->_aborted.empty());
+        connpool::reapedconnthread();
         c->join(t.just()); }
     /* The shutdown box is set so all of our connections should be
      * shutting down.  Wait for them to do so. */

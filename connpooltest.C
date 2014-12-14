@@ -714,10 +714,16 @@ tests::_connpool() {
                          callaborted)
                      .fatal("starting abort service"));
             auto pool(connpool::build(cn).fatal("building pool"));
+            for (unsigned x = 0; x < 100; x++) {
+                pool->call(sn,
+                           interfacetype::test,
+                           timedelta::hours(1).future(),
+                           [] (serialise1 &, connpool::connlock) {})
+                    ->abort(); }
             auto b(pool->call(
                        sn,
                        interfacetype::test,
-                       timestamp::now() + timedelta::hours(1),
+                       timedelta::hours(1).future(),
                        [] (serialise1 &, connpool::connlock) {},
                        [] (deserialise1 &, connpool::connlock)
                            -> orerror<void> {
@@ -728,6 +734,82 @@ tests::_connpool() {
                    < timedelta::milliseconds(50));
             pool->destroy();
             srv->destroy(io); });
+    testcaseV("connpool", "config", [] {
+            quickcheck q;
+            beaconclientconfig bcc((clustername(q)));
+            assert(connpool::config::mk(bcc,
+                                        probability::never,
+                                        timedelta::seconds(-1)) ==
+                   error::invalidparameter);
+            assert(connpool::config(bcc) == connpool::config::mk(bcc)); });
+    testcaseIO("connpool", "connreap", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn1(q);
+            slavename sn2(q);
+            ::logmsg(loglevel::debug, "slave name 1 " + fields::mk(sn1));
+            ::logmsg(loglevel::debug, "slave name 2 " + fields::mk(sn2));
+            auto srv1(rpcservice2::listen<echoservice>(
+                          io,
+                          cn,
+                          sn1,
+                          peername::all(peername::port::any))
+                      .fatal("starting echo service"));
+            auto srv2(rpcservice2::listen<echoservice>(
+                          io,
+                          cn,
+                          sn2,
+                          peername::all(peername::port::any))
+                      .fatal("starting echo service"));
+            auto cconfig(connpool::config::dflt(cn));
+            cconfig.idletimeout = timedelta::milliseconds(50);
+            auto pool(connpool::build(cconfig).fatal("building connpool"));
+            unsigned nrreaped(0);
+            tests::hook<void> h(connpool::reapedconnthread,
+                                [&nrreaped] { nrreaped++; });
+            /* Not really looking at the results of the calls, but the
+             * order we do them in matters to get the desred reap
+             * order. */
+            pool->call<int>(
+                io,
+                sn1,
+                interfacetype::test,
+                timedelta::hours(1).future(),
+                [] (serialise1 &s, connpool::connlock) {
+                    string().serialise(s); },
+                [] (orerror<nnp<deserialise1> > d,
+                    connpool::connlock) -> orerror<int> {
+                    assert(string(*d.success()) == "");
+                    return 1023; });
+            assert(nrreaped == 0);
+            pool->call<int>(
+                io,
+                sn2,
+                interfacetype::test,
+                timedelta::hours(1).future(),
+                [] (serialise1 &s, connpool::connlock) {
+                    string("foo").serialise(s); },
+                [] (orerror<nnp<deserialise1> > d,
+                    connpool::connlock) -> orerror<int> {
+                    assert(string(*d.success()) == "foo");
+                    return 1023; });
+            assert(nrreaped == 0);
+            pool->call<int>(
+                io,
+                sn1,
+                interfacetype::test,
+                timedelta::hours(1).future(),
+                [] (serialise1 &s, connpool::connlock) {
+                    string().serialise(s); },
+                [] (orerror<nnp<deserialise1> > d,
+                    connpool::connlock) -> orerror<int> {
+                    assert(string(*d.success()) == "");
+                    return 1023; });
+            assert(nrreaped == 0);
+            while (nrreaped == 0)timedelta::milliseconds(10).future().sleep(io);
+            srv2->destroy(io);
+            srv1->destroy(io);
+            pool->destroy(); });
 
     /* This doesn't really belong here, but it's the easiest place to
      * put it. */

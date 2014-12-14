@@ -16,6 +16,7 @@
 #include "nnp.H"
 #include "orerror.H"
 #include "probability.H"
+#include "test.H"
 #include "timedelta.H"
 #include "timestamp.H"
 
@@ -87,7 +88,8 @@ public:  class config {
         timedelta connecttimeout = timedelta::seconds(10),
         timedelta hellotimeout = timedelta::seconds(10),
         timedelta debounceconnect = timedelta::seconds(1));
-    public: static config dflt(const clustername &); };
+    public: static config dflt(const clustername &);
+    public: bool operator==(const config &) const; };
 
     /* Tag type indicating that a particular method or callback is
      * invoked while holding the connection lock.  Holding the lock
@@ -343,6 +345,8 @@ public:  void destroy();
 
     /* Use destroy(). */
 private: ~connpool();
+
+public:  static tests::hookpoint<void> reapedconnthread;
 };
 
 namespace tests { void _connpool(); }
