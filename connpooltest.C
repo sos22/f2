@@ -46,6 +46,19 @@ public: orerror<void> called(
             oct); }
     return Success; } };
 
+class pingservice : public rpcservice2 {
+public:  explicit pingservice(const rpcservice2::constoken &t)
+    : rpcservice2(t, interfacetype::test) {}
+public: orerror<void> called(
+    clientio io,
+    deserialise1 &,
+    interfacetype,
+    nnp<incompletecall> ic,
+    onconnectionthread oct) final {
+    ic->complete(
+        [] (serialise1 &, mutex_t::token, onconnectionthread) {}, io, oct);
+    return Success; } };
+
 class abandonservice : public rpcservice2 {
 public: maybe<spark<void> > worker;
 public: waitbox<void> &abandoned;
@@ -699,7 +712,7 @@ tests::_connpool() {
             assert(end - start < timedelta::milliseconds(250));
             pool->destroy();
             srv->destroy(io); });
-    testcaseIO("connpool", "abort", [] (clientio io) {
+    testcaseIO("connpool", "abort1", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
             slavename sn(q);
@@ -714,12 +727,6 @@ tests::_connpool() {
                          callaborted)
                      .fatal("starting abort service"));
             auto pool(connpool::build(cn).fatal("building pool"));
-            for (unsigned x = 0; x < 100; x++) {
-                pool->call(sn,
-                           interfacetype::test,
-                           timedelta::hours(1).future(),
-                           [] (serialise1 &, connpool::connlock) {})
-                    ->abort(); }
             auto b(pool->call(
                        sn,
                        interfacetype::test,
@@ -732,6 +739,38 @@ tests::_connpool() {
             assert(b->abort() == error::aborted);
             assert(timedelta::time([&callaborted, io] { callaborted.get(io); })
                    < timedelta::milliseconds(50));
+            pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "abort2", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            waitbox<void> callstarted;
+            waitbox<void> callaborted;
+            auto srv(rpcservice2::listen<pingservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting ping service"));
+            auto pool(connpool::build(cn).fatal("building pool"));
+            for (unsigned x = 0; x < 100; x++) {
+                pool->call(sn,
+                           interfacetype::test,
+                           timedelta::hours(1).future(),
+                           [] (serialise1 &, connpool::connlock) {})
+                    ->abort(); }
+            for (unsigned x = 0; x < 100; x++) {
+                auto c1(pool->call(sn,
+                                   interfacetype::test,
+                                   timedelta::hours(1).future(),
+                                   [] (serialise1 &, connpool::connlock) {}));
+                pool->call(sn,
+                           interfacetype::test,
+                           timedelta::hours(1).future(),
+                           [] (serialise1 &, connpool::connlock) {})
+                    ->abort();
+                c1->abort(); }
             pool->destroy();
             srv->destroy(io); });
     testcaseV("connpool", "config", [] {
@@ -810,8 +849,46 @@ tests::_connpool() {
             srv2->destroy(io);
             srv1->destroy(io);
             pool->destroy(); });
-
-    /* This doesn't really belong here, but it's the easiest place to
+    testcaseIO("connpool", "multicall", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<slowservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting slow service"));
+            auto pool(connpool::build(cn).fatal("building pool"));
+            auto c1(pool->call(
+                        sn,
+                        interfacetype::test,
+                        timedelta::milliseconds(100).future(),
+                        [] (serialise1 &s, connpool::connlock) {
+                            s.push(timedelta::hours(1));
+                            s.push(1u); },
+                        connpool::voidcallV));
+            spark<void> s1([c1] {
+                    auto t(
+                        timedelta::time(
+                            [c1] { c1->pop(clientio::CLIENTIO); }));
+                    assert(t >= timedelta::milliseconds(50));
+                    assert(t <= timedelta::milliseconds(150)); });
+            auto c2(pool->call(
+                        sn,
+                        interfacetype::test,
+                        timedelta::milliseconds(50).future(),
+                        [] (serialise1 &s, connpool::connlock) {
+                            s.push(timedelta::hours(1));
+                            s.push(1u); },
+                        connpool::voidcallV));
+            auto t(timedelta::time([c2, io] { c2->pop(io); }));
+            assert(t >= timedelta::milliseconds(40));
+            assert(t < timedelta::milliseconds(100));
+            s1.get();
+            pool->destroy();
+            srv->destroy(io); });
+            /* This doesn't really belong here, but it's the easiest place to
      * put it. */
     testcaseIO("connpool", "doublelisten", [] (clientio io) {
             quickcheck q;
