@@ -96,7 +96,6 @@ testmodule mutex mutex.C mutex.H mutex.tmpl
 testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
-testmodule rpctest2 rpcservice2.C rpcservice2.tmpl rpcservice2.H
 testmodule serialise serialise.C serialise.H serialise.tmpl
 testmodule spawn spawn.C spawn.H
 testmodule storageconfig storageconfig.C storageconfig.H

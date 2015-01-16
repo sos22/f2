@@ -8,6 +8,7 @@
 
 #include <functional>
 
+#include "fields.H"
 #include "filename.H"
 #include "list.H"
 #include "peername.H"
@@ -130,17 +131,23 @@ void listtests(const char *component) {
             printf("%s\n", it2->name); } } }
 
 void runtest(const char *component, const char *t) {
+    bool foundcomp = false;
     for (auto it(components.start()); !it.finished(); it.next()) {
-        if (!strcmp(component, "*")) {
-            printf("%s:\n", it->name);
-        } else if (strcmp(it->name, component)) {
-            continue; }
+        if (strcmp(component, "*") && strcmp(it->name, component)) continue;
+        foundcomp = true;
+        bool foundtest = false;
         for (auto it2(it->tests.start()); !it2.finished(); it2.next()) {
-            if (!strcmp(t, "*")) {
-                printf("        %s:\n", it2->name);
-            } else if (strcmp(it2->name, t)) {
-                continue; }
+            if (strcmp(t, "*") && strcmp(it2->name, t)) continue;
+            printf("%15s %60s\n", it->name, it2->name);
+            foundtest = true;
             support s;
-            it2->doit(s); } } }
+            it2->doit(s); }
+        if (!foundtest) {
+            error::notfound.fatal(
+                "cannot find test " + fields::mk(t) + "::" +
+                fields::mk(component)); } }
+    if (!foundcomp) {
+        error::notfound.fatal(
+            "cannot find test component " + fields::mk(component)); } }
 
 } /* End namespace tests */
