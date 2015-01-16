@@ -558,7 +558,7 @@ tests::pubsub() {
             t1.get();
             t2.get();
             assert(cntr1 - cntr2 >= -1 && cntr1 - cntr2 <= 1);
-            assert(cntr1 >= 10000); });
+            assert(cntr1 >= 5000); });
 
     testcaseV("pubsub", "ioshutdownrace", [io] () {
             auto pipe(fd_t::pipe());
