@@ -50,4 +50,6 @@ public:  const char *c_str() const;
 public:  const fields::strfield &field() const { return fields::mk(*this); }
 };
 
+namespace tests { void _string(void); }
+
 #endif /* !STRING_H__ */

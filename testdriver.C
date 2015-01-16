@@ -23,6 +23,7 @@
 #include "serialise.H"
 #include "spawn.H"
 #include "storageconfig.H"
+#include "string.H"
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
@@ -59,6 +60,7 @@ main(int argc, char *argv[])
     tests::_serialise();
     tests::_spawn();
     tests::__storageconfig();
+    tests::_string();
     tests::thread();
     tests::_timedelta();
     tests::_waitqueue();

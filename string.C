@@ -11,8 +11,7 @@
 #include "serialise.tmpl"
 
 const fields::strfield &
-fields::mk(const string &s) {
-    return mk(s.content); }
+fields::mk(const string &s) { return mk(s.content ?: ""); }
 
 string::string()
     : content(NULL) {}
