@@ -306,9 +306,6 @@ connpool::config::operator==(const config &o) const {
 POOL &
 connpool::implementation() { return *containerof(this, impl, api); }
 
-const POOL &
-connpool::implementation() const { return *containerof(this, impl, api); }
-
 orerror<void>
 connpool::voidcall(asynccall &, orerror<nnp<deserialise1> > ds, connlock) {
     if (ds.isfailure()) return ds.failure();

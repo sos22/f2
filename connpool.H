@@ -48,7 +48,6 @@ private: void operator=(const connpool &) = delete;
 
 private: class impl;
 private: impl &implementation();
-private: const impl &implementation() const;
 
 public:  class config {
         /* Beacon configuration. */
