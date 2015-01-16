@@ -14,7 +14,6 @@ class socket_t : public fd_t {
     friend class tcpsocket;
 public:  explicit socket_t(int _fd) : fd_t(_fd) {}
 public:  orerror<peername> peer() const;
-public:  peername localname() const;
 public:  orerror<void> setsockoptions() const;
 public:  static orerror<listenfd> listen(const peername &);
 public:  static orerror<socketpairres> socketpair();

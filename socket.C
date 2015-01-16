@@ -17,14 +17,6 @@ socket_t::peer() const {
     if (res < 0) return error::from_errno();
     else return peername((const struct sockaddr *)addr, addrlen); }
 
-peername
-socket_t::localname() const {
-    unsigned char addr[4096];
-    socklen_t addrlen(sizeof(addr));
-    auto res(::getsockname(fd, (struct sockaddr *)addr, &addrlen));
-    if (res < 0) error::from_errno().fatal("getting socket peer name");
-    return peername((const struct sockaddr *)addr, addrlen); }
-
 orerror<listenfd>
 socket_t::listen(
     const peername &p) {

@@ -38,9 +38,6 @@ public:
        The port can be retrieved with localname(). */
     static orerror<udpsocket> client();
 
-    /* Return a peername on which this socket can receive packets. */
-    peername localname() const;
-
      /* Return a pollfd for checking whether this FD is currently
      * readable. */
     struct pollfd poll() const;

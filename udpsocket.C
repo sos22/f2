@@ -150,13 +150,5 @@ udpsocket::send(buffer &buf, const peername &p) const {
     } else {
         return error::from_errno(); } }
 
-peername
-udpsocket::localname() const {
-    unsigned char addr[4096];
-    socklen_t addrlen(sizeof(addr));
-    auto res(::getsockname(fd, (struct sockaddr *)addr, &addrlen));
-    if (res < 0) error::from_errno().fatal("getting socket local name");
-    return peername((const struct sockaddr *)addr, addrlen).canonicalise(); }
-
 const fields::field &
 fields::mk(udpsocket s) { return mk(fd_t(s.fd)); }
