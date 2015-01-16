@@ -52,7 +52,7 @@ listenfd::localname() const {
     socklen_t addrlen(sizeof(addr));
     auto res(::getsockname(fd, (struct sockaddr *)addr, &addrlen));
     if (res < 0) error::from_errno().fatal("getting socket peer name");
-    return peername((const struct sockaddr *)addr, addrlen).canonicalise(); }
+    return peername((const struct sockaddr *)addr, addrlen); }
 
 listenfd::listenfd(int n)
     : fd(n)
