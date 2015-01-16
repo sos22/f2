@@ -540,7 +540,9 @@ tests::_peername() {
             parsers::roundtrip(parsers::_peernameport());
             quickcheck q;
             serialise<peername::port>(q);
-            assert(!peername::local(filename(q)).fatal("huh?").isbroadcast());
+            {   auto e(peername::local(filename(q)));
+                while (e == error::overflowed) e = peername::local(filename(q));
+                assert(!e.fatal("huh?").isbroadcast()); }
             {   auto p(peername::loopback(peername::port(q)));
                 assert(!p.isbroadcast());
                 for (unsigned x = 0; x < 100; x++) {
