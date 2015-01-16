@@ -152,8 +152,10 @@ tests::beacon() {
             slavename slave1((quickcheck()));
             peername::port port1((quickcheck()));
             slavename slave2((quickcheck()));
+            while (slave1 == slave2) slave2 = quickcheck();
             peername::port port2((quickcheck()));
             slavename slave3((quickcheck()));
+            while (slave1 == slave3 || slave2 == slave3) slave3 = quickcheck();
             peername::port port3((quickcheck()));
             auto c(beaconclient::build(cluster)
                    .fatal("starting beacon client"));
