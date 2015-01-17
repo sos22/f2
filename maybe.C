@@ -146,4 +146,10 @@ tests::_maybe()
     testcaseV("maybe", "parser", [] {
             parsers::roundtrip(
                 parsers::_maybe(parsers::intparser<unsigned>())); });
+    testcaseV("maybe", "alignment", [] {
+            maybe<unsigned long> x[3] = {1, 7, 9};
+            assert((unsigned long)&x[0].just() % alignof(unsigned long) == 0);
+            assert((unsigned long)&x[1].just() % alignof(unsigned long) == 0);
+            assert((unsigned long)&x[2].just() % alignof(unsigned long) == 0);
+        });
 }

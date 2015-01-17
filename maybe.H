@@ -24,7 +24,10 @@ const class _Nothing Nothing;
 template <typename t>
 class maybe {
     bool _isnothing;
-    unsigned char content[sizeof(t)];
+    union {
+        unsigned char content[sizeof(t)];
+        t __alignment;
+    };
     maybe() = delete;
 public:
     maybe(deserialise1 &);
