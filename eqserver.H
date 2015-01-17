@@ -16,7 +16,7 @@ private: eventqueueconfig();
     /* Maximum number of events in a queue.  We drop anything past
      * this limit, even if some clients still need them. */
 public:  unsigned queuelimit;
-    
+
     /* Generate an eqserverconfig with reasonable defaults. */
 public:  static eventqueueconfig dflt(); };
 

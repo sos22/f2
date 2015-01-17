@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc storagespy.C
+ld storagespy storagespy.o lib.a
+
+target storagespy

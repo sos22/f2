@@ -8,6 +8,8 @@ const proto::eq::name<unsigned>
 proto::eq::names::testunsigned(1);
 const proto::eq::name<string>
 proto::eq::names::teststring(2);
+const proto::eq::name<proto::storage::event>
+proto::eq::names::storage(3);
 
 const proto::eq::tag
 proto::eq::tag::subscribe(2);

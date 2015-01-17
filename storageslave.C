@@ -1,6 +1,7 @@
 #include "storageslave.H"
 
 #include "buffer.H"
+#include "eqserver.H"
 #include "jobname.H"
 #include "logging.H"
 #include "nnp.H"
@@ -16,6 +17,32 @@
 #include "parsers.tmpl"
 #include "rpcservice2.tmpl"
 
+orerror<nnp<storageslave> >
+storageslave::build(clientio io,
+                    const storageconfig &config) {
+    return rpcservice2::listen<storageslave>(
+        io,
+        config.beacon.cluster,
+        config.beacon.name,
+        peername::all(peername::port::any),
+        config); }
+
+storageslave::storageslave(const constoken &token,
+                           const storageconfig &_config)
+    : rpcservice2(token, list<interfacetype>::mk(interfacetype::storage,
+                                                 interfacetype::eq)),
+      config(_config),
+      mux(),
+      eqs(*eqserver::build()),
+      eqq(*eqs.mkqueue(proto::eq::names::storage)) {}
+
+void
+storageslave::destroy(clientio io) {
+    eqq.destroy(io);
+    delete this; }
+
+storageslave::~storageslave() { eqs.destroy(); }
+
 orerror<void>
 storageslave::called(
     clientio io,
@@ -24,13 +51,18 @@ storageslave::called(
     nnp<incompletecall> ic,
     onconnectionthread oct) {
     /* rpcservice2 should enforce this for us, since we only claim to
-     * support one interface type. */
-    assert(type == interfacetype::storage);
+     * support the two interface types. */
+    assert(type == interfacetype::storage || type == interfacetype::eq);
+    if (type == interfacetype::eq) return eqs.called(io, ds, ic, oct);
     proto::storage::tag tag(ds);
     if (tag == proto::storage::tag::createempty) {
         jobname j(ds);
         streamname s(ds);
-        if (!ds.isfailure()) ic->complete(createempty(j, s), io, oct); }
+        if (!ds.isfailure()) {
+            auto r(createempty(j, s));
+            if (!r.isfailure()) {
+                eqq.queue(proto::storage::event::newstream(j, s), io); }
+            ic->complete(r, io, oct); } }
     else if (tag == proto::storage::tag::append) {
         jobname job(ds);
         streamname stream(ds);
@@ -40,7 +72,12 @@ storageslave::called(
     else if (tag == proto::storage::tag::finish) {
         jobname job(ds);
         streamname stream(ds);
-        if (!ds.isfailure()) ic->complete(finish(job, stream), io, oct); }
+        if (!ds.isfailure()) {
+            auto r(finish(job, stream));
+            if (!r.isfailure()) {
+                eqq.queue(proto::storage::event::finishstream(job, stream),
+                          io); }
+            ic->complete(r, io, oct); } }
     else if (tag == proto::storage::tag::read) {
         jobname job(ds);
         streamname stream(ds);
@@ -66,25 +103,14 @@ storageslave::called(
     else if (tag == proto::storage::tag::removestream) {
         jobname job(ds);
         streamname stream(ds);
-        if (!ds.isfailure()) ic->complete(removestream(job, stream), io, oct); }
+        if (!ds.isfailure()) {
+            auto r(removestream(job, stream));
+            if (!r.isfailure()) {
+                eqq.queue(proto::storage::event::removestream(job, stream),
+                          io); }
+            ic->complete(r, io, oct); } }
     else ds.fail(error::invalidmessage);
     return ds.status(); }
-
-orerror<nnp<storageslave> >
-storageslave::build(clientio io,
-                    const storageconfig &config) {
-    return rpcservice2::listen<storageslave>(
-        io,
-        config.beacon.cluster,
-        config.beacon.name,
-        peername::all(peername::port::any),
-        config); }
-
-storageslave::storageslave(const constoken &token,
-                           const storageconfig &_config)
-    : rpcservice2(token, interfacetype::storage),
-      config(_config),
-      mux() {}
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */

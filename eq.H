@@ -10,6 +10,7 @@ class string;
 namespace fields { class field; }
 
 namespace proto {
+namespace storage { class event; }
 namespace eq {
 
 /* Implementation detail of name and eqclient.  Can't quite hide it
@@ -34,7 +35,8 @@ template <typename> class name : public genname {
 public: explicit name(unsigned long _v) : genname(_v) { } };
 namespace names {
 extern const name<unsigned> testunsigned;
-extern const name<string> teststring; }
+extern const name<string> teststring;
+extern const name<proto::storage::event> storage; }
 
 /* Before receiving events from a queue clients must subscribe to that
  * queue. */

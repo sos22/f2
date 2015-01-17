@@ -17,4 +17,5 @@ config
 spawnservice
 storageservice
 storageclient
+storagespy
 test

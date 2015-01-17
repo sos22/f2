@@ -13,6 +13,7 @@
 #ifndef EQCLIENT_H__
 #define EQCLIENT_H__
 
+#include "buffer.H"
 #include "clientio.H"
 #include "eq.H"
 #include "maybe.H"
@@ -20,7 +21,6 @@
 #include "timedelta.H"
 #include "timestamp.H"
 
-class buffer;
 class connpool;
 template <typename> class nnp;
 template <typename> class orerror;

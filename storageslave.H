@@ -5,10 +5,16 @@
 #include "storageconfig.H"
 
 class clientio;
+class eqserver;
+template <typename> class eventqueue;
 template <typename> class orerror;
 class serialise1;
 class streamname;
 class jobname;
+
+namespace proto {
+namespace storage {
+class event; } }
 
 class storageslave : public rpcservice2 {
     friend class rpcservice2;
@@ -16,10 +22,15 @@ class storageslave : public rpcservice2 {
 private: const storageconfig config;
     /* mutable because we acquire it from the const status() method. */
 private: mutable mutex_t mux;
+private: eqserver &eqs;
+private: eventqueue<proto::storage::event> &eqq;
 public:  static orerror<nnp<storageslave> > build(clientio,
                                                   const storageconfig &config);
 private: storageslave(const constoken &,
                       const storageconfig &config);
+public:  void destroy(clientio io);
+    /* Use destroy() instead */
+private: ~storageslave();
 private: orerror<void> called(
     clientio,
     deserialise1 &,

@@ -3,6 +3,8 @@
 #include "error.H"
 #include "serialise.H"
 
+#include "serialise.tmpl"
+
 const proto::storage::tag
 proto::storage::tag::createempty(91);
 const proto::storage::tag
@@ -34,3 +36,49 @@ proto::storage::tag::tag(deserialise1 &ds)
 
 void
 proto::storage::tag::serialise(serialise1 &s) const { s.push(v); }
+
+proto::storage::event::event(type t, const jobname &j, const streamname &s)
+    : typ(t),
+      job(j),
+      stream(s) {}
+
+proto::storage::event
+proto::storage::event::newstream(const jobname &j, const streamname &s) {
+    return event(t_newstream, j, s); }
+
+proto::storage::event
+proto::storage::event::finishstream(const jobname &j, const streamname &s) {
+    return event(t_finishstream, j, s); }
+
+proto::storage::event
+proto::storage::event::removestream(const jobname &j, const streamname &s) {
+    return event(t_removestream, j, s); }
+
+void
+proto::storage::event::serialise(serialise1 &s) const {
+    s.push((int)typ);
+    s.push(job);
+    s.push(stream); }
+
+proto::storage::event::event(deserialise1 &ds)
+    : typ((type)ds.poprange<int>(t_newstream, t_removestream)),
+      job(ds),
+      stream(ds) {}
+
+const fields::field &
+proto::storage::event::field() const {
+    const fields::field *base;
+    base = NULL;
+    switch (typ) {
+    case t_newstream:
+        base = &fields::mk("new ");
+        break;
+    case t_finishstream:
+        base = &fields::mk("finish ");
+        break;
+    case t_removestream:
+        base = &fields::mk("remove ");
+        break;
+    }
+    assert(base != NULL);
+    return *base + fields::mk(job) + "::" + fields::mk(stream); }
