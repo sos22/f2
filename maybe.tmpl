@@ -30,20 +30,6 @@ maybe<t>::maybe(deserialise1 &ds)
     : _isnothing(ds) {
     if (!_isnothing) new (&content) t(ds); }
 
-template <typename t> void
-maybe<t>::operator=(deserialise1 &ds) {
-    bool newisnothing(ds);
-    if (newisnothing) {
-        if (isnothing()) { }
-        else {
-            content.~t();
-            _isnothing = true; } }
-    else {
-        if (isjust()) content = ds;
-        else {
-            new (&content) t(ds);
-            _isnothing = false; } } }
-
 namespace parsers {
 template <typename t> const parser<maybe<t> > &
 _maybe(const parser<t> &underlying) {

@@ -49,7 +49,7 @@ class maybe {
     };
     maybe() = delete;
 public:
-    maybe(deserialise1 &);
+    explicit maybe(deserialise1 &);
     explicit maybe(quickcheck &);
     maybe(const maybe &o)
         : _isnothing(o._isnothing)
@@ -97,7 +97,6 @@ public:
             if (isjust())
                 new (&content) t(o.just());
         }
-    void operator=(deserialise1 &);
 
     void operator=(const t &o) {
         if (isjust()) just().~t();
