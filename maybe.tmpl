@@ -7,7 +7,7 @@
 template <typename t>
 maybe<t>::maybe(quickcheck &o)
     : _isnothing(o) {
-    if (!isnothing()) new (content) t(o); }
+    if (!isnothing()) new (&content) t(o); }
 
 template <typename t> const fields::field &
 maybe<t>::field() const {
@@ -18,7 +18,7 @@ template <typename t> template <typename ... args> void
 maybe<t>::mkjust(args &&...params) {
     if (isjust()) just().~t();
     _isnothing = false;
-    ::new (content) t(std::forward<args>(params)...); }
+    ::new (&content) t(std::forward<args>(params)...); }
 
 template <typename t> void
 maybe<t>::serialise(serialise1 &s) const {
@@ -28,7 +28,7 @@ maybe<t>::serialise(serialise1 &s) const {
 template <typename t>
 maybe<t>::maybe(deserialise1 &ds)
     : _isnothing(ds) {
-    if (!_isnothing) new (content) t(ds); }
+    if (!_isnothing) new (&content) t(ds); }
 
 template <typename t> void
 maybe<t>::operator=(deserialise1 &ds) {
@@ -36,12 +36,12 @@ maybe<t>::operator=(deserialise1 &ds) {
     if (newisnothing) {
         if (isnothing()) { }
         else {
-            ((t *)content)->~t();
+            content.~t();
             _isnothing = true; } }
     else {
-        if (isjust()) *((t *)content) = ds;
+        if (isjust()) content = ds;
         else {
-            new (content) t(ds);
+            new (&content) t(ds);
             _isnothing = false; } } }
 
 namespace parsers {

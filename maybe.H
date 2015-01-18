@@ -25,8 +25,7 @@ template <typename t>
 class maybe {
     bool _isnothing;
     union {
-        unsigned char content[sizeof(t)];
-        t __alignment;
+        t content;
     };
     maybe() = delete;
 public:
@@ -36,33 +35,31 @@ public:
         : _isnothing(o._isnothing)
         {
             if (!_isnothing)
-                new (content) t(o.just());
+                new (&content) t(o.just());
         }
     maybe(maybe &&o)
         : _isnothing(o._isnothing)
         {
             if (!_isnothing)
-                new (content) t(std::move(o.just()));
+                new (&content) t(std::move(o.just()));
         }
     ~maybe()
         {
-            if (isjust()) ((t *)content)->~t();
+            if (isjust()) content.~t();
         }
     maybe(_Nothing)
         : _isnothing(true)
         {
-            /* Shut the compiler up */
-            memset(content, 0xbb, sizeof(content));
         }
     maybe(const t &what)
         : _isnothing(false)
         {
-            ::new (content) t(what);
+            ::new (&content) t(what);
         }
     maybe(t &&what)
         : _isnothing(false)
         {
-            ::new (content) t(what);
+            ::new (&content) t(what);
         }
     template <typename ... args> void mkjust(args &&... params);
     void operator=(const maybe &o)
@@ -71,23 +68,23 @@ public:
                 just().~t();
             _isnothing = o._isnothing;
             if (isjust())
-                new (content) t(o.just());
+                new (&content) t(o.just());
         }
     void operator=(deserialise1 &);
     void operator=(const t &o) {
         if (isjust()) just().~t();
         _isnothing = false;
-        new (content) t(o); }
+        new (&content) t(o); }
     bool isnothing() const { return _isnothing; }
     bool operator!() const { return isnothing(); }
     bool isjust() const { return !isnothing(); }
     const t &just() const {
         assert(isjust());
-        return *(t *)content;
+        return content;
     }
     t &just() {
         assert(isjust());
-        return *(t *)content;
+        return content;
     }
     const t &dflt(const t &what) const {
         if (isjust()) return just();
