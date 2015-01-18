@@ -52,35 +52,23 @@ public:
     explicit maybe(deserialise1 &);
     explicit maybe(quickcheck &);
     maybe(const maybe &o)
-        : _isnothing(o._isnothing)
-        {
-            if (!_isnothing)
-                new (&content) t(o.just());
-        }
+        : _isnothing(o._isnothing) {
+        if (!_isnothing) new (&content) t(o.just()); }
+    /* Move constructor for moves from other maybe<t>s.  Note that
+     * this leaves @o as a just<t>, rather than converting it to
+     * Nothing, and does a move on the inner t. */
     maybe(maybe &&o)
-        : _isnothing(o._isnothing)
-        {
-            if (!_isnothing)
-                new (&content) t(std::move(o.just()));
-        }
-    ~maybe()
-        {
-            if (isjust()) content.~t();
-        }
-    maybe(_Nothing)
-        : _isnothing(true)
-        {
-        }
-    maybe(const t &what)
-        : _isnothing(false)
-        {
-            ::new (&content) t(what);
-        }
-    maybe(t &&what)
-        : _isnothing(false)
-        {
-            ::new (&content) t(what);
-        }
+        : _isnothing(o._isnothing) {
+        if (!_isnothing) new (&content) t(std::move(o.content)); }
+    ~maybe() { if (isjust()) content.~t(); }
+    maybe(_Nothing) : _isnothing(true) {}
+    maybe(const t &what) : _isnothing(false) { ::new (&content) t(what); }
+    maybe(t &&what) : _isnothing(false) { ::new (&content) t(what); }
+
+    /* Convert @this into a just<t> by invoking the <t> constructor,
+     * using @params as the constructor arguments.  If @this is
+     * already a just<t> then the t destructor is invoked to clear it
+     * out. */
     template <typename ... args> void mkjust(args &&... params);
     /* Convert @this to a Nothing, if it isn't already one, by
      * invoking the t destructor.  This is occasionally more
@@ -90,6 +78,13 @@ public:
         if (!_isnothing) content.~t();
         _isnothing = true; }
 
+    /* Assignment from one maybe to another, using the constructor to
+     * convert Nothing to Just, the destructor to convert Just to
+     * Nothing, and operator= to convert one Just to another.  We
+     * could equally use the constructor and destructor to convery
+     * between Justs.  Doing it this way means that you can't use
+     * operator= on maybe<t> unless you can use operator= on t, which
+     * seems like a good restriction to have. */
     void operator=(const maybe &o) {
         if (_isnothing) {
             if (o._isnothing) return;
@@ -132,23 +127,20 @@ public:
         else error::nothing.fatal(msg); }
 #endif
     bool operator==(const maybe &o) const {
-        if (isjust() != o.isjust()) return false;
-        else return isnothing() || just() == o.just(); }
+        if (_isnothing != o._isnothing) return false;
+        else if (_isnothing) return true;
+        else return content == o.content; }
     bool operator!=(const maybe &o) const {
-        return !(*this == o); }
-    bool operator==(const _Nothing) const {
-        return isnothing();
-    }
-    bool operator!=(const _Nothing) const {
-        return isjust();
-    }
-    bool operator==(const t &o) const {
-        return isjust() && just() == o;
-    }
-    bool operator!=(const t &o) const {
-        return isnothing() || just() != o;
-    }
+        if (_isnothing != o._isnothing) return true;
+        else if (_isnothing) return false;
+        else return content != o.content; }
+    bool operator==(const _Nothing) const { return _isnothing; }
+    bool operator!=(const _Nothing) const { return !_isnothing; }
+    bool operator==(const t &o) const { return !_isnothing && content == o; }
+    bool operator!=(const t &o) const { return _isnothing || content != o; }
 
+    /* Lift a function into maybe<t>.  x.map(f) is Nothing if x is
+     * Nothing and is otherwise mkjust(f(x.just())). */
     template <typename o> maybe<o> map(const std::function<o (const t&)> &f) {
         if (isnothing()) return Nothing;
         else return f(just()); }
@@ -158,7 +150,9 @@ public:
     const fields::field &field() const;
 };
 
-/* Special case for maybe<void> */
+/* Special case for maybe<void>.  Semantically, this is just a bool;
+ * its only purpose is to make other templates come out a little bit
+ * more cleanly. */
 template <> class maybe<void> {
 private: bool r;
 private: maybe() : r(false) {}
