@@ -271,7 +271,7 @@ CLIENT::run(clientio io) {
             auto gettertok(getter->finished());
             if (gettertok != Nothing) {
                 logmsg(loglevel::verbose, "getter ready");
-                gettersub = Nothing;
+                gettersub.mknothing();
                 auto getterres(getter->pop(gettertok.just()));
                 getter = NULL;
                 if (trimmer != Nothing) {
@@ -350,7 +350,7 @@ CLIENT::run(clientio io) {
             auto waitertok(waiter->finished());
             if (waitertok != Nothing) {
                 logmsg(loglevel::verbose, "waiter ready");
-                waitersub = Nothing;
+                waitersub.mknothing();
                 auto waiterres(waiter->pop(waitertok.just()));
                 waiter = NULL;
                 if (waiterres.issuccess() || waiterres == error::timeout) {
@@ -375,11 +375,11 @@ CLIENT::run(clientio io) {
     if (trimmer != Nothing) trimmer.just().second()->abort();
     if (gettersub == Nothing) assert(getter == NULL);
     else {
-        gettersub = Nothing;
+        gettersub.mknothing();
         getter->abort(); }
     if (waitersub == Nothing) assert(waiter == NULL);
     else {
-        waitersub = Nothing;
+        waitersub.mknothing();
         waiter->abort(); } }
 
 CLIENT::~impl() {}

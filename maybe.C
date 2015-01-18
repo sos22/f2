@@ -56,7 +56,7 @@ tests::_maybe()
             bool dead = false;
             ::maybe<notedestruct> a = notedestruct(dead);
             dead = false;
-            a = Nothing;
+            a.mknothing();
             assert(dead == true); });
     testcaseV("maybe", "assign2", [] {
             ::maybe<int> a(7);

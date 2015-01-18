@@ -1,3 +1,16 @@
+/* Template to extend a type with a designated bottom element.  An
+ * instance of maybe<t> is either a T or the special Nothing element.
+ * This is often handy for handling optional arguments and for some
+ * kinds of simple failure e.g. trying to pop an entry from an empty
+ * queue.  More complicated failures are better handled by the orerror
+ * template instead.  The big advantage is uniformity: an optional T
+ * is always represented by maybe<T>, regardless of what T is, so, for
+ * instance, if you want to optionally limit the number of things in a
+ * queue, you give the limit the type maybe<unsigned>, rather than
+ * needing to define that the a limit of zero is special somehow.  The
+ * template invokes t's constructor, destructor, operator=, and
+ * operator== at the obvious times to make things work in the obvious
+ * ways. */
 #ifndef MAYBE_H__
 #define MAYBE_H__
 
@@ -14,6 +27,11 @@ class quickcheck;
 class serialise1;
 
 template <typename> class maybe;
+
+/* The Nothing element, shared amonhst all of the maybe types.  This
+ * doesn't carry any data and is never actually used at run-time; it's
+ * just here to drive the static operator and constructor overloading
+ * bits. */
 class _Nothing {
 public: template <typename t> bool operator==(const maybe<t> &) const;
 public: template <typename t> bool operator!=(const maybe<t> &) const;
@@ -24,6 +42,8 @@ const class _Nothing Nothing;
 template <typename t>
 class maybe {
     bool _isnothing;
+    /* Hide it in a union so that we don't need to construct it when
+     * we don't want to. */
     union {
         t content;
     };
@@ -62,6 +82,13 @@ public:
             ::new (&content) t(what);
         }
     template <typename ... args> void mkjust(args &&... params);
+    /* Convert @this to a Nothing, if it isn't already one, by
+     * invoking the t destructor.  This is occasionally more
+     * convenient than using *@this = Nothing if the t type doesn't
+     * have an assignment operator. */
+    void mknothing() {
+        if (!_isnothing) content.~t();
+        _isnothing = true; }
     void operator=(const maybe &o)
         {
             if (isjust())
@@ -71,6 +98,7 @@ public:
                 new (&content) t(o.just());
         }
     void operator=(deserialise1 &);
+
     void operator=(const t &o) {
         if (isjust()) just().~t();
         _isnothing = false;
@@ -80,16 +108,18 @@ public:
     bool isjust() const { return !isnothing(); }
     const t &just() const {
         assert(isjust());
-        return content;
-    }
+        return content; }
     t &just() {
         assert(isjust());
-        return content;
-    }
+        return content; }
+    /* Default value.  x.dflt(y) is y if x is Nothing and x.just()
+     * otherwise. */
     const t &dflt(const t &what) const {
-        if (isjust()) return just();
-        else return what;
-    }
+        if (isjust()) return content;
+        else return what; }
+    /* Error handling: If x is Nothing, x.fatal(msg) terminates the
+     * program and prints the message msg.  Otherwise, x.fatal(msg) is
+     * x.just(). */
 #ifndef COVERAGESKIP
     const t &fatal(const fields::field &msg) const {
         if (isjust()) return just();
@@ -124,7 +154,6 @@ public:
 
     const fields::field &field() const;
 };
-template <typename t> maybe<t> mkjust(const t &);
 
 /* Special case for maybe<void> */
 template <> class maybe<void> {
@@ -154,12 +183,10 @@ public:   template <typename o> maybe<o> map(const std::function<o ()> &f) {
         else return f(); } };
 
 template <typename t> bool
-_Nothing::operator==(const maybe<t> &o) const {
-    return o.isnothing(); }
+_Nothing::operator==(const maybe<t> &o) const { return o.isnothing(); }
 
 template <typename t> bool
-_Nothing::operator!=(const maybe<t> &o) const {
-    return o.isjust(); }
+_Nothing::operator!=(const maybe<t> &o) const { return o.isjust(); }
 
 template <typename t> bool
 operator ==(const t &a, const maybe<t> &o) {
