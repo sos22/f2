@@ -5,7 +5,6 @@
 
 template <typename a, typename b>
 class either {
-private: void operator=(const either &) = delete;
 private: bool isleft_;
 private: union {
     a _left;
@@ -40,6 +39,19 @@ public:  const b &right() const {
 public:  b &right() {
     assert(isright());
     return _right; }
+public: void operator=(const either &o) {
+    if (isleft_) {
+        if (o.isleft_) _left = o._left;
+        else {
+            _left.~a();
+            new (&_right) b(o._right);
+            isleft_ = false; } }
+    else {
+        if (o.isleft_) {
+            _right.~b();
+            new (&_left) a(o._left);
+            isleft_ = true; }
+        else _right = o._right; } }
 public:  ~either() {
     if (isleft_) _left.~a();
     else _right.~b(); }
