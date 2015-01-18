@@ -37,7 +37,7 @@ public:  ~subscription();
 
 class signalnr {
     friend class process;
-private: const int snr;
+private: int snr;
 private: explicit signalnr(int _snr) : snr(_snr) {}
 public:  static const signalnr abort;
 public:  static const signalnr cont;

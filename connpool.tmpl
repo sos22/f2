@@ -57,7 +57,7 @@ connpool::call(
          orerror<nnp<deserialise1> > ds2,
          connlock cl) -> orerror<void> {
             /* Careful: res->inner might not have been set yet. */
-            res->res = ds(*res, ds2, cl);
+            res->res.mkjust(ds(*res, ds2, cl));
             return Success; });
     return _nnp(*res); }
 
