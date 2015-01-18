@@ -89,19 +89,23 @@ public:
     void mknothing() {
         if (!_isnothing) content.~t();
         _isnothing = true; }
-    void operator=(const maybe &o)
-        {
-            if (isjust())
-                just().~t();
-            _isnothing = o._isnothing;
-            if (isjust())
-                new (&content) t(o.just());
-        }
 
+    void operator=(const maybe &o) {
+        if (_isnothing) {
+            if (o._isnothing) return;
+            else {
+                new (&content) t(o.content);
+                _isnothing = false; } }
+        else {
+            if (o._isnothing) {
+                content.~t();
+                _isnothing = true; }
+            else content = o.content; } }
     void operator=(const t &o) {
-        if (isjust()) just().~t();
-        _isnothing = false;
-        new (&content) t(o); }
+        if (_isnothing) {
+            new (&content) t(o);
+            _isnothing = false; }
+        else content = o; }
     bool isnothing() const { return _isnothing; }
     bool operator!() const { return isnothing(); }
     bool isjust() const { return !isnothing(); }
