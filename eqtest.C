@@ -25,6 +25,30 @@ public: orerror<void> called(clientio io,
     assert(typ == interfacetype::eq);
     return eqs.called(io, ds, ic, oct); } };
 
+class eqslowtestserver : public rpcservice2 {
+public: eqserver &eqs;
+public: waitbox<void> &connstarted;
+public: waitbox<void> &connresume;
+public: eqslowtestserver(const constoken &tok,
+                         eqserver &_eqs,
+                         waitbox<void> &_connstarted,
+                         waitbox<void> &_connresume)
+    : rpcservice2(tok,
+                  list<interfacetype>::mk(interfacetype::test,
+                                          interfacetype::eq)),
+      eqs(_eqs),
+      connstarted(_connstarted),
+      connresume(_connresume) {}
+public: orerror<void> called(clientio io,
+                             deserialise1 &ds,
+                             interfacetype typ,
+                             nnp<incompletecall> ic,
+                             onconnectionthread oct) {
+    assert(typ == interfacetype::eq);
+    if (!connstarted.ready()) connstarted.set();
+    connresume.get(io);
+    return eqs.called(io, ds, ic, oct); } };
+
 static void
 eqtestcase(clientio io,
            const std::function<void (clientio,
@@ -518,4 +542,59 @@ tests::_eqtest() {
             s->destroy(io);
             server->destroy();
             pool->destroy(); });
-}
+    testcaseIO("eq", "asyncconnect", [] (clientio io) {
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn)
+                      .fatal("starting conn pool"));
+            auto server(eqserver::build());
+            waitbox<void> servercaptured;
+            waitbox<void> serverrelease;
+            auto s(rpcservice2::listen<eqslowtestserver>(
+                       io,
+                       cn,
+                       sn,
+                       peername::all(peername::port::any),
+                       *server,
+                       servercaptured,
+                       serverrelease)
+                   .fatal("starting service"));
+            auto q(server->mkqueue(proto::eq::names::testunsigned));
+            auto start(timestamp::now());
+            auto conn(eqclient<unsigned>::connect(
+                          *pool,
+                          sn,
+                          proto::eq::names::testunsigned));
+            assert(timestamp::now() - start < timedelta::milliseconds(100));
+            servercaptured.get(io);
+            assert(timestamp::now() - start < timedelta::milliseconds(100));
+            assert(conn->pop() == Nothing);
+            {   subscriber sub;
+                subscription ss(sub, conn->pub());
+                assert(sub.poll() == NULL);
+                serverrelease.set();
+                assert(timedelta::time([&] { assert(sub.wait(io) == &ss);  })
+                       < timedelta::milliseconds(100)); }
+            auto c(conn->pop()
+                   .fatal("pop should have been non-Nothing")
+                   .fatal("connecting to slow server"));
+            /* Quick check that it vaguely works. */
+            q->queue(52, io);
+            assert(timedelta::time([&] { assert(c->pop(io) == 52); })
+                   < timedelta::milliseconds(200));
+            c->destroy(io);
+            s->destroy(io);
+            server->destroy();
+            pool->destroy();
+            q->destroy(io); });
+    testcaseIO("eq", "abortconnect", [] (clientio) {
+            clustername cn((quickcheck()));
+            slavename sn((quickcheck()));
+            auto pool(connpool::build(cn)
+                      .fatal("starting conn pool"));
+            eqclient<unsigned>::connect(
+                *pool,
+                sn,
+                proto::eq::names::testunsigned)
+                ->abort();
+            pool->destroy(); }); }

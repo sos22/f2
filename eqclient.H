@@ -72,6 +72,19 @@ public:  static orerror<nnp<geneqclient> > connect(
     const proto::eq::genname &,
     timestamp deadline,
     const eqclientconfig &config);
+public:  class asyncconnect {
+    public:  class impl;
+        friend class impl;
+    public:  impl &implementation();
+    public:  const impl &implementation() const;
+    public:  const publisher &pub() const;
+    public:  maybe<orerror<nnp<geneqclient> > > pop();
+    public:  void abort(); };
+public:  static nnp<asyncconnect> connect(
+    connpool &pool,
+    const slavename &sn,
+    const proto::eq::genname &,
+    const eqclientconfig &);
 public:  const publisher &pub() const;
 public:  maybe<orerror<buffer> > pop();
 public:  void destroy(clientio);
@@ -98,6 +111,43 @@ public:  static orerror<nnp<eqclient> > connect(
         auto r(geneqclient::connect(io, pool, sn, queue, d, config));
         if (r.isfailure()) return r.failure();
         else return _nnp(*static_cast<eqclient *>(&*r.success())); }
+
+    /* Async connect interface.  Start connecting to a remote queue,
+     * but rather than waiting return an asyncconnect structure which
+     * can be used to collect the results later. */
+public:  class asyncconnect : private geneqclient::asyncconnect {
+    private: asyncconnect(const asyncconnect &) = delete;
+    private: void operator=(const asyncconnect &) = delete;
+        /* Use connect() */
+    private: asyncconnect();
+        /* Use pop() or abort() */
+    private: ~asyncconnect();
+        /* Notified when pop() becomes non-Nothing. */
+    public:  const publisher &pub() const {
+        return geneqclient::asyncconnect::pub(); }
+        /* If the connection has completed, return the queue and
+         * destroy the the asyncconnect structure.  If it failed,
+         * return the error and destroy the asyncconnect structure.
+         * If it's still pending, return Nothing. */
+public:  maybe<orerror<nnp<eqclient> > > pop() {
+        auto r(geneqclient::asyncconnect::pop());
+        if (r == Nothing) return Nothing;
+        else if (r.just().isfailure()) {
+            return orerror<nnp<eqclient> >(r.just().failure()); }
+        else {
+            auto &underlying(*r.just().success());
+            return orerror<nnp<eqclient> >(
+                _nnp(*static_cast<eqclient *>(&underlying))); } }
+        /* Give up trying to connect to the queue and destroy the
+         * asyncconnect. */
+    public:  void abort() { geneqclient::asyncconnect::abort(); } };
+public:  static nnp<asyncconnect> connect(
+    connpool &pool,
+    const slavename &sn,
+    const proto::eq::name<t> &queue,
+    const eqclientconfig &config = eqclientconfig::dflt()) {
+        return _nnp(*reinterpret_cast<asyncconnect *>(
+                        &*geneqclient::connect(pool, sn, queue, config))); }
 
     /* Notified whenever pop() becomes non-Nothing. */
 public:  const publisher &pub() const { return geneqclient::pub(); }

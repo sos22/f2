@@ -16,6 +16,7 @@
 #include "thread.tmpl"
 
 #define CLIENT geneqclient::impl
+#define CONNECT geneqclient::asyncconnect::impl
 
 class CLIENT : public thread {
 public: geneqclient api;
@@ -61,6 +62,22 @@ public: void failqueue(error);
 public: void run(clientio);
 public: ~impl(); };
 
+class CONNECT {
+public: geneqclient::asyncconnect api;
+public: typedef pair<proto::eq::subscriptionid, proto::eq::eventid> callres_t;
+public: connpool::asynccallT<callres_t> &inner;
+public: connpool &pool;
+public: const slavename slave;
+public: const proto::eq::genname queuename;
+public: const eqclientconfig config;
+public: impl(connpool::asynccallT<callres_t> &,
+             connpool &,
+             const slavename &,
+             const proto::eq::genname &,
+             const eqclientconfig &);
+public: maybe<orerror<nnp<geneqclient> > > pop();
+public: void abort(); };
+
 eqclientconfig::eqclientconfig()
     : unsubscribe(timedelta::seconds(1)),
       get(timedelta::seconds(10)),
@@ -70,12 +87,85 @@ eqclientconfig::eqclientconfig()
 eqclientconfig
 eqclientconfig::dflt() { return eqclientconfig(); }
 
+/* --------------------- geneqclient::asyncconnect API ---------------- */
+geneqclient::asyncconnect::impl &
+geneqclient::asyncconnect::implementation() {
+    return *containerof(this, CONNECT, api); }
+
+const geneqclient::asyncconnect::impl &
+geneqclient::asyncconnect::implementation() const {
+    return *containerof(this, CONNECT, api); }
+
+const publisher &
+geneqclient::asyncconnect::pub() const { return implementation().inner.pub(); }
+
+maybe<orerror<nnp<geneqclient> > >
+geneqclient::asyncconnect::pop() { return implementation().pop(); }
+
+void
+geneqclient::asyncconnect::abort() { return implementation().abort(); }
+
+/* --------------- geneqclient::asyncconnect implementation ----------- */
+CONNECT::impl(
+    connpool::asynccallT<callres_t> &_inner,
+    connpool &_pool,
+    const slavename &_slave,
+    const proto::eq::genname &_queuename,
+    const eqclientconfig &_config)
+    : inner(_inner),
+      pool(_pool),
+      slave(_slave),
+      queuename(_queuename),
+      config(_config) {}
+
+maybe<orerror<nnp<geneqclient> > >
+CONNECT::pop() {
+    auto t(inner.finished());
+    if (t == Nothing) return Nothing;
+    auto r(inner.pop(t.just()));
+    if (r.isfailure()) {
+        delete this;
+        return maybe<orerror<nnp<geneqclient> > >(r.failure()); }
+    else {
+        auto &res(thread::start<CLIENT>(
+                     "EC:" + queuename.field() + ":" + fields::mk(slave),
+                     pool,
+                     slave,
+                     r.success().first(),
+                     queuename,
+                     r.success().second(),
+                     config)->api);
+        delete this;
+        return success(_nnp(res)); } }
+
+void
+CONNECT::abort() {
+    inner.abort();
+    delete this; }
+
 /* ---------------------------- geneqclient API ----------------------- */
 CLIENT &
 geneqclient::implementation() { return *containerof(this, CLIENT, api); }
 
 const CLIENT &
 geneqclient::implementation() const { return *containerof(this, CLIENT, api); }
+
+nnp<geneqclient::asyncconnect>
+geneqclient::connect(connpool &pool,
+                     const slavename &sn,
+                     const proto::eq::genname &name,
+                     const eqclientconfig &config) {
+    using namespace proto::eq;
+    auto r(pool.call<CONNECT::callres_t>(
+               sn,
+               interfacetype::eq,
+               Nothing,
+               [&name] (serialise1 &s, connpool::connlock) {
+                   tag::subscribe.serialise(s);
+                   name.serialise(s); },
+               [] (deserialise1 &ds, connpool::connlock) {
+                   return success(CONNECT::callres_t(ds)); }));
+    return _nnp((new CONNECT(*r, pool, sn, name, config))->api); }
 
 orerror<nnp<geneqclient> >
 geneqclient::connect(clientio io,
