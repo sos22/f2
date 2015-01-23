@@ -97,7 +97,7 @@ tests::_eqtest() {
                     assert(c.pop() == Nothing);
                     q.queue(52, rpcservice2::acquirestxlock(_io));
                     assert(timedelta::time([&] { assert(c.pop(_io) == 52); })
-                           < timedelta::milliseconds(200));
+                           < timedelta::milliseconds(500));
                     assert(c.pop() == Nothing); }); });
     testcaseIO("eq", "overflow", [] (clientio io) {
             auto qconf(eventqueueconfig::dflt());
