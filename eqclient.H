@@ -18,6 +18,7 @@
 #include "eq.H"
 #include "maybe.H"
 #include "pubsub.H"
+#include "serialise.H"
 #include "timedelta.H"
 #include "timestamp.H"
 
@@ -164,7 +165,9 @@ public:  maybe<orerror<t> > pop() {
             return maybe<orerror<t> >(r.just().failure()); }
         else {
             deserialise1 ds(r.just().success());
-            return success(t(ds)); } }
+            t res(ds);
+            if (ds.isfailure()) return orerror<t>(ds.failure());
+            else return success(res); } }
 
     /* Blocking variant of pop().  Equivalent to calling pop()
      * repeatedly until it returns non-Nothing. */
