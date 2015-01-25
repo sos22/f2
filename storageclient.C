@@ -60,6 +60,10 @@ public:  orerror<pair<maybe<streamname>, list<streamstatus> > > liststreams(
     const jobname &,
     const maybe<streamname> &,
     maybe<unsigned>);
+public:  orerror<streamstatus> statstream(
+    clientio,
+    const jobname &,
+    const streamname &);
 public:  orerror<void> removestream(clientio,
                                     const jobname &,
                                     const streamname &);
@@ -195,6 +199,22 @@ storageclient::liststreams(clientio io,
             list<streamstatus> res(ds);
             if (ds.isfailure()) return ds.failure();
             else return mkpair(newcursor, res); }); }
+
+orerror<streamstatus>
+storageclient::statstream(clientio io,
+                          const jobname &jn,
+                          const streamname &stream) {
+    return pool.call<streamstatus>(
+        io,
+        sn,
+        interfacetype::storage,
+        timeout.future(),
+        [&jn, &stream] (serialise1 &s, connpool::connlock) {
+            s.push(proto::storage::tag::statstream);
+            s.push(jn);
+            s.push(stream); },
+        [] (deserialise1 &ds, connpool::connlock) {
+            return streamstatus(ds); }); }
 
 orerror<void>
 storageclient::removestream(clientio io,
@@ -357,6 +377,20 @@ main(int argc, char *argv[]) {
                .fatal("listing streams"));
         fields::print("cursor: " + fields::mk(r.first()) + "\n");
         fields::print("streams: " + fields::mk(r.second()) + "\n"); }
+    else if (strcmp(argv[3], "STATSTREAM") == 0) {
+        if (argc != 6) {
+            errx(1, "STATSTREAM takes a job name and a stream name"); }
+        auto job(parsers::_jobname()
+                 .match(argv[4])
+                 .fatal("parsing job name " + fields::mk(argv[4])));
+        auto stream(parsers::_streamname()
+                    .match(argv[5])
+                    .fatal("parsing stream name " + fields::mk(argv[5])));
+        fields::print(
+            "result: " +
+            fields::mk(conn.statstream(clientio::CLIENTIO, job, stream)
+                       .fatal(fields::mk("statting stream"))) +
+            "\n"); }
     else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
         auto job(parsers::_jobname()
                  .match(argv[4])

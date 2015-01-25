@@ -11,6 +11,7 @@ template <typename> class eventqueue;
 template <typename> class orerror;
 class serialise1;
 class streamname;
+class streamstatus;
 class jobname;
 
 namespace proto {
@@ -72,6 +73,9 @@ private: orerror<void> liststreams(
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const;
+private: orerror<streamstatus> statstream(
+    const jobname &jn,
+    const streamname &sn);
 public:  orerror<void> removestream(
     const jobname &jn,
     const streamname &sn);

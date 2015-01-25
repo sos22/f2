@@ -108,6 +108,18 @@ storageslave::called(
         if (!ds.isfailure()) {
             auto r(liststreams(job, cursor, limit, ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
+    else if (tag == proto::storage::tag::statstream) {
+        jobname job(ds);
+        streamname sn(ds);
+        if (!ds.isfailure()) {
+            auto r(statstream(job, sn));
+            if (r.isfailure()) ds.fail(r.failure());
+            else ic->complete([&r] (serialise1 &s,
+                                    mutex_t::token /* txlock */,
+                                    onconnectionthread) {
+                                  s.push(r.success()); },
+                              io,
+                              oct); } }
     else if (tag == proto::storage::tag::removestream) {
         jobname job(ds);
         streamname stream(ds);
@@ -352,6 +364,24 @@ storageslave::liststreams(
         atl,
         oct);
     return Success; }
+
+orerror<streamstatus>
+storageslave::statstream(const jobname &jn,
+                         const streamname &sn) {
+    auto jobdir(config.poolpath + jn.asfilename());
+    auto streamdir(jobdir + sn.asfilename());
+    bool finished;
+    {   auto t(streamdir + "finished");
+        auto r(t.isfile());
+        if (r.isfailure()) return r.failure();
+        finished = r.success(); }
+    unsigned long sz;
+    {   auto t(streamdir + "content");
+        auto r(t.size());
+        if (r.isfailure()) return r.failure();
+        sz = r.success(); }
+    if (finished) return streamstatus::finished(sn, sz);
+    else return streamstatus::partial(sn, sz); }
 
 orerror<void>
 storageslave::removestream(const jobname &jn,

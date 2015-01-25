@@ -32,8 +32,10 @@ public:  static const tag read;
      * maybe<jobname> restartcursor, list<jobname> res. */
 public:  static const tag listjobs;
     /* Inputs: jobname, maybe<streamname> start, maybe<unsigned> limit.
-     * Outputs: maybe<streamname> restartcursor, list<streamname> res. */
+     * Outputs: maybe<streamname> restartcursor, list<streamstatus> res. */
 public:  static const tag liststreams;
+    /* Inputs: jobname, streamname.  Outputs: streamstatus. */
+public:  static const tag statstream;
     /* Inputs: jobname, streamname.  Outputs: None. */
 public:  static const tag removestream;
     /* Inputs: jobname.  Outputs: None */

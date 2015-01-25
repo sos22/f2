@@ -22,9 +22,11 @@ proto::storage::tag::listjobs(95);
 const proto::storage::tag
 proto::storage::tag::liststreams(96);
 const proto::storage::tag
-proto::storage::tag::removestream(97);
+proto::storage::tag::statstream(97);
 const proto::storage::tag
-proto::storage::tag::removejob(98);
+proto::storage::tag::removestream(98);
+const proto::storage::tag
+proto::storage::tag::removejob(99);
 
 proto::storage::tag::tag(unsigned x) : v(x) {}
 
@@ -37,6 +39,7 @@ proto::storage::tag::tag(deserialise1 &ds)
         *this != read &&
         *this != listjobs &&
         *this != liststreams &&
+        *this != statstream &&
         *this != removestream &&
         *this != removejob) {
         ds.fail(error::invalidmessage);
