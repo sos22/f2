@@ -128,6 +128,9 @@ public:  orerror(deserialise1 &ds)
     : content(ds) {}
 public:  orerror(_Success) : content(Nothing) {}
 public:  orerror(const error &e) : content(e) {}
+public:  template <typename t> orerror(const orerror<t> &o)
+    : content(Nothing) {
+    if (o.isfailure()) content.mkjust(o.failure()); }
 public:  void operator=(const orerror<void> &e) {
     content = e.content; }
 public:  bool issuccess() const { return content.isnothing(); }

@@ -57,7 +57,7 @@ public:  orerror<bool> isdir() const;
      * error::toolate. */
 public:  orerror<fd_t> openappend(bytecount size) const;
     /* Get the size of a file.  The file must exist. */
-public:  orerror<uint64_t> size() const;
+public:  orerror<bytecount> size() const;
     /* Read some bytes out of a file.  start is inclusive, end
        exclusive.  The bounds must be within the file.  If start ==
        end <= filesize then return an empty buffer (or an error). */

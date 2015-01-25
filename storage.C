@@ -3,6 +3,7 @@
 #include "error.H"
 #include "serialise.H"
 
+#include "maybe.tmpl"
 #include "serialise.tmpl"
 
 #include "fieldfinal.H"
@@ -51,41 +52,70 @@ proto::storage::tag::serialise(serialise1 &s) const { s.push(v); }
 proto::storage::event::event(
     type t,
     const jobname &j,
-    const maybe<streamname> &s)
+    const maybe<streamname> &s,
+    const maybe<streamstatus> &stat)
     : typ(t),
       job(j),
-      stream(s) {}
+      stream(s),
+      status(stat) {}
 
 proto::storage::event
 proto::storage::event::newjob(const jobname &j) {
-    return event(t_newjob, j, Nothing); }
+    return event(t_newjob, j, Nothing, Nothing); }
 
 proto::storage::event
 proto::storage::event::removejob(const jobname &j) {
-    return event(t_removejob, j, Nothing); }
+    return event(t_removejob, j, Nothing, Nothing); }
 
 proto::storage::event
 proto::storage::event::newstream(const jobname &j, const streamname &s) {
-    return event(t_newstream, j, s); }
+    return event(t_newstream, j, s, Nothing); }
 
 proto::storage::event
-proto::storage::event::finishstream(const jobname &j, const streamname &s) {
-    return event(t_finishstream, j, s); }
+proto::storage::event::finishstream(const jobname &j,
+                                    const streamname &s,
+                                    const streamstatus &stat) {
+    return event(t_finishstream, j, s, stat); }
 
 proto::storage::event
 proto::storage::event::removestream(const jobname &j, const streamname &s) {
-    return event(t_removestream, j, s); }
+    return event(t_removestream, j, s, Nothing); }
 
 void
 proto::storage::event::serialise(serialise1 &s) const {
     s.push((int)typ);
     s.push(job);
-    s.push(stream); }
+    switch (typ) {
+    case t_newjob:
+    case t_removejob:
+        break;
+    case t_newstream:
+    case t_removestream:
+        s.push(stream.just());
+        break;
+    case t_finishstream:
+        s.push(stream.just());
+        s.push(status.just());
+        break; } }
 
 proto::storage::event::event(deserialise1 &ds)
     : typ((type)ds.poprange<int>(t_newjob, t_removestream)),
       job(ds),
-      stream(ds) {}
+      stream(Nothing),
+      status(Nothing) {
+    switch (typ) {
+    case t_newjob:
+    case t_removejob:
+        break;
+    case t_newstream:
+    case t_removestream:
+        stream.mkjust(ds);
+        break;
+    case t_finishstream:
+        stream.mkjust(ds);
+        status.mkjust(ds);
+        break; } }
+
 
 const fields::field &
 proto::storage::event::field() const {
@@ -109,4 +139,6 @@ proto::storage::event::field() const {
         break;
     }
     assert(base != NULL);
-    return *base + fields::mk(job) + "::" + fields::mk(stream); }
+    return *base + fields::mk(job) +
+        "::" + fields::mk(stream) +
+        "->" + fields::mk(status); }

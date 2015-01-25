@@ -160,12 +160,12 @@ filename::openappend(bytecount oldsize) const {
         else return error::toolate; }
     else return fd_t(fd); }
 
-orerror<uint64_t>
+orerror<bytecount>
 filename::size() const {
     struct stat st;
     if (::stat(content.c_str(), &st) < 0) return error::from_errno();
     assert(st.st_size >= 0);
-    return (uint64_t)st.st_size; }
+    return bytecount::bytes(st.st_size); }
 
 orerror<buffer>
 filename::read(uint64_t start, uint64_t end) const {
@@ -286,7 +286,7 @@ tests::_filename() {
             assert(foo.createfile(fields::mk(5)) == error::already);
             assert(foo.isfile() == true);
             assert(foo.readasstring() == string("5"));
-            assert(foo.size() == 1);
+            assert(foo.size() == 1_B);
             {   auto r(foo.read(0,1).fatal("read foo"));
                 assert(r.avail() == 1);
                 assert(r.offset() == 0);

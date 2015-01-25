@@ -4,6 +4,7 @@
 #include "jobname.H"
 #include "maybe.H"
 #include "streamname.H"
+#include "streamstatus.H"
 
 class deserialise1;
 namespace fields { class field; }
@@ -54,14 +55,21 @@ public:  enum type {
     };
 public:  void serialise(serialise1 &) const;
 public:  explicit event(deserialise1 &);
-private: event(type, const jobname &, const maybe<streamname> &);
+private: event(type,
+               const jobname &,
+               const maybe<streamname> &,
+               const maybe<streamstatus> &);
 public:  type typ;
 public:  jobname job;
-public:  maybe<streamname> stream;
+public:  maybe<streamname> stream; /* For all but jewjob and removejob */
+public:  maybe<streamstatus> status; /* for finish stream */
 public:  static event newjob(const jobname &);
 public:  static event removejob(const jobname &);
 public:  static event newstream(const jobname &, const streamname &);
-public:  static event finishstream(const jobname &, const streamname &);
+public:  static event finishstream(
+    const jobname &,
+    const streamname &,
+    const streamstatus &);
 public:  static event removestream(const jobname &, const streamname &);
 public:  const fields::field &field() const;
 };

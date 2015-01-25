@@ -49,14 +49,14 @@ public:  orerror<void> append(
     const streamname &sn,
     bytecount oldsize,
     buffer &b);
-public:  orerror<void> finish(
+public:  orerror<streamstatus> finish(
     const jobname &t,
     const streamname &sn);
 private: orerror<void> read(
     const jobname &jn,
     const streamname &sn,
-    uint64_t start,
-    uint64_t end,
+    bytecount start,
+    bytecount end,
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const;

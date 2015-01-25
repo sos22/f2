@@ -83,16 +83,19 @@ storageslave::called(
         if (!ds.isfailure()) {
             auto r(finish(job, stream));
             if (!r.isfailure()) {
-                eqq.queue(proto::storage::event::finishstream(job, stream),
+                eqq.queue(proto::storage::event::finishstream(job,
+                                                              stream,
+                                                              r.success()),
                           io); }
             ic->complete(r, io, oct); } }
     else if (tag == proto::storage::tag::read) {
         jobname job(ds);
         streamname stream(ds);
-        maybe<unsigned long> _start(ds);
-        maybe<unsigned long> end(ds);
+        maybe<bytecount> _start(ds);
+        maybe<bytecount> end(ds);
         if (!ds.isfailure()) {
-            auto r(read(job, stream, _start.dflt(0), end.dflt(UINT64_MAX),
+            auto r(read(job, stream, _start.dflt(0_B),
+                        end.dflt(bytecount::bytes(UINT64_MAX)),
                         ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::listjobs) {
@@ -219,26 +222,31 @@ storageslave::append(
     fd.success().close();
     return Success; }
 
-orerror<void>
+orerror<streamstatus>
 storageslave::finish(
     const jobname &jn,
     const streamname &sn) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
-    {   auto content((dirname + "content").isfile());
-        if (content.isfailure()) return content.failure();
-        else if (content == false) return error::notfound; }
+    filename content(dirname + "content");
+    {   auto t(content.isfile());
+        if (t.isfailure()) return t.failure();
+        else if (t == false) return error::notfound; }
+    auto sz(content.size());
+    if (sz.isfailure()) return sz.failure();
     filename finished(dirname + "finished");
     auto exists(finished.isfile());
     if (exists.isfailure()) return exists.failure();
     else if (exists == true) return error::already;
-    return finished.createfile(); }
+    {   auto t(finished.createfile());
+        if (t.isfailure()) return t.failure(); }
+    return streamstatus::finished(sn, sz.success()); }
 
 orerror<void>
 storageslave::read(
     const jobname &jn,
     const streamname &sn,
-    uint64_t start,
-    uint64_t end,
+    bytecount start,
+    bytecount end,
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const {
@@ -255,7 +263,7 @@ storageslave::read(
     if (sz.isfailure()) return sz.failure();
     if (start > sz.success()) start = sz.success();
     if (end > sz.success()) end = sz.success();
-    auto b(content.read(start, end));
+    auto b(content.read(start.b, end.b));
     if (b.isfailure()) return b.failure();
     ic->complete([sz, &b]
                  (serialise1 &s,
@@ -354,7 +362,7 @@ storageslave::liststreams(
         auto it(res.start());
         unsigned n;
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
-        if (!it.finished()) newcursor = it->name;
+        if (!it.finished()) newcursor = it->name();
         while (!it.finished()) it.remove(); }
     ic->complete(
         [&newcursor, &res]
@@ -375,7 +383,7 @@ storageslave::statstream(const jobname &jn,
         auto r(t.isfile());
         if (r.isfailure()) return r.failure();
         finished = r.success(); }
-    unsigned long sz;
+    bytecount sz(0_B);
     {   auto t(streamdir + "content");
         auto r(t.size());
         if (r.isfailure()) return r.failure();

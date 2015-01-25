@@ -49,8 +49,8 @@ public:  orerror<void> finish(clientio,
 public:  orerror<pair<size_t, buffer> > read(clientio,
                                              const jobname &,
                                              const streamname &,
-                                             maybe<unsigned long>,
-                                             maybe<unsigned long>);
+                                             maybe<bytecount>,
+                                             maybe<bytecount>);
 public:  orerror<pair<maybe<jobname>, list<jobname> > > listjobs(
     clientio,
     const maybe<jobname> &,
@@ -137,8 +137,8 @@ orerror<pair<size_t, buffer> >
 storageclient::read(clientio io,
                     const jobname &jn,
                     const streamname &stream,
-                    maybe<unsigned long> start,
-                    maybe<unsigned long> end) {
+                    maybe<bytecount> start,
+                    maybe<bytecount> end) {
     return pool.call<pair<size_t, buffer> >(
         io,
         sn,
@@ -326,14 +326,14 @@ main(int argc, char *argv[]) {
         auto stream(parsers::_streamname()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
-        maybe<unsigned long> start(Nothing);
+        maybe<bytecount> start(Nothing);
         if (argc > 6) {
-            start = parsers::intparser<unsigned long>()
+            start = parsers::_bytecount()
                 .match(argv[6])
                 .fatal("parsing start offset " + fields::mk(argv[6])); }
-        maybe<unsigned long> end(Nothing);
+        maybe<bytecount> end(Nothing);
         if (argc > 7) {
-            end = parsers::intparser<unsigned long>()
+            end = parsers::_bytecount()
                 .match(argv[7])
                 .fatal("parsing end offset " + fields::mk(argv[7])); }
         auto r(conn.read(clientio::CLIENTIO, job, stream, start, end)
