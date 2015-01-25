@@ -38,7 +38,9 @@ private: orerror<void> called(
     interfacetype,
     nnp<incompletecall>,
     onconnectionthread) final;
-public:  orerror<void> createempty(
+public:  orerror<void> createjob(
+    const jobname &t);
+public:  orerror<void> createstream(
     const jobname &t,
     const streamname &sn);
 public:  orerror<void> append(
@@ -72,6 +74,8 @@ private: orerror<void> liststreams(
     onconnectionthread oct) const;
 public:  orerror<void> removestream(
     const jobname &jn,
-    const streamname &sn); };
+    const streamname &sn);
+public:  orerror<void> removejob(
+    const jobname &jn); };
 
 #endif /* !STORAGESLAVE_H__ */

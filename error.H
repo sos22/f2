@@ -88,6 +88,7 @@ public:
     static const error badqueue; /* Event queue not currently live. */
     static const error eventsdropped; /* Queue dropped one or more events. */
     static const error badsubscription; /* Unknown EQ subscription. */
+    static const error notadir; /* Expected directory; got something else */
 };
 
 namespace fields {

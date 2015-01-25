@@ -33,9 +33,11 @@ public:  explicit storageclient(connpool &_pool,
     : pool(_pool),
       sn(_sn),
       timeout(_timeout) {}
-public:  orerror<void> createempty(clientio,
-                                   const jobname &,
-                                   const streamname &);
+public:  orerror<void> createjob(clientio,
+                                 const jobname &);
+public:  orerror<void> createstream(clientio,
+                                    const jobname &,
+                                    const streamname &);
 public:  orerror<void> append(clientio,
                               const jobname &,
                               const streamname &,
@@ -61,19 +63,34 @@ public:  orerror<pair<maybe<streamname>, list<streamstatus> > > liststreams(
 public:  orerror<void> removestream(clientio,
                                     const jobname &,
                                     const streamname &);
+public:  orerror<void> removejob(clientio,
+                                 const jobname &);
 public:  ~storageclient(); };
 
 orerror<void>
-storageclient::createempty(clientio io,
-                           const jobname &jn,
-                           const streamname &stream) {
+storageclient::createjob(clientio io,
+                         const jobname &jn) {
+    return pool.call(
+        io,
+        sn,
+        interfacetype::storage,
+        timeout.future(),
+        [&jn] (serialise1 &s, connpool::connlock) {
+            proto::storage::tag::createjob.serialise(s);
+            jn.serialise(s); },
+        connpool::voidcallV); }
+
+orerror<void>
+storageclient::createstream(clientio io,
+                            const jobname &jn,
+                            const streamname &stream) {
     return pool.call(
         io,
         sn,
         interfacetype::storage,
         timestamp::now() + timeout,
         [&jn, &stream] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::createempty.serialise(s);
+            proto::storage::tag::createstream.serialise(s);
             jn.serialise(s);
             stream.serialise(s); },
         connpool::voidcallV); }
@@ -194,6 +211,19 @@ storageclient::removestream(clientio io,
             stream.serialise(s); },
         connpool::voidcallV); }
 
+orerror<void>
+storageclient::removejob(clientio io,
+                         const jobname &jn) {
+    return pool.call(
+        io,
+        sn,
+        interfacetype::storage,
+        timeout.future(),
+        [&jn] (serialise1 &s, connpool::connlock) {
+            proto::storage::tag::removejob.serialise(s);
+            jn.serialise(s); },
+        connpool::voidcallV); }
+
 storageclient::~storageclient() { }
 
 int
@@ -215,20 +245,27 @@ main(int argc, char *argv[]) {
         /* Just hang around for a bit so that we can see if PING is
          * working. */
         sleep(10); }
-    else if (!strcmp(argv[3], "CREATEEMPTY")) {
+    else if (!strcmp(argv[3], "CREATEJOB")) {
+        if (argc != 5) {
+            errx(1, "CREATEJOB needs a job name"); }
+        auto job(parsers::_jobname()
+                 .match(argv[4])
+                 .fatal("parsing job name " + fields::mk(argv[3])));
+        auto m = conn.createjob(clientio::CLIENTIO, job);
+        if (m == error::already) m.failure().warn("already created");
+        else if (m.isfailure()) m.failure().fatal("creating empty job"); }
+    else if (!strcmp(argv[3], "CREATESTREAM")) {
         if (argc != 6) {
-            errx(1, "CREATEEMPTY needs a job and stream name"); }
+            errx(1, "CREATESTREAM needs a job and stream name"); }
         auto job(parsers::_jobname()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[3])));
         auto stream(parsers::_streamname()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[4])));
-        auto m = conn.createempty(clientio::CLIENTIO, job, stream);
-        if (m == error::already)
-            m.failure().warn("already created");
-        else if (m.isfailure())
-            m.failure().fatal("creating empty file"); }
+        auto m = conn.createstream(clientio::CLIENTIO, job, stream);
+        if (m == error::already) m.failure().warn("already created");
+        else if (m.isfailure()) m.failure().fatal("creating empty stream"); }
     else if (!strcmp(argv[3], "APPEND")) {
         if (argc != 8) {
             errx(1,
@@ -328,7 +365,13 @@ main(int argc, char *argv[]) {
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         conn.removestream(clientio::CLIENTIO, job, stream)
-            .fatal(fields::mk("finishing stream")); }
+            .fatal(fields::mk("removing stream")); }
+    else if (strcmp(argv[3], "REMOVEJOB") == 0) {
+        auto job(parsers::_jobname()
+                 .match(argv[4])
+                 .fatal("parsing job name " + fields::mk(argv[4])));
+        conn.removejob(clientio::CLIENTIO, job)
+            .fatal(fields::mk("removing job")); }
     else errx(1, "unknown mode %s", argv[3]);
 
     pool->destroy();

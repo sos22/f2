@@ -118,7 +118,7 @@ filename::createfile() const {
     else return error::from_errno(EEXIST); }
 
 orerror<bool>
-filename::exists() const {
+filename::isfile() const {
     struct stat st;
     if (::stat(content.c_str(), &st) < 0) {
         if (errno == ENOENT) return false;
@@ -130,6 +130,20 @@ filename::exists() const {
              S_ISSOCK(st.st_mode)) return error::notafile;
     else if (!S_ISREG(st.st_mode)) return error::from_errno(EINVAL);
     else return true; }
+
+orerror<bool>
+filename::isdir() const {
+    struct stat st;
+    if (::stat(content.c_str(), &st) < 0) {
+        if (errno == ENOENT) return false;
+        else return error::from_errno(); }
+    else if (S_ISDIR(st.st_mode)) return true;
+    else if (S_ISREG(st.st_mode) ||
+             S_ISCHR(st.st_mode) ||
+             S_ISBLK(st.st_mode) ||
+             S_ISFIFO(st.st_mode) ||
+             S_ISSOCK(st.st_mode)) return error::notadir;
+    else return error::from_errno(EINVAL); }
 
 orerror<fd_t>
 filename::openappend(bytecount oldsize) const {
@@ -265,12 +279,12 @@ tests::_filename() {
             foo.unlink();
             (foo + "bar").unlink();
             foo.rmdir();
-            assert(foo.exists() == false);
+            assert(foo.isfile() == false);
             assert(!foo
                    .createfile(fields::mk(5))
                    .isfailure());
             assert(foo.createfile(fields::mk(5)) == error::already);
-            assert(foo.exists() == true);
+            assert(foo.isfile() == true);
             assert(foo.readasstring() == string("5"));
             assert(foo.size() == 1);
             {   auto r(foo.read(0,1).fatal("read foo"));
@@ -287,10 +301,10 @@ tests::_filename() {
             assert(foo.createfile() == error::already);
             assert(foo.mkdir() == error::from_errno(EEXIST));
             assert(foo.unlink().issuccess());
-            assert(foo.exists() == false);
+            assert(foo.isfile() == false);
             assert(foo.mkdir().issuccess());
             assert(foo.mkdir() == error::already);
-            assert(foo.exists() == error::from_errno(EISDIR));
+            assert(foo.isfile() == error::from_errno(EISDIR));
             assert((foo + "bar").createfile().issuccess());
             {   list<string> r;
                 for (filename::diriter it(foo); !it.finished(); it.next()) {
@@ -308,7 +322,7 @@ tests::_filename() {
             filename foo2("foo2");
             foo2.unlink();
             if(mknod("foo2",0600|S_IFIFO,0)<0)error::from_errno().fatal("foo2");
-            assert(foo2.exists() == error::notafile);
+            assert(foo2.isfile() == error::notafile);
             assert(foo2.rmdir() == error::from_errno(ENOTDIR));
             filename::diriter it(foo2);
             assert(it.isfailure());
@@ -349,7 +363,7 @@ tests::_filename() {
             assert(file.createfile() == error::from_errno(EACCES));
             assert(file.createfile(fields::mk(73)) ==
                    error::from_errno(EACCES));
-            assert(file.exists() == error::from_errno(EACCES));
+            assert(file.isfile() == error::from_errno(EACCES));
             assert(file.unlink() == error::from_errno(EACCES));
             dir.rmdir().fatal("rm foo4"); });
 #if TESTING

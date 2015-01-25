@@ -50,7 +50,10 @@ const error error::aborted(-27);
 const error error::badqueue(-28);
 const error error::eventsdropped(-29);
 const error error::badsubscription(-30);
-static const int lasterror = 30;
+const error error::notadir(-31);
+/* When adding a new error, make sure you update lasterror and
+ * errorfield::fmt() */
+static const int lasterror = 31;
 
 class errorfield : public fields::field {
     error content;
@@ -126,6 +129,8 @@ public:
                 buf.push("eventsdroped");
             } else if (content == error::badsubscription) {
                 buf.push("badsubscription");
+            } else if (content == error::notadir) {
+                buf.push("notadir");
             } else {
                 ("<invalid error " + fields::mk(content.e) + ">")
                     .fmt(buf); } } };

@@ -48,7 +48,9 @@ public:  orerror<void> createfile(const fields::field &) const;
      * some other error for other error cases. */
 public:  orerror<void> createfile() const;
     /* Check whether a file exists and is a file. */
-public:  orerror<bool> exists() const;
+public:  orerror<bool> isfile() const;
+    /* Check whether a file exists and is a directory. */
+public:  orerror<bool> isdir() const;
     /* Open a file in append mode.  The file must already exist and
      * contain precisely @size bytes.  If the file is too small fail
      * with error::toosoon; if it's too big, fail with

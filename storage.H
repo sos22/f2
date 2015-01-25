@@ -2,6 +2,7 @@
 #define STORAGE_H__
 
 #include "jobname.H"
+#include "maybe.H"
 #include "streamname.H"
 
 class deserialise1;
@@ -15,8 +16,10 @@ private: unsigned v;
 private: explicit tag(unsigned);
 public:  explicit tag(deserialise1 &);
 public:  void serialise(serialise1 &) const;
+    /* Inputs: jobname.  Outputs: None */
+public:  static const tag createjob;
     /* Inputs: jobname, streamname.  Outputs: None */
-public:  static const tag createempty;
+public:  static const tag createstream;
     /* Inputs: jobname, streamname, buffer, offset.  Outputs: None */
 public:  static const tag append;
     /* Inputs: jobname, streamname.  Outputs: None */
@@ -33,22 +36,28 @@ public:  static const tag listjobs;
 public:  static const tag liststreams;
     /* Inputs: jobname, streamname.  Outputs: None. */
 public:  static const tag removestream;
+    /* Inputs: jobname.  Outputs: None */
+public:  static const tag removejob;
 public:  bool operator==(tag o) const { return v == o.v; }
 public:  bool operator!=(tag o) const { return v != o.v; }
 };
 
 class event {
 public:  enum type {
-        t_newstream = 98,
+        t_newjob = 96,
+        t_removejob,
+        t_newstream,
         t_finishstream,
         t_removestream,
     };
 public:  void serialise(serialise1 &) const;
 public:  explicit event(deserialise1 &);
-private: event(type, const jobname &, const streamname &);
+private: event(type, const jobname &, const maybe<streamname> &);
 public:  type typ;
 public:  jobname job;
-public:  streamname stream;
+public:  maybe<streamname> stream;
+public:  static event newjob(const jobname &);
+public:  static event removejob(const jobname &);
 public:  static event newstream(const jobname &, const streamname &);
 public:  static event finishstream(const jobname &, const streamname &);
 public:  static event removestream(const jobname &, const streamname &);

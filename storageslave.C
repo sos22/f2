@@ -56,11 +56,17 @@ storageslave::called(
     assert(type == interfacetype::storage || type == interfacetype::eq);
     if (type == interfacetype::eq) return eqs.called(io, ds, ic, oct);
     proto::storage::tag tag(ds);
-    if (tag == proto::storage::tag::createempty) {
+    if (tag == proto::storage::tag::createjob) {
+        jobname j(ds);
+        if (!ds.isfailure()) {
+            auto r(createjob(j));
+            if (!r.isfailure()) eqq.queue(proto::storage::event::newjob(j), io);
+            ic->complete(r, io, oct); } }
+    else if (tag == proto::storage::tag::createstream) {
         jobname j(ds);
         streamname s(ds);
         if (!ds.isfailure()) {
-            auto r(createempty(j, s));
+            auto r(createstream(j, s));
             if (!r.isfailure()) {
                 eqq.queue(proto::storage::event::newstream(j, s), io); }
             ic->complete(r, io, oct); } }
@@ -111,26 +117,39 @@ storageslave::called(
                 eqq.queue(proto::storage::event::removestream(job, stream),
                           io); }
             ic->complete(r, io, oct); } }
+    else if (tag == proto::storage::tag::removejob) {
+        jobname job(ds);
+        if (!ds.isfailure()) {
+            auto r(removejob(job));
+            if (!r.isfailure()) {
+                eqq.queue(proto::storage::event::removejob(job), io); }
+            ic->complete(r, io, oct); } }
     else ds.fail(error::invalidmessage);
     return ds.status(); }
+
+orerror<void>
+storageslave::createjob(const jobname &t) {
+    logmsg(loglevel::debug, "create job " + fields::mk(t));
+    return (config.poolpath + t.asfilename()).mkdir(); }
 
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */
 orerror<void>
-storageslave::createempty(const jobname &t, const streamname &sn) {
+storageslave::createstream(const jobname &t, const streamname &sn) {
     logmsg(loglevel::debug,
            "create empty output " + fields::mk(t) + " " + fields::mk(sn));
     filename jobdir(config.poolpath + t.asfilename());
-    {   auto r(jobdir.mkdir());
-        if (r.isfailure() && r != error::already) return r.failure(); }
+    {   auto r(jobdir.isdir());
+        if (r.isfailure()) return r.failure();
+        else if (!r.success()) return error::toosoon; }
     filename streamdir(jobdir + sn.asfilename());
     {   auto r(streamdir.mkdir());
         if (r.isfailure() && r != error::already) return r.failure(); }
     filename content(streamdir + "content");
     filename finished(streamdir + "finished");
-    auto cexists(content.exists());
+    auto cexists(content.isfile());
     if (cexists.isfailure()) return cexists.failure();
-    auto fexists(finished.exists());
+    auto fexists(finished.isfile());
     if (fexists.isfailure()) return fexists.failure();
     if (cexists == true && fexists == true) {
         /* Already have job results -> tell caller to stop */
@@ -153,7 +172,7 @@ storageslave::append(
     bytecount oldsize,
     buffer &b) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
-    auto finished((dirname + "finished").exists());
+    auto finished((dirname + "finished").isfile());
     if (finished.isfailure()) return finished.failure();
     else if (finished == true) return error::toolate;
     filename content(dirname + "content");
@@ -193,11 +212,11 @@ storageslave::finish(
     const jobname &jn,
     const streamname &sn) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
-    {   auto content((dirname + "content").exists());
+    {   auto content((dirname + "content").isfile());
         if (content.isfailure()) return content.failure();
         else if (content == false) return error::notfound; }
     filename finished(dirname + "finished");
-    auto exists(finished.exists());
+    auto exists(finished.isfile());
     if (exists.isfailure()) return exists.failure();
     else if (exists == true) return error::already;
     return finished.createfile(); }
@@ -213,11 +232,11 @@ storageslave::read(
     onconnectionthread oct) const {
     if (start > end) return error::invalidparameter;
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
-    {   auto finished((dirname + "finished").exists());
+    {   auto finished((dirname + "finished").isfile());
         if (finished.isfailure()) return finished.failure();
         else if (finished == false) return error::toosoon; }
     auto content(dirname + "content");
-    {   auto r(content.exists());
+    {   auto r(content.isfile());
         if (r.isfailure()) return r.failure();
         else if (r == false) return error::toosoon; }
     auto sz(content.size());
@@ -308,7 +327,7 @@ storageslave::liststreams(
             auto fname(dir + it.filename());
             auto size((fname + "content").size());
             if (size.isfailure()) return size.failure();
-            auto finished((fname + "finished").exists());
+            auto finished((fname + "finished").isfile());
             if (finished.isfailure()) return finished.failure();
             if (finished == true) {
                 res.pushtail(streamstatus::finished(sn.success(),
@@ -345,10 +364,11 @@ storageslave::removestream(const jobname &jn,
         already = r == error::already; }
     {   auto r((streamdir + "finished").unlink());
         if (r != Success && r != error::already) return r.failure(); }
-    streamdir.rmdir()
-        .warn("cannot remove " + fields::mk(streamdir));
-    {   auto r(jobdir.rmdir());
-        if (r != error::notempty) {
-            r.warn("cannot remove " + fields::mk(jobdir)); } }
+    streamdir.rmdir().warn("cannot remove " + fields::mk(streamdir));
     if (already) return error::already;
     else return Success; }
+
+orerror<void>
+storageslave::removejob(const jobname &jn) {
+    logmsg(loglevel::debug, "remove job " + fields::mk(jn));
+    return (config.poolpath + jn.asfilename()).rmdir(); }
