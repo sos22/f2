@@ -7,6 +7,7 @@
 #include "string.H"
 
 class buffer;
+class bytecount;
 class fd_t;
 class filename;
 template <typename> class orerror;
@@ -48,8 +49,11 @@ public:  orerror<void> createfile(const fields::field &) const;
 public:  orerror<void> createfile() const;
     /* Check whether a file exists and is a file. */
 public:  orerror<bool> exists() const;
-    /* Open a file in append mode.  The file must already exist. */
-public:  orerror<fd_t> openappend() const;
+    /* Open a file in append mode.  The file must already exist and
+     * contain precisely @size bytes.  If the file is too small fail
+     * with error::toosoon; if it's too big, fail with
+     * error::toolate. */
+public:  orerror<fd_t> openappend(bytecount size) const;
     /* Get the size of a file.  The file must exist. */
 public:  orerror<uint64_t> size() const;
     /* Read some bytes out of a file.  start is inclusive, end

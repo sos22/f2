@@ -4,6 +4,7 @@
 #include "rpcservice2.H"
 #include "storageconfig.H"
 
+class bytecount;
 class clientio;
 class eqserver;
 template <typename> class eventqueue;
@@ -43,6 +44,7 @@ public:  orerror<void> createempty(
 public:  orerror<void> append(
     const jobname &t,
     const streamname &sn,
+    bytecount oldsize,
     buffer &b);
 public:  orerror<void> finish(
     const jobname &t,

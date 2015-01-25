@@ -17,7 +17,7 @@ public:  explicit tag(deserialise1 &);
 public:  void serialise(serialise1 &) const;
     /* Inputs: jobname, streamname.  Outputs: None */
 public:  static const tag createempty;
-    /* Inputs: jobname, streamname, buffer.  Outputs: None */
+    /* Inputs: jobname, streamname, buffer, offset.  Outputs: None */
 public:  static const tag append;
     /* Inputs: jobname, streamname.  Outputs: None */
 public:  static const tag finish;

@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include "buffer.H"
+#include "bytecount.H"
 #include "fd.H"
 #include "fields.H"
 #include "logging.H"
@@ -131,9 +132,18 @@ filename::exists() const {
     else return true; }
 
 orerror<fd_t>
-filename::openappend() const {
+filename::openappend(bytecount oldsize) const {
     int fd(::open(content.c_str(), O_WRONLY | O_APPEND));
+    struct stat stbuf;
     if (fd < 0) return error::from_errno();
+    else if (::fstat(fd, &stbuf) < 0) {
+        auto e(error::from_errno());
+        ::close(fd);
+        return e; }
+    else if (oldsize != bytecount::bytes(stbuf.st_size)) {
+        ::close(fd);
+        if (oldsize > bytecount::bytes(stbuf.st_size)) return error::toosoon;
+        else return error::toolate; }
     else return fd_t(fd); }
 
 orerror<uint64_t>
@@ -308,7 +318,7 @@ tests::_filename() {
             filename foo3("foo3");
             foo3.unlink();
             assert(foo3.createfile(fields::mk("ABCD")).issuccess());
-            {   auto r(foo3.openappend().fatal("openappend"));
+            {   auto r(foo3.openappend(0_B).fatal("openappend"));
                 unsigned char buf[8192];
                 memset(buf, 'Z', 8192);
                 for (unsigned long x = 0; x < 10000000; x += sizeof(buf)) {
@@ -325,7 +335,7 @@ tests::_filename() {
             assert(foo3.readasstring() == error::overflowed);
             assert(foo3.unlink().issuccess());
             assert(foo3.createfile().issuccess());
-            {   auto r(foo3.openappend().fatal("openappend"));
+            {   auto r(foo3.openappend(0_B).fatal("openappend"));
                 assert(r.write(clientio::CLIENTIO, "AB\0CD", 5) == 5);
                 r.close(); }
             assert(foo3.readasstring() == error::noparse);

@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include "buffer.H"
+#include "bytecount.H"
 #include "clientio.H"
 #include "connpool.H"
 #include "fields.H"
@@ -38,6 +39,7 @@ public:  orerror<void> createempty(clientio,
 public:  orerror<void> append(clientio,
                               const jobname &,
                               const streamname &,
+                              bytecount oldsize,
                               const buffer &buf);
 public:  orerror<void> finish(clientio,
                               const jobname &,
@@ -80,16 +82,18 @@ orerror<void>
 storageclient::append(clientio io,
                       const jobname &jn,
                       const streamname &stream,
+                      bytecount oldsize,
                       const buffer &buf) {
     return pool.call(
         io,
         sn,
         interfacetype::storage,
         timestamp::now() + timeout,
-        [&buf, &jn, &stream] (serialise1 &s, connpool::connlock) {
+        [&buf, &jn, oldsize, &stream] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::append.serialise(s);
             jn.serialise(s);
             stream.serialise(s);
+            oldsize.serialise(s);
             buf.serialise(s); },
         connpool::voidcallV); }
 
@@ -226,18 +230,22 @@ main(int argc, char *argv[]) {
         else if (m.isfailure())
             m.failure().fatal("creating empty file"); }
     else if (!strcmp(argv[3], "APPEND")) {
-        if (argc != 7) {
+        if (argc != 8) {
             errx(1,
-                 "APPEND needs a job, a stream name, and a thing to append"); }
+                 "APPEND needs a job, a stream name, the old size, "
+                 "and a thing to append"); }
         auto job(parsers::_jobname()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         auto stream(parsers::_streamname()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
+        auto oldsize(parsers::_bytecount()
+                     .match(argv[6])
+                     .fatal("parsing byte count " + fields::mk(argv[6])));
         buffer buf;
-        buf.queue(argv[6], strlen(argv[6]));
-        conn.append(clientio::CLIENTIO, job, stream, buf)
+        buf.queue(argv[7], strlen(argv[7]));
+        conn.append(clientio::CLIENTIO, job, stream, oldsize, buf)
             .fatal(fields::mk("appending to stream")); }
     else if (!strcmp(argv[3], "FINISH")) {
         if (argc != 6) {

@@ -1,6 +1,7 @@
 #include "storageslave.H"
 
 #include "buffer.H"
+#include "bytecount.H"
 #include "eqserver.H"
 #include "jobname.H"
 #include "logging.H"
@@ -66,9 +67,10 @@ storageslave::called(
     else if (tag == proto::storage::tag::append) {
         jobname job(ds);
         streamname stream(ds);
+        bytecount oldsize(ds);
         buffer bytes(ds);
         if (!ds.isfailure()) {
-            ic->complete(append(job, stream, bytes), io, oct); } }
+            ic->complete(append(job, stream, oldsize, bytes), io, oct); } }
     else if (tag == proto::storage::tag::finish) {
         jobname job(ds);
         streamname stream(ds);
@@ -148,13 +150,14 @@ orerror<void>
 storageslave::append(
     const jobname &jn,
     const streamname &sn,
+    bytecount oldsize,
     buffer &b) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
     auto finished((dirname + "finished").exists());
     if (finished.isfailure()) return finished.failure();
     else if (finished == true) return error::toolate;
     filename content(dirname + "content");
-    auto fd(content.openappend());
+    auto fd(content.openappend(oldsize));
     if (fd.isfailure()) return fd.failure();
     unsigned long initialavail(b.avail());
     while (!b.empty()) {

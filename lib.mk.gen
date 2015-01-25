@@ -12,6 +12,7 @@ function bits() {
     _ beaconserver
     _ buffer
     _ buildconfigimpl
+    _ bytecount
     _ clustername
     _ cond
     _ connpool
