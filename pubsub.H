@@ -1,5 +1,54 @@
 /* Publish/subscribe style synchronisation interface, a la
- * kernel-space waitqueues. */
+ * kernel-space waitqueues.  The idea is that anything you can wait
+ * for has an associated publisher which generates events whenever it
+ * changes.  Anyone who wants to wait for anything allocates a
+ * subscriber structure which is used to latch events until you're
+ * ready to pick them up.  You then use subscriptions to connect
+ * subscribers to publishers.  Note that each event can be latched at
+ * most once for each subscriber; other events after that first one
+ * will be dropped.  Note also that the pubsub interface will
+ * occasionally generate spurious events, which the subscriber is
+ * supposed to filter out. */
+/* The usual way of using this defines a bunch of predicates, defines
+ * a publisher for each predicate, and arranges to notify the
+ * publisher whenever the predicate changes.  Something like this:
+ *
+ * waiter() {
+ *    subscriber sub;
+ *    subscription ss(sub, pub);
+ *    while (!predicate_satisfied()) {
+ *        sub.wait(); } }
+ *
+ * waitee() {
+ *     ... something which might change predicate ...;
+ *     pub.publish(); }
+ *
+ * Note that the waiter check the predicate in between subscribing and
+ * going to sleep, so as to avoid lost-wakeup races.
+ *
+ * Used like that, they're basically condition variables.  The big
+ * advantage is that you can subscribe to several things at once and
+ * wake up as soon as any get notified:
+ *
+ * waiter() {
+ *     subscriber sub;
+ *     subscription ss1(sub, pub1);
+ *     subscription ss2(sub, pub2);
+ *     if (predicate1()) do_something();
+ *     if (predicate2()) do_something_else();
+ *     while (true) {
+ *         auto t = sub.wait();
+ *         if (t == &ss1) do_something();
+ *         else if (t == &ss2) do_something_else(); } }
+ *
+ * waitee1() {
+ *     ... something relevant to do_something()...;
+ *     pub1.publish(); }
+ *
+ * waitee2() {
+ *     ... something relevant to do_something_else()...;
+ *     pub2.publish(); }
+ */
 #ifndef PUBSUB_H__
 #define PUBSUB_H__
 
