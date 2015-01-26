@@ -568,15 +568,14 @@ tests::_eqtest() {
             assert(timestamp::now() - start < timedelta::milliseconds(100));
             servercaptured.get(io);
             assert(timestamp::now() - start < timedelta::milliseconds(100));
-            assert(conn->pop() == Nothing);
+            assert(conn->finished() == Nothing);
             {   subscriber sub;
                 subscription ss(sub, conn->pub());
                 assert(sub.poll() == NULL);
                 serverrelease.set();
                 assert(timedelta::time([&] { assert(sub.wait(io) == &ss);  })
                        < timedelta::milliseconds(100)); }
-            auto c(conn->pop()
-                   .fatal("pop should have been non-Nothing")
+            auto c(conn->pop(conn->finished().just())
                    .fatal("connecting to slow server"));
             /* Quick check that it vaguely works. */
             q->queue(52, io);

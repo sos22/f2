@@ -75,7 +75,7 @@ public: impl(connpool::asynccallT<callres_t> &,
              const slavename &,
              const proto::eq::genname &,
              const eqclientconfig &);
-public: maybe<orerror<nnp<geneqclient> > > pop();
+public: orerror<nnp<geneqclient> > pop(token);
 public: void abort(); };
 
 eqclientconfig::eqclientconfig()
@@ -99,8 +99,14 @@ geneqclient::asyncconnect::implementation() const {
 const publisher &
 geneqclient::asyncconnect::pub() const { return implementation().inner.pub(); }
 
-maybe<orerror<nnp<geneqclient> > >
-geneqclient::asyncconnect::pop() { return implementation().pop(); }
+maybe<geneqclient::asyncconnect::token>
+geneqclient::asyncconnect::finished() const {
+    auto r(implementation().inner.finished());
+    if (r == Nothing) return Nothing;
+    else return token(r.just()); }
+
+orerror<nnp<geneqclient> >
+geneqclient::asyncconnect::pop(token t) { return implementation().pop(t); }
 
 void
 geneqclient::asyncconnect::abort() { return implementation().abort(); }
@@ -118,14 +124,12 @@ CONNECT::impl(
       queuename(_queuename),
       config(_config) {}
 
-maybe<orerror<nnp<geneqclient> > >
-CONNECT::pop() {
-    auto t(inner.finished());
-    if (t == Nothing) return Nothing;
-    auto r(inner.pop(t.just()));
+orerror<nnp<geneqclient> >
+CONNECT::pop(token t) {
+    auto r(inner.pop(t.inner));
     if (r.isfailure()) {
         delete this;
-        return maybe<orerror<nnp<geneqclient> > >(r.failure()); }
+        return r.failure(); }
     else {
         auto &res(thread::start<CLIENT>(
                      "EC:" + queuename.field() + ":" + fields::mk(slave),

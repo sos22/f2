@@ -888,8 +888,8 @@ tests::_connpool() {
             s1.get();
             pool->destroy();
             srv->destroy(io); });
-            /* This doesn't really belong here, but it's the easiest place to
-     * put it. */
+            /* This doesn't really belong here, but it's the easiest
+             * place to put it. */
     testcaseIO("connpool", "doublelisten", [] (clientio io) {
             quickcheck q;
             clustername cn(q);

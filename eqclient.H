@@ -15,14 +15,17 @@
 
 #include "buffer.H"
 #include "clientio.H"
+#include "connpool.H"
 #include "eq.H"
 #include "maybe.H"
+#include "pair.H"
 #include "pubsub.H"
 #include "serialise.H"
 #include "timedelta.H"
 #include "timestamp.H"
 
-class connpool;
+#include "connpool.tmpl"
+
 template <typename> class nnp;
 template <typename> class orerror;
 class slavename;
@@ -76,10 +79,19 @@ public:  static orerror<nnp<geneqclient> > connect(
 public:  class asyncconnect {
     public:  class impl;
         friend class impl;
+    public:  class token {
+            friend class geneqclient::asyncconnect;
+        private: typedef connpool::asynccallT<pair<proto::eq::subscriptionid,
+                                                   proto::eq::eventid> >::token
+             innerT;
+        private: innerT inner;
+        private: explicit token(const innerT &_inner)
+            : inner(_inner) {}; };
     public:  impl &implementation();
     public:  const impl &implementation() const;
     public:  const publisher &pub() const;
-    public:  maybe<orerror<nnp<geneqclient> > > pop();
+    public:  maybe<token> finished() const;
+    public:  orerror<nnp<geneqclient> > pop(token);
     public:  void abort(); };
 public:  static nnp<asyncconnect> connect(
     connpool &pool,
@@ -119,26 +131,32 @@ public:  static orerror<nnp<eqclient> > connect(
 public:  class asyncconnect : private geneqclient::asyncconnect {
     private: asyncconnect(const asyncconnect &) = delete;
     private: void operator=(const asyncconnect &) = delete;
+    public:  class token {
+            friend class eqclient<t>::asyncconnect;
+        private: geneqclient::asyncconnect::token inner;
+        private: explicit token(geneqclient::asyncconnect::token &_inner)
+            : inner(_inner) {} };
         /* Use connect() */
     private: asyncconnect();
         /* Use pop() or abort() */
     private: ~asyncconnect();
-        /* Notified when pop() becomes non-Nothing. */
+        /* Notified when finished() becomes non-Nothing. */
     public:  const publisher &pub() const {
         return geneqclient::asyncconnect::pub(); }
-        /* If the connection has completed, return the queue and
-         * destroy the the asyncconnect structure.  If it failed,
-         * return the error and destroy the asyncconnect structure.
-         * If it's still pending, return Nothing. */
-public:  maybe<orerror<nnp<eqclient> > > pop() {
-        auto r(geneqclient::asyncconnect::pop());
+        /* Returns Nothing if the connect is still outstanding or
+         * a token if it's completed. */
+    public:  maybe<token> finished() const {
+        auto r(geneqclient::asyncconnect::finished());
         if (r == Nothing) return Nothing;
-        else if (r.just().isfailure()) {
-            return orerror<nnp<eqclient> >(r.just().failure()); }
-        else {
-            auto &underlying(*r.just().success());
-            return orerror<nnp<eqclient> >(
-                _nnp(*static_cast<eqclient *>(&underlying))); } }
+        else return token(r.just()); }
+        /* Get the result of the connect (either an eqclient or an
+         * error), once finished() returns non-Nothing.  Destroys the
+         * asyncconnect structure in the process (so you must be
+         * unsubscribed from the publisher before calling this).*/
+    public:  orerror<nnp<eqclient> > pop(token tok) {
+        auto r(geneqclient::asyncconnect::pop(tok.inner));
+        if (r.isfailure()) return r.failure();
+        else return _nnp(*static_cast<eqclient *>(&*r.success())); }
         /* Give up trying to connect to the queue and destroy the
          * asyncconnect. */
     public:  void abort() { geneqclient::asyncconnect::abort(); } };
