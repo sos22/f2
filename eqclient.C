@@ -226,13 +226,15 @@ geneqclient::pop() {
         return res; } }
 
 void
-geneqclient::destroy(clientio io) {
+geneqclient::destroy() {
     auto &i(implementation());
     i.shutdown.set();
     /* Make things easy on the server by telling it that we've gone
      * away.  This is optional, and we don't particularly care about
-     * whether or not it succeeds. */
-    i.pool.call(io,
+     * whether or not it succeeds.  Note that there's no clientio
+     * token here: the unsubscribe timeout is supposed to be short, so
+     * we don't need one. */
+    i.pool.call(clientio::CLIENTIO,
                 i.slave,
                 interfacetype::eq,
                 i.config.unsubscribe.future(),

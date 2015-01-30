@@ -76,7 +76,7 @@ eqtestcase(clientio io,
                timestamp::now() + timedelta::seconds(10))
            .fatal("connecting eqclient"));
     f(io, *c, *q);
-    c->destroy(io);
+    c->destroy();
     pool->destroy();
     assert(timedelta::time([&] { s->destroy(io); })
            < timedelta::milliseconds(200));
@@ -199,7 +199,7 @@ tests::_eqtest() {
             /* c1 should be unaffected. */
             assert(c1->pop(io) == 10);
             assert(c1->pop(io) == 11);
-            c2->destroy(io);
+            c2->destroy();
             c2 = eqclient<unsigned>::connect(
                 io,
                 *pool,
@@ -221,8 +221,8 @@ tests::_eqtest() {
                  * destroyed, or timeout if it misses the window. */
                 auto e(c2->pop(io));
                 assert(e == error::badqueue || e == error::timeout); }
-            c1->destroy(io);
-            c2->destroy(io);
+            c1->destroy();
+            c2->destroy();
             pool->destroy(); });
     testcaseIO("eq", "badconn", [] (clientio io) {
             clustername cn((quickcheck()));
@@ -276,7 +276,7 @@ tests::_eqtest() {
             assert(t >= cconfig.wait);
             assert(t <=
                    cconfig.get + cconfig.wait + timedelta::milliseconds(100));
-            c->destroy(io);
+            c->destroy();
             pool->destroy(); });
     testcaseIO("eq", "failwaiter2", [] (clientio io) {
             clustername cn((quickcheck()));
@@ -312,7 +312,7 @@ tests::_eqtest() {
             assert(t <= cconfig.wait + timedelta::milliseconds(100));
             s->destroy(io);
             server->destroy();
-            c->destroy(io);
+            c->destroy();
             pool->destroy(); });
     testcaseIO("eq", "pushlostsub", [] (clientio io) {
             clustername cn((quickcheck()));
@@ -347,7 +347,7 @@ tests::_eqtest() {
              * through pushing a new event. */
             tests::hook<void> h2(geneventqueue::finishingpush,
                                  [&] {
-                                     c->destroy(io);
+                                     c->destroy();
                                      c = NULL; });
             q->queue(1, rpcservice2::acquirestxlock(io));
             assert(c == NULL);
@@ -383,7 +383,7 @@ tests::_eqtest() {
                        cconfig)
                    .fatal("connecting eqclient"));
             startedwaiter.get(io);
-            c->destroy(io);
+            c->destroy();
             pool->destroy();
             s->destroy(io);
             q->destroy(io);
@@ -412,7 +412,7 @@ tests::_eqtest() {
             assert(c->pop() == Nothing);
             q->queue(3, rpcservice2::acquirestxlock(io));
             assert(c->pop(io) == 3);
-            c->destroy(io);
+            c->destroy();
             pool->destroy();
             s->destroy(io);
             server->destroy();
@@ -458,12 +458,12 @@ tests::_eqtest() {
                              "expected 99, got " + fields::mk(r));
                     abort(); } }
             assert(c2->pop(io) == "Hello");
-            c1->destroy(io);
+            c1->destroy();
             q2->destroy(io);
             s->destroy(io);
             server->destroy();
             q1->destroy(io);
-            c2->destroy(io);
+            c2->destroy();
             pool->destroy(); });
     testcaseIO("eq", "pipeline", [] (clientio io) {
             clustername cn((quickcheck()));
@@ -492,7 +492,7 @@ tests::_eqtest() {
             for (unsigned x = 0; x < 1000; x++) {
                 q->queue(x+1, rpcservice2::acquirestxlock(io));
                 assert(c->pop(io) == x); }
-            c->destroy(io);
+            c->destroy();
             s->destroy(io);
             server->destroy();
             pool->destroy(); });
@@ -535,10 +535,10 @@ tests::_eqtest() {
                     .fatal("connecting eqclient"));
             while (nrwaiters == 1)timedelta::milliseconds(1).future().sleep(io);
             assert(nrwaiters == 2);
-            c2->destroy(io);
+            c2->destroy();
             /* Ick */
             timedelta::milliseconds(200).future().sleep(io);
-            c1->destroy(io);
+            c1->destroy();
             s->destroy(io);
             server->destroy();
             pool->destroy(); });
@@ -581,7 +581,7 @@ tests::_eqtest() {
             q->queue(52, io);
             assert(timedelta::time([&] { assert(c->pop(io) == 52); })
                    < timedelta::milliseconds(200));
-            c->destroy(io);
+            c->destroy();
             s->destroy(io);
             server->destroy();
             pool->destroy();

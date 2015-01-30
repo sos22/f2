@@ -100,7 +100,7 @@ public:  static nnp<asyncconnect> connect(
     const eqclientconfig &);
 public:  const publisher &pub() const;
 public:  maybe<orerror<buffer> > pop();
-public:  void destroy(clientio);
+public:  void destroy();
 private: ~geneqclient();
 public:  static tests::hookpoint<void> startingwaiter; };
 
@@ -202,7 +202,7 @@ public:  orerror<t> pop(clientio io) {
 
     /* Tear down a queue client, discarding any pending events not yet
      * returned by pop(). */
-public:  void destroy(clientio io) { geneqclient::destroy(io); }
+public:  void destroy() { geneqclient::destroy(); }
 
     /* Never actually called: base class destructor is non-virtual. */
 private: ~eqclient() = delete; };
