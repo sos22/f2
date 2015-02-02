@@ -398,11 +398,13 @@ tests::logging() {
                 assert(truncat1.isjust());
                 assert(l.peekhead().idx == memlog_idx::min);
                 assert(!strcmp(l.peekhead().msg, "Hello"));
+                l.flush();
                 auto truncat2(ms.fetch(truncat1.just(), 1, l));
                 assert(l.length() == 1);
                 assert(truncat2.isjust());
                 assert(l.peekhead().idx == truncat1.just());
                 assert(!strcmp(l.peekhead().msg, "World"));
+                l.flush();
                 auto truncat3(ms.fetch(truncat2.just(), 1, l));
                 assert(l.length() == 1);
                 assert(truncat3 == Nothing);
