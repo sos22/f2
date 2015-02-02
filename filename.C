@@ -332,7 +332,7 @@ tests::_filename() {
             filename foo3("foo3");
             foo3.unlink();
             assert(foo3.createfile(fields::mk("ABCD")).issuccess());
-            {   auto r(foo3.openappend(0_B).fatal("openappend"));
+            {   auto r(foo3.openappend(4_B).fatal("openappend"));
                 unsigned char buf[8192];
                 memset(buf, 'Z', 8192);
                 for (unsigned long x = 0; x < 10000000; x += sizeof(buf)) {
