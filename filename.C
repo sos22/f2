@@ -168,22 +168,24 @@ filename::size() const {
     return bytecount::bytes(st.st_size); }
 
 orerror<buffer>
-filename::read(uint64_t start, uint64_t end) const {
+filename::read(bytecount start, bytecount end) const {
+    assert(end >= start);
+    auto need((end - start).just());
     auto _fd(::open(content.c_str(), O_RDONLY));
     if (_fd < 0) return error::from_errno();
-    if (start != 0) {
-        assert(start <= INT64_MAX);
-        auto r(::lseek(_fd, (off_t)start, SEEK_SET));
+    if (start != 0_B) {
+        assert(start.b <= INT64_MAX);
+        auto r(::lseek(_fd, (off_t)start.b, SEEK_SET));
         if (r < 0) return error::from_errno();
-        else if ((uint64_t)r != start) return error::pastend; }
+        else if ((uint64_t)r != start.b) return error::pastend; }
     fd_t fd(_fd);
     buffer res;
-    while (res.avail() < end - start) {
+    while (res.avail() < need.b) {
         /* IO to local files doesn't really need a clientio token. */
         auto r(res.receive(clientio::CLIENTIO,
                            fd,
                            Nothing,
-                           end - start - res.avail()));
+                           need.b - res.avail()));
         if (r.isfailure()) {
             ::close(_fd);
             return r.failure(); } }
@@ -287,11 +289,11 @@ tests::_filename() {
             assert(foo.isfile() == true);
             assert(foo.readasstring() == string("5"));
             assert(foo.size() == 1_B);
-            {   auto r(foo.read(0,1).fatal("read foo"));
+            {   auto r(foo.read(0_B,1_B).fatal("read foo"));
                 assert(r.avail() == 1);
                 assert(r.offset() == 0);
                 assert(r.idx(0) == '5'); }
-            assert(foo.read(1,2) == error::disconnected);
+            assert(foo.read(1_B,2_B) == error::disconnected);
             assert(foo.createfile() == error::from_errno(EEXIST));
             assert(filename("/dev/tty").readasstring() ==
                    error::from_errno(ESPIPE));
@@ -339,7 +341,7 @@ tests::_filename() {
                     assert(r.write(clientio::CLIENTIO, buf, sizeof(buf))
                            == sizeof(buf)); }
                 r.close(); }
-            {   auto r(foo3.read(1, 5).fatal("readbig"));
+            {   auto r(foo3.read(1_B, 5_B).fatal("readbig"));
                 assert(r.avail() == 4);
                 assert(r.offset() == 0);
                 assert(r.idx(0) == 'B');
@@ -354,6 +356,14 @@ tests::_filename() {
                 r.close(); }
             assert(foo3.readasstring() == error::noparse);
             assert(foo3.unlink().issuccess()); });
+    testcaseV("filename", "readempty", [] {
+            filename foo("foo");
+            foo.unlink();
+            foo.createfile(fields::mk("ABCD")).fatal("cannot make foo");
+            auto r(foo.read(2_B, 2_B)
+                   .fatal("empty read"));
+            assert(r.empty());
+            foo.unlink().fatal("unlinking foo"); });
     testcaseV("filename", "rodir", [] {
             filename dir("foo4");
             dir.rmdir();

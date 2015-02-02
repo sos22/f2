@@ -59,9 +59,9 @@ public:  orerror<fd_t> openappend(bytecount size) const;
     /* Get the size of a file.  The file must exist. */
 public:  orerror<bytecount> size() const;
     /* Read some bytes out of a file.  start is inclusive, end
-       exclusive.  The bounds must be within the file.  If start ==
-       end <= filesize then return an empty buffer (or an error). */
-public:  orerror<buffer> read(uint64_t start, uint64_t end) const;
+     * exclusive.  The bounds must be within the file.  If start ==
+     * end <= filesize then return an empty buffer (or an error). */
+public:  orerror<buffer> read(bytecount start, bytecount end) const;
     /* Directory iterators.  I'd be happier if diriter were a member
      * method of class filename, but then I'd need to implement a copy
      * constructor, which is a pain. */

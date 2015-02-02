@@ -263,7 +263,7 @@ storageslave::read(
     if (sz.isfailure()) return sz.failure();
     if (start > sz.success()) start = sz.success();
     if (end > sz.success()) end = sz.success();
-    auto b(content.read(start.b, end.b));
+    auto b(content.read(start, end));
     if (b.isfailure()) return b.failure();
     ic->complete([sz, &b]
                  (serialise1 &s,
