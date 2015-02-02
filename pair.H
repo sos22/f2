@@ -3,6 +3,8 @@
 
 #include "serialise.H"
 
+namespace fields { class field; }
+
 template <typename a, typename b>
 class pair {
 private: a fst;
@@ -26,6 +28,8 @@ public:  a &first() { return fst; }
 public:  const a &first() const { return fst; }
 public:  b &second() { return snd; }
 public:  const b &second() const { return snd; }
+public:  const fields::field &field() const {
+    return "<" + fst.field() + "," + snd.field() + ">"; }
 public:  operator a&() { return first(); }
     /* Annoyingly, we can't do the symmetrical operator b& alias for
        second, because that's an ambiguous overload when a and b
