@@ -59,6 +59,16 @@ string::operator=(const string &o) {
         ? (char *)strdup(o.content)
         : NULL; }
 
+void
+string::operator+=(const char *o) {
+    size_t olen(strlen(o));
+    if (olen == 0) {}
+    else if (content == NULL) content = strdup(o);
+    else {
+        size_t l(strlen(content));
+        content = (char *)realloc(content, l + olen + 1);
+        memcpy(content + l, o, olen + 1); } }
+
 string
 string::operator+(const string &o) const {
     size_t s1(strlen(c_str()));

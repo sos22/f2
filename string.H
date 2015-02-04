@@ -29,6 +29,7 @@ public:  string(string &&);
 public:  explicit string(deserialise1 &);
 public:  void operator=(const string &);
 public:  string operator+(const string &) const;
+public:  void operator+=(const char *);
 public:  bool operator==(const string &) const;
 public:  bool operator!=(const string &) const;
 public:  bool operator<(const string &) const;
