@@ -100,6 +100,9 @@ public:  orerror<void> unlink() const;
 
     /* Convert to a simple string. */
 public:  const string &str() const { return content; }
+
+    /* Convert to a field. */
+public:  const fields::field &field() const;
 };
 
 template <typename> class parser;

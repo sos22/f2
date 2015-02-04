@@ -277,6 +277,9 @@ parsers::_filename() {
     return ("<filename:" + strparser + ">")
         .map<filename>([] (const char *x) { return filename(string(x)); }); }
 
+const fields::field &
+filename::field() const { return fields::mk(*this); }
+
 /* Basic functionality tests.  A lot of these are more to make sure
    that the behaviour doesn't change unexpectedly, rather than to
    check that the current behaviour is actually desirable. */
