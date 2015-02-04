@@ -126,6 +126,23 @@ filename::createfile() const {
     else if (S_ISREG(st.st_mode) && st.st_size == 0) return error::already;
     else return error::from_errno(EEXIST); }
 
+orerror<void>
+filename::replace(const buffer &buf) const {
+    filename tmpfile(*this);
+    tmpfile.content += "T";
+    while (true) {
+        auto r(tmpfile.createfile(buf));
+        if (r.issuccess()) break;
+        else if (r != error::already) return r;
+        tmpfile.content += "T"; }
+    auto r(::rename(tmpfile.content.c_str(), content.c_str()));
+    if (r < 0) {
+        auto e(error::from_errno());
+        tmpfile.unlink()
+            .warn("removing temporary file " + tmpfile.field());
+        return e; }
+    else return Success; }
+
 orerror<bool>
 filename::isfile() const {
     struct stat st;

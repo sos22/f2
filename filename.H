@@ -53,6 +53,9 @@ public:  orerror<void> createfile(const buffer &buf) const;
      * Returns error::already if the file exists with zero size, or
      * some other error for other error cases. */
 public:  orerror<void> createfile() const;
+    /* Atomically replace a file in its entirety, using the rename()
+     * trick. */
+public:  orerror<void> replace(const buffer &buf) const;
     /* Check whether a file exists and is a file. */
 public:  orerror<bool> isfile() const;
     /* Check whether a file exists and is a directory. */
