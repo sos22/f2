@@ -19,23 +19,32 @@
 #include "rpcservice2.tmpl"
 
 orerror<nnp<storageslave> >
-storageslave::build(clientio io,
-                    const storageconfig &config) {
+storageslave::build(clientio io, const storageconfig &config) {
+    auto eqs(eqserver::build());
+    auto eqq(eqs->openqueue(proto::eq::names::storage,
+                            config.poolpath + "queue"));
+    if (eqq.isfailure()) {
+        eqs->destroy();
+        return eqq.failure(); }
     return rpcservice2::listen<storageslave>(
         io,
         config.beacon.cluster,
         config.beacon.name,
         peername::all(peername::port::any),
-        config); }
+        config,
+        *eqs,
+        *eqq.success()); }
 
 storageslave::storageslave(const constoken &token,
-                           const storageconfig &_config)
+                           const storageconfig &_config,
+                           eqserver &_eqs,
+                           eventqueue<proto::storage::event> &_eqq)
     : rpcservice2(token, list<interfacetype>::mk(interfacetype::storage,
                                                  interfacetype::eq)),
       config(_config),
       mux(),
-      eqs(*eqserver::build()),
-      eqq(*eqs.mkqueue(proto::eq::names::storage)) {}
+      eqs(_eqs),
+      eqq(_eqq) {}
 
 void
 storageslave::destroy(clientio io) {

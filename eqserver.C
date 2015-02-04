@@ -1,12 +1,15 @@
 #include "eqserver.H"
 
 #include "buffer.H"
+#include "bytecount.H"
 #include "fields.H"
+#include "filename.H"
 #include "logging.H"
 #include "util.H"
 
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "mutex.tmpl"
 #include "thread.tmpl"
 
 #include "fieldfinal.H"
@@ -72,17 +75,27 @@ public: class poll {
                  QUEUE *q); };
 public: geneventqueue api;
 public: const eventqueueconfig config;
+public: const filename statefile;
 
-public: mutex_t mux;
+    /* mutable so that we can acquire it from
+     * geneventqueue::lastid() */
+public: mutable mutex_t mux;
 
     /* Event ID of the last event dropped.  We've dropped everything
      * before that as well. */
 public: proto::eq::eventid _lastdropped;
 public: proto::eq::eventid &lastdropped(mutex_t::token) { return _lastdropped; }
 
-    /* Next event ID to allocate. */
-public: proto::eq::eventid _nextid;
-public: proto::eq::eventid &nextid(mutex_t::token) { return _nextid; }
+    /* The last event ID which we used. */
+public: proto::eq::eventid _usedto;
+public: proto::eq::eventid &usedto(mutex_t::token) { return _usedto; }
+public: const proto::eq::eventid &usedto(mutex_t::token) const {
+    return _usedto; }
+
+    /* The last event ID which has been allocated in the state
+     * dump. */
+public: proto::eq::eventid _allocedto;
+public: proto::eq::eventid &allocedto(mutex_t::token) { return _allocedto; }
 
     /* List of all of the events which have been generated and not yet
      * discarded. */
@@ -103,15 +116,23 @@ public: SERVER *_server;
 public: SERVER *&server(mutex_t::token) { return _server; }
 
 public: impl(const proto::eq::genname &_name,
+             const filename &_statefile,
+             proto::eq::eventid _previd,
              const eventqueueconfig &_config)
     : api(_name),
       config(_config),
+      statefile(_statefile),
       mux(),
-      _lastdropped(proto::eq::eventid(0)),
-      _nextid(proto::eq::eventid(1000)),
+      _lastdropped(_previd),
+      _usedto(_previd),
+      _allocedto(_previd),
       _subscriptions(),
       _polls(),
       _server(NULL) {}
+
+    /* Allocate another event ID, advancing the allocation point in
+     * the state file. */
+public: proto::eq::eventid allocid(mutex_t::token);
 
     /* Drop events from the queue, if allowed to do so by the
      * subscriptions list. */
@@ -161,22 +182,72 @@ public: orerror<void> unsubscribe(clientio,
                                   nnp<rpcservice2::incompletecall>,
                                   rpcservice2::onconnectionthread); };
 
-eventqueueconfig::eventqueueconfig() : queuelimit(50) {}
+/* ---------------------------- eventqueueconfig --------------------------- */
+eventqueueconfig::eventqueueconfig() : queuelimit(50), idallocsize(100) {}
 
 eventqueueconfig
 eventqueueconfig::dflt() { return eventqueueconfig(); }
+
+eventqueueconfig::eventqueueconfig(deserialise1 &ds)
+    : queuelimit(ds),
+      idallocsize(ds) {}
+
+void
+eventqueueconfig::serialise(serialise1 &s) const {
+    s.push(queuelimit);
+    s.push(idallocsize); }
+
+/* ---------------------------- proto::eq::eventid -------------------------- */
+proto::eq::eventid
+proto::eq::eventid::gap(unsigned sz) const {
+    auto n(v + sz * 2 + 1);
+    n = n - (n % sz);
+    return eventid(n); }
+
+/* Slap in a couple of random bits a little above the 2^32 boundary,
+ * just so that we can tell different queue incarnations apart, and
+ * also so that 32 bit truncation bugs are obvious . */
+proto::eq::eventid
+proto::eq::eventid::initial() {
+    return eventid( (random() % 256 + 1) * 10000000000ul); }
 
 /* --------------------------- geneventqueue API -------------------------- */
 geneventqueue::impl &
 geneventqueue::implementation() { return *containerof(this, impl, api); }
 
+const geneventqueue::impl &
+geneventqueue::implementation() const { return *containerof(this, impl, api); }
+
 geneventqueue::geneventqueue(const proto::eq::genname &_name)
     : name(_name) {}
 
-nnp<geneventqueue>
-geneventqueue::build(const proto::eq::genname &_name,
-                     const eventqueueconfig &_config) {
-    return _nnp((new QUEUE(_name, _config))->api); }
+orerror<void>
+geneventqueue::formatqueue(const proto::eq::genname &name,
+                           const filename &statefile,
+                           const eventqueueconfig &config) {
+    buffer buf;
+    serialise1 s(buf);
+    s.push(name);
+    s.push(proto::eq::eventid::initial());
+    s.push(config);
+    return statefile.createfile(buf); }
+
+orerror<nnp<geneventqueue> >
+geneventqueue::openqueue(const proto::eq::genname &expectedname,
+                         const filename &statefile) {
+    auto _sz(statefile.size());
+    if (_sz.isfailure()) return _sz.failure();
+    auto sz(_sz.success());
+    auto _b(statefile.read(0_B, sz));
+    if (_b.isfailure()) return _b.failure();
+    auto &b(_b.success());
+    deserialise1 ds(b);
+    proto::eq::genname name(ds);
+    proto::eq::eventid restartid(ds);
+    eventqueueconfig config(ds);
+    if (ds.isfailure() || name != expectedname) return error::eqstatemismatch;
+    restartid = restartid.gap(1000000);
+    return _nnp((new QUEUE(name, statefile, restartid, config))->api); }
 
 geneventqueue::queuectxt::queuectxt(geneventqueue &q)
     : inner(NULL),
@@ -189,24 +260,24 @@ geneventqueue::queuectxt::queuectxt(geneventqueue &q)
         serialiser.mkjust(inner->val().content); }
     else logmsg(loglevel::verbose, "drop queue message with no subscribers"); }
 
-void
+proto::eq::eventid
 geneventqueue::queuectxt::finish(geneventqueue &q,
                                  rpcservice2::acquirestxlock atl) {
     geneventqueue::finishingpush();
     assert(inner != NULL);
     auto &qi(q.implementation());
     auto token(qi.mux.lock());
+    auto eid(qi.allocid(token));
     if (qi.subscriptions(token).empty()) {
         /* No point queueing anything which nobody's going to
          * receive. */
         logmsg(loglevel::verbose, "drop queue message; subscribers lost");
         delete inner;
         qi.mux.unlock(&token);
-        return; }
+        return eid; }
     
     /* Add it to the queue. */
-    inner->val().id = qi.nextid(token);
-    qi.nextid(token)++;
+    inner->val().id = eid;
     auto &e(qi.events(token).pushtail(*inner));
     if (qi.events(token).length() > qi.config.queuelimit) {
         logmsg(loglevel::verbose,
@@ -233,7 +304,20 @@ geneventqueue::queuectxt::finish(geneventqueue &q,
         ic->complete(
             [e] (serialise1 &s, mutex_t::token) {  s.push(e.content); },
             atl); }
-    qi.mux.unlock(&token); }
+    qi.mux.unlock(&token);
+    return eid; }
+
+proto::eq::eventid
+geneventqueue::lastid() const {
+    auto &i(implementation());
+    return i.mux.locked<proto::eq::eventid>([&] (mutex_t::token t) {
+            return i.usedto(t); }); }
+
+proto::eq::eventid
+geneventqueue::allocid() {
+    auto &i(implementation());
+    return i.mux.locked<proto::eq::eventid>([&] (mutex_t::token t) {
+            return i.allocid(t); }); }
 
 void
 geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
@@ -289,16 +373,40 @@ QUEUE::poll::poll(nnp<rpcservice2::incompletecall> _ic,
       eid(_eid),
       abandonmentsub(subscribe, _ic->abandoned().pub, q) {}
 
+proto::eq::eventid
+QUEUE::allocid(mutex_t::token tok) {
+    assert(allocedto(tok) >= usedto(tok));
+    auto res(usedto(tok).succ());
+    if (allocedto(tok) < res) {
+        /* Advance allocation point in the state file. */
+        assert(allocedto(tok) == usedto(tok));
+        allocedto(tok) = allocedto(tok).gap(config.idallocsize);
+        assert(allocedto(tok) >= res);
+        buffer buf;
+        serialise1 s(buf);
+        s.push(api.name);
+        s.push(allocedto(tok));
+        s.push(config);
+        /* XXX Not entirely happy about this being a fatal error, but
+         * there isn't really any good way of recovering from an error
+         * here. */
+        statefile
+            .replace(buf)
+            .fatal("updating queue state file " + statefile.field()); }
+    usedto(tok) = res;
+    return res; }
+
 void
 QUEUE::trim(mutex_t::token tok) {
     if (subscriptions(tok).empty()) {
         /* Lost the last subscriber -> no need to keep any events
          * around at all. */
         events(tok).flush();
-        lastdropped(tok) = nextid(tok);
+        lastdropped(tok) = usedto(tok);
         /* Leave a gap in the sequence number space, to flush out bad
          * caching bugs on the client. */
-        nextid(tok) += 10000;
+        usedto(tok) = usedto(tok).gap(1000);
+        allocedto(tok) = max(usedto(tok), allocedto(tok));
         return; }
     maybe<proto::eq::eventid> trimto(Nothing);
     for (auto it(subscriptions(tok).start()); !it.finished(); it.next()) {
@@ -453,7 +561,7 @@ SERVER::subscribe(clientio io,
     auto q(_q.success().first());
     auto token(_q.success().second());
     
-    auto s(list<QUEUE::sub>::mkpartial(q->nextid(token)));
+    auto s(list<QUEUE::sub>::mkpartial(q->usedto(token).succ()));
     auto sid(s->val().id);
     auto next(s->val().next);
     q->subscriptions(token).pushtail(s);
@@ -500,28 +608,29 @@ SERVER::get(clientio io,
                    it->next.field());
             q->mux.unlock(&token);
             return error::invalidparameter; }
-        if (q->nextid(token) <= eid) {
+        if (q->usedto(token) < eid) {
             logmsg(loglevel::verbose,
                    "get " + eid.field() + " which is not ready "
-                   "(have to " + q->nextid(token).field() + "-1)");
+                   "(have to " + q->usedto(token).field() + ")");
             q->mux.unlock(&token);
             ic->complete(
                 [] (serialise1 &s,
                     mutex_t::token /* txlock */,
                     rpcservice2::onconnectionthread /* oct */) {
-                    maybe<buffer>(Nothing).serialise(s); },
+                    maybe<pair<proto::eq::eventid, buffer> >(Nothing)
+                        .serialise(s); },
                 io,
                 oct); }
         else {
             logmsg(loglevel::verbose,
                    "get " + eid.field() + " which is ready");
-            maybe<nnp<buffer> > buf(Nothing);
+            maybe<pair<proto::eq::eventid, nnp<buffer> > > buf(Nothing);
             /* Must eventually hit the desired thing, because it's in
              * range. */
             for (auto it2(q->events(token).start());
                  buf == Nothing;
                  it2.next()) {
-                if (it2->id == eid) buf.mkjust(it2->content); }
+                if (it2->id == eid) buf.mkjust(eid, it2->content); }
             /* Note that we're acquiring the service TX lock while
              * holding the queue lock, which is a little bit
              * skanky. */
@@ -550,7 +659,7 @@ eqserver::impl::wait(
     auto q(_q.success().first());
     auto token(_q.success().second());
     
-    if (q->nextid(token) > eid) {
+    if (q->usedto(token) >= eid) {
         /* It's already ready. */
         q->mux.unlock(&token);
         logmsg(loglevel::debug,
@@ -561,7 +670,7 @@ eqserver::impl::wait(
         /* queue up a poller. */
         logmsg(loglevel::debug,
                "wait for " + eid.field() + " on " + subid.field() +
-               "; not ready (" + q->nextid(token).field() + " next)");
+               "; not ready (" + q->usedto(token).field() + " ready)");
         q->polls(token).append(ic, subid, sub, eid, q);
         q->mux.unlock(&token); }
     return Success; }
@@ -584,11 +693,11 @@ eqserver::impl::trim(
         q->mux.unlock(&token);
         ic->complete(Success, io, oct);
         return Success; }
-    if (q->nextid(token) <= eid) {
+    if (q->usedto(token) < eid) {
         /* Can't trim past the end of the queue */
         logmsg(loglevel::verbose,
                "trim to " + eid.field() + ", but only have to " +
-               q->nextid(token).field());
+               q->usedto(token).field());
         q->mux.unlock(&token);
         return error::toosoon; }
     maybe<nnp<QUEUE::sub> > subs(Nothing);

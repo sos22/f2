@@ -89,6 +89,7 @@ public:
     static const error eventsdropped; /* Queue dropped one or more events. */
     static const error badsubscription; /* Unknown EQ subscription. */
     static const error notadir; /* Expected directory; got something else */
+    static const error eqstatemismatch; /* Event queue state not as expected. */
 };
 
 namespace fields {

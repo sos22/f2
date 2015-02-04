@@ -52,22 +52,28 @@ public:  bool operator==(subscriptionid o) const { return v == o.v; } };
 
 /* Events to be received by a subscriber are identified by eventids.
  * These are pretty much just monotonically increasing, dense,
- * identifiers for the messages to this subscription.  Note that
- * eventids can reset if the server crashes and recovers and that
- * there is no particular guarantee that two subscriptions which
- * receive the same message will do so with the same ID. */
+ * identifiers for the messages to this subscription.  Event IDs are
+ * never re-used, even if the server crashes and recovers. */
 class eventid {
 private: unsigned long v;
-public:  explicit eventid(unsigned long _v) : v(_v) {}
+private: explicit eventid(unsigned long _v) : v(_v) {}
 public:  explicit eventid(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  void operator++(int) { v++; }
-public:  void operator+=(int x) { v += x; }
 public:  bool operator>(eventid o) const { return v > o.v; }
 public:  bool operator>=(eventid o) const { return v >= o.v; }
 public:  bool operator==(eventid o) const { return v == o.v; }
 public:  bool operator<=(eventid o) const { return v <= o.v; }
 public:  bool operator<(eventid o) const { return v < o.v; }
+    /* Generate an initial ID for a queue.  Note that this will not be
+     * the same for every queue! */
+public:  static eventid initial();
+    /* Advance the ID by one. */
+public:  eventid succ() const { return eventid(v + 1); }
+    /* Advance the event ID and then round it up, because doing that
+     * sort of thing when something interesting happens sometimes
+     * makes bugs a bit more obvious. */
+public:  eventid gap(unsigned sz) const;
 public:  const fields::field &field() const; };
 
 class tag {

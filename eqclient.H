@@ -99,7 +99,7 @@ public:  static nnp<asyncconnect> connect(
     const proto::eq::genname &,
     const eqclientconfig &);
 public:  const publisher &pub() const;
-public:  maybe<orerror<buffer> > pop();
+public:  maybe<orerror<pair<proto::eq::eventid, buffer> > > pop();
 public:  void destroy();
 private: ~geneqclient();
 public:  static tests::hookpoint<void> startingwaiter; };
@@ -176,29 +176,42 @@ public:  const publisher &pub() const { return geneqclient::pub(); }
      * return an error if the queue has failed.  Errors are sticky:
      * the only way to clear them is to tear the queue down and start
      * again. */
-public:  maybe<orerror<t> > pop() {
+public:  maybe<orerror<pair<proto::eq::eventid, t> > > popid() {
         auto r(geneqclient::pop());
         if (r == Nothing) return Nothing;
         else if (r.just().isfailure()) {
-            return maybe<orerror<t> >(r.just().failure()); }
+            return maybe<orerror<pair<proto::eq::eventid, t> > >(
+                r.just().failure()); }
         else {
-            deserialise1 ds(r.just().success());
+            deserialise1 ds(r.just().success().second());
             t res(ds);
-            if (ds.isfailure()) return orerror<t>(ds.failure());
-            else return success(res); } }
+            if (ds.isfailure()) {
+                return orerror<pair<proto::eq::eventid, t> >(ds.failure()); }
+            else return success(mkpair(r.just().success().first(), res)); } }
 
-    /* Blocking variant of pop().  Equivalent to calling pop()
+    /* Blocking variant of popid().  Equivalent to calling popid()
      * repeatedly until it returns non-Nothing. */
-public:  orerror<t> pop(clientio io) {
-        maybe<orerror<t> > res(pop());
+public:  orerror< pair<proto::eq::eventid, t> > popid(clientio io) {
+        auto res(popid());
         if (res == Nothing) {
             subscriber sub;
             subscription ss(sub, pub());
-            res = pop();
+            res = popid();
             while (res == Nothing) {
                 sub.wait(io);
-                res = pop(); } }
+                res = popid(); } }
         return res.just(); }
+
+    /* Variants of popid() when you don't care about the event id. */
+public:  maybe<orerror<t> > pop() {
+        auto r(popid());
+        if (r == Nothing) return Nothing;
+        else if (r.just().isfailure()) return orerror<t>(r.just().failure());
+        else return success(r.just().success().second()); }
+public:  orerror<t> pop(clientio io) {
+        auto r(popid(io));
+        if (r.isfailure()) return r.failure();
+        else return r.success().second(); }
 
     /* Tear down a queue client, discarding any pending events not yet
      * returned by pop(). */

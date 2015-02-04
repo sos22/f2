@@ -29,7 +29,9 @@ private: eventqueue<proto::storage::event> &eqq;
 public:  static orerror<nnp<storageslave> > build(clientio,
                                                   const storageconfig &config);
 private: storageslave(const constoken &,
-                      const storageconfig &config);
+                      const storageconfig &config,
+                      eqserver &eqs,
+                      eventqueue<proto::storage::event> &eqq);
 public:  void destroy(clientio io);
     /* Use destroy() instead */
 private: ~storageslave();

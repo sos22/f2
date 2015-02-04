@@ -29,8 +29,9 @@ public: const eqclientconfig config;
 public: mutex_t mux;
 public: orerror<void> _status;
 public: orerror<void> &status(mutex_t::token) { return _status; }
-public: list<buffer> _queue;
-public: list<buffer> &queue(mutex_t::token) { return _queue; }
+public: list<pair<proto::eq::eventid, buffer> > _queue;
+public: list<pair<proto::eq::eventid, buffer> > &queue(
+    mutex_t::token) { return _queue; }
 
     /* Notified when more stuff gets added to the queue. */
 public: publisher pub;
@@ -57,7 +58,9 @@ public: impl(const constoken &,
              const eqclientconfig &config);
 public: nnp<connpool::asynccallT<bool> > startgetter(onqueuethread);
 public: nnp<connpool::asynccall> startwaiter(onqueuethread);
-public: void addeventtoqueue(buffer &buf, connpool::connlock);
+public: void addeventtoqueue(proto::eq::eventid,
+                             buffer &buf,
+                             connpool::connlock);
 public: void failqueue(error);
 public: void run(clientio);
 public: ~impl(); };
@@ -204,23 +207,21 @@ geneqclient::connect(clientio io,
 const publisher &
 geneqclient::pub() const { return implementation().pub; }
 
-maybe<orerror<buffer> >
+maybe<orerror< pair<proto::eq::eventid, buffer> > >
 geneqclient::pop() {
     auto &i(implementation());
     auto tok(i.mux.lock());
     if (i.status(tok).isfailure()) {
         auto err(i.status(tok).failure());
         i.mux.unlock(&tok);
-        return orerror<buffer>(err); }
+        return orerror<pair<proto::eq::eventid, buffer> >(err); }
     else if (i.queue(tok).empty()) {
         i.mux.unlock(&tok);
         return Nothing; }
     else {
-        /* Not auto, because that'd give us a buffer rather than an
-         * orerror<buffer>, and then RVO wouldn't work and we'd have
-         * another copy. */
-        maybe<orerror<buffer> > res(orerror<buffer>(
-                                        i.queue(tok).peekhead().steal()));
+        auto &e(i.queue(tok).peekhead());
+        maybe<orerror<pair<proto::eq::eventid, buffer> > > res(
+            success(mkpair(e.first(), e.second().steal())));
         i.queue(tok).pophead();
         i.mux.unlock(&tok);
         return res; } }
@@ -292,11 +293,11 @@ CLIENT::startgetter(onqueuethread oqt) {
             subid.serialise(s);
             c.serialise(s); },
         [this, c] (deserialise1 &ds, connpool::connlock cl) -> orerror<bool> {
-            maybe<buffer> res(ds);
+            maybe<pair<proto::eq::eventid, buffer> > res(ds);
             if (res == Nothing) return true;
             else {
-                buffer b(res.just().steal());
-                addeventtoqueue(b, cl);
+                buffer b(res.just().second().steal());
+                addeventtoqueue(res.just().first(), b, cl);
                 trim = c;
                 return false; } }); }
 
@@ -315,9 +316,11 @@ CLIENT::startwaiter(onqueuethread oqt) {
         connpool::voidcallV); }
 
 void
-CLIENT::addeventtoqueue(buffer &buf, connpool::connlock) {
+CLIENT::addeventtoqueue(proto::eq::eventid evt,
+                        buffer &buf,
+                        connpool::connlock) {
     mux.locked([&] (mutex_t::token tok) {
-            queue(tok).append(buf.steal());
+            queue(tok).append(mkpair(evt, buf.steal()));
             pub.publish(); }); }
 
 void
