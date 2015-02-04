@@ -40,9 +40,15 @@ public:  orerror<string> readasstring() const;
     /* Read a file and then parse it using some parser.  Similar size
        restrictions to readasstring() */
 public:  template<typename t> orerror<t> parse(const parser<t> &) const;
+    /* Create a file and populate it by copying from something in
+     * memory.  Returns error::already if the file already exists. */
+public:  orerror<void> createfile(const void *data, bytecount datasize) const;
     /* Create a file and populate it with a field.  Returns
      * error::already if the file already exists. */
 public:  orerror<void> createfile(const fields::field &) const;
+    /* Create a file and populate it with the contents of a buffer.
+     * Returns error::already if the file already exists. */
+public:  orerror<void> createfile(const buffer &buf) const;
     /* Create an empty file.  The file must not already exist.
      * Returns error::already if the file exists with zero size, or
      * some other error for other error cases. */

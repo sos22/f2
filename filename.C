@@ -75,20 +75,15 @@ filename::readasstring() const {
     return string::steal(buf); }
 
 orerror<void>
-filename::createfile(const fields::field &f) const {
-    fields::fieldbuf buf;
-    f.fmt(buf);
-    auto c(buf.c_str());
-    size_t s(strlen(c));
-    if (s >= 1000000000) return error::overflowed;
+filename::createfile(const void *c, bytecount s) const {
     int fd(::open(content.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600));
     if (fd < 0) {
         if (errno == EEXIST) return error::already;
         else return error::from_errno(); }
     size_t off;
     ssize_t this_time;
-    for (off = 0; off < s; off += (size_t)this_time) {
-        this_time = write(fd, c + off, s - off);
+    for (off = 0; off < s.b; off += (size_t)this_time) {
+        this_time = ::write(fd, (const void *)((uintptr_t)c + off), s.b - off);
         createfileloop.trigger(&this_time);
         if (this_time <= 0) {
             auto r(this_time == 0
@@ -103,6 +98,20 @@ filename::createfile(const fields::field &f) const {
             return r; } }
     close(fd);
     return Success; }
+
+orerror<void>
+filename::createfile(const fields::field &f) const {
+    fields::fieldbuf buf;
+    f.fmt(buf);
+    auto c(buf.c_str());
+    size_t s(strlen(c));
+    if (s >= 1000000000) return error::overflowed;
+    return createfile(c, bytecount::bytes(s)); }
+
+orerror<void>
+filename::createfile(const buffer &b) const {
+    return createfile(b.linearise(b.offset(), b.offset() + b.avail()),
+                      bytecount::bytes(b.avail())); }
 
 orerror<void>
 filename::createfile() const {
