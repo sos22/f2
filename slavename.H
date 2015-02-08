@@ -29,6 +29,8 @@ public:  slavename steal();
 public:  slavename(const quickcheck &);
 public:  bool operator==(const slavename &) const;
 public:  bool operator!=(const slavename &) const;
+public:  const fields::field &field() const {
+    return fields::mk(*this); }
 };
 
 namespace parsers {

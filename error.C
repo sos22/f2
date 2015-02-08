@@ -58,88 +58,85 @@ static const int lasterror = 32;
 
 class errorfield : public fields::field {
     error content;
-    errorfield(const error &_content)
-        : content(_content)
-        {}
+    errorfield(error _content) : content(_content) {}
 public:
-    static const field &n(const error &content)
-        { return *new errorfield(content); }
-    void fmt(fields::fieldbuf &buf) const
-        {
-            if (content.e > 0) {
-                buf.push(strerror(content.e));
-            } else if (content == error::unknown) {
-                buf.push("unknown");
-            } else if (content == error::disconnected) {
-                buf.push("disconnected");
-            } else if (content == error::overflowed) {
-                buf.push("overflowed");
-            } else if (content == error::underflowed) {
-                buf.push("underflowed");
-            } else if (content == error::missingparameter) {
-                buf.push("missingparameter");
-            } else if (content == error::invalidmessage) {
-                buf.push("invalidmessage");
-            } else if (content == error::unrecognisedmessage) {
-                buf.push("unrecognisedmessage");
-            } else if (content == error::noparse) {
-                buf.push("noparse");
-            } else if (content == error::timeout) {
-                buf.push("timeout");
-            } else if (content == error::truncated) {
-                buf.push("truncated");
-            } else if (content == error::unimplemented) {
-                buf.push("unimplemented");
-            } else if (content == error::badversion) {
-                buf.push("badversion");
-            } else if (content == error::authenticationfailed) {
-                buf.push("authenticationfailed");
-            } else if (content == error::ratelimit) {
-                buf.push("ratelimit");
-            } else if (content == error::invalidparameter) {
-                buf.push("invalidparameter");
-            } else if (content == error::already) {
-                buf.push("already");
-            } else if (content == error::notfound) {
-                buf.push("notfound");
-            } else if (content == error::notafile) {
-                buf.push("notafile");
-            } else if (content == error::toolate) {
-                buf.push("toolate");
-            } else if (content == error::toosoon) {
-                buf.push("toosoon");
-            } else if (content == error::pastend) {
-                buf.push("pastend");
-            } else if (content == error::nothing) {
-                buf.push("nothing");
-            } else if (content == error::notempty) {
-                buf.push("notempty");
-            } else if (content == error::wouldblock) {
-                buf.push("wouldblock");
-            } else if (content == error::shutdown) {
-                buf.push("shutdown");
-            } else if (content == error::range) {
-                buf.push("range");
-            } else if (content == error::badinterface) {
-                buf.push("badinterface");
-            } else if (content == error::aborted) {
-                buf.push("aborted");
-            } else if (content == error::badqueue) {
-                buf.push("badqueue");
-            } else if (content == error::eventsdropped) {
-                buf.push("eventsdroped");
-            } else if (content == error::badsubscription) {
-                buf.push("badsubscription");
-            } else if (content == error::notadir) {
-                buf.push("notadir");
-            } else if (content == error::eqstatemismatch) {
-                buf.push("eqstatemismatch");
-            } else {
-                ("<invalid error " + fields::mk(content.e) + ">")
-                    .fmt(buf); } } };
+    static const field &n(error content) {
+        return *new errorfield(content); }
+    void fmt(fields::fieldbuf &buf) const {
+        if (content.e > 0) {
+            buf.push(strerror(content.e));
+        } else if (content == error::unknown) {
+            buf.push("unknown");
+        } else if (content == error::disconnected) {
+            buf.push("disconnected");
+        } else if (content == error::overflowed) {
+            buf.push("overflowed");
+        } else if (content == error::underflowed) {
+            buf.push("underflowed");
+        } else if (content == error::missingparameter) {
+            buf.push("missingparameter");
+        } else if (content == error::invalidmessage) {
+            buf.push("invalidmessage");
+        } else if (content == error::unrecognisedmessage) {
+            buf.push("unrecognisedmessage");
+        } else if (content == error::noparse) {
+            buf.push("noparse");
+        } else if (content == error::timeout) {
+            buf.push("timeout");
+        } else if (content == error::truncated) {
+            buf.push("truncated");
+        } else if (content == error::unimplemented) {
+            buf.push("unimplemented");
+        } else if (content == error::badversion) {
+            buf.push("badversion");
+        } else if (content == error::authenticationfailed) {
+            buf.push("authenticationfailed");
+        } else if (content == error::ratelimit) {
+            buf.push("ratelimit");
+        } else if (content == error::invalidparameter) {
+            buf.push("invalidparameter");
+        } else if (content == error::already) {
+            buf.push("already");
+        } else if (content == error::notfound) {
+            buf.push("notfound");
+        } else if (content == error::notafile) {
+            buf.push("notafile");
+        } else if (content == error::toolate) {
+            buf.push("toolate");
+        } else if (content == error::toosoon) {
+            buf.push("toosoon");
+        } else if (content == error::pastend) {
+            buf.push("pastend");
+        } else if (content == error::nothing) {
+            buf.push("nothing");
+        } else if (content == error::notempty) {
+            buf.push("notempty");
+        } else if (content == error::wouldblock) {
+            buf.push("wouldblock");
+        } else if (content == error::shutdown) {
+            buf.push("shutdown");
+        } else if (content == error::range) {
+            buf.push("range");
+        } else if (content == error::badinterface) {
+            buf.push("badinterface");
+        } else if (content == error::aborted) {
+            buf.push("aborted");
+        } else if (content == error::badqueue) {
+            buf.push("badqueue");
+        } else if (content == error::eventsdropped) {
+            buf.push("eventsdroped");
+        } else if (content == error::badsubscription) {
+            buf.push("badsubscription");
+        } else if (content == error::notadir) {
+            buf.push("notadir");
+        } else if (content == error::eqstatemismatch) {
+            buf.push("eqstatemismatch");
+        } else {
+            ("<invalid error " + fields::mk(content.e) + ">")
+                .fmt(buf); } } };
 
 const fields::field &
-fields::mk(const error &e)
+fields::mk(error e)
 {
     return errorfield::n(e);
 }

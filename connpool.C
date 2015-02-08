@@ -712,6 +712,13 @@ CONN::processresponse(buffer &rxbuffer,
         if (hdr.status.issuccess()) {
             callres = c->deserialiser(c->api, _nnp(ds), cl); }
         else callres = c->deserialiser(c->api, hdr.status.failure(), cl);
+        if (callres.issuccess() && ds.isfailure()) {
+            /* Really shouldn't be dropping errors here. */
+            logmsg(loglevel::error,
+                   "call deserialiser for " + slave.field() +
+                   " type " + c->type.field() +
+                   " reported success even though deserialiser failed with " +
+                   ds.failure().field()); }
         c->mux.locked(
             [c, callres] (mutex_t::token tok) {
                 assert(c->res(tok) == Nothing);

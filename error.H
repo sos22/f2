@@ -1,9 +1,11 @@
 #ifndef ERROR_H__
 #define ERROR_H__
 
+class error;
+
 namespace fields {
 class field;
-};
+const field &mk(error); }
 
 class deserialise1;
 class serialise1;
@@ -38,6 +40,8 @@ public:
     void warn(const char *) const;
 
     void serialise(serialise1 &) const;
+
+    const fields::field &field() const { return fields::mk(*this); }
 
     /* Construct an error from the current value of @errno.  This
        clobbers @errno. */
@@ -90,11 +94,6 @@ public:
     static const error badsubscription; /* Unknown EQ subscription. */
     static const error notadir; /* Expected directory; got something else */
     static const error eqstatemismatch; /* Event queue state not as expected. */
-};
-
-namespace fields {
-class field;
-const field &mk(const error &e);
 };
 
 #endif
