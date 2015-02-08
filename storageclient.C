@@ -51,7 +51,7 @@ public:  orerror<pair<size_t, buffer> > read(clientio,
                                              const streamname &,
                                              maybe<bytecount>,
                                              maybe<bytecount>);
-public:  orerror<pair<maybe<jobname>, list<jobname> > > listjobs(
+public:  orerror<proto::storage::listjobsres> listjobs(
     clientio,
     const maybe<jobname> &,
     maybe<unsigned>);
@@ -158,11 +158,11 @@ storageclient::read(clientio io,
             if (ds.isfailure()) return ds.failure();
             else return mkpair(s, b); }); }
 
-orerror<pair<maybe<jobname>, list<jobname> > >
+orerror<proto::storage::listjobsres>
 storageclient::listjobs(clientio io,
                         const maybe<jobname> &start,
                         maybe<unsigned> limit) {
-    return pool.call<pair<maybe<jobname>, list<jobname> > >(
+    return pool.call<proto::storage::listjobsres>(
         io,
         sn,
         interfacetype::storage,
@@ -172,11 +172,10 @@ storageclient::listjobs(clientio io,
             start.serialise(s);
             limit.serialise(s); },
         [] (deserialise1 &ds, connpool::connlock)
-            -> orerror<pair<maybe<jobname>, list<jobname> > >{
-            maybe<jobname> newcursor(ds);
-            list<jobname> res(ds);
+            -> orerror<proto::storage::listjobsres>{
+            proto::storage::listjobsres res(ds);
             if (ds.isfailure()) return ds.failure();
-            else return mkpair(newcursor, res); }); }
+            else return res; }); }
 
 orerror<pair<maybe<streamname>, list<streamstatus> > >
 storageclient::liststreams(clientio io,
@@ -355,8 +354,7 @@ main(int argc, char *argv[]) {
                 .fatal("parsing limit " + fields::mk(argv[5])); }
         auto r(conn.listjobs(clientio::CLIENTIO, start, limit)
                .fatal("listing jobs"));
-        fields::print("cursor: " + fields::mk(r.first()) + "\n");
-        fields::print("jobs: " + fields::mk(r.second()) + "\n"); }
+        fields::print(fields::mk(r) + "\n"); }
     else if (strcmp(argv[3], "LISTSTREAMS") == 0) {
         if (argc < 5 || argc > 7) {
             errx(1,

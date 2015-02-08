@@ -112,4 +112,6 @@ public:  static const tag trim;
      * subscription id.  Outputs: None. */
 public:  static const tag unsubscribe; }; } }
 
+namespace fields { const field &mk(proto::eq::eventid); }
+
 #endif /* !EQ_H__ */

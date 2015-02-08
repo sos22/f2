@@ -44,7 +44,6 @@ mk(const list<t> &what) {
         first = false;
         acc = &(*acc + mk(*it)); }
     return *acc + "}"; }
-
 };
 
 #endif /* !FIELDFINAL_H__ */

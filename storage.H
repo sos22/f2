@@ -1,7 +1,9 @@
 #ifndef STORAGE_H__
 #define STORAGE_H__
 
+#include "eq.H"
 #include "jobname.H"
+#include "list.H"
 #include "maybe.H"
 #include "streamname.H"
 #include "streamstatus.H"
@@ -12,6 +14,24 @@ class serialise1;
 
 namespace proto {
 namespace storage {
+class listjobsres {
+public: listjobsres(proto::eq::eventid,
+                    const maybe<jobname> &,
+                    const maybe<jobname> &,
+                    const list<jobname> &);
+public: explicit listjobsres(deserialise1 &);
+public: void serialise(serialise1 &) const;
+    /* When was the snapshot taken?  It incorporates all events up to
+     * and including @when. */
+public: proto::eq::eventid when;
+    /* The snapshot includes all jobs with names >= start, where
+     * Nothing is -ve infinity. */
+public: maybe<jobname> start;
+    /* It includes all jobs < end, where Nothing is +ve infinity.  end
+     * is always greater than start*/
+public: maybe<jobname> end;
+    /* The actual snapshot itself. */
+public: list<jobname> res; };
 class tag {
 private: unsigned v;
 private: explicit tag(unsigned);
@@ -30,7 +50,9 @@ public:  static const tag finish;
      * buffer content. */
 public:  static const tag read;
     /* Inputs: maybe<jobname> start, maybe<unsigned> limit.  Outputs:
-     * maybe<jobname> restartcursor, list<jobname> res. */
+     * listjobsres.  start in the result is always equal to start in
+     * the request.  The result list will contain at most limit
+     * entries (if limit is non-Nothing). */
 public:  static const tag listjobs;
     /* Inputs: jobname, maybe<streamname> start, maybe<unsigned> limit.
      * Outputs: maybe<streamname> restartcursor, list<streamstatus> res. */
@@ -75,4 +97,8 @@ public:  const fields::field &field() const;
 };
 }
 }
+
+namespace fields {
+const field &mk(const proto::storage::listjobsres &r); }
+
 #endif /* !STORAGE_H__ */

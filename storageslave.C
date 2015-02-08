@@ -331,12 +331,15 @@ storageslave::listjobs(
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
         if (!it.finished()) newcursor = *it;
         while (!it.finished()) it.remove(); }
-    ic->complete([&newcursor, &res]
+    ic->complete([&cursor, &newcursor, &res, this]
                  (serialise1 &s,
                   mutex_t::token /* txlock */,
                   onconnectionthread) {
-                     newcursor.serialise(s);
-                     res.serialise(s); },
+                     s.push(proto::storage::listjobsres(
+                                eqq.lastid(),
+                                cursor,
+                                newcursor,
+                                res)); },
                  atl,
                  oct);
     return Success; }

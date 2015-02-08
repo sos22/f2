@@ -53,6 +53,9 @@ proto::eq::eventid::serialise(serialise1 &s) const { s.push(v); }
 const fields::field &
 proto::eq::eventid::field() const { return "<ev:" + fields::mk(v) + ">"; }
 
+const fields::field &
+fields::mk(proto::eq::eventid e) { return e.field(); }
+
 proto::eq::tag::tag(deserialise1 &ds)
     : v(ds) {
     if (*this != subscribe &&
