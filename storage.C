@@ -80,6 +80,36 @@ fields::mk(const proto::storage::listjobsres &a) {
         " res:" + fields::mk(a.res) +
         ">"; }
 
+proto::storage::liststreamsres::liststreamsres(proto::eq::eventid _when,
+                                               const maybe<streamname> &_start,
+                                               const maybe<streamname> &_end,
+                                               const list<streamstatus> &_res)
+    : when(_when),
+      start(_start),
+      end(_end),
+      res(_res) {}
+
+proto::storage::liststreamsres::liststreamsres(deserialise1 &ds)
+    : when(ds),
+      start(ds),
+      end(ds),
+      res(ds) {}
+
+void
+proto::storage::liststreamsres::serialise(serialise1 &s) const {
+    s.push(when);
+    s.push(start);
+    s.push(end);
+    s.push(res); }
+
+const fields::field &
+fields::mk(const proto::storage::liststreamsres &a) {
+    return "<liststreamsres: when:" + fields::mk(a.when) +
+        " start:" + fields::mk(a.start) +
+        " end:" + fields::mk(a.end) +
+        " res:" + fields::mk(a.res) +
+        ">"; }
+
 proto::storage::event::event(
     type t,
     const jobname &j,

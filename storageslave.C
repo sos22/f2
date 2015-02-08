@@ -390,10 +390,13 @@ storageslave::liststreams(
         if (!it.finished()) newcursor = it->name();
         while (!it.finished()) it.remove(); }
     ic->complete(
-        [&newcursor, &res]
+        [&cursor, &newcursor, &res, this]
         (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
-            newcursor.serialise(s);
-            res.serialise(s); },
+            s.push(proto::storage::liststreamsres(
+                       eqq.lastid(),
+                       cursor,
+                       newcursor,
+                       res)); },
         atl,
         oct);
     return Success; }

@@ -12,6 +12,9 @@ class deserialise1;
 namespace fields { class field; }
 class serialise1;
 
+/* XXX there's a lot of code dupe between the stream implementation
+ * and the job one.  It might actually have been better to build a
+ * more generic filesystem API here. */
 namespace proto {
 namespace storage {
 class listjobsres {
@@ -32,6 +35,24 @@ public: maybe<jobname> start;
 public: maybe<jobname> end;
     /* The actual snapshot itself. */
 public: list<jobname> res; };
+class liststreamsres {
+public: liststreamsres(proto::eq::eventid,
+                       const maybe<streamname> &,
+                       const maybe<streamname> &,
+                       const list<streamstatus> &);
+public: explicit liststreamsres(deserialise1 &);
+public: void serialise(serialise1 &) const;
+    /* When was the snapshot taken?  It incorporates all events up to
+     * and including @when. */
+public: proto::eq::eventid when;
+    /* The snapshot includes all streams with names >= start, where
+     * Nothing is -ve infinity. */
+public: maybe<streamname> start;
+    /* It includes all streams < end, where Nothing is +ve infinity.  end
+     * is always greater than start*/
+public: maybe<streamname> end;
+    /* The actual snapshot itself. */
+public: list<streamstatus> res; };
 class tag {
 private: unsigned v;
 private: explicit tag(unsigned);
@@ -54,8 +75,10 @@ public:  static const tag read;
      * the request.  The result list will contain at most limit
      * entries (if limit is non-Nothing). */
 public:  static const tag listjobs;
-    /* Inputs: jobname, maybe<streamname> start, maybe<unsigned> limit.
-     * Outputs: maybe<streamname> restartcursor, list<streamstatus> res. */
+    /* Inputs: jobname, maybe<streamname> start, maybe<unsigned>
+     * limit.  Outputs: liststreamsres.  start in the result is always
+     * equal to start in the request.  The result list will contain at
+     * most limit entries (if limit is non-Nothing). */
 public:  static const tag liststreams;
     /* Inputs: jobname, streamname.  Outputs: streamstatus. */
 public:  static const tag statstream;
@@ -99,6 +122,7 @@ public:  const fields::field &field() const;
 }
 
 namespace fields {
-const field &mk(const proto::storage::listjobsres &r); }
+const field &mk(const proto::storage::listjobsres &r);
+const field &mk(const proto::storage::liststreamsres &r); }
 
 #endif /* !STORAGE_H__ */

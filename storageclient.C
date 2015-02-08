@@ -55,7 +55,7 @@ public:  orerror<proto::storage::listjobsres> listjobs(
     clientio,
     const maybe<jobname> &,
     maybe<unsigned>);
-public:  orerror<pair<maybe<streamname>, list<streamstatus> > > liststreams(
+public:  orerror<proto::storage::liststreamsres> liststreams(
     clientio,
     const jobname &,
     const maybe<streamname> &,
@@ -177,12 +177,12 @@ storageclient::listjobs(clientio io,
             if (ds.isfailure()) return ds.failure();
             else return res; }); }
 
-orerror<pair<maybe<streamname>, list<streamstatus> > >
+orerror<proto::storage::liststreamsres>
 storageclient::liststreams(clientio io,
                            const jobname &job,
                            const maybe<streamname> &start,
                            maybe<unsigned> limit) {
-    return pool.call<pair<maybe<streamname>, list<streamstatus> > >(
+    return pool.call<proto::storage::liststreamsres>(
         io,
         sn,
         interfacetype::storage,
@@ -193,11 +193,10 @@ storageclient::liststreams(clientio io,
             start.serialise(s);
             limit.serialise(s); },
         [] (deserialise1 &ds, connpool::connlock)
-            -> orerror<pair<maybe<streamname>, list<streamstatus> > >{
-            maybe<streamname> newcursor(ds);
-            list<streamstatus> res(ds);
+            -> orerror<proto::storage::liststreamsres>{
+            proto::storage::liststreamsres res(ds);
             if (ds.isfailure()) return ds.failure();
-            else return mkpair(newcursor, res); }); }
+            else return res; }); }
 
 orerror<streamstatus>
 storageclient::statstream(clientio io,
@@ -373,8 +372,7 @@ main(int argc, char *argv[]) {
                 .fatal("parsing limit " + fields::mk(argv[6])); }
         auto r(conn.liststreams(clientio::CLIENTIO, job, start, limit)
                .fatal("listing streams"));
-        fields::print("cursor: " + fields::mk(r.first()) + "\n");
-        fields::print("streams: " + fields::mk(r.second()) + "\n"); }
+        fields::print(fields::mk(r) + "\n"); }
     else if (strcmp(argv[3], "STATSTREAM") == 0) {
         if (argc != 6) {
             errx(1, "STATSTREAM takes a job name and a stream name"); }
