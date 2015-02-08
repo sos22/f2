@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc storagefmt.C
+ld storagefmt storagefmt.o lib.a
+
+target storagefmt

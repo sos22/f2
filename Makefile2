@@ -8,6 +8,7 @@ include lib.mk
 include spawnservice.mk
 include storageservice.mk
 include storageclient.mk
+include storagefmt.mk
 include storagespy.mk
 include test.mk
 include tests.mk

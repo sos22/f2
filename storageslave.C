@@ -18,6 +18,19 @@
 #include "parsers.tmpl"
 #include "rpcservice2.tmpl"
 
+orerror<void>
+storageslave::format(const filename &fn) {
+    {   auto r(fn.mkdir());
+        if (r.isfailure()) return r.failure(); }
+    {   auto r(eqserver::formatqueue(
+                   proto::eq::names::storage,
+                   fn + "queue"));
+        if (r.isfailure()) {
+            fn.rmdir()
+                .warn("cannot remove partial storage pool " +
+                      fields::mk(fn)); }
+        return r; } }
+
 orerror<nnp<storageslave> >
 storageslave::build(clientio io, const storageconfig &config) {
     auto eqs(eqserver::build());

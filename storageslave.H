@@ -26,6 +26,7 @@ private: const storageconfig config;
 private: mutable mutex_t mux;
 private: eqserver &eqs;
 private: eventqueue<proto::storage::event> &eqq;
+public:  static orerror<void> format(const filename &fn);
 public:  static orerror<nnp<storageslave> > build(clientio,
                                                   const storageconfig &config);
 private: storageslave(const constoken &,
