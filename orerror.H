@@ -15,106 +15,85 @@ template <typename t> class orerror {
     bool errored;
     union {
         error err;
-        char buf[sizeof(t)];
+        t inner;
     };
     orerror() = delete;
 public:
     explicit orerror(deserialise1 &ds)
         : errored(ds) {
         if (errored) new (&err) error(ds);
-        else new (buf) t(ds); }
-    orerror(const t &v)
-        : errored(false)
-        {
-            new (this->buf) t(v);
-        }
+        else new (&inner) t(ds); }
+    orerror(const t &v) : errored(false) { new (&inner) t(v); }
     orerror(const orerror &o)
         : errored(o.errored) {
         if (errored) new (&err) error(o.err);
-        else new (buf) t(*(t *)o.buf); }
-    orerror(t &&v)
-        : errored(false)
-        {
-            new (this->buf) t(std::move(v));
-        }
-    orerror(const error &_err)
-        : errored(true), err(_err)
-        {
-        }
+        else new (&inner) t(o.inner); }
+    orerror(t &&v) : errored(false) { new (&inner) t(std::move(v)); }
+    orerror(const error &_err) : errored(true), err(_err) { }
     void operator=(const orerror &o) {
-        if (isfailure()) {
-            if (o.isfailure()) {
-                err = o.failure();
-            } else {
-                failure().~error();
+        if (errored) {
+            if (o.errored) err = o.err;
+            else {
+                err.~error();
                 errored = false;
-                new (this->buf) t(o.success()); }
+                new (&inner) t(o.inner); }
         } else {
-            if (o.isfailure()) {
-                success().~t();
+            if (o.errored) {
+                inner.~t();
                 errored = true;
-                new (&this->err) error(o.failure());
-            } else {
-                success() = o.success(); } } }
+                new (&inner) error(o.err); }
+            else inner = o.inner; } }
     ~orerror() {
-        if (errored) failure().~error();
-        else success().~t(); }
+        if (errored) err.~error();
+        else inner.~t(); }
     const t &success() const {
         assert(!errored);
-        return *(const t *)buf;
-    }
+        return inner; }
     t &success() {
         assert(!errored);
-        return *(t *)buf;
-    }
+        return inner; }
     const error &failure() const {
         assert(errored);
-        return err;
-    }
-    bool issuccess() const {
-        return !errored;
-    }
-    bool isfailure() const {
-        return errored;
-    }
+        return err; }
+    bool issuccess() const { return !errored; }
+    bool isfailure() const { return errored;  }
 
     const t &fatal(const fields::field &w) const {
-        if (isfailure()) failure().fatal(w);
-        else return success(); }
+        if (errored) err.fatal(w);
+        else return inner; }
     const t &fatal(const char *w) const {
-        if (isfailure()) failure().fatal(w);
-        else return success(); }
+        if (errored) err.fatal(w);
+        else return inner; }
 
     const t dflt(const t &o) const {
-        if (issuccess()) return success();
-        else return o; }
+        if (errored) return o;
+        else return inner; }
 
     template <typename o> orerror(const orerror<o> &other)
-        : errored(other.isfailure()) {
-        if (errored) {
-            new (&err) error(other.failure());
-        } else {
-            new (buf) t(other.success()); } }
+        : errored(other.errored) {
+        if (errored) new (&err) error(other.err);
+        else new (&inner) t(other.inner); }
 
     template <typename o> orerror<o> map(std::function<o (const t &)> f) {
-        if (isfailure()) return failure();
-        else return f(success()); }
+        if (errored) return err;
+        else return f(inner); }
 
-    bool operator==(const error &e) const {
-        return isfailure() && failure() == e; }
-    bool operator==(const t &e) const {
-        return issuccess() && success() == e; }
-    bool operator!=(const error &e) const {
-        return !(*this == e); }
-    bool operator!=(const t &e) const {
-        return !(*this == e); }
+    bool operator==(const error &e) const { return errored && err == e; }
+    bool operator==(const t &e) const { return !errored && inner == e; }
+    bool operator!=(const error &e) const { return !(*this == e); }
+    bool operator!=(const t &e) const { return !(*this == e); }
 
     void serialise(serialise1 &s) const;
 };
 
 template <typename t> bool
-operator==(const t &a, const orerror<t> &b) {
-    return b.issuccess() && a == b.success(); }
+operator==(error a, const orerror<t> &b) { return b == a; }
+template <typename t> bool
+operator==(const t &a, const orerror<t> &b) { return b == a; }
+template <typename t> bool
+operator!=(error a, const orerror<t> &b) { return b != a; }
+template <typename t> bool
+operator!=(const t &a, const orerror<t> &b) { return b != a; }
 
 /* Special case for things which just return an error indication.
    This gives a slightly nicer API than maybe<error> (or at least a
