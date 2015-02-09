@@ -32,31 +32,11 @@ digest::digest(deserialise1 &ds) : val(ds) {}
 void
 digest::serialise(serialise1 &s) const { s.push(val); }
 
-bool
-digest::operator==(const digest &o) const
-{
-    return val == o.val;
-}
-
-bool
-digest::operator!=(const digest &o) const
-{
-    return !(*this == o);
-}
-
 string
 digest::denseprintable() const {
     fields::fieldbuf f;
     fields::mk(val).base(36).nosep().fmt(f);
     return f.c_str(); }
-
-bool
-digest::operator<(const digest &o) const {
-    return val < o.val; }
-
-bool
-digest::operator>(const digest &o) const {
-    return val > o.val; }
 
 const fields::field &
 fields::mk(const digest &d)

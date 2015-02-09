@@ -26,15 +26,17 @@ public:  explicit digest(const fields::field &);
 public:  explicit digest(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 
-    bool operator==(const digest &o) const;
-    bool operator!=(const digest &o) const;
+public:  bool operator<(const digest &o) const { return val < o.val; }
+public:  bool operator<=(const digest &o) const { return val <= o.val; }
+public:  bool operator==(const digest &o) const { return val == o.val; }
+public:  bool operator!=(const digest &o) const { return val != o.val; }
+public:  bool operator>=(const digest &o) const { return val >= o.val; }
+public:  bool operator>(const digest &o) const { return val > o.val; }
+
 
     /* A representation of the digest which is reasonably dense and
        composed entirely of ASCII characters. */
-    string denseprintable() const;
-
-public:  bool operator<(const digest &o) const;
-public:  bool operator>(const digest &o) const;
+public:  string denseprintable() const;
 };
 
 #endif /* !DIGEST_H__ */
