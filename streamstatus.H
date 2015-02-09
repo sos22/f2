@@ -17,11 +17,13 @@ private: streamname name_;
 private: bool finished_;
 private: bytecount size;
 private: streamstatus(const streamname &, bool, bytecount);
+public:  static streamstatus empty(const streamname &);
 public:  static streamstatus partial(const streamname &, bytecount);
 public:  static streamstatus finished(const streamname &, bytecount);
 public:  const streamname &name() const { return name_; }
 public:  bool operator<(const streamstatus &sn) const;
 public:  bool operator>(const streamstatus &sn) const;
+public:  bool isfinished() const { return finished_; }
 public:  explicit streamstatus(deserialise1 &);
 public:  void serialise(serialise1 &) const; };
 

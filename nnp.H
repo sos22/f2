@@ -21,6 +21,7 @@ public:  bool operator!=(const t *o) const { return inner != o; }
 public:  t *operator->() const { return inner; }
 public:  t &operator *() const { return *inner; }
 public:  operator t*() const { return inner; }
+public:  operator t&() const { return *inner; }
 
 /* Bit of a hack: nnps can be serialised (by just serialising the
  * referrent) but cannot be deserialised. */

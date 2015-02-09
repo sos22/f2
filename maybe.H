@@ -150,6 +150,11 @@ public:
 
     void serialise(serialise1 &) const;
 
+    /* Extract the contents of the maybe, without first checking
+     * whether the maybe is non-Nothing, and without dereferencing
+     * @this at all.  This is only really useful for containerof. */
+    const t &__just() const { return content; }
+
     const fields::field &field() const;
 };
 

@@ -17,6 +17,9 @@ streamstatus::streamstatus(const streamname &_streamname,
       size(_size) {}
 
 streamstatus
+streamstatus::empty(const streamname &sn) { return partial(sn, 0_B); }
+
+streamstatus
 streamstatus::partial(const streamname &sn, bytecount sz) {
     return streamstatus(sn, false, sz); }
 

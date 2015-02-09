@@ -54,7 +54,7 @@ public:    class constoken {
     private: constoken(const fields::field &_name)
         : name(_name) {}
     };
-protected: thread(const constoken &);
+protected: explicit thread(const constoken &);
     /* Create a new thread.  Template parameter t should be a derived
        class of thread.  args are arguments to its constructor.  The
        new thread is initially paused and will become runnable when

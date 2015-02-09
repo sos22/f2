@@ -13,10 +13,12 @@
 buildconfig.C
 cli
 config
+coordinator
 /master
 spawnservice
 storageservice
 storageclient
+storagepool/
 storagefmt
 storagespy
 test
