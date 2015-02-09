@@ -907,4 +907,55 @@ tests::_connpool() {
             srv->destroy(io);
             srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
                 .fatal("restarting echo service");
-            srv->destroy(io); } ); }
+            srv->destroy(io); } );
+    testcaseIO("connpool", "faildeserialiseclient", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<echoservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting echo service"));
+            auto pool(connpool::build(cn).fatal("building pool"));
+            assert(pool->call(
+                       io,
+                       sn,
+                       interfacetype::test,
+                       timedelta::milliseconds(100).future(),
+                       [] (serialise1 &s, connpool::connlock) {
+                           s.push(string("foo")); },
+                       [] (orerror<nnp<deserialise1> > ds, connpool::connlock) {
+                           if (ds.isfailure()) return ds.failure();
+                           ds.success()->fail(error::toolate);
+                           return error::toosoon; }) ==
+                   error::toosoon);
+            pool->destroy();
+            srv->destroy(io); });
+    testcaseIO("connpool", "faildeserialiseserver", [] (clientio io) {
+            quickcheck q;
+            clustername cn(q);
+            slavename sn(q);
+            auto srv(rpcservice2::listen<echoservice>(
+                         io,
+                         cn,
+                         sn,
+                         peername::all(peername::port::any))
+                     .fatal("starting echo service"));
+            auto pool(connpool::build(cn).fatal("building pool"));
+            assert(pool->call(
+                       io,
+                       sn,
+                       interfacetype::test,
+                       timedelta::milliseconds(100).future(),
+                       [] (serialise1 &s, connpool::connlock) {
+                           s.push((unsigned)-1); },
+                       [] (orerror<nnp<deserialise1> > ds, connpool::connlock) {
+                           if (ds.isfailure()) return ds.failure();
+                           ds.success()->fail(error::toolate);
+                           return error::toosoon; }) == error::underflowed);
+            pool->destroy();
+            srv->destroy(io); });
+
+}
