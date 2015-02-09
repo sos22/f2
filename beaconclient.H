@@ -116,10 +116,9 @@ private: beaconclient(const thread::constoken &token,
                       udpsocket);
     /* Construct a new beacon client.  Note that this does not wait
      * for the responses to its initial query to come back, so the
-     * client will initially have an empty mapping.  If the @cs
-     * parameter is non-NULL then we expose a status interface over
-     * that control server. */
-public:  static orerror<beaconclient *> build(const beaconclientconfig &config);
+     * client will initially have an empty mapping. */
+public:  static orerror<nnp<beaconclient> > build(
+    const beaconclientconfig &config);
 private: void run(clientio);
 private: void sendbroadcast();
 private: void handletimeouts(mutex_t::token);

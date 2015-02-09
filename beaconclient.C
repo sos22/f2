@@ -190,7 +190,7 @@ beaconclient::beaconclient(const thread::constoken &token,
       errors(0),
       ignored(0) {}
 
-orerror<beaconclient *>
+orerror<nnp<beaconclient> >
 beaconclient::build(const beaconclientconfig &config) {
     auto _listenfd(udpsocket::listen(config.proto().respport));
     if (_listenfd.isfailure()) return _listenfd.failure();
@@ -198,12 +198,11 @@ beaconclient::build(const beaconclientconfig &config) {
     if (_clientfd.isfailure()) {
         _listenfd.success().close();
         return _clientfd.failure(); }
-    else return thread::spawn<beaconclient>(
-        fields::mk("beaconclient"),
-        config,
-        _listenfd.success(),
-        _clientfd.success())
-        .go(); }
+    else return _nnp(*thread::start<beaconclient>(
+                         fields::mk("beaconclient"),
+                         config,
+                         _listenfd.success(),
+                         _clientfd.success())); }
 
 timestamp
 beaconclientslot::nextsend(mutex_t::token /* client lock */,
