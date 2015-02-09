@@ -33,14 +33,6 @@ string
 streamname::asfilename() const {
     return content; }
 
-bool
-streamname::operator<(const streamname &o) const {
-    return content < o.content; }
-
-bool
-streamname::operator>(const streamname &o) const {
-    return content > o.content; }
-
 streamname::streamname(deserialise1 &ds)
     : content(ds) {
     if (!isvalid()) {

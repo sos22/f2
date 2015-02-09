@@ -34,10 +34,14 @@ private: explicit streamname(const string &);
 private: bool isvalid() const;
 public:  static maybe<streamname> mk(const string &);
 public:  string asfilename() const;
-public:  bool operator<(const streamname &o) const;
-public:  bool operator>(const streamname &o) const;
 public:  explicit streamname(deserialise1 &);
 public:  void serialise(serialise1 &) const;
+public:  bool operator<(const streamname &o) const { return content< o.content;}
+public:  bool operator<=(const streamname &o) const {return content<=o.content;}
+public:  bool operator==(const streamname &o) const {return content==o.content;}
+public:  bool operator!=(const streamname &o) const {return content!=o.content;}
+public:  bool operator>=(const streamname &o) const {return content>=o.content;}
+public:  bool operator>(const streamname &o) const { return content >o.content;}
 };
 
 #endif /* !STREAMNAME_H__ */
