@@ -81,16 +81,24 @@ string::operator+(const string &o) const {
     return steal(r); }
 
 bool
+string::operator<(const string &o) const {
+    return strcmp(c_str(), o.c_str()) < 0; }
+
+bool
+string::operator<=(const string &o) const {
+    return strcmp(c_str(), o.c_str()) <= 0; }
+
+bool
 string::operator==(const string &o) const {
-    return !(*this != o); }
+    return strcmp(c_str(), o.c_str()) == 0; }
 
 bool
 string::operator!=(const string &o) const {
     return strcmp(c_str(), o.c_str()) != 0; }
 
 bool
-string::operator<(const string &o) const {
-    return strcmp(c_str(), o.c_str()) < 0; }
+string::operator>=(const string &o) const {
+    return strcmp(c_str(), o.c_str()) >= 0; }
 
 bool
 string::operator>(const string &o) const {
