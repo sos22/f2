@@ -67,4 +67,46 @@ tests::either() {
                 assert(cons);
                 assert(!dest); }
             assert(cons);
-            assert(dest); }); }
+            assert(dest); });
+    testcaseV("either", "=", [] {
+            auto x(::either<int, int>::left(5));
+            assert(x.left() == 5);
+            x = ::either<int, int>::left(6);
+            assert(x.left() == 6);
+            x = ::either<int, int>::right(7);
+            assert(x.right() == 7);
+            x = ::either<int, int>::right(8);
+            assert(x.right() == 8);
+            x = ::either<int, int>::left(9);
+            assert(x.left() == 9); });
+    testcaseV("either", "mkleft", [] {
+            bool cons = false;
+            bool dest = false;
+            auto x(::either<int, tracklife>::left(5));
+            assert(!cons);
+            assert(!dest);
+            assert(x.left() == 5);
+            x.mkleft(9);
+            assert(!cons);
+            assert(!dest);
+            assert(x.left() == 9);
+            x.mkright(cons, dest);
+            assert(cons);
+            assert(!dest);
+            assert(x.isright());
+            x.mkleft(11);
+            assert(cons);
+            assert(dest);
+            assert(x.left() == 11);
+            cons = false;
+            dest = false;
+            x.mkright(cons, dest);
+            assert(cons);
+            assert(!dest);
+            assert(x.isright());
+            cons = false;
+            x.mkright(cons, dest);
+            assert(cons);
+            assert(dest);
+            assert(x.isright());
+            dest = false; }); }

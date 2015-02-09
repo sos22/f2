@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#include <utility>
+
 template <typename a, typename b>
 class either {
 private: bool isleft_;
@@ -52,6 +54,16 @@ public: void operator=(const either &o) {
             new (&_left) a(o._left);
             isleft_ = true; }
         else _right = o._right; } }
+public:  template <typename ... args> void mkleft(args &&...params) {
+    if (isleft_) _left.~a();
+    else _right.~b();
+    isleft_ = true;
+    new (&_left) a(std::forward<args>(params)...); }
+public:  template <typename ... args> void mkright(args &&...params) {
+    if (isleft_) _left.~a();
+    else _right.~b();
+    isleft_ = false;
+    new (&_right) b(std::forward<args>(params)...); }
 public:  ~either() {
     if (isleft_) _left.~a();
     else _right.~b(); }
