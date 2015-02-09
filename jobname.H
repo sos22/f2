@@ -29,8 +29,12 @@ class jobname {
 private: digest d;
 private: explicit jobname(digest _d) : d(_d) {}
 public:  string asfilename() const;
-public:  bool operator<(const jobname &o) const;
-public:  bool operator>(const jobname &o) const;
+public:  bool operator<(const jobname &o) const { return d < o.d; }
+public:  bool operator<=(const jobname &o) const { return d <= o.d; }
+public:  bool operator==(const jobname &o) const { return d == o.d; }
+public:  bool operator!=(const jobname &o) const { return d != o.d; }
+public:  bool operator>=(const jobname &o) const { return d >= o.d; }
+public:  bool operator>(const jobname &o) const { return d > o.d; }
 public:  explicit jobname(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 };

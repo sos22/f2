@@ -23,9 +23,3 @@ parsers::_jobname() {
     return (("<job:" + _digest() + ">") || _digest())
         .map<jobname>([] (const digest &d) {
                 return jobname(d); }); }
-
-bool
-jobname::operator<(const jobname &o) const { return d < o.d; }
-
-bool
-jobname::operator>(const jobname &o) const { return d > o.d; }
