@@ -96,6 +96,9 @@ public:
                 content.~t();
                 _isnothing = true; }
             else content = o.content; } }
+    void operator=(_Nothing) {
+        if (!_isnothing) content.~t();
+        _isnothing = true; }
     void operator=(const t &o) {
         if (_isnothing) {
             new (&content) t(o);

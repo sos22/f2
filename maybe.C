@@ -26,9 +26,9 @@ tests::_maybe()
     public: countcopies(const countcopies &&c) : counter(c.counter) {}
     public: countcopies(const countcopies &c) : counter(c.counter+1) {} };
     class notedestruct {
-    public: bool &d;
-    public: notedestruct(bool &_d) : d(_d) { assert(d == false); }
-    public: ~notedestruct() { d = true; } };
+    public: bool *d;
+    public: notedestruct(bool &_d) : d(&_d) { assert(*d == false); }
+    public: ~notedestruct() { *d = true; } };
     class cons1 {
     public: int val1;
     public: const char *val2;
@@ -49,7 +49,7 @@ tests::_maybe()
     testcaseV("maybe", "destruct", [] {
             bool dead = false;
             {   ::maybe<notedestruct> aaa = notedestruct(dead);
-                assert(&aaa.just().d == &dead);
+                assert(aaa.just().d == &dead);
                 dead = false; }
             assert(dead); });
     testcaseV("maybe", "assign", [] {
@@ -126,7 +126,17 @@ tests::_maybe()
             maybe<int> x(7);
             maybe<int> y(Nothing);
             y = x;
-            assert(y == 7); });
+            assert(y == 7);
+            x = Nothing;
+            assert(x == Nothing);
+            x = 9;
+            assert(x == 9);
+            x = y;
+            assert(x == 7);
+            y = Nothing;
+            assert(y.isnothing());
+            x = y;
+            assert(x == Nothing); });
     testcaseV("maybe", "mkjust", [] {
             maybe<cons1> c(Nothing);
             const char *s = "Hello";
@@ -152,4 +162,23 @@ tests::_maybe()
             assert((unsigned long)&x[1].just() % alignof(unsigned long) == 0);
             assert((unsigned long)&x[2].just() % alignof(unsigned long) == 0);
         });
+    testcaseV("maybe", "=nothing", [] {
+            /* Should be able to go maybe<x> = Nothing even if x
+             * doesn't support operator=. */
+            class noeq {
+            private: void operator=(const noeq &) = delete; };
+            maybe<noeq> x(Nothing);
+            assert(x.isnothing());
+            x.mkjust();
+            assert(x.isjust());
+            x = Nothing;
+            assert(x.isnothing()); });
+    testcaseV("maybe", "assigndestruct", [] {
+            bool dead = false;
+            maybe<notedestruct> x(Nothing);
+            maybe<notedestruct> y(Nothing);
+            y.mkjust(dead);
+            assert(!dead);
+            y = x;
+            assert(dead); });
 }
