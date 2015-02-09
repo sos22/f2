@@ -645,7 +645,6 @@ CONN::queuetx(list<nnp<CALL> > &calls,
          !it.finished();
          remove ? it.remove() : it.next()) {
         auto c(*it);
-        assert(c->seqnr(cl) == Nothing);
 
         /* Quick lock-free check.  It doesn't matter if this misses
          * some updates; async abort is inherently racy, anyway. */
@@ -663,8 +662,9 @@ CONN::queuetx(list<nnp<CALL> > &calls,
         /* XXX should maybe limit size of TX buffer to make timeouts a
          * bit more timely? */
         remove = false;
-        c->seqnr(cl) = nextseq;
-        nextseq++;
+        if (c->seqnr(cl) == Nothing) {
+            c->seqnr(cl) = nextseq;
+            nextseq++; }
         auto startoff(txbuffer.offset() + txbuffer.avail());
         proto::reqheader(-1,
                          version::current,
