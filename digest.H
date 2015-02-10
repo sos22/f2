@@ -33,7 +33,6 @@ public:  bool operator!=(const digest &o) const { return val != o.val; }
 public:  bool operator>=(const digest &o) const { return val >= o.val; }
 public:  bool operator>(const digest &o) const { return val > o.val; }
 
-
     /* A representation of the digest which is reasonably dense and
        composed entirely of ASCII characters. */
 public:  string denseprintable() const;

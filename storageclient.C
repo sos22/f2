@@ -7,6 +7,7 @@
 #include "clientio.H"
 #include "connpool.H"
 #include "fields.H"
+#include "job.H"
 #include "jobname.H"
 #include "logging.H"
 #include "parsers.H"
@@ -34,7 +35,7 @@ public:  explicit storageclient(connpool &_pool,
       sn(_sn),
       timeout(_timeout) {}
 public:  orerror<void> createjob(clientio,
-                                 const jobname &);
+                                 const job &);
 public:  orerror<void> createstream(clientio,
                                     const jobname &,
                                     const streamname &);
@@ -73,15 +74,15 @@ public:  ~storageclient(); };
 
 orerror<void>
 storageclient::createjob(clientio io,
-                         const jobname &jn) {
+                         const job &j) {
     return pool.call(
         io,
         sn,
         interfacetype::storage,
         timeout.future(),
-        [&jn] (serialise1 &s, connpool::connlock) {
+        [&j] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::createjob.serialise(s);
-            jn.serialise(s); },
+            j.serialise(s); },
         connpool::voidcallV); }
 
 orerror<void>
@@ -266,9 +267,9 @@ main(int argc, char *argv[]) {
     else if (!strcmp(argv[3], "CREATEJOB")) {
         if (argc != 5) {
             errx(1, "CREATEJOB needs a job name"); }
-        auto job(parsers::_jobname()
+        auto job(parsers::_job()
                  .match(argv[4])
-                 .fatal("parsing job name " + fields::mk(argv[3])));
+                 .fatal("parsing job " + fields::mk(argv[3])));
         auto m = conn.createjob(clientio::CLIENTIO, job);
         if (m == error::already) m.failure().warn("already created");
         else if (m.isfailure()) m.failure().fatal("creating empty job"); }

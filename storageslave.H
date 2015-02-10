@@ -12,6 +12,7 @@ template <typename> class orerror;
 class serialise1;
 class streamname;
 class streamstatus;
+class job;
 class jobname;
 
 namespace proto {
@@ -43,7 +44,7 @@ private: orerror<void> called(
     nnp<incompletecall>,
     onconnectionthread) final;
 public:  orerror<void> createjob(
-    const jobname &t);
+    const job &t);
 public:  orerror<void> createstream(
     const jobname &t,
     const streamname &sn);

@@ -4,7 +4,9 @@
 #define FILE_H__
 
 #include "orerror.H"
+#include "serialise.H"
 #include "string.H"
+#include "version.H"
 
 class buffer;
 class bytecount;
@@ -53,6 +55,20 @@ public:  orerror<void> createfile(const buffer &buf) const;
      * Returns error::already if the file exists with zero size, or
      * some other error for other error cases. */
 public:  orerror<void> createfile() const;
+    /* Create a file by serialising an object into it.  The serialised
+     * file consists of a version number tag followed by the
+     * serialised object. */
+public:  template <typename t> orerror<void> serialiseobj(const t &what) {
+    buffer buf;
+    serialise1 s(buf);
+    s.push(version::current);
+    s.push(what);
+    return createfile(buf); }
+    /* Deserialise an object from a file created by serialiseobj().
+     * Returns error::badversion if the version number doesn't match
+     * or error::invalidmessage if there's stuff left over in the file
+     * after the deserialiser finishes (or all the usual deserialiser
+     * failures). */
     /* Atomically replace a file in its entirety, using the rename()
      * trick. */
 public:  orerror<void> replace(const buffer &buf) const;

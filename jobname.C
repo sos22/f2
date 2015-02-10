@@ -13,13 +13,12 @@ void
 jobname::serialise(serialise1 &s) const { d.serialise(s); }
 
 const fields::field &
-fields::mk(const jobname &jn) { return "<job:" + mk(jn.d) + ">"; }
+fields::mk(const jobname &jn) { return "<jobname:" + mk(jn.d) + ">"; }
 
 string
 jobname::asfilename() const { return d.denseprintable(); }
 
 const parser< ::jobname> &
 parsers::_jobname() {
-    return (("<job:" + _digest() + ">") || _digest())
-        .map<jobname>([] (const digest &d) {
-                return jobname(d); }); }
+    return (("<jobname:" + _digest() + ">") || _digest())
+        .map<jobname>([] (const digest &d) { return jobname(d); }); }

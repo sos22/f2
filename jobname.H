@@ -7,6 +7,7 @@
 
 class deserialise1;
 class serialise1;
+class job;
 class jobname;
 
 template <typename> class parser;
@@ -26,6 +27,7 @@ const parser< ::jobname> &_jobname();
 class jobname {
     friend const fields::field &fields::mk(const jobname &);
     friend const parser< ::jobname> &parsers::_jobname();
+    friend class job;
 private: digest d;
 private: explicit jobname(digest _d) : d(_d) {}
 public:  string asfilename() const;

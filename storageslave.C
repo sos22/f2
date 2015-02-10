@@ -1,8 +1,12 @@
+/* XXX this can sometimes leave stuff behind after a partial
+ * failure. */
+
 #include "storageslave.H"
 
 #include "buffer.H"
 #include "bytecount.H"
 #include "eqserver.H"
+#include "job.H"
 #include "jobname.H"
 #include "logging.H"
 #include "nnp.H"
@@ -79,10 +83,11 @@ storageslave::called(
     if (type == interfacetype::eq) return eqs.called(io, ds, ic, oct);
     proto::storage::tag tag(ds);
     if (tag == proto::storage::tag::createjob) {
-        jobname j(ds);
+        job j(ds);
         if (!ds.isfailure()) {
             auto r(createjob(j));
-            if (!r.isfailure()) eqq.queue(proto::storage::event::newjob(j), io);
+            if (!r.isfailure()) {
+                eqq.queue(proto::storage::event::newjob(j.name()), io); }
             ic->complete(r, io, oct); } }
     else if (tag == proto::storage::tag::createstream) {
         jobname j(ds);
@@ -165,12 +170,18 @@ storageslave::called(
     return ds.status(); }
 
 orerror<void>
-storageslave::createjob(const jobname &t) {
+storageslave::createjob(const job &t) {
     logmsg(loglevel::debug, "create job " + fields::mk(t));
-    return (config.poolpath + t.asfilename()).mkdir(); }
+    auto dirname(config.poolpath + t.name().asfilename());
+    {   auto r(dirname.mkdir());
+        if (r.isfailure() && r != error::already) return r.failure(); }
+    auto r((dirname + "job").serialiseobj(t));
+    if (r.isfailure()) {
+        dirname.rmdir()
+            .warn("removing partially constructed job " +
+                  fields::mk(dirname)); }
+    return r; }
 
-/* XXX this can sometimes leave stuff behind after a partial
- * failure. */
 orerror<void>
 storageslave::createstream(const jobname &t, const streamname &sn) {
     logmsg(loglevel::debug,
@@ -360,7 +371,8 @@ storageslave::liststreams(
                  !it.isfailure() && !it.finished();
                  it.next()) {
             if (strcmp(it.filename(), ".") == 0 ||
-                strcmp(it.filename(), "..") == 0) {
+                strcmp(it.filename(), "..") == 0 ||
+                strcmp(it.filename(), "job") == 0) {
                 continue; }
             auto sn(parser.match(it.filename()));
             if (sn.isfailure()) {
@@ -371,16 +383,23 @@ storageslave::liststreams(
             if (cursor != Nothing && sn.success() < cursor.just()) continue;
             auto fname(dir + it.filename());
             auto size((fname + "content").size());
-            if (size.isfailure()) return size.failure();
+            if (size.isfailure()) {
+                size.failure().warn("sizing " + fields::mk(fname + "content"));
+                return size.failure(); }
             auto finished((fname + "finished").isfile());
-            if (finished.isfailure()) return finished.failure();
+            if (finished.isfailure()) {
+                finished.failure().warn("getting finished flag on " +
+                                        fields::mk(fname));
+                return finished.failure(); }
             if (finished == true) {
                 res.pushtail(streamstatus::finished(sn.success(),
                                                     size.success())); }
             else {
                 res.pushtail(streamstatus::partial(sn.success(),
                                                    size.success())); } }
-        if (it.isfailure()) return it.failure(); }
+        if (it.isfailure()) {
+            it.failure().warn("listing " + fields::mk(dir));
+            return it.failure(); } }
     sort(res);
     maybe<streamname> newcursor(Nothing);
     if (limit != Nothing) {
@@ -437,4 +456,12 @@ storageslave::removestream(const jobname &jn,
 orerror<void>
 storageslave::removejob(const jobname &jn) {
     logmsg(loglevel::debug, "remove job " + fields::mk(jn));
-    return (config.poolpath + jn.asfilename()).rmdir(); }
+    auto dirname(config.poolpath + jn.asfilename());
+    {   auto r((dirname + "job").unlink());
+        if (r.isfailure()) return r.failure(); }
+    auto r(dirname.rmdir());
+    if (r.isfailure()) {
+        r.failure().warn(
+            "remove job directory " + fields::mk(dirname) +
+            " after remove job descriptor"); }
+    return r; }

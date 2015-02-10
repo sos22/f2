@@ -29,6 +29,7 @@ function bits() {
     _ jobname
     _ listenfd
     _ logging
+    _ job
     _ maybe
     _ mutex
     _ parsers

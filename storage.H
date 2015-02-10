@@ -58,7 +58,7 @@ private: unsigned v;
 private: explicit tag(unsigned);
 public:  explicit tag(deserialise1 &);
 public:  void serialise(serialise1 &) const;
-    /* Inputs: jobname.  Outputs: None */
+    /* Inputs: job.  Outputs: None */
 public:  static const tag createjob;
     /* Inputs: jobname, streamname.  Outputs: None */
 public:  static const tag createstream;
