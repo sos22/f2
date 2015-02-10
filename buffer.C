@@ -84,7 +84,7 @@ buffer::receive(clientio io,
         if (last) last->next = b;
         else first = b;
         last = b; }
-    if (read.success() == 0) return error::pastend;
+    assert(read.success() > 0);
     b->prod += read.success();
     prod += read.success();
     assert(b->cons != b->prod);
