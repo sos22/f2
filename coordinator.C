@@ -560,6 +560,11 @@ job::liststreamswoken(connpool &pool, subscriber &sub) {
  * EQ connect fails then we'll drop the store. */
 orerror<void>
 store::eqconnected(connpool &pool, subscriber &sub) {
+    /* Shouldn't have LISTJOBS or LISTSTREAMS calls outstanding if we
+     * don't have a queue. */
+    assert(listjobs == NULL);
+    for (auto it(jobs.start()); !it.finished(); it.next()) {
+        assert(it->liststreams == NULL); }
     auto t(eventqueue.right()->finished());
     if (t == Nothing) return Success;
     eqsub = Nothing;
@@ -584,12 +589,6 @@ store::eqconnected(connpool &pool, subscriber &sub) {
      * events.  Start LISTSTREAMS machines for all of the jobs to
      * catch up again. */
     for (auto j(jobs.start()); !j.finished(); j.next()) {
-        /* Need to abort any outstanding calls. */
-        if (j->liststreams != NULL) {
-            j->liststreamssub = Nothing;
-            j->liststreams->abort();
-            j->liststreams = NULL;
-            j->liststreamsres = Nothing; }
         j->startliststreams(pool, sub, Nothing); }
     return Success; }
 
