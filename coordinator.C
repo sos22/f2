@@ -82,7 +82,8 @@ public: either<nnp<eqclient<proto::storage::event> >,
                nnp<eqclient<proto::storage::event>::asyncconnect> > eventqueue;
     /* Connects the filesystem thread subscriber to the eqclient, if
      * we're ready to take events from it, or the asyncconnect, if
-     * we're still trying to connect. */
+     * we're still trying to connect.  Only ever Nothing transiently
+     * while we're switching state. */
 public: maybe<subscription> eqsub;
 
     /* LISTJOBs machine state. */
@@ -122,10 +123,6 @@ public: void reconnect(connpool &pool,
 public: job *findjob(const jobname &jn);
 public: void dropjob(job &j);
 
-public: void startlistjobs(connpool &pool,
-                           subscriber &sub,
-                           const maybe<jobname> &cursor);
-public: orerror<void> eqconnected(connpool &pool, subscriber &sub);
 public: void eqnewjob(proto::eq::eventid eid, const jobname &job);
 public: void eqremovejob(proto::eq::eventid eid, const jobname &jn);
 public: void eqnewstream(proto::eq::eventid eid,
@@ -139,48 +136,16 @@ public: void eqremovestream(proto::eq::eventid eid,
                             const jobname &jn,
                             const streamname &sn);
 public: void eqevent(connpool &pool, subscriber &sub);
+
+public: orerror<void> eqconnected(connpool &pool, subscriber &sub);
 public: orerror<void> eqwoken(connpool &, subscriber &);
 
+public: void startlistjobs(connpool &pool,
+                           subscriber &sub,
+                           const maybe<jobname> &cursor);
 public: orerror<void> listjobswoken(connpool &, subscriber &);
 
 public: ~store(); };
-
-/* The filesystem maintains a cache of the content of all known
- * storage slaves, allowing us to look up from job and stream names to
- * the storage slave which is most able to process a request for that
- * stream.  This cache can lag behind reality, because there's no
- * requirement for all stream finish operations to notify us before
- * they finish; the only guarantee is that we will eventually discover
- * any changes, assuming nothing crashes before we get around to
- * it. */
-class filesystem : public thread {
-private: connpool &pool;
-private: beaconclient &bc;
-private: waitbox<void> shutdown;
-
-    /* All of the stores which the beacon's told us about. */
-public:  list<store> stores;
-
-public:  explicit filesystem(const thread::constoken &token,
-                             connpool &_pool,
-                             beaconclient &_bc)
-    : thread(token),
-      pool(_pool),
-      bc(_bc),
-      shutdown(),
-      stores() {}
-
-public:  static filesystem &build(connpool &, beaconclient &);
-public:  void run(clientio);
-
-public:  void beaconwoken(subscriber &sub);
-public:  orerror<void> eqconnected();
-
-public:  void dropstore(store &); };
-
-filesystem &
-filesystem::build(connpool &_pool, beaconclient &_bc) {
-    return *thread::start<filesystem>(fields::mk("filesystem"), _pool, _bc); }
 
 /* Reconnect to the event queue, tearing down any existing partial
  * connections first. */
@@ -232,99 +197,6 @@ job::~job() {
         liststreamssub = Nothing;
         liststreams->abort(); }
     assert(liststreamssub == Nothing); }
-
-void
-filesystem::beaconwoken(subscriber &sub) {
-    /* Check for any changes in the set of available storage
-     * slaves. */
-    logmsg(loglevel::debug, "scan for new storage slaves");
-    list<list<store>::iter> lost;
-    for (auto it(stores.start()); !it.finished(); it.next()) {
-        lost.pushtail(it); }
-    for (auto it(bc.start(interfacetype::storage)); !it.finished(); it.next()) {
-        bool found = false;
-        for (auto it2(lost.start()); !it2.finished(); it2.next()) {
-            if (it.name() == (*it2)->name) {
-                logmsg(loglevel::verbose, fields::mk(it.name()) + " unchanged");
-                found = true;
-                it2.remove();
-                break; } }
-        if (!found) {
-            logmsg(loglevel::info,
-                   "new storage slave " + fields::mk(it.name()));
-            stores.append(sub,
-                          eqclient<proto::storage::event>::connect(
-                              pool,
-                              it.name(),
-                              proto::eq::names::storage),
-                          it.name()); } }
-    for (auto it(lost.start()); !it.finished(); it.next()) {
-        logmsg(loglevel::info,
-               "lost storage slave " + fields::mk((*it)->name));
-        it->remove(); } }
-
-/* Start from the beginning if the cursor is Nothing, otherwise
- * restart from where we left off. */
-void
-store::startlistjobs(connpool &pool,
-                     subscriber &sub,
-                     const maybe<jobname> &cursor) {
-    assert(listjobs == NULL);
-    assert(listjobssub == Nothing);
-    listjobs = pool.call(
-        name,
-        interfacetype::storage,
-        /* Infinite timeout is safe: we'll give up when it drops out
-         * of the beacon client. */
-        Nothing,
-        [cursor] (serialise1 &s, connpool::connlock) {
-            s.push(proto::storage::tag::listjobs);
-            s.push(cursor);
-            s.push(maybe<unsigned>(Nothing)); },
-        [this] (deserialise1 &ds, connpool::connlock) {
-            assert(listjobsres == Nothing);
-            /* No sync: the filesystem thread won't look at our result
-             * until the RPC call completes.  Just deserialise the
-             * result straight out. */
-            listjobsres.mkjust(ds);
-            return ds.status(); });
-    listjobssub.mkjust(sub, listjobs->pub(), SUBSCRIPTION_LISTJOBS); }
-
-orerror<void>
-store::eqconnected(connpool &pool, subscriber &sub) {
-    /* Check if a store's finished connecting to its event queue. */
-    auto t(eventqueue.right()->finished());
-    if (t == Nothing) return Success;
-    eqsub = Nothing;
-    auto res(eventqueue.right()->pop(t.just()));
-    if (res.isfailure()) {
-        logmsg(loglevel::failure,
-               "cannot connect to " + fields::mk(name) +
-               " event queue: " + fields::mk(res.failure()));
-        /* Give up on this one for now. */
-        /* XXX we'll retry when the beacon next wakes us up, which is
-         * unlikely to be the optimal strategy for this kind of
-         * failure. */
-        return res.failure(); }
-    eventqueue.mkleft(res.success());
-    eqsub.mkjust(sub, eventqueue.left()->pub(), SUBSCRIPTION_EQ);
-    
-    /* We may have missed some job events.  Start a LISTJOBS machine
-     * to regenerate them. */
-    startlistjobs(pool, sub, Nothing);
-    
-    /* If we have any jobs then we may also have missed some stream
-     * events.  Start LISTSTREAMS machines for all of the jobs to
-     * catch up again. */
-    for (auto j(jobs.start()); !j.finished(); j.next()) {
-        /* Need to abort any outstanding calls. */
-        if (j->liststreams != NULL) {
-            j->liststreamssub = Nothing;
-            j->liststreams->abort();
-            j->liststreams = NULL;
-            j->liststreamsres = Nothing; }
-        j->startliststreams(pool, sub, Nothing); }
-    return Success; }
 
 job *
 store::findjob(const jobname &jn) {
@@ -571,9 +443,11 @@ store::eqremovestream(proto::eq::eventid eid,
                " at " + fields::mk(eid) +
                " to completion"); } }
 
+/* Check for events on the queue.  Note that this responds to an error
+ * by reconnecting the event queue.  It's only a proper error if that
+ * reconnection fails. */
 void
 store::eqevent(connpool &pool, subscriber &sub) {
-    /* Check for events on the queue. */
     auto ev(eventqueue.left()->popid());
     if (ev == Nothing) return;
     if (ev.just().isfailure()) {
@@ -602,95 +476,6 @@ store::eqevent(connpool &pool, subscriber &sub) {
     case proto::storage::event::t_removestream:
         return eqremovestream(eid, evt.job, evt.stream.just()); }
     abort(); }
-
-orerror<void>
-store::eqwoken(connpool &pool, subscriber &sub) {
-    /* Event queue changed, either by completing the connect or by
-     * receiving another event. */
-    if (eventqueue.isright()) return eqconnected(pool, sub);
-    else {
-        eqevent(pool, sub);
-        return Success; } }
-
-orerror<void>
-store::listjobswoken(connpool &pool, subscriber &sub) {
-    assert(listjobssub != Nothing);
-    assert(listjobs != NULL);
-    {   auto t(listjobs->finished());
-        if (t == Nothing) return Success;
-        listjobssub = Nothing;
-        auto r(listjobs->pop(t.just()));
-        listjobs = NULL;
-        if (r.isfailure()) {
-            logmsg(loglevel::failure,
-                   "LISTJOBS on " + name.field() +
-                   ": " + r.failure().field());
-            return r.failure(); } }
-    /* No sync: the LISTJOBS call has finished. */
-    /* listjobsres must be filled out when a LISTJOBS succeeds. */
-    assert(listjobsres != Nothing);
-    auto &result(listjobsres.just());
-    /* Remove any jobs which have died. */
-    bool found;
-    for (auto it(jobs.start());
-         !it.finished();
-         found ? it.next() : it.remove()) {
-        found = true;
-        /* Ignore jobs which aren't in the results range. */
-        if (result.start == Nothing || it->name < result.start.just()) continue;
-        if (result.end == Nothing || it->name >= result.end.just()) continue;
-        /* Ignore jobs where our existing knowledge is more up to date
-         * than the new result. */
-        if (it->refreshedat >= result.when) continue;
-        /* If the job isn't in the result set then it's been lost. */
-        found = false;
-        for (auto it2(result.res.start()); !found&&!it2.finished(); it2.next()){
-            found = it->name == *it2; }
-        if (!found) {
-            /* The common case is that lost jobs are detected by event
-             * queue messages, so this should be pretty rare, but it
-             * can sometimes happen if we lose our EQ subscription and
-             * have to recover. */
-            logmsg(loglevel::info,
-                   "lost job " + fields::mk(it->name) + " on " +
-                   fields::mk(name) + " to LISTJOBS result " +
-                   fields::mk(result)); } }
-    /* Integrate any new jobs into the list. */
-    for (auto it(result.res.start()); !it.finished(); it.next()) {
-        auto j(findjob(*it));
-        if (j != NULL) {
-            /* Already have it, so just update the liveness
-             * timestamp. */
-            if (j->refreshedat < result.when) j->refreshedat = result.when; }
-        else {
-            /* New job -> create it and start looking for streams in
-             * it. */
-            logmsg(loglevel::debug,
-                   "discovered job " + fields::mk(*it) + " on " +
-                   fields::mk(name));
-            jobs.append(*this, result.when, *it)
-                .startliststreams(pool,
-                                  sub,
-                                  Nothing); } }
-    /* Flush the deferred events queue. */
-    while (!deferredremove.empty()) {
-        auto r(deferredremove.pophead());
-        eqremovejob(r.first(), r.second()); }
-    /* If the server truncated the results then kick off another call
-     * to get the rest. */
-    auto next(result.end);
-    listjobsres = Nothing;
-    if (next != Nothing) startlistjobs(pool, sub, next);
-    return Success; }
-
-store::~store() {
-    eqsub = Nothing;
-    if (eventqueue.isleft()) eventqueue.left()->destroy();
-    else eventqueue.right()->abort();
-    if (listjobs != NULL) {
-        listjobssub = Nothing;
-        listjobs->abort(); }
-    assert(listjobssub == Nothing); }
 
 orerror<void>
 job::liststreamswoken(connpool &pool, subscriber &sub) {
@@ -771,6 +556,218 @@ job::liststreamswoken(connpool &pool, subscriber &sub) {
     if (next != Nothing) startliststreams(pool, sub, next);
     return Success; }
 
+/* Check if a store's finished connecting to its event queue.  If the
+ * EQ connect fails then we'll drop the store. */
+orerror<void>
+store::eqconnected(connpool &pool, subscriber &sub) {
+    auto t(eventqueue.right()->finished());
+    if (t == Nothing) return Success;
+    eqsub = Nothing;
+    auto res(eventqueue.right()->pop(t.just()));
+    if (res.isfailure()) {
+        logmsg(loglevel::failure,
+               "cannot connect to " + fields::mk(name) +
+               " event queue: " + fields::mk(res.failure()));
+        /* Give up on this one for now. */
+        /* XXX we'll retry when the beacon next wakes us up, which is
+         * unlikely to be the optimal strategy for this kind of
+         * failure. */
+        return res.failure(); }
+    eventqueue.mkleft(res.success());
+    eqsub.mkjust(sub, eventqueue.left()->pub(), SUBSCRIPTION_EQ);
+    
+    /* We may have missed some newjob events.  Start a LISTJOBS
+     * machine to regenerate them. */
+    startlistjobs(pool, sub, Nothing);
+    
+    /* If we have any jobs then we may also have missed some stream
+     * events.  Start LISTSTREAMS machines for all of the jobs to
+     * catch up again. */
+    for (auto j(jobs.start()); !j.finished(); j.next()) {
+        /* Need to abort any outstanding calls. */
+        if (j->liststreams != NULL) {
+            j->liststreamssub = Nothing;
+            j->liststreams->abort();
+            j->liststreams = NULL;
+            j->liststreamsres = Nothing; }
+        j->startliststreams(pool, sub, Nothing); }
+    return Success; }
+
+/* Event queue changed, either by completing the connect or by
+ * receiving another event. */
+orerror<void>
+store::eqwoken(connpool &pool, subscriber &sub) {
+    if (eventqueue.isright()) return eqconnected(pool, sub);
+    else {
+        eqevent(pool, sub);
+        return Success; } }
+
+/* Start a LISTJOBS call.  Start from the beginning if the cursor is
+ * Nothing, otherwise restart from where we left off. */
+void
+store::startlistjobs(connpool &pool,
+                     subscriber &sub,
+                     const maybe<jobname> &cursor) {
+    assert(listjobs == NULL);
+    assert(listjobssub == Nothing);
+    listjobs = pool.call(
+        name,
+        interfacetype::storage,
+        /* Infinite timeout is safe: we'll give up when it drops out
+         * of the beacon client. */
+        Nothing,
+        [cursor] (serialise1 &s, connpool::connlock) {
+            s.push(proto::storage::tag::listjobs);
+            s.push(cursor);
+            s.push(maybe<unsigned>(Nothing)); },
+        [this] (deserialise1 &ds, connpool::connlock) {
+            assert(listjobsres == Nothing);
+            /* No sync: the filesystem thread won't look at our result
+             * until the RPC call completes.  Just deserialise the
+             * result straight out. */
+            listjobsres.mkjust(ds);
+            return ds.status(); });
+    listjobssub.mkjust(sub, listjobs->pub(), SUBSCRIPTION_LISTJOBS); }
+
+/* Called whenever something might have happened to a store LISTJOBS
+ * call.  Responsible for checking whether it's finished, and, if so,
+ * processing the results and potentially starting another call.  If
+ * this returns an error then we'll drop the store from the list. */
+orerror<void>
+store::listjobswoken(connpool &pool, subscriber &sub) {
+    assert(listjobssub != Nothing);
+    assert(listjobs != NULL);
+    {   auto t(listjobs->finished());
+        if (t == Nothing) return Success;
+        listjobssub = Nothing;
+        auto r(listjobs->pop(t.just()));
+        listjobs = NULL;
+        if (r.isfailure()) {
+            logmsg(loglevel::failure,
+                   "LISTJOBS on " + name.field() +
+                   ": " + r.failure().field());
+            return r.failure(); } }
+    /* No sync: the LISTJOBS call has finished. */
+    /* listjobsres must be filled out when a LISTJOBS succeeds. */
+    assert(listjobsres != Nothing);
+    auto &result(listjobsres.just());
+    /* Remove any jobs which have died. */
+    bool found;
+    for (auto it(jobs.start());
+         !it.finished();
+         found ? it.next() : it.remove()) {
+        found = true;
+        /* Ignore jobs which aren't in the results range. */
+        if (result.start == Nothing || it->name < result.start.just()) continue;
+        if (result.end == Nothing || it->name >= result.end.just()) continue;
+        /* Ignore jobs where our existing knowledge is more up to date
+         * than the new result. */
+        if (it->refreshedat >= result.when) continue;
+        /* If the job isn't in the result set then it's been lost. */
+        found = false;
+        for (auto it2(result.res.start()); !found&&!it2.finished(); it2.next()){
+            found = it->name == *it2; }
+        if (!found) {
+            /* The common case is that lost jobs are detected by event
+             * queue messages, so this should be pretty rare, but it
+             * can sometimes happen if we lose our EQ subscription and
+             * have to recover. */
+            logmsg(loglevel::info,
+                   "lost job " + fields::mk(it->name) + " on " +
+                   fields::mk(name) + " to LISTJOBS result " +
+                   fields::mk(result)); } }
+    /* Integrate any new jobs into the list. */
+    for (auto it(result.res.start()); !it.finished(); it.next()) {
+        auto j(findjob(*it));
+        if (j != NULL) {
+            /* Already have it, so just update the liveness
+             * timestamp. */
+            if (j->refreshedat < result.when) j->refreshedat = result.when; }
+        else {
+            /* New job -> create it and start looking for streams in
+             * it. */
+            logmsg(loglevel::debug,
+                   "discovered job " + fields::mk(*it) + " on " +
+                   fields::mk(name));
+            jobs.append(*this, result.when, *it)
+                .startliststreams(pool,
+                                  sub,
+                                  Nothing); } }
+    /* Flush the deferred events queue. */
+    while (!deferredremove.empty()) {
+        auto r(deferredremove.pophead());
+        eqremovejob(r.first(), r.second()); }
+    /* If the server truncated the results then kick off another call
+     * to get the rest. */
+    auto next(result.end);
+    listjobsres = Nothing;
+    if (next != Nothing) startlistjobs(pool, sub, next);
+    return Success; }
+
+/* Store destructor.  This can be called when the store is any state,
+ * so it must do things like cancelling outstanding async calls. */
+store::~store() {
+    eqsub = Nothing;
+    if (eventqueue.isleft()) eventqueue.left()->destroy();
+    else eventqueue.right()->abort();
+    listjobssub = Nothing;
+    if (listjobs != NULL) listjobs->abort(); }
+
+/* The filesystem is a cache recording the content of each storage
+ * slave known to the beacon.  It is updated asynchronously, and can
+ * therefore lag behind reality, and can even occasionally reorder
+ * events.  It does, however, give users a couple of useful guarantees:
+ *
+ * -- It preserves monotonicity for individual objects (jobs and
+ *    streams), in the sense that if an object is seen going from
+ *    state X to state Y in the filesystem then it must have gone from
+ *    X to Y in reality.  It may sometimes combine edges, so if the
+ *    real object transitions X to Y to Z then the filesystem object
+ *    might go directly from X to Z, but that should be
+ *    indistinguishable from the user just not getting scheduled in
+ *    the right place.
+ * -- The system is eventually consistent, so any change in the real
+ *    world will eventually be reflected in the cache, and if the real
+ *    world stops changing for long enough the cache will eventually
+ *    converge on the truth.  There is no hard deadline for
+ *    convergence, but under normal load it should be at most a few
+ *    seconds, and will often be quicker.
+ *
+ * Note, though, that the cache does *not* preserve ordering of state
+ * changes on different objects.  So, for instance, if in the real
+ * world someone creates stream X and then stream Y the cache might
+ * notice the creation of Y before the creation of X.
+ */
+class filesystem : public thread {
+private: connpool &pool;
+private: beaconclient &bc;
+private: waitbox<void> shutdown;
+
+    /* All of the stores which the beacon's told us about. */
+public:  list<store> stores;
+
+public:  explicit filesystem(const thread::constoken &token,
+                             connpool &_pool,
+                             beaconclient &_bc)
+    : thread(token),
+      pool(_pool),
+      bc(_bc),
+      shutdown(),
+      stores() {}
+
+public:  static filesystem &build(connpool &, beaconclient &);
+public:  void run(clientio);
+
+public:  void beaconwoken(subscriber &sub);
+
+public:  void dropstore(store &); };
+
+/* Construct a new filesystem which will keep track of all stores
+ * known to the beacon client. */
+filesystem &
+filesystem::build(connpool &_pool, beaconclient &_bc) {
+    return *thread::start<filesystem>(fields::mk("filesystem"), _pool, _bc); }
+
 void
 filesystem::run(clientio io) {
     subscriber sub;
@@ -805,6 +802,39 @@ filesystem::run(clientio io) {
      * they must be flushed before we return. */
     stores.flush(); }
 
+/* Helper function which gets called whenever there's any possibility
+ * that the beacon content has changed.  Compare the beacon results to
+ * the cache and update the cache as appropriate. */
+void
+filesystem::beaconwoken(subscriber &sub) {
+    logmsg(loglevel::debug, "scan for new storage slaves");
+    list<list<store>::iter> lost;
+    for (auto it(stores.start()); !it.finished(); it.next()) lost.pushtail(it);
+    for (auto it(bc.start(interfacetype::storage)); !it.finished(); it.next()) {
+        bool found = false;
+        for (auto it2(lost.start()); !it2.finished(); it2.next()) {
+            if (it.name() == (*it2)->name) {
+                logmsg(loglevel::verbose, fields::mk(it.name()) + " unchanged");
+                found = true;
+                it2.remove();
+                break; } }
+        if (!found) {
+            logmsg(loglevel::info,
+                   "new storage slave " + fields::mk(it.name()));
+            stores.append(sub,
+                          eqclient<proto::storage::event>::connect(
+                              pool,
+                              it.name(),
+                              proto::eq::names::storage),
+                          it.name()); } }
+    for (auto it(lost.start()); !it.finished(); it.next()) {
+        logmsg(loglevel::info,
+               "lost storage slave " + fields::mk((*it)->name));
+        it->remove(); } }
+
+
+/* Remove a store from the stores list and release it out.  Only used
+ * from error paths, so the O(n) cost doesn't really matter. */
 void
 filesystem::dropstore(store &s) {
     for (auto it(stores.start()); true; it.next()) {
