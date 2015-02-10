@@ -75,6 +75,8 @@ public:  static const tag read;
      * the request.  The result list will contain at most limit
      * entries (if limit is non-Nothing). */
 public:  static const tag listjobs;
+    /* Inputs: jobname.  Output: job. */
+public:  static const tag statjob;
     /* Inputs: jobname, maybe<streamname> start, maybe<unsigned>
      * limit.  Outputs: liststreamsres.  start in the result is always
      * equal to start in the request.  The result list will contain at

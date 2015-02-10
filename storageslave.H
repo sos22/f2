@@ -70,6 +70,11 @@ private: orerror<void> listjobs(
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const;
+private: orerror<void> statjob(
+    const jobname &j,
+    nnp<incompletecall> ic,
+    acquirestxlock atl,
+    onconnectionthread oct) const;
 private: orerror<void> liststreams(
     const jobname &jn,
     const maybe<streamname> &cursor,

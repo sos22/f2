@@ -22,13 +22,15 @@ proto::storage::tag::read(94);
 const proto::storage::tag
 proto::storage::tag::listjobs(95);
 const proto::storage::tag
-proto::storage::tag::liststreams(96);
+proto::storage::tag::statjob(96);
 const proto::storage::tag
-proto::storage::tag::statstream(97);
+proto::storage::tag::liststreams(97);
 const proto::storage::tag
-proto::storage::tag::removestream(98);
+proto::storage::tag::statstream(98);
 const proto::storage::tag
-proto::storage::tag::removejob(99);
+proto::storage::tag::removestream(99);
+const proto::storage::tag
+proto::storage::tag::removejob(100);
 
 proto::storage::tag::tag(unsigned x) : v(x) {}
 
@@ -40,6 +42,7 @@ proto::storage::tag::tag(deserialise1 &ds)
         *this != finish &&
         *this != read &&
         *this != listjobs &&
+        *this != statjob &&
         *this != liststreams &&
         *this != statstream &&
         *this != removestream &&

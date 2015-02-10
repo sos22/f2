@@ -20,7 +20,7 @@
 #include "parsers.tmpl"
 #include "test.tmpl"
 
-static tests::event<ssize_t *> readasstringloop;
+static tests::event<orerror<void> *> readasbufferloop;
 static tests::event<ssize_t *> createfileloop;
 static tests::event<struct dirent **> diriterevt;
 
@@ -42,37 +42,43 @@ bool
 filename::operator==(const filename &o) const {
     return content == o.content; }
 
-orerror<string>
-filename::readasstring() const {
+orerror<buffer>
+filename::readasbuffer() const {
     int fd(open(content.c_str(), O_RDONLY));
     if (fd < 0) return error::from_errno();
-    off_t _sz(lseek(fd, 0, SEEK_END));
-    if (_sz < 0 || lseek(fd, 0, SEEK_SET) < 0) {
-        close(fd);
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        ::close(fd);
         return error::from_errno(); }
-    size_t sz((size_t)_sz);
-    /* Arbitrarily read whole-file readin to 10MB to prevent someone
-       doing something stupid. */
-    if (sz > 10000000) {
-        close(fd);
-        return error::overflowed; }
-    char *buf = (char *)calloc(sz + 1, 1);
-    unsigned long off;
-    size_t thistime;
-    for (off = 0; off < sz; off += thistime) {
-        ssize_t _thistime(::read(fd, buf + off, sz - off));
-        readasstringloop.trigger(&_thistime);
-        if (_thistime < 0) {
+    if ((st.st_mode & S_IFMT) != S_IFREG) {
+        ::close(fd);
+        return error::from_errno(ESPIPE); }
+    buffer res;
+    while (true) {
+        /* Arbitrarily read whole-file readin to 10MB to prevent
+         * someone doing something stupid. */
+        if (bytecount::bytes(res.avail()) >= 10_MB) {
             close(fd);
-            free(buf);
-            return error::from_errno(); }
-        if (_thistime == 0) return error::pastend;
-        thistime = (size_t)_thistime; }
-    close(fd);
-    if (memchr(buf, '\0', sz) != NULL) {
-        free(buf);
+            return error::overflowed; }
+        /* Local file IO is assumed to be fast, so no clientio
+         * token. */
+        auto r(res.receive(clientio::CLIENTIO, fd_t(fd)));
+        readasbufferloop.trigger(&r);
+        if (r.issuccess()) continue;
+        close(fd);
+        if (r == error::disconnected) return res.steal();
+        else return r.failure(); } }
+
+orerror<string>
+filename::readasstring() const {
+    auto r(readasbuffer());
+    if (r.isfailure()) return r.failure();
+    auto &b(r.success());
+    b.queue("\0", 1);
+    const char *cstr = (const char *)b.linearise(0, b.avail());
+    if (memchr(cstr, '\0', b.avail()) != cstr + b.avail() - 1) {
         return error::noparse; }
-    return string::steal(buf); }
+    return string(cstr); }
 
 orerror<void>
 filename::createfile(const void *c, bytecount s) const {
@@ -407,10 +413,9 @@ tests::_filename() {
             dir.rmdir().fatal("rm foo4"); });
 #if TESTING
     testcaseV("filename", "errinject", [] {
-            {   eventwaiter<ssize_t *> w(
-                    readasstringloop, [] (ssize_t *what) {
-                        errno = ETXTBSY;
-                        *what = -1; });
+            {   eventwaiter<orerror<void> *> w(
+                    readasbufferloop, [] (orerror<void> *what) {
+                        *what = error::from_errno(ETXTBSY); });
                 filename foo("foo");
                 foo.unlink();
                 foo.createfile(fields::mk(7)).fatal("create foo");
@@ -436,7 +441,8 @@ tests::_filename() {
                 assert(!it.isfailure());
                 it.next();
                 assert(it.isfailure());
-                assert(it.failure() == error::from_errno(ETXTBSY)); } } );
+                assert(it.failure() == error::from_errno(ETXTBSY));
+                f.rmdir().fatal("removing foo"); } } );
 #endif
     testcaseV("filename", "str", [] {
             assert((filename("foo") + "bar").str() ==

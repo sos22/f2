@@ -68,6 +68,8 @@ operator+(const void *a, bytecount b) {
 
 static inline bytecount
 operator"" _B(unsigned long long x) { return bytecount::bytes(x); }
+static inline bytecount
+operator"" _MB(unsigned long long x) { return bytecount::megabytes(x); }
 
 template <typename> class parser;
 namespace parsers {

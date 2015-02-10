@@ -3,12 +3,12 @@
 #ifndef FILE_H__
 #define FILE_H__
 
+#include "buffer.H"
 #include "orerror.H"
 #include "serialise.H"
 #include "string.H"
 #include "version.H"
 
-class buffer;
 class bytecount;
 class fd_t;
 class filename;
@@ -39,6 +39,10 @@ public:  bool operator==(const filename &o) const;
        any zero bytes, and returns an error if asked to read in either
        a large file or one containing nuls. */
 public:  orerror<string> readasstring() const;
+    /* Same idea as readasstring(), but return a bufer instead of a
+     * string.  Similar restrictions on file size, but tolerant of
+     * embedded nul bytes. */
+public:  orerror<buffer> readasbuffer() const;
     /* Read a file and then parse it using some parser.  Similar size
        restrictions to readasstring() */
 public:  template<typename t> orerror<t> parse(const parser<t> &) const;
@@ -69,6 +73,17 @@ public:  template <typename t> orerror<void> serialiseobj(const t &what) {
      * or error::invalidmessage if there's stuff left over in the file
      * after the deserialiser finishes (or all the usual deserialiser
      * failures). */
+public:  template <typename t> orerror<t> deserialiseobj() const {
+    auto r(readasbuffer());
+    if (r.isfailure()) return r.failure();
+    deserialise1 ds(r.success());
+    version v(ds);
+    if (v != version::current) return error::badversion;
+    if (ds.isfailure()) return ds.failure();
+    t res(ds);
+    if (ds.isfailure()) return ds.failure();
+    if (ds.offset() != r.success().avail()) return error::invalidmessage;
+    return res; }
     /* Atomically replace a file in its entirety, using the rename()
      * trick. */
 public:  orerror<void> replace(const buffer &buf) const;

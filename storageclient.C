@@ -22,8 +22,6 @@
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 
-#include "fieldfinal.H"
-
 class storageclient {
 private: connpool &pool;
 private: const slavename sn;
@@ -56,6 +54,8 @@ public:  orerror<proto::storage::listjobsres> listjobs(
     clientio,
     const maybe<jobname> &,
     maybe<unsigned>);
+public:  orerror<job> statjob(clientio,
+                              const jobname &);
 public:  orerror<proto::storage::liststreamsres> liststreams(
     clientio,
     const jobname &,
@@ -175,6 +175,22 @@ storageclient::listjobs(clientio io,
         [] (deserialise1 &ds, connpool::connlock)
             -> orerror<proto::storage::listjobsres>{
             proto::storage::listjobsres res(ds);
+            if (ds.isfailure()) return ds.failure();
+            else return res; }); }
+
+orerror<job>
+storageclient::statjob(clientio io,
+                       const jobname &jn) {
+    return pool.call<job>(
+        io,
+        sn,
+        interfacetype::storage,
+        timeout.future(),
+        [&jn] (serialise1 &s, connpool::connlock) {
+            s.push(proto::storage::tag::statjob);
+            s.push(jn); },
+        [] (deserialise1 &ds, connpool::connlock) -> orerror<job>{
+            job res(ds);
             if (ds.isfailure()) return ds.failure();
             else return res; }); }
 
@@ -355,6 +371,14 @@ main(int argc, char *argv[]) {
         auto r(conn.listjobs(clientio::CLIENTIO, start, limit)
                .fatal("listing jobs"));
         fields::print(fields::mk(r) + "\n"); }
+    else if (strcmp(argv[3], "STATJOB") == 0) {
+        if (argc != 5) errx(1,"STATJOB takes jobname argument only");
+        jobname j(parsers::_jobname()
+                  .match(argv[4])
+                  .fatal("parsing jobname " + fields::mk(argv[4])));
+        fields::print(fields::mk(conn.statjob(clientio::CLIENTIO, j)
+                                 .fatal("statting job " + fields::mk(j))) +
+                      "\n"); }
     else if (strcmp(argv[3], "LISTSTREAMS") == 0) {
         if (argc < 5 || argc > 7) {
             errx(1,

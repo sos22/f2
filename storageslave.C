@@ -22,6 +22,8 @@
 #include "parsers.tmpl"
 #include "rpcservice2.tmpl"
 
+#include "fieldfinal.H"
+
 orerror<void>
 storageslave::format(const filename &fn) {
     {   auto r(fn.mkdir());
@@ -130,6 +132,11 @@ storageslave::called(
         maybe<unsigned> limit(ds);
         if (!ds.isfailure()) {
             auto r(listjobs(_start, limit, ic, io, oct));
+            if (r.isfailure()) ds.fail(r.failure()); } }
+    else if (tag == proto::storage::tag::statjob) {
+        jobname j(ds);
+        if (!ds.isfailure()) {
+            auto r(statjob(j, ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::liststreams) {
         jobname job(ds);
@@ -354,6 +361,26 @@ storageslave::listjobs(
                  atl,
                  oct);
     return Success; }
+
+orerror<void>
+storageslave::statjob(
+    const jobname &jn,
+    nnp<incompletecall> ic,
+    acquirestxlock atl,
+    onconnectionthread oct) const {
+    auto r((config.poolpath + jn.asfilename() + "job")
+           .deserialiseobj<job>());
+    logmsg(loglevel::debug,
+           "stat " + fields::mk(jn) +
+           " -> " + fields::mk(r));
+    if (r.issuccess()) {
+        ic->complete([&r] (serialise1 &s,
+                           mutex_t::token /* txlock */,
+                           onconnectionthread) {
+                         s.push(r.success()); },
+                     atl,
+                     oct); }
+    return r; }
 
 orerror<void>
 storageslave::liststreams(
