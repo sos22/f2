@@ -63,7 +63,9 @@ public: job(store &_sto,
       name(_name),
       liststreams(NULL),
       liststreamssub(Nothing),
-      liststreamsres(Nothing) {}
+      liststreamsres(Nothing),
+      content(),
+      deferredremove() {}
 
 public: stream *findstream(const streamname &sn);
 public: void removestream(stream &);
@@ -135,8 +137,8 @@ public: void eqfinishstream(proto::eq::eventid eid,
 public: void eqremovestream(proto::eq::eventid eid,
                             const jobname &jn,
                             const streamname &sn);
-public: void eqevent(connpool &pool, subscriber &sub);
 
+public: void eqevent(connpool &pool, subscriber &sub);
 public: orerror<void> eqconnected(connpool &pool, subscriber &sub);
 public: orerror<void> eqwoken(connpool &, subscriber &);
 
@@ -147,44 +149,15 @@ public: orerror<void> listjobswoken(connpool &, subscriber &);
 
 public: ~store(); };
 
-/* Reconnect to the event queue, tearing down any existing partial
- * connections first. */
-void
-store::reconnect(connpool &pool,
-                 subscriber &sub) {
-    for (auto j(jobs.start()); !j.finished(); j.next()) {
-        if (j->liststreams != NULL) {
-            assert(j->liststreamssub != Nothing);
-            j->liststreamssub = Nothing;
-            /* Don't care about result of this; we're already
-             * restarting from the beginning. */
-            (void)j->liststreams->abort();
-            j->liststreams = NULL; }
-        else assert(j->liststreamssub == Nothing);
-        j->liststreamsres = Nothing; }
-    if (listjobs != NULL) {
-        assert(listjobssub != Nothing);
-        listjobssub = Nothing;
-        (void)listjobs->abort();
-        listjobs = NULL; }
-    else assert(listjobssub == Nothing);
-    listjobsres = Nothing;
-    eqsub = Nothing;
-    if (eventqueue.isleft()) eventqueue.left()->destroy();
-    else eventqueue.right()->abort();
-    eventqueue.mkright(eqclient<proto::storage::event>::connect(
-                           pool,
-                           name,
-                           proto::eq::names::storage));
-    eqsub.mkjust(sub, eventqueue.right()->pub(), SUBSCRIPTION_EQ); }
+/* Find a stream in a job by name.  Returns NULL if the stream isn't
+ * present. */
+stream *
+job::findstream(const streamname &sn) {
+    for (auto it(content.start()); !it.finished(); it.next()) {
+        if (it->status.name() == sn) return &*it; }
+    return NULL; }
 
-void
-store::dropjob(job &j) {
-    for (auto it(jobs.start()); true; it.next()) {
-        if (&j == &*it) {
-            it.remove();
-            return; } } }
-
+/* Remove a stream from the job.  Error if it isn't present. */
 void
 job::removestream(stream &s) {
     for (auto it(content.start()); true; it.next()) {
@@ -192,24 +165,9 @@ job::removestream(stream &s) {
             it.remove();
             return; } } }
 
-job::~job() {
-    if (liststreams) {
-        liststreamssub = Nothing;
-        liststreams->abort(); }
-    assert(liststreamssub == Nothing); }
-
-job *
-store::findjob(const jobname &jn) {
-    for (auto it(jobs.start()); !it.finished(); it.next()) {
-        if (it->name == jn) return &*it; }
-    return NULL; }
-
-stream *
-job::findstream(const streamname &sn) {
-    for (auto it(content.start()); !it.finished(); it.next()) {
-        if (it->status.name() == sn) return &*it; }
-    return NULL; }
-
+/* Start a LISTSTREAMS call.  cursor should be either Nothing, to
+ * start at the beginning, or the end marker of the last call, to
+ * continue that one. */
 void
 job::startliststreams(connpool &pool,
                       subscriber &sub,
@@ -233,250 +191,8 @@ job::startliststreams(connpool &pool,
             return ds.status(); });
     liststreamssub.mkjust(sub, liststreams->pub(), SUBSCRIPTION_LISTSTREAMS); }
 
-void
-store::eqnewjob(proto::eq::eventid eid, const jobname &job) {
-    /* Check whether we've already got the job in the list. */
-    auto j(findjob(job));
-    if (j == NULL) {
-        /* New job. */
-        jobs.append(*this, eid, job);
-        /* No LISTSTREAMS: if we saw the newjob event, we will also
-         * see all the newstream ones. */ }
-    else {
-        /* Job already exists.  Mostly a no-op, except that once we've
-         * gotten the t_newjob event we're guaranteed to get
-         * t_newstream events for any streams in the job, so we can
-         * cancel any outstanding LISTSTREAMS. */
-        if (j->liststreams != NULL) {
-            assert(j->liststreamssub != Nothing);
-            j->liststreamssub = Nothing;
-            j->liststreams->abort();
-            j->liststreams = NULL;
-            j->liststreamsres = Nothing; } } }
-
-void
-store::eqremovejob(proto::eq::eventid eid, const jobname &job) {
-    auto j(findjob(job));
-    if (j != NULL) {
-        /* If our cache is more up to date than this event then it
-         * must be a stale event. */
-        if (j->refreshedat > eid) {
-            logmsg(loglevel::info,
-                   "drop stale removejob event " + fields::mk(job) +
-                   " at " + fields::mk(eid) +
-                   "; cache at " + fields::mk(j->refreshedat));
-            return; }
-        /* Otherwise, the job is dead and we need to remove it from
-         * the cache. */
-        dropjob(*j);
-        /* Fall through to the reorder-with-LISTJOBS handling, because
-         * that's generally a lot easier to understand. */ }
-    else {
-        logmsg(loglevel::info,
-               "cannot find job to remove: " + fields::mk(job)); }
-    if (listjobs != NULL) {
-        /* Watch out for event reordering between removejob and
-         * LISTJOBs.  We might get something like this:
-         *
-         * 1) Start a LISTJOBS.
-         * 2) LISTJOBS sees job X.
-         * 3) Job X removed.
-         * 4) We receive the removejob event for X
-         * 5) LISTJOBS completes.
-         *
-         * We need to make sure that we don't accidentally resurrect
-         * X.  Handle it by storing removes in a queue which gets
-         * processed when LISTJOBS completes. */
-        logmsg(loglevel::info,
-               "defer remove " + fields::mk(job) +
-               " because LISTJOBS outstanding");
-        deferredremove.append(mkpair(eid, job)); } }
-
-void
-store::eqnewstream(proto::eq::eventid eid,
-                   const jobname &jn,
-                   const streamname &sn) {
-    auto j(findjob(jn));
-    if (j == NULL) {
-        /* Drop newstream events for jobs we don't know about.  If the
-         * job is still live then we'll eventually find out about it
-         * and recover that way, and if it's been removed then we
-         * don't need to do anything at all. */
-        logmsg(loglevel::info,
-               "drop new stream event " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid));
-        return; }
-    auto s(j->findstream(sn));
-    if (s != NULL) {
-        /* We already know about this stream, so the newstream event
-         * must have been delayed. */
-        if (eid > s->refreshedat) {
-            /* This shouldn't happen.  We thought the stream was live
-             * at time T and we just got an event saying it was
-             * created at time T+n.  That implies that either we were
-             * wrong to say it was live at T or that we've missed a
-             * removestream event between T and T+n. */
-            logmsg(loglevel::error,
-                   "detected inconsistency in stream liveness"
-                   " from new stream event " + fields::mk(jn) +
-                   "::" + fields::mk(sn) +
-                   " at " + fields::mk(eid) +
-                   " on " + fields::mk(name) +
-                   "; was " + fields::mk(s->status) +
-                   " at " + fields::mk(s->refreshedat));
-            /* Update the cached liveness and hope for the best. */
-            s->refreshedat = eid; }
-        else {
-            /* We already knew it was live at time T and we were just
-             * told it was created at time T-n.  That's fine. */
-            logmsg(loglevel::info,
-                   "drop old new stream event " + fields::mk(jn) +
-                   "::" + fields::mk(sn) +
-                   " at " + fields::mk(eid) +
-                   "; cache at " + s->refreshedat.field()); } }
-    else {
-        /* Fresh stream.  Add it to the job. */
-        j->content.append(eid, streamstatus::empty(sn)); } }
-
-void
-store::eqfinishstream(proto::eq::eventid eid,
-                      const jobname &jn,
-                      const streamname &sn,
-                      const streamstatus &status) {
-    auto j(findjob(jn));
-    if (j == NULL) {
-        /* We don't know about this job.  Either it's been removed, in
-         * which case we don't care about the event, or our LISTJOBS
-         * is still outstanding, in which case we'll recover when that
-         * finishes. */
-        logmsg(loglevel::info,
-               "drop finish stream event " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " -> " + fields::mk(status) +
-               " at " + fields::mk(eid) +
-               "; no job");
-        return; }
-    auto s(j->findstream(sn));
-    if (s == NULL) {
-        /* Similarly don't care about finishing streams we don't know
-         * about. */
-        logmsg(loglevel::info,
-               "drop finish stream event " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " -> " + fields::mk(status) +
-               " at " + fields::mk(eid) +
-               "; no stream");
-        return; }
-    if (s->refreshedat >= eid) {
-        /* This is an obsolete event.  Drop it. */
-        logmsg(loglevel::info,
-               "drop finish stream event " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " -> " + fields::mk(status) +
-               " at " + fields::mk(eid) +
-               "; cache " + fields::mk(s->status) +
-               " at " + fields::mk(s->refreshedat));
-        return; }
-    if (s->status.isfinished()) {
-        /* We knew the stream was finished at or before T, and we're
-         * now being told it only get finished at T+n.  That implies
-         * we've had a rewind. */
-        logmsg(loglevel::error,
-               "detected inconsistency in stream lifecycle"
-               " from finish stream event " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " -> " + fields::mk(status) +
-               " at " + fields::mk(eid) +
-               "; cache " + fields::mk(s->status) +
-               " at " + fields::mk(s->refreshedat));
-        /* apply it anyway. */ }
-    /* This is the finish of this stream. */
-    s->status = status;
-    s->refreshedat = eid; }
-
-void
-store::eqremovestream(proto::eq::eventid eid,
-                      const jobname &jn,
-                      const streamname &sn) {
-    auto j(findjob(jn));
-    if (j == NULL) {
-        /* If we don't have the job then we don't have any of its
-         * streams and we don't have any LISTSTREAMS for it, so we're
-         * fine. */
-        return; }
-    auto s(j->findstream(sn));
-    if (s) {
-        if (s->refreshedat >= eid) {
-            /* Already know stream alive at time T, so can safely
-             * ignore message that it was removed at T-n, because it
-             * was reconstructed and the remove message got delayed
-             * after a LISTSTREAMS. */
-            logmsg(loglevel::debug,
-                   "drop remove stream " + fields::mk(jn) +
-                   "::" + fields::mk(sn) +
-                   " at " + fields::mk(eid) +
-                   " because stream live at " +
-                   fields::mk(s->refreshedat));
-            return; }
-        /* This is the actual remove operation. */
-        j->removestream(*s); }
-    /* Need to make sure the remove isn't reordered with the discovery
-     * of the stream in a LISTSTREAMS, to avoid resurrection bugs. */
-    if (j->liststreams != NULL) {
-        j->deferredremove.append(mkpair(eid, sn));
-        logmsg(loglevel::debug,
-               "defer remove " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid) +
-               " because of outstanding LISTSTREAMS"); }
-    else if (s == NULL) {
-        logmsg(loglevel::debug,
-               "drop remove stream " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid) +
-               " because it's already gone"); }
-    else {
-        logmsg(loglevel::debug,
-               "process remove stream " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid) +
-               " to completion"); } }
-
-/* Check for events on the queue.  Note that this responds to an error
- * by reconnecting the event queue.  It's only a proper error if that
- * reconnection fails. */
-void
-store::eqevent(connpool &pool, subscriber &sub) {
-    auto ev(eventqueue.left()->popid());
-    if (ev == Nothing) return;
-    if (ev.just().isfailure()) {
-        /* Error on the event queue.  Tear it down, abort all
-         * outstanding calls, and restart the machinery from the
-         * beginning. */
-        logmsg(loglevel::failure,
-               "lost eq to " + fields::mk(name) +
-               ": " + fields::mk(ev.just().failure()));
-        reconnect(pool, sub);
-        return; }
-    auto eid(ev.just().success().first());
-    auto &evt(ev.just().success().second());
-    switch (evt.typ) {
-    case proto::storage::event::t_newjob:
-        return eqnewjob(eid, evt.job);
-    case proto::storage::event::t_removejob:
-        return eqremovejob(eid, evt.job);
-    case proto::storage::event::t_newstream:
-        return eqnewstream(eid, evt.job, evt.stream.just());
-    case proto::storage::event::t_finishstream:
-        return eqfinishstream(eid,
-                              evt.job,
-                              evt.stream.just(),
-                              evt.status.just());
-    case proto::storage::event::t_removestream:
-        return eqremovestream(eid, evt.job, evt.stream.just()); }
-    abort(); }
-
+/* Called whenever a LISTSTREAMS call's state changes.  If this
+ * returns an error then we'll give up on the job. */
 orerror<void>
 job::liststreamswoken(connpool &pool, subscriber &sub) {
     assert(liststreamssub != Nothing);
@@ -491,7 +207,7 @@ job::liststreamswoken(connpool &pool, subscriber &sub) {
                    fields::mk(r.failure()));
             return r.failure(); } }
     assert(liststreamsres != Nothing);
-    auto &result(liststreamsres.just());
+    const auto &result(liststreamsres.just());
     /* Remove any streams which have died. */
     bool lost;
     for (auto it(content.start());
@@ -539,15 +255,14 @@ job::liststreamswoken(connpool &pool, subscriber &sub) {
         else {
             /* New stream -> create it. */
             logmsg(loglevel::debug,
-                   "discovered stream " + fields::mk(*it) + " in " +
-                   fields::mk(name) + " on " + fields::mk(sto.name) +
+                   "discovered stream " + fields::mk(name) +
+                   "::" + fields::mk(*it) +
+                   " on " + fields::mk(sto.name) +
                    " at " + fields::mk(result.when));
             content.append(result.when, *it); } }
     /* Flush the deferred events queue. */
     while (!deferredremove.empty()) {
         auto r(deferredremove.pophead());
-        /* XXX should maybe move eqremovestream from class store to
-         * class job, for general cleanliness? */
         sto.eqremovestream(r.first(), name, r.second()); }
     /* If the server truncated the results then kick off another call
      * to get the rest. */
@@ -555,6 +270,330 @@ job::liststreamswoken(connpool &pool, subscriber &sub) {
     liststreamsres = Nothing;
     if (next != Nothing) startliststreams(pool, sub, next);
     return Success; }
+
+job::~job() {
+    if (liststreams) {
+        liststreamssub = Nothing;
+        liststreams->abort(); }
+    assert(liststreamssub == Nothing); }
+
+/* Reconnect to the event queue, tearing down any existing partial
+ * connections first. */
+/* Note that this only tears down the ``active'' bits of the
+ * filesystem i.e. the EQ and outstanding RPC calls.  The cache itself
+ * remains intact (so the reconnect is transparent to our callers,
+ * modulo the cache not updating while we're working). */
+void
+store::reconnect(connpool &pool, subscriber &sub) {
+    for (auto j(jobs.start()); !j.finished(); j.next()) {
+        if (j->liststreams != NULL) {
+            assert(j->liststreamssub != Nothing);
+            j->liststreamssub = Nothing;
+            /* Don't care about result of this; we're already
+             * restarting from the beginning. */
+            (void)j->liststreams->abort();
+            j->liststreams = NULL; }
+        else assert(j->liststreamssub == Nothing);
+        j->liststreamsres = Nothing; }
+    if (listjobs != NULL) {
+        assert(listjobssub != Nothing);
+        listjobssub = Nothing;
+        (void)listjobs->abort();
+        listjobs = NULL; }
+    else assert(listjobssub == Nothing);
+    listjobsres = Nothing;
+    eqsub = Nothing;
+    if (eventqueue.isleft()) eventqueue.left()->destroy();
+    else eventqueue.right()->abort();
+    eventqueue.mkright(eqclient<proto::storage::event>::connect(
+                           pool,
+                           name,
+                           proto::eq::names::storage));
+    eqsub.mkjust(sub, eventqueue.right()->pub(), SUBSCRIPTION_EQ); }
+
+/* Find a job by name.  Returns NULL if the job doesn't exist. */
+job *
+store::findjob(const jobname &jn) {
+    for (auto it(jobs.start()); !it.finished(); it.next()) {
+        if (it->name == jn) return &*it; }
+    return NULL; }
+
+/* Remove a job from the job list.  Error if the job does not
+ * exist. */
+void
+store::dropjob(job &j) {
+    for (auto it(jobs.start()); true; it.next()) {
+        if (&j == &*it) {
+            it.remove();
+            return; } } }
+
+/* Process an event queue newjob event. */
+void
+store::eqnewjob(proto::eq::eventid eid, const jobname &job) {
+    /* Check whether we've already got the job in the list. */
+    auto j(findjob(job));
+    if (j == NULL) {
+        /* New job. */
+        logmsg(loglevel::info,
+               "discover new job " + fields::mk(job) +
+               " from event at " + fields::mk(eid));
+        jobs.append(*this, eid, job);
+        /* No LISTSTREAMS: if we saw the newjob event, we will also
+         * see all the newstream ones. */ }
+    else {
+        /* Job already exists.  Mostly a no-op, except that once we've
+         * gotten the t_newjob event we're guaranteed to get
+         * t_newstream events for any streams in the job, so we can
+         * cancel any outstanding LISTSTREAMS. */
+        if (j->liststreams != NULL) {
+            assert(j->liststreamssub != Nothing);
+            j->liststreamssub = Nothing;
+            j->liststreams->abort();
+            j->liststreams = NULL;
+            j->liststreamsres = Nothing; } } }
+
+/* Process an event queue removejob event. */
+void
+store::eqremovejob(proto::eq::eventid eid, const jobname &job) {
+    auto j(findjob(job));
+    if (j != NULL) {
+        /* If our cache is more up to date than this event then it
+         * must be a stale event. */
+        if (j->refreshedat > eid) {
+            logmsg(loglevel::debug,
+                   "drop stale removejob event " + fields::mk(job) +
+                   " at " + fields::mk(eid) +
+                   "; cache at " + fields::mk(j->refreshedat));
+            return; }
+        /* Otherwise, the job is dead and we need to remove it from
+         * the cache. */
+        logmsg(loglevel::info,
+               "drop job " + fields::mk(job) +
+               " because of removejob event at " + fields::mk(eid));
+        dropjob(*j);
+        /* Fall through to the reorder-with-LISTJOBS handling, because
+         * that's generally a lot easier to understand. */ }
+    else {
+        logmsg(loglevel::debug,
+               "cannot find job to remove: " + fields::mk(job)); }
+    if (listjobs != NULL) {
+        /* Watch out for event reordering between removejob and
+         * LISTJOBs.  We might get something like this:
+         *
+         * 1) Start a LISTJOBS.
+         * 2) LISTJOBS sees job X.
+         * 3) Job X removed.
+         * 4) We receive the removejob event for X
+         * 5) LISTJOBS completes.
+         *
+         * We need to make sure that we don't accidentally resurrect
+         * X.  Handle it by storing removes in a queue which gets
+         * processed when LISTJOBS completes. */
+        logmsg(loglevel::info,
+               "defer remove " + fields::mk(job) +
+               " because LISTJOBS outstanding");
+        deferredremove.append(mkpair(eid, job)); } }
+
+/* Process an event queue newstream event. */
+void
+store::eqnewstream(proto::eq::eventid eid,
+                   const jobname &jn,
+                   const streamname &sn) {
+    auto j(findjob(jn));
+    if (j == NULL) {
+        /* Drop newstream events for jobs we don't know about.  If the
+         * job is still live then we'll eventually find out about it
+         * and recover that way, and if it's been removed then we
+         * don't need to do anything at all. */
+        logmsg(loglevel::debug,
+               "drop new stream event " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " at " + fields::mk(eid));
+        return; }
+    auto s(j->findstream(sn));
+    if (s != NULL) {
+        /* We already know about this stream, so the newstream event
+         * must have been delayed. */
+        if (eid > s->refreshedat) {
+            /* This shouldn't happen.  We thought the stream was live
+             * at time T and we just got an event saying it was
+             * created at time T+n.  That implies that either we were
+             * wrong to say it was live at T or that we've missed a
+             * removestream event between T and T+n. */
+            logmsg(loglevel::error,
+                   "detected inconsistency in stream liveness"
+                   " from new stream event " + fields::mk(jn) +
+                   "::" + fields::mk(sn) +
+                   " at " + fields::mk(eid) +
+                   " on " + fields::mk(name) +
+                   "; was " + fields::mk(s->status) +
+                   " at " + fields::mk(s->refreshedat));
+            /* Update the cached liveness and hope for the best. */
+            s->refreshedat = eid; }
+        else {
+            /* We already knew it was live at time T and we were just
+             * told it was created at time T-n.  That's fine. */
+            logmsg(loglevel::debug,
+                   "drop old new stream event " + fields::mk(jn) +
+                   "::" + fields::mk(sn) +
+                   " at " + fields::mk(eid) +
+                   "; cache at " + s->refreshedat.field()); } }
+    else {
+        /* Fresh stream.  Add it to the job. */
+        logmsg(loglevel::info,
+               "new stream " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " at " + fields::mk(eid));
+        j->content.append(eid, streamstatus::empty(sn)); } }
+
+/* Process an event queue finish stream event. */
+void
+store::eqfinishstream(proto::eq::eventid eid,
+                      const jobname &jn,
+                      const streamname &sn,
+                      const streamstatus &status) {
+    auto j(findjob(jn));
+    if (j == NULL) {
+        /* We don't know about this job.  Either it's been removed, in
+         * which case we don't care about the event, or our LISTJOBS
+         * is still outstanding, in which case we'll recover when that
+         * finishes. */
+        logmsg(loglevel::info,
+               "drop finish stream event " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " -> " + fields::mk(status) +
+               " at " + fields::mk(eid) +
+               "; no job");
+        return; }
+    auto s(j->findstream(sn));
+    if (s == NULL) {
+        /* Similarly don't care about finishing streams we don't know
+         * about. */
+        logmsg(loglevel::info,
+               "drop finish stream event " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " -> " + fields::mk(status) +
+               " at " + fields::mk(eid) +
+               "; no stream");
+        return; }
+    if (s->refreshedat >= eid) {
+        /* This is an obsolete event.  Drop it. */
+        logmsg(loglevel::info,
+               "drop finish stream event " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " -> " + fields::mk(status) +
+               " at " + fields::mk(eid) +
+               "; cache " + fields::mk(s->status) +
+               " at " + fields::mk(s->refreshedat));
+        return; }
+    if (s->status.isfinished()) {
+        /* We knew the stream was finished at or before T, and we're
+         * now being told it only get finished at T+n.  That implies
+         * we've had a rewind. */
+        /* Another way of looking at: streams can only be finished
+         * twice with an intervening remove event, but if we'd seen
+         * the remove the stream wouldn't be in the cache any more, so
+         * we must have missed a remove. */
+        logmsg(loglevel::error,
+               "detected inconsistency in stream lifecycle"
+               " from finish stream event " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " -> " + fields::mk(status) +
+               " at " + fields::mk(eid) +
+               "; cache " + fields::mk(s->status) +
+               " at " + fields::mk(s->refreshedat));
+        /* apply it anyway. */ }
+    /* This is the finish of this stream. */
+    s->status = status;
+    s->refreshedat = eid; }
+
+/* Process an event queue removestream event. */
+void
+store::eqremovestream(proto::eq::eventid eid,
+                      const jobname &jn,
+                      const streamname &sn) {
+    auto j(findjob(jn));
+    if (j == NULL) {
+        /* If we don't have the job then we don't have any of its
+         * streams and we don't have any LISTSTREAMS for it, so we're
+         * fine. */
+        logmsg(loglevel::debug,
+               "remove stream " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " at " + fields::mk(eid) +
+               " but job is missing");
+        return; }
+    {   auto s(j->findstream(sn));
+        if (s == NULL) {
+            logmsg(loglevel::debug,
+                   "remove stream " + fields::mk(jn) +
+                   "::" + fields::mk(sn) +
+                   " at " + fields::mk(eid) +
+                   " but it's already gone"); }
+        else {
+            if (s->refreshedat >= eid) {
+                /* Already know stream alive at time T, so can safely
+                 * ignore message that it was removed at T-n, because
+                 * it was reconstructed and the remove message got
+                 * delayed after a LISTSTREAMS. */
+                logmsg(loglevel::debug,
+                       "drop remove stream " + fields::mk(jn) +
+                       "::" + fields::mk(sn) +
+                       " at " + fields::mk(eid) +
+                       " because stream live at " +
+                       fields::mk(s->refreshedat));
+                return; }
+            /* This is the actual remove operation. */
+            j->removestream(*s); } }
+    /* Need to make sure the remove isn't reordered with the discovery
+     * of the stream in a LISTSTREAMS, to avoid resurrection bugs. */
+    if (j->liststreams != NULL) {
+        j->deferredremove.append(mkpair(eid, sn));
+        logmsg(loglevel::debug,
+               "defer remove " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " at " + fields::mk(eid) +
+               " because of outstanding LISTSTREAMS"); }
+    else {
+        logmsg(loglevel::debug,
+               "process remove stream " + fields::mk(jn) +
+               "::" + fields::mk(sn) +
+               " at " + fields::mk(eid) +
+               " to completion"); } }
+
+/* Check for events on the queue.  Note that this responds to an error
+ * by reconnecting the event queue.  It's only a proper error if that
+ * reconnection fails. */
+void
+store::eqevent(connpool &pool, subscriber &sub) {
+    auto ev(eventqueue.left()->popid());
+    if (ev == Nothing) return;
+    if (ev.just().isfailure()) {
+        /* Error on the event queue.  Tear it down, abort all
+         * outstanding calls, and restart the machinery from the
+         * beginning. */
+        logmsg(loglevel::failure,
+               "lost eq to " + fields::mk(name) +
+               ": " + fields::mk(ev.just().failure()) +
+               ". Reconnect.");
+        return reconnect(pool, sub); }
+    auto eid(ev.just().success().first());
+    auto &evt(ev.just().success().second());
+    switch (evt.typ) {
+    case proto::storage::event::t_newjob:
+        return eqnewjob(eid, evt.job);
+    case proto::storage::event::t_removejob:
+        return eqremovejob(eid, evt.job);
+    case proto::storage::event::t_newstream:
+        return eqnewstream(eid, evt.job, evt.stream.just());
+    case proto::storage::event::t_finishstream:
+        return eqfinishstream(eid,
+                              evt.job,
+                              evt.stream.just(),
+                              evt.status.just());
+    case proto::storage::event::t_removestream:
+        return eqremovestream(eid, evt.job, evt.stream.just()); }
+    abort(); }
 
 /* Check if a store's finished connecting to its event queue.  If the
  * EQ connect fails then we'll drop the store. */
