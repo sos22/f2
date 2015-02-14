@@ -194,8 +194,8 @@ tests::beacon() {
                 else if (it.name() == slave2) {
                     assert(!found2);
                     assert(it.type().length() == 2);
-                    assert(it.type().idx(1) == interfacetype::storage);
-                    assert(it.type().idx(0) == interfacetype::test);
+                    assert(it.type().idx(0) == interfacetype::storage);
+                    assert(it.type().idx(1) == interfacetype::test);
                     assert(it.peer().getport() == port2);
                     found2 = true; }
                 else if (it.name() == slave3) {

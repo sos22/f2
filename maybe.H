@@ -158,6 +158,9 @@ public:
     const fields::field &field() const;
 };
 
+template <typename t> maybe<t>
+mkjust(const t &x) { return maybe<t>(x); }
+
 /* Special case for maybe<void>.  Semantically, this is just a bool;
  * its only purpose is to make other templates come out a little bit
  * more cleanly. */

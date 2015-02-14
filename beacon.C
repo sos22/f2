@@ -7,6 +7,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 
 mktupledef(beaconconfig);
 
