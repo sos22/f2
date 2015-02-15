@@ -7,9 +7,8 @@
 #include "tuple.H"
 
 #define _storageconfig(ctxt, iter0, iter1)                    \
-    iter0(ctxt, 1, mand, ref, peername, controlsock)          \
-    iter0(ctxt, 2, mand, ref, filename, poolpath)             \
-    iter1(ctxt, 3, mand, ref, beaconserverconfig, beacon)
+    iter0(ctxt, 1, mand, ref, filename, poolpath)             \
+    iter1(ctxt, 2, mand, ref, beaconserverconfig, beacon)
 class storageconfig {
     mktuplefields(storageconfig, public); };
 mktupleext(storageconfig);
