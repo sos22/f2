@@ -329,7 +329,8 @@ storageslave::listjobs(
                  !it.isfailure() && !it.finished();
                  it.next()) {
             if (strcmp(it.filename(), ".") == 0 ||
-                strcmp(it.filename(), "..") == 0) {
+                strcmp(it.filename(), "..") == 0 ||
+                strcmp(it.filename(), "queue") == 0) {
                 continue; }
             auto jn(parser.match(it.filename()));
             if (jn.isfailure()) {
