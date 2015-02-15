@@ -166,13 +166,8 @@ public: maybe<proto::storage::listjobsres> &listjobsres(
 public: inlistjobscall abortlistjobscall(onfilesystemthread);
 
 public: list<job> _jobs;
-public: list<job> &jobs(mutex_t::token, onfilesystemthread) { return _jobs; }
+public: list<job> &jobs(mutex_t::token) { return _jobs; }
 public: const list<job> &jobs(mutex_t::token) const { return _jobs; }
-public: const list<job> &jobs(onfilesystemthread) const { return _jobs; }
-    /* Careful: if the only synchronisation token you have is an
-     * onfilesystemthread you're allowed to modify fields within a job
-     * but you can't add or remove jobs to or from the list. */
-public: list<job> &jobs_unsafe(onfilesystemthread) { return _jobs; }
 
     /* Jobs which were removed while a LISTJOBS was outstanding.
      * Re-check them all when the LISTJOBS completes. */
@@ -197,10 +192,11 @@ public: store(
 
 public: void reconnect(connpool &pool,
                        subscriber &sub,
+                       mutex_t::token tok,
                        onfilesystemthread oft);
 
-public: job *findjob(const jobname &jn, onfilesystemthread);
-public: void dropjob(job &j, mutex_t::token, onfilesystemthread);
+public: job *findjob(const jobname &jn, mutex_t::token);
+public: void dropjob(job &j, mutex_t::token);
 
 public: void eqnewjob(proto::eq::eventid eid,
                       const jobname &job,
@@ -233,6 +229,7 @@ public: void eqevent(connpool &,
                      onfilesystemthread);
 public: orerror<void> eqconnected(connpool &pool,
                                   subscriber &sub,
+                                  mutex_t::token,
                                   onfilesystemthread);
 public: orerror<void> eqwoken(connpool &,
                               subscriber &,
@@ -425,8 +422,11 @@ store::abortlistjobscall(onfilesystemthread oft) {
  * remains intact (so the reconnect is transparent to our callers,
  * modulo the cache not updating while we're working). */
 void
-store::reconnect(connpool &pool, subscriber &sub, onfilesystemthread oft) {
-    for (auto j(jobs_unsafe(oft).start()); !j.finished(); j.next()) {
+store::reconnect(connpool &pool,
+                 subscriber &sub,
+                 mutex_t::token tok,
+                 onfilesystemthread oft) {
+    for (auto j(jobs(tok).start()); !j.finished(); j.next()) {
         auto isc(j->abortliststreamscall(oft));
         j->liststreamsres(isc) = Nothing; }
     auto ijc(abortlistjobscall(oft));
@@ -442,16 +442,16 @@ store::reconnect(connpool &pool, subscriber &sub, onfilesystemthread oft) {
 
 /* Find a job by name.  Returns NULL if the job doesn't exist. */
 job *
-store::findjob(const jobname &jn, onfilesystemthread oft) {
-    for (auto it(jobs_unsafe(oft).start()); !it.finished(); it.next()) {
+store::findjob(const jobname &jn, mutex_t::token tok) {
+    for (auto it(jobs(tok).start()); !it.finished(); it.next()) {
         if (it->name == jn) return &*it; }
     return NULL; }
 
 /* Remove a job from the job list.  Error if the job does not
  * exist. */
 void
-store::dropjob(job &j, mutex_t::token tok, onfilesystemthread oft) {
-    for (auto it(jobs(tok, oft).start()); true; it.next()) {
+store::dropjob(job &j, mutex_t::token tok) {
+    for (auto it(jobs(tok).start()); true; it.next()) {
         if (&j == &*it) {
             it.remove();
             return; } } }
@@ -463,13 +463,13 @@ store::eqnewjob(proto::eq::eventid eid,
                 mutex_t::token tok,
                 onfilesystemthread oft) {
     /* Check whether we've already got the job in the list. */
-    auto j(findjob(job, oft));
+    auto j(findjob(job, tok));
     if (j == NULL) {
         /* New job. */
         logmsg(loglevel::info,
                "discover new job " + fields::mk(job) +
                " from event at " + fields::mk(eid));
-        jobs(tok, oft).append(*this, eid, job);
+        jobs(tok).append(*this, eid, job);
         /* No LISTSTREAMS: if we saw the newjob event, we will also
          * see all the newstream ones. */ }
     else {
@@ -486,7 +486,7 @@ store::eqremovejob(proto::eq::eventid eid,
                    const jobname &job,
                    mutex_t::token tok,
                    onfilesystemthread oft) {
-    auto j(findjob(job, oft));
+    auto j(findjob(job, tok));
     if (j != NULL) {
         /* If our cache is more up to date than this event then it
          * must be a stale event. */
@@ -501,7 +501,7 @@ store::eqremovejob(proto::eq::eventid eid,
         logmsg(loglevel::info,
                "drop job " + fields::mk(job) +
                " because of removejob event at " + fields::mk(eid));
-        dropjob(*j, tok, oft);
+        dropjob(*j, tok);
         /* Fall through to the reorder-with-LISTJOBS handling, because
          * that's generally a lot easier to understand. */ }
     else {
@@ -532,7 +532,7 @@ store::eqnewstream(proto::eq::eventid eid,
                    const streamname &sn,
                    mutex_t::token tok,
                    onfilesystemthread oft) {
-    auto j(findjob(jn, oft));
+    auto j(findjob(jn, tok));
     if (j == NULL) {
         /* Drop newstream events for jobs we don't know about.  If the
          * job is still live then we'll eventually find out about it
@@ -587,7 +587,7 @@ store::eqfinishstream(proto::eq::eventid eid,
                       const streamstatus &status,
                       mutex_t::token tok,
                       onfilesystemthread oft) {
-    auto j(findjob(jn, oft));
+    auto j(findjob(jn, tok));
     if (j == NULL) {
         /* We don't know about this job.  Either it's been removed, in
          * which case we don't care about the event, or our LISTJOBS
@@ -649,7 +649,7 @@ store::eqremovestream(proto::eq::eventid eid,
                       const streamname &sn,
                       mutex_t::token tok,
                       onfilesystemthread oft) {
-    auto j(findjob(jn, oft));
+    auto j(findjob(jn, tok));
     if (j == NULL) {
         /* If we don't have the job then we don't have any of its
          * streams and we don't have any LISTSTREAMS for it, so we're
@@ -716,7 +716,7 @@ store::eqevent(connpool &pool,
                "lost eq to " + fields::mk(name) +
                ": " + fields::mk(ev.just().failure()) +
                ". Reconnect.");
-        return reconnect(pool, sub, oft); }
+        return reconnect(pool, sub, tok, oft); }
     auto eid(ev.just().success().first());
     auto &evt(ev.just().success().second());
     switch (evt.typ) {
@@ -740,11 +740,14 @@ store::eqevent(connpool &pool,
 /* Check if a store's finished connecting to its event queue.  If the
  * EQ connect fails then we'll drop the store. */
 orerror<void>
-store::eqconnected(connpool &pool, subscriber &sub, onfilesystemthread oft) {
+store::eqconnected(connpool &pool,
+                   subscriber &sub,
+                   mutex_t::token tok,
+                   onfilesystemthread oft) {
     /* Shouldn't have LISTJOBS or LISTSTREAMS calls outstanding if we
      * don't have a queue. */
     assert(listjobs(oft) == NULL);
-    for (auto it(jobs(oft).start()); !it.finished(); it.next()) {
+    for (auto it(jobs(tok).start()); !it.finished(); it.next()) {
         assert(it->liststreams(oft) == NULL); }
     auto t(eventqueue(oft).right()->finished());
     if (t == Nothing) return Success;
@@ -771,9 +774,7 @@ store::eqconnected(connpool &pool, subscriber &sub, onfilesystemthread oft) {
     /* If we have any jobs then we may also have missed some stream
      * events.  Start LISTSTREAMS machines for all of the jobs to
      * catch up again. */
-    for (auto j(jobs_unsafe(oft).start()); !j.finished(); j.next()) {
-        /* We know that startliststreams is fine with something from
-         * jobs_unsafe() because it doesn't take a mutex token. */
+    for (auto j(jobs(tok).start()); !j.finished(); j.next()) {
         j->startliststreams(pool, sub, Nothing, oft); }
     return Success; }
 
@@ -784,7 +785,7 @@ store::eqwoken(connpool &pool,
                subscriber &sub,
                mutex_t::token tok,
                onfilesystemthread oft) {
-    if (eventqueue(oft).isright()) return eqconnected(pool, sub, oft);
+    if (eventqueue(oft).isright()) return eqconnected(pool, sub, tok, oft);
     else {
         eqevent(pool, sub, tok, oft);
         return Success; } }
@@ -842,7 +843,7 @@ store::listjobswoken(connpool &pool,
     auto &result(listjobsres(ijc).just());
     /* Remove any jobs which have died. */
     bool found;
-    for (auto job(jobs(tok, oft).start());
+    for (auto job(jobs(tok).start());
          !job.finished();
          found ? job.next() : job.remove()) {
         found = true;
@@ -870,7 +871,7 @@ store::listjobswoken(connpool &pool,
                    fields::mk(result)); } }
     /* Integrate any new jobs into the list. */
     for (auto jn(result.res.start()); !jn.finished(); jn.next()) {
-        auto j(findjob(*jn, oft));
+        auto j(findjob(*jn, tok));
         if (j != NULL) {
             /* Already have it, so just update the liveness
              * timestamp. */
@@ -882,7 +883,7 @@ store::listjobswoken(connpool &pool,
             logmsg(loglevel::debug,
                    "discovered job " + fields::mk(*jn) + " on " +
                    fields::mk(name));
-            jobs(tok, oft).append(*this, result.when, *jn)
+            jobs(tok).append(*this, result.when, *jn)
                 .startliststreams(pool,
                                   sub,
                                   Nothing,
@@ -978,7 +979,7 @@ filesystem::impl::run(clientio io) {
                                filesystemimpl::job,
                                liststreamssub(oft).__just()));
             auto res(j->liststreamswoken(pool, sub, token, oft));
-            if (res.isfailure()) j->sto.dropjob(*j, token, oft); }
+            if (res.isfailure()) j->sto.dropjob(*j, token); }
         else abort();
         mux.unlock(&token); }
     /* The stores might have references to our subscriber block, so
