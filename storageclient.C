@@ -32,8 +32,8 @@ public:  explicit storageclient(connpool &_pool,
     : pool(_pool),
       sn(_sn),
       timeout(_timeout) {}
-public:  orerror<void> createjob(clientio,
-                                 const job &);
+public:  orerror<proto::eq::eventid> createjob(clientio,
+                                               const job &);
 public:  orerror<void> createstream(clientio,
                                     const jobname &,
                                     const streamname &);
@@ -72,10 +72,10 @@ public:  orerror<void> removejob(clientio,
                                  const jobname &);
 public:  ~storageclient(); };
 
-orerror<void>
+orerror<proto::eq::eventid>
 storageclient::createjob(clientio io,
                          const job &j) {
-    return pool.call(
+    return pool.call<proto::eq::eventid>(
         io,
         sn,
         interfacetype::storage,
@@ -83,7 +83,12 @@ storageclient::createjob(clientio io,
         [&j] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::createjob.serialise(s);
             j.serialise(s); },
-        connpool::voidcallV); }
+        [] (deserialise1 &ds, connpool::connlock) ->
+            orerror<proto::eq::eventid> {
+            proto::eq::eventid eid(ds);
+            if (ds.isfailure()) return ds.failure();
+            else return eid; }); }
+
 
 orerror<void>
 storageclient::createstream(clientio io,
@@ -288,7 +293,8 @@ main(int argc, char *argv[]) {
                  .fatal("parsing job " + fields::mk(argv[3])));
         auto m = conn.createjob(clientio::CLIENTIO, job);
         if (m == error::already) m.failure().warn("already created");
-        else if (m.isfailure()) m.failure().fatal("creating empty job"); }
+        else if (m.isfailure()) m.failure().fatal("creating empty job");
+        else fields::print("result: " + fields::mk(m.success()) + "\n"); }
     else if (!strcmp(argv[3], "CREATESTREAM")) {
         if (argc != 6) {
             errx(1, "CREATESTREAM needs a job and stream name"); }

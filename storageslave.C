@@ -86,11 +86,17 @@ storageslave::called(
     proto::storage::tag tag(ds);
     if (tag == proto::storage::tag::createjob) {
         job j(ds);
-        if (!ds.isfailure()) {
-            auto r(createjob(j));
-            if (!r.isfailure()) {
-                eqq.queue(proto::storage::event::newjob(j.name()), io); }
-            ic->complete(r, io, oct); } }
+        if (ds.isfailure()) return ds.failure();
+        auto r(createjob(j));
+        if (r.isfailure()) return r.failure();
+        auto eid(eqq.queue(proto::storage::event::newjob(j.name()), io));
+        ic->complete([eid] (serialise1 &s,
+                            mutex_t::token /* txlock */,
+                            onconnectionthread) {
+                         s.push(eid); },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
     else if (tag == proto::storage::tag::createstream) {
         jobname j(ds);
         streamname s(ds);

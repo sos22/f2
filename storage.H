@@ -58,7 +58,8 @@ private: unsigned v;
 private: explicit tag(unsigned);
 public:  explicit tag(deserialise1 &);
 public:  void serialise(serialise1 &) const;
-    /* Inputs: job.  Outputs: None */
+    /* Inputs: job.  Outputs: Event ID of the event which will tell
+     * the world about the new job. */
 public:  static const tag createjob;
     /* Inputs: jobname, streamname.  Outputs: None */
 public:  static const tag createstream;
