@@ -56,9 +56,6 @@ public:
     /* Loopback IP address */
     static peername loopback(port);
 
-    /* Get a peername for a local UNIX domain socket. */
-    static orerror<peername> local(const filename &path);
-
     /* Check whether two peernames refer to the same address and
        address family. */
     bool samehost(const peername &p) const;
@@ -78,11 +75,6 @@ public:
     const struct sockaddr *sockaddr() const;
     /* And the sockaddr size */
     unsigned sockaddrsize() const;
-
-    /* Try to kick off whoever's currently listening on a given
-       peername.  Never guaranteed to succeed, and guranteed not to
-       for most address families. */
-    void evict() const;
 
     /* peernames are their own status representation */
 public: typedef peername status_t;

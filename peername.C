@@ -37,22 +37,8 @@ peernameport::serialise(serialise1 &s) const {
     s.push(p); }
 
 peername::peername(const quickcheck &q) {
-    switch (random() % 3) {
+    switch (random() % 2) {
     case 0: {
-        struct sockaddr_un *sun = (struct sockaddr_un *)calloc(sizeof(*sun), 1);
-        sockaddr_ = sun;
-        sockaddrsize_ = sizeof(*sun);
-        sun->sun_family = AF_UNIX;
-        if (random() % 2 == 0) {
-            sockaddrsize_ = sizeof(sa_family_t); }
-        else {
-            const char *p;
-            do {
-                p = q.filename();
-            } while (strlen(p) >= sizeof(sun->sun_path));
-            strcpy(sun->sun_path, p); }
-        break; }
-    case 1: {
         struct sockaddr_in *sin = (struct sockaddr_in *)calloc(sizeof(*sin), 1);
         sockaddr_ = sin;
         sockaddrsize_ = sizeof(*sin);
@@ -72,7 +58,7 @@ peername::peername(const quickcheck &q) {
             break; }
         sin->sin_port = (unsigned short)q;
         break; }
-    case 2: {
+    case 1: {
         struct sockaddr_in6 *sin6 =
             (struct sockaddr_in6 *)calloc(sizeof(*sin6), 1);
         sockaddr_ = sin6;
@@ -115,15 +101,14 @@ peername::peername(const struct sockaddr *s, unsigned size)
     ((char *)sockaddr_)[size] = 0;
     memcpy(sockaddr_, s, size);
     switch (s->sa_family) {
-    case AF_UNIX:
-        assert(size <= sizeof(struct sockaddr_un));
-        break;
     case AF_INET:
         assert(size == sizeof(struct sockaddr_in));
         break;
     case AF_INET6:
         assert(size == sizeof(struct sockaddr_in6));
         break;
+    default:
+        abort();
     }
 }
 
@@ -141,16 +126,6 @@ const fields::field &
 fields::mk(const peername &p) {
     auto sa(p.sockaddr());
     switch (sa->sa_family) {
-    case AF_UNIX:
-        if (p.sockaddrsize() == sizeof(sa_family_t)) {
-            /* + "" means that we use the field escape() method,
-             * rather than strfield one, which means that the parser
-             * works. */
-            return fields::mk("unix*:///") + ""; }
-        else {
-            return "unix://" +
-            fields::mk(((const struct sockaddr_un *)sa)->sun_path).escape() +
-                "/"; }
     case AF_INET: {
         auto addr((const struct sockaddr_in *)sa);
         return "ip://" +
@@ -215,23 +190,12 @@ peername::loopback(port p)
     return peername((const struct sockaddr *)&sin, sizeof(sin));
 }
 
-orerror<peername>
-peername::local(const filename &path) {
-    struct sockaddr_un sun;
-    const auto &a(path.str());
-    if (a.len() >= sizeof(sun.sun_path)) return error::overflowed;
-    memset(&sun, 0, sizeof(sun));
-    sun.sun_family = AF_UNIX;
-    strcpy(sun.sun_path, a.c_str());
-    return peername((const struct sockaddr *)&sun, sizeof(sun)); }
-
 bool
 peername::samehost(const peername &o) const {
     auto us(sockaddr());
     auto them(o.sockaddr());
     if (us->sa_family != them->sa_family) return false;
     switch (us->sa_family) {
-    case PF_LOCAL: return true;
     case PF_INET: {
         auto in_us((const struct sockaddr_in *)us);
         auto in_them((const struct sockaddr_in *)them);
@@ -250,7 +214,6 @@ peername::samehost(const peername &o) const {
 bool
 peername::isbroadcast() const {
     switch (sockaddr()->sa_family) {
-    case PF_LOCAL: return false;
     case PF_INET: {
         auto sa((const struct sockaddr_in *)sockaddr());
         return (sa->sin_addr.s_addr & 0xf0) == 0xe0 ||
@@ -265,7 +228,6 @@ peername::isbroadcast() const {
 peername
 peername::setport(port p) const {
     switch (sockaddr()->sa_family) {
-    case PF_LOCAL: abort();
     case PF_INET: {
         auto sa(*(const struct sockaddr_in *)sockaddr());
         sa.sin_port = htons(p.p);
@@ -279,7 +241,6 @@ peername::setport(port p) const {
 peername::port
 peername::getport() const {
     switch (sockaddr()->sa_family) {
-    case PF_LOCAL: abort();
     case PF_INET: {
         auto sa((const struct sockaddr_in *)sockaddr());
         return port(ntohs(sa->sin_port)); }
@@ -295,14 +256,6 @@ peername::sockaddr() const {
 unsigned
 peername::sockaddrsize() const {
     return sockaddrsize_; }
-
-void
-peername::evict() const {
-    if (sockaddrsize_ != sizeof(struct sockaddr_un)) return;
-    auto sun = (const struct sockaddr_un *)sockaddr_;
-    if (sun->sun_family != AF_UNIX) return;
-    if (sun->sun_path[0] == '\0') return;
-    (void)::unlink(sun->sun_path); }
 
 class _ip6litparser : public parser<struct in6_addr> {
 private: orerror<result> parse(const char *what) const;
@@ -322,24 +275,6 @@ _ip6litparser::parse(const char *what) const {
 
 const parser<peername> &
 parsers::_peername() {
-    auto parseunix([] () -> const parser<peername> & {
-        return ("unix://" + strparser + "/")
-            .maperr<peername>(
-                [] (const char *what) -> orerror<peername> {
-                    struct sockaddr_un sun;
-                    if (strlen(what) >= sizeof(sun.sun_path)) {
-                        return error::overflowed; }
-                    else {
-                        memset(&sun, 0, sizeof(sun));
-                        sun.sun_family = AF_UNIX;
-                        strcpy(sun.sun_path, what);
-                        return peername((const sockaddr *)&sun,
-                                        sizeof(sun)); } })
-            || (strmatcher("unix*:///")
-                .map<peername>([] {
-                        sa_family_t s = AF_UNIX;
-                        return peername((const struct sockaddr *)&s,
-                                        sizeof(s)); })); });
     auto parseip([] () -> const parser<peername> & {
         return ("ip://" +
                 ~(intparser<unsigned>() + "." +
@@ -394,7 +329,7 @@ parsers::_peername() {
                                 (uint16_t)x.second().just()); }
                         return peername((const struct sockaddr *)&sin6,
                                         sizeof(sin6)); }); });
-    return parseunix() || parseip() || parseip6(); }
+    return parseip() || parseip6(); }
 
 const parser<peername::port> &
 parsers::_peernameport() {
@@ -431,33 +366,17 @@ tests::_peername() {
             assert(p.sockaddrsize() == sizeof(*sin));
             assert(sin->sin_port == 0);
             assert(sin->sin_addr.s_addr == htonl(INADDR_LOOPBACK)); });
-    testcaseV("peername", "evict", [] {
-            auto pp(peername::local(filename(quickcheck())));
-            while (pp.isfailure()) pp = peername::local(filename(quickcheck()));
-            auto p(pp.success());
-            auto ll(socket_t::listen(p).fatal("listening on "+fields::mk(p)));
-            auto ll2(socket_t::listen(p));
-            assert(ll2 == error::from_errno(EADDRINUSE));
-            p.evict();
-            auto ll3(socket_t::listen(p).fatal("evict failed"));
-            ll3.close();
-            ll.close();
-            p.evict(); });
     testcaseV("peername", "samehost", [] {
             for (unsigned x = 0; x < 100; x++) {
                 peername p1((quickcheck()));
                 assert(p1.samehost(p1)); }});
     testcaseV("peername", "=", [] {
             peername p(peername::all(peername::port::any));
-            peername q(peername::local(filename("foo"))
-                       .fatal("local peername foo"));
+            peername q(peername::loopback(peername::port(73)));
             assert(!(p == q));
             p = q;
             assert(p == q); });
     testcaseV("peername", "parseedge", [] {
-            assert(parsers::_peername()
-                   .match("unix://\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"/")
-                   == error::noparse);
             assert(parsers::_peername()
                    .match("ip://99999.1.2.3/")
                    == error::noparse);
@@ -468,9 +387,6 @@ tests::_peername() {
             parsers::roundtrip(parsers::_peernameport());
             quickcheck q;
             serialise<peername::port>(q);
-            {   auto e(peername::local(filename(q)));
-                while (e == error::overflowed) e = peername::local(filename(q));
-                assert(!e.fatal("huh?").isbroadcast()); }
             {   auto p(peername::loopback(peername::port(q)));
                 assert(!p.isbroadcast());
                 for (unsigned x = 0; x < 100; x++) {

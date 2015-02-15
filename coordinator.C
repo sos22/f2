@@ -1161,14 +1161,11 @@ main(int argc, char *argv[]) {
               .fatal("creating connection pool"));
     auto &fs(filesystem::build(pool, *bc));
 
-    auto listenon(peername::local("coordinatorrpc")
-                  .fatal("preparing coordinator name"));
-    listenon.evict();
     auto service(rpcservice2::listen<coordinatorservice>(
                      clientio::CLIENTIO,
                      cluster,
                      name,
-                     listenon,
+                     peername::loopback(peername::port::any),
                      fs)
                  .fatal("listening on coordinator interface"));
 
