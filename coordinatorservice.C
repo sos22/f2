@@ -89,7 +89,7 @@ main(int argc, char *argv[]) {
                      clientio::CLIENTIO,
                      cluster,
                      name,
-                     peername::loopback(peername::port::any),
+                     peername::all(peername::port::any),
                      fs)
                  .fatal("listening on coordinator interface"));
 
