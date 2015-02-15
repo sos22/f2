@@ -16,6 +16,7 @@ function bits() {
     _ clustername
     _ cond
     _ connpool
+    _ coordinator
     _ digest
     _ eq
     _ eqclient

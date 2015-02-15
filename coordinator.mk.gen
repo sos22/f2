@@ -1,8 +1,0 @@
-#! /bin/bash
-
-. shutil
-
-cc coordinator.C
-ld coordinator coordinator.o lib.a
-
-target coordinator

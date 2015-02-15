@@ -13,7 +13,7 @@
 buildconfig.C
 cli
 config
-coordinator
+coordinatorservice
 /master
 spawnservice
 storageservice
