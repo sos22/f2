@@ -24,6 +24,7 @@ function bits() {
     _ fd
     _ fields
     _ filename
+    _ filesystem
     _ frequency
     _ interfacetype
     _ jobname

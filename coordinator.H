@@ -1,6 +1,9 @@
 #ifndef COORDINATOR_H__
 #define COORDINATOR_H__
 
+class serialise1;
+class deserialise1;
+
 namespace proto {
 namespace coordinator {
 class tag {
