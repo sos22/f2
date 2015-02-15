@@ -4,6 +4,7 @@ all: realall
 
 .SUFFIXES:
 
+include coordinatorclient.mk
 include coordinatorservice.mk
 include lib.mk
 include spawnservice.mk

@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc coordinatorclient.C
+ld coordinatorclient coordinatorclient.o lib.a
+
+target coordinatorclient
