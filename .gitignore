@@ -13,6 +13,7 @@
 buildconfig.C
 cli
 config
+coordinatorclient
 coordinatorservice
 /master
 spawnservice
