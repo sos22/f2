@@ -48,7 +48,7 @@ class job {
 public: class inliststreamscall {
     private: inliststreamscall() {}
     public:  inliststreamscall(connpool::connlock) {}
-    public:  static inliststreamscall mk(onfilesystemthread) {
+    public:  static inliststreamscall mk(mutex_t::token) {
         return inliststreamscall(); } };
 public: store &sto;
 public: const jobname name;
@@ -65,12 +65,12 @@ public: proto::eq::eventid &refreshedat(onfilesystemthread) {
      * LISTSTREAMS there'll also be a subscription connecting its
      * completion event to the filesystem thread's subscriber. */
 public: connpool::asynccall *_liststreams;
-public: connpool::asynccall *&liststreams(onfilesystemthread) {
+public: connpool::asynccall *&liststreams(mutex_t::token) {
     return _liststreams; }
-public: connpool::asynccall *liststreams(onfilesystemthread) const {
+public: connpool::asynccall *liststreams(mutex_t::token) const {
     return _liststreams; }
 public: maybe<subscription> _liststreamssub;
-public: maybe<subscription> &liststreamssub(onfilesystemthread) {
+public: maybe<subscription> &liststreamssub(mutex_t::token) {
     return _liststreamssub; }
     /* Result of the last liststreams. */
 public:  maybe<proto::storage::liststreamsres> _liststreamsres;
@@ -78,8 +78,8 @@ public:  maybe<proto::storage::liststreamsres> &liststreamsres(
     inliststreamscall) { return _liststreamsres; }
 
 public: orerror<maybe<inliststreamscall> > endliststreamscall(
-    onfilesystemthread);
-public: inliststreamscall abortliststreamscall(onfilesystemthread);
+    mutex_t::token);
+public: inliststreamscall abortliststreamscall(mutex_t::token);
 
 public: list<stream> _content;
 public: list<stream> &content(mutex_t::token, onfilesystemthread) {
@@ -117,7 +117,7 @@ public: void removestream(stream &, mutex_t::token, onfilesystemthread);
 public: void startliststreams(connpool &pool,
                               subscriber &sub,
                               const maybe<streamname> &cursor,
-                              onfilesystemthread);
+                              mutex_t::token);
 public: orerror<void> liststreamswoken(connpool &,
                                        subscriber &,
                                        mutex_t::token,
@@ -200,8 +200,7 @@ public: void dropjob(job &j, mutex_t::token);
 
 public: void eqnewjob(proto::eq::eventid eid,
                       const jobname &job,
-                      mutex_t::token,
-                      onfilesystemthread);
+                      mutex_t::token);
 public: void eqremovejob(proto::eq::eventid eid,
                          const jobname &jn,
                          mutex_t::token,
@@ -271,10 +270,10 @@ void
 job::startliststreams(connpool &pool,
                       subscriber &sub,
                       const maybe<streamname> &cursor,
-                      onfilesystemthread ofs) {
-    assert(liststreams(ofs) == NULL);
-    assert(liststreamssub(ofs) == Nothing);
-    liststreams(ofs) = pool.call(
+                      mutex_t::token tok) {
+    assert(liststreams(tok) == NULL);
+    assert(liststreamssub(tok) == Nothing);
+    liststreams(tok) = pool.call(
         sto.name,
         interfacetype::storage,
         /* Will be cancelled if the store drops from the beacon or the
@@ -289,18 +288,18 @@ job::startliststreams(connpool &pool,
             assert(liststreamsres(cl) == Nothing);
             liststreamsres(cl).mkjust(ds);
             return ds.status(); });
-    liststreamssub(ofs).mkjust(sub,
-                               liststreams(ofs)->pub(),
+    liststreamssub(tok).mkjust(sub,
+                               liststreams(tok)->pub(),
                                SUBSCRIPTION_LISTSTREAMS); }
 
 orerror<maybe<job::inliststreamscall> >
-job::endliststreamscall(onfilesystemthread ofs) {
-    assert(liststreamssub(ofs) != Nothing);
-    auto t(liststreams(ofs)->finished());
+job::endliststreamscall(mutex_t::token tok) {
+    assert(liststreamssub(tok) != Nothing);
+    auto t(liststreams(tok)->finished());
     if (t == Nothing) return maybe<job::inliststreamscall>(Nothing);
-    liststreamssub(ofs) = Nothing;
-    auto r(liststreams(ofs)->pop(t.just()));
-    liststreams(ofs) = NULL;
+    liststreamssub(tok) = Nothing;
+    auto r(liststreams(tok)->pop(t.just()));
+    liststreams(tok) = NULL;
     if (r.isfailure()) {
         logmsg(loglevel::failure,
                "LISTSTREAMS on " + fields::mk(sto.name) +
@@ -309,18 +308,18 @@ job::endliststreamscall(onfilesystemthread ofs) {
         return r.failure(); }
     /* If the LISTSTREAMS call is finished then the filesystem thread
      * can safely pretend to be the LISTSTREAMS call. */
-    return mkjust(inliststreamscall::mk(ofs)); }
+    return mkjust(inliststreamscall::mk(tok)); }
 
 job::inliststreamscall
-job::abortliststreamscall(onfilesystemthread oft) {
-    if (liststreams(oft) != NULL) {
-        assert(liststreamssub(oft) != Nothing);
-        liststreamssub(oft) = Nothing;
+job::abortliststreamscall(mutex_t::token tok) {
+    if (liststreams(tok) != NULL) {
+        assert(liststreamssub(tok) != Nothing);
+        liststreamssub(tok) = Nothing;
         /* Don't care about result of this; we're already restarting
          * from the beginning. */
-        (void)liststreams(oft)->abort();
-        liststreams(oft) = NULL; }
-    return inliststreamscall::mk(oft); }
+        (void)liststreams(tok)->abort();
+        liststreams(tok) = NULL; }
+    return inliststreamscall::mk(tok); }
 
 /* Called whenever a LISTSTREAMS call's state changes.  If this
  * returns an error then we'll give up on the job. */
@@ -329,7 +328,7 @@ job::liststreamswoken(connpool &pool,
                       subscriber &sub,
                       mutex_t::token tok,
                       onfilesystemthread ofs) {
-    auto t(endliststreamscall(ofs));
+    auto t(endliststreamscall(tok));
     if (t.isfailure()) return t.failure();
     if (t.success() == Nothing) return Success;
     inliststreamscall isc(t.success().just());
@@ -395,7 +394,7 @@ job::liststreamswoken(connpool &pool,
      * to get the rest. */
     auto next(result.end);
     liststreamsres(isc) = Nothing;
-    if (next != Nothing) startliststreams(pool, sub, next, ofs);
+    if (next != Nothing) startliststreams(pool, sub, next, tok);
     return Success; }
 
 job::~job() {
@@ -427,7 +426,7 @@ store::reconnect(connpool &pool,
                  mutex_t::token tok,
                  onfilesystemthread oft) {
     for (auto j(jobs(tok).start()); !j.finished(); j.next()) {
-        auto isc(j->abortliststreamscall(oft));
+        auto isc(j->abortliststreamscall(tok));
         j->liststreamsres(isc) = Nothing; }
     auto ijc(abortlistjobscall(oft));
     listjobsres(ijc) = Nothing;
@@ -460,8 +459,7 @@ store::dropjob(job &j, mutex_t::token tok) {
 void
 store::eqnewjob(proto::eq::eventid eid,
                 const jobname &job,
-                mutex_t::token tok,
-                onfilesystemthread oft) {
+                mutex_t::token tok) {
     /* Check whether we've already got the job in the list. */
     auto j(findjob(job, tok));
     if (j == NULL) {
@@ -477,7 +475,7 @@ store::eqnewjob(proto::eq::eventid eid,
          * gotten the t_newjob event we're guaranteed to get
          * t_newstream events for any streams in the job, so we can
          * cancel any outstanding LISTSTREAMS. */
-        auto isc(j->abortliststreamscall(oft));
+        auto isc(j->abortliststreamscall(tok));
         j->liststreamsres(isc) = Nothing; } }
 
 /* Process an event queue removejob event. */
@@ -684,7 +682,7 @@ store::eqremovestream(proto::eq::eventid eid,
             j->removestream(*s, tok, oft); } }
     /* Need to make sure the remove isn't reordered with the discovery
      * of the stream in a LISTSTREAMS, to avoid resurrection bugs. */
-    if (j->liststreams(oft) != NULL) {
+    if (j->liststreams(tok) != NULL) {
         j->deferredremove(oft).append(mkpair(eid, sn));
         logmsg(loglevel::debug,
                "defer remove " + fields::mk(jn) +
@@ -721,7 +719,7 @@ store::eqevent(connpool &pool,
     auto &evt(ev.just().success().second());
     switch (evt.typ) {
     case proto::storage::event::t_newjob:
-        return eqnewjob(eid, evt.job, tok, oft);
+        return eqnewjob(eid, evt.job, tok);
     case proto::storage::event::t_removejob:
         return eqremovejob(eid, evt.job, tok, oft);
     case proto::storage::event::t_newstream:
@@ -748,7 +746,7 @@ store::eqconnected(connpool &pool,
      * don't have a queue. */
     assert(listjobs(oft) == NULL);
     for (auto it(jobs(tok).start()); !it.finished(); it.next()) {
-        assert(it->liststreams(oft) == NULL); }
+        assert(it->liststreams(tok) == NULL); }
     auto t(eventqueue(oft).right()->finished());
     if (t == Nothing) return Success;
     eqsub(oft) = Nothing;
@@ -775,7 +773,7 @@ store::eqconnected(connpool &pool,
      * events.  Start LISTSTREAMS machines for all of the jobs to
      * catch up again. */
     for (auto j(jobs(tok).start()); !j.finished(); j.next()) {
-        j->startliststreams(pool, sub, Nothing, oft); }
+        j->startliststreams(pool, sub, Nothing, tok); }
     return Success; }
 
 /* Event queue changed, either by completing the connect or by
@@ -887,7 +885,7 @@ store::listjobswoken(connpool &pool,
                 .startliststreams(pool,
                                   sub,
                                   Nothing,
-                                  oft); } }
+                                  tok); } }
     /* Flush the deferred events queue. */
     while (!deferredremove(oft).empty()) {
         auto r(deferredremove(oft).pophead());
@@ -977,7 +975,7 @@ filesystem::impl::run(clientio io) {
         else if (s->data == SUBSCRIPTION_LISTSTREAMS) {
             auto j(containerof(static_cast<subscription *>(s),
                                filesystemimpl::job,
-                               liststreamssub(oft).__just()));
+                               liststreamssub(token).__just()));
             auto res(j->liststreamswoken(pool, sub, token, oft));
             if (res.isfailure()) j->sto.dropjob(*j, token); }
         else abort();
