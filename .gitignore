@@ -13,6 +13,7 @@
 buildconfig.C
 cli
 config
+computeservice
 coordinatorclient
 coordinatorservice
 /master

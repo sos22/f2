@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc computeservice.C
+ld computeservice computeservice.o lib.a
+
+target computeservice

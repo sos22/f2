@@ -1,11 +1,5 @@
 filesystem = f, compute = c, testing = t, storage = s, infra = X
 
-X1) Adjust connpool interface so that it's easier to fallback to a
-    different slavename if things are going wrong e.g. picking a
-    different storage node to hold a new job if we lost access to one
-    we picked the first time around.
-c1) Shell program which advertises itself as a compute node over the
-    beacon, with a null RPC interface,
 c2) Extend compute slave interface with a way of turning jobs into
     running tasks.  Tasks will hang around in memory indefinitely
     after they terminate.  Tasks will be identified by the job which

@@ -261,7 +261,7 @@ main(int argc, char *argv[]) {
         errx(1, "need two arguments, the cluster to join and our own name"); }
     auto cluster(parsers::__clustername()
                  .match(argv[1])
-                 .fatal("parsing cluser name " + fields::mk(argv[1])));
+                 .fatal("parsing cluster name " + fields::mk(argv[1])));
     auto name(parsers::_slavename()
               .match(argv[2])
               .fatal("parsing slave name " + fields::mk(argv[2])));

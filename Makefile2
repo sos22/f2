@@ -4,6 +4,7 @@ all: realall
 
 .SUFFIXES:
 
+include computeservice.mk
 include coordinatorclient.mk
 include coordinatorservice.mk
 include lib.mk
