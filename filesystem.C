@@ -925,6 +925,13 @@ public:  list<store> _stores;
 public:  list<store> &stores(mutex_t::token) { return _stores; }
 public:  const list<store> &stores(mutex_t::token) const { return _stores; }
 
+    /* Cursor used to get rough balance across stores in
+     * nominateslave().  Mutable because it's modified by the const
+     * nominateslave() in ways which aren't visible outside of the
+     * class. */
+public: mutable unsigned _nominateidx;
+public: unsigned &nominateidx(mutex_t::token) const { return _nominateidx; }
+
 public:  explicit impl(const thread::constoken &token,
                        connpool &_pool,
                        beaconclient &_bc)
@@ -944,7 +951,9 @@ public:  void dropstore(store &, mutex_t::token);
 public:  list<slavename> findjob(const jobname &jn) const;
 public:  list<pair<slavename, streamstatus> > findstream(
     const jobname &jn,
-    const streamname &sn) const; };
+    const streamname &sn) const;
+public:  maybe<slavename> nominateslave() const;
+public:  void newjob(const slavename &, const jobname &, proto::eq::eventid); };
 
 void
 filesystem::impl::run(clientio io) {
@@ -1058,6 +1067,47 @@ filesystem::impl::findstream(const jobname &jn, const streamname &sn) const {
     mux.unlock(&token);
     return res; }
 
+maybe<slavename>
+filesystem::impl::nominateslave() const {
+    auto tok(mux.lock());
+    if (stores(tok).empty()) {
+        mux.unlock(&tok);
+        return Nothing; }
+    nominateidx(tok) = (nominateidx(tok) + 1) % stores(tok).length();
+    unsigned idx = nominateidx(tok);
+    for (auto it(stores(tok).start()); true; it.next()) {
+        if (idx == 0) {
+            auto res(it->name);
+            mux.unlock(&tok);
+            return res; }
+        idx--; } }
+
+void
+filesystem::impl::newjob(const slavename &sn,
+                         const jobname &jn,
+                         proto::eq::eventid eid) {
+    auto tok(mux.lock());
+    store *sto = NULL;
+    for (auto it(stores(tok).start());
+         sto == NULL && !it.finished();
+         it.next()) {
+        if (it->name == sn) sto = &*it; }
+    if (sto == NULL) {
+        /* Someone created a store on a slave which we don't know
+         * about.  We're only ever invoked for slaves returned from
+         * nominateslave() and we know that the slave was in the
+         * beacon then, so we're probably racing with the slave
+         * crashing and dropping out of the beacon.  Assume that the
+         * slave's going away and drop the newjob() notification. */
+        mux.unlock(&tok);
+        logmsg(loglevel::failure,
+               "new job " + fields::mk(jn) +
+               " on lost slave " + fields::mk(sn));
+        return; }
+    sto->eqnewjob(eid, jn, tok);
+    mux.unlock(&tok);
+    return; }
+
 const filesystem::impl &
 filesystem::implementation() const {
     return *containerof(this, const filesystem::impl, api); }
@@ -1080,3 +1130,12 @@ filesystem::findjob(const jobname &jn) const {
 list<pair<slavename, streamstatus> >
 filesystem::findstream(const jobname &jn, const streamname &sn) const {
     return implementation().findstream(jn, sn); }
+
+maybe<slavename>
+filesystem::nominateslave() const { return implementation().nominateslave(); }
+
+void
+filesystem::newjob(const slavename &sn,
+                   const jobname &jn,
+                   proto::eq::eventid eid) {
+    implementation().newjob(sn, jn, eid); }

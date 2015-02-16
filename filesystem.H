@@ -26,10 +26,13 @@
 #ifndef FILESYSTEM_H__
 #define FILESYSTEM_H__
 
+#include "eq.H"
+
 class beaconclient;
 class connpool;
 class jobname;
 template <typename> class list;
+template <typename> class maybe;
 template <typename, typename> class pair;
 class slavename;
 class streamname;
@@ -45,6 +48,15 @@ public:  static filesystem &build(connpool &, beaconclient &);
 public:  list<slavename> findjob(const jobname &jn) const;
 public:  list<pair<slavename, streamstatus> > findstream(
     const jobname &jn,
-    const streamname &sn) const; };
+    const streamname &sn) const;
+public:  maybe<slavename> nominateslave() const;
+
+    /* Tell the filesystem that something has created a new job. It
+     * should pick it up eventually anyway; the only reason to call
+     * this is to encourage it to pick up the creation quickly.  In
+     * particular, callers can safely assume that by the time this
+     * returns the cache will have been updated to reflect the new
+     * job. */
+public:  void newjob(const slavename &, const jobname &, proto::eq::eventid); };
 
 #endif /* !FILESYSTEM_H__ */

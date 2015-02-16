@@ -52,9 +52,10 @@ const error error::eventsdropped(-29);
 const error error::badsubscription(-30);
 const error error::notadir(-31);
 const error error::eqstatemismatch(-32);
+const error error::nostorageslaves(-33);
 /* When adding a new error, make sure you update lasterror and
  * errorfield::fmt() */
-static const int lasterror = 32;
+static const int lasterror = 33;
 
 class errorfield : public fields::field {
     error content;
@@ -131,6 +132,8 @@ public:
             buf.push("notadir");
         } else if (content == error::eqstatemismatch) {
             buf.push("eqstatemismatch");
+        } else if (content == error::nostorageslaves) {
+            buf.push("nostorageslaves");
         } else {
             ("<invalid error " + fields::mk(content.e) + ">")
                 .fmt(buf); } } };

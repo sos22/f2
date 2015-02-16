@@ -2,6 +2,7 @@
 
 #include "connpool.H"
 #include "coordinator.H"
+#include "job.H"
 #include "jobname.H"
 #include "streamname.H"
 #include "streamstatus.H"
@@ -68,6 +69,25 @@ main(int argc, char *argv[]) {
                        res.mkjust(ds);
                        return ds.status(); })
             .fatal("making FINDSTREAM call");
+        fields::print("result " + fields::mk(res.just()) + "\n"); }
+    else if (!strcmp(argv[3], "CREATEJOB")) {
+        if (argc != 5) errx(1, "CREATEJOB needs a job argument");
+        auto j(parsers::_job()
+               .match(argv[4])
+               .fatal("parsing " + fields::mk(argv[4]) +
+                      " as a job descriptor"));
+        maybe<slavename> res(Nothing);
+        pool->call(clientio::CLIENTIO,
+                   sn,
+                   interfacetype::coordinator,
+                   Nothing,
+                   [&j] (serialise1 &s, connpool::connlock) {
+                       s.push(proto::coordinator::tag::createjob);
+                       s.push(j); },
+                   [&res] (deserialise1 &ds, connpool::connlock) {
+                      res.mkjust(ds);
+                      return ds.status(); })
+            .fatal("making CREATEJOB call");
         fields::print("result " + fields::mk(res.just()) + "\n"); }
     else {
         errx(1, "unknown mode %s", argv[3]); }
