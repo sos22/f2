@@ -24,9 +24,9 @@ class publisher;
 class slavename;
 
 class connpool {
-public:  class asynccall;
 public:  class connlock;
 public:  template <typename> class asynccallT;
+public:  typedef asynccallT<void> asynccall;
 public:  typedef void serialise(serialise1 &, connlock);
     /* deserialise methods are called once we get a response from the
      * other side (or when we give up waiting).  They receive a
@@ -35,12 +35,52 @@ public:  typedef void serialise(serialise1 &, connlock);
      * finished() will always return Nothing from a deserialise
      * methods and any of the asynccall wait methods (those with a
      * clientio token) will deadlock.  Basically, the only thing you
-     * can do with the call reference is pass it off to the next stag
+     * can do with the call reference is pass it off to the next stage
      * in your pipeline. */
-public:  typedef orerror<void> deserialise(
-        asynccall &, orerror<nnp<deserialise1> >, connlock);
-public:  typedef orerror<void> deserialiseV(
-        orerror<nnp<deserialise1> >, connlock);
+public:  template <typename t> class deserialiserT {
+        /* There are a whole bunch of different types of deserialiser.
+         * This class handles converting between them. */
+    public:  std::function<orerror<t> (
+            asynccallT<t> &,
+            orerror<nnp<deserialise1> >,
+            connlock)> inner;
+    public:  deserialiserT(const decltype(inner) &_inner) : inner(_inner) {}
+    public:  deserialiserT(
+        const std::function<orerror<t> (
+                              orerror<nnp<deserialise1> >,
+                              connlock) > &_inner)
+        : inner([_inner]
+                (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock cl) {
+                    return _inner(ds, cl); }) {}
+    public:  deserialiserT(
+        const std::function<orerror<t> (
+                              asynccallT<t> &,
+                              deserialise1 &,
+                              connlock)> &_inner)
+        :inner([_inner]
+               (asynccallT<t> &ac, orerror<nnp<deserialise1> > ds, connlock cl)
+                   -> orerror<t> {
+                   if (ds.isfailure()) return ds.failure();
+                   else return _inner(ac, ds.success(), cl); }) {}
+    public:  deserialiserT(
+        const std::function<orerror<t> (
+                              deserialise1 &,
+                              connlock)> &_inner)
+        :inner([_inner]
+               (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock cl)
+                   -> orerror<t> {
+                   if (ds.isfailure()) return ds.failure();
+                   else return _inner(ds.success(), cl); }) {}
+    public:  deserialiserT()
+        : inner([] (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock)
+                   -> orerror<t> {
+                   if (ds.isfailure()) return ds.failure();
+                   else return Success; }) {}
+    public:  orerror<t> operator()(asynccallT<t> &ac,
+                                   orerror<nnp<deserialise1> > ds,
+                                   connlock cl) const {
+        return inner(ac, ds, cl); } };
+public:  typedef deserialiserT<void> deserialiser;
 
 private: connpool(const connpool &) = delete;
 private: connpool() {};
@@ -99,11 +139,6 @@ public:  class connlock {
     private: connlock() {}
     };
 
-    /* Deserialise method suitable for use with RPCs which return
-     * nothing except for the mandatory success/failure indication. */
-public:  static deserialise voidcall;
-public:  static deserialiseV voidcallV;
-
     /* Basic call interface.  Attempt to connect to a given remote
      * host and perform an RPC.
      *
@@ -117,13 +152,13 @@ public:  static deserialiseV voidcallV;
      *
      * Hard errors include things like the remote machine not
      * understanding the desired protocol or the remote service itself
-     * returning an error.  Hard errors call every outstanding call
-     * against a particular peer to fail.  Subsequent calls against
-     * the same host will restart the connection state machine.  If
-     * the conn pool cannot tell whether a particular error is hard or
-     * soft it will generally err on the side of declaring it to be
-     * soft and rely on timeouts to recover if it turns out to be
-     * wrong.
+     * returning an unrecoverable error.  Hard errors cause every
+     * outstanding call against a particular peer to fail.  Subsequent
+     * calls against the same host will restart the connection state
+     * machine.  If the conn pool cannot tell whether a particular
+     * error is hard or soft it will generally err on the side of
+     * declaring it to be soft and rely on timeouts to recover if it
+     * turns out to be wrong.
      *
      * The serialise method will be called once for every time we have
      * to transmit the message (but should usually do the same thing
@@ -154,179 +189,95 @@ public:  static deserialiseV voidcallV;
      * machine to hang forever as well, which is almost certainly not
      * what you want.
      */
-public:  nnp<asynccall> call(const slavename &sn,
+public:  nnp<asynccall> _call(const slavename &sn,
                              interfacetype type,
                              maybe<timestamp> deadline,
                              const std::function<serialise> &s,
-                             const std::function<deserialise> &ds = voidcall);
-public:  nnp<asynccall> call(const slavename &sn,
-                             interfacetype type,
-                             maybe<timestamp> deadline,
-                             const std::function<serialise> &s,
-                             const std::function<deserialiseV> &ds) {
-    return call(
-        sn,
-        type,
-        deadline,
-        s,
-        [ds] (asynccall &, orerror<nnp<deserialise1> > ds1, connlock cl)
-            -> orerror<void> {
-            return ds(ds1, cl); }); }
-
-    /* Cookie type representing an outstanding call.  Allocated by the
-     * call() method. */
-public:  class asynccall final {
-        friend connpool;
-        /* This should really be private, but I can't see how to do
-         * the necessary friend declarations. */
-    public:  class impl;
-    private: asynccall(const connpool &) = delete;
-    private: asynccall() {}
-    private: void operator=(const asynccall &) = delete;
-    private: impl &implementation();
-    private: const impl &implementation() const;
-        /* Proof of work type used to prove to pop() that the call has
-         * already finished, miplying that it will return immediately
-         * and does not need a clientio token.  Returned by
-         * finished(). */
-    public:  class token {
-            friend class asynccall;
-        private: token(); };
-        /* Check whether the call has finished (which includes
-         * success, hard failure, and timeout).  Returns a token type
-         * which can be used as a proof-of-work to make pop()
-         * non-blocking.  This will not return non-Nothing until the
-         * deserialise method has run to completion. */
-    public:  maybe<token> finished() const;
-        /* Publisher which is notified at least when finished() becomes
-         * non-Nothing. */
-    public:  const publisher &pub() const;
-        /* Convert a token into the result of the call, destroying the
-         * asyncall structure in the process. */
-    public:  orerror<void> pop(token);
-        /* Abort a call, which may or may not be complete.  The
-         * deserialise method for the call will be invoked with
-         * error::aborted, if it has not already run.  This will not
-         * return until deserialise has, and will return the result of
-         * deserialise().  The asynccall structure is released. */
-    public:  orerror<void> abort();
-        /* Blocking variant of finished(): wait until the call's finished,
-         * then return a token. */
-    public:  token finished(clientio) const;
-        /* Convenience wrapper: wait for finished() to become
-         * non-Nothing and then pop() and return the result of the
-         * call. */
-    public:  orerror<void> pop(clientio io) { return pop(finished(io)); }
-        /* Use abort() or pop() */
-    private: ~asynccall(); };
-
-    /* Variant of the call interface which only invokes the deserialise
-     * method on success. */
-public:  nnp<asynccall> call(
+                             const deserialiser &ds = deserialiser());
+    /* Wrappers to help type inference along a bit. */
+public:  template <typename t> nnp<asynccall> call(
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<void> (asynccall &,
-                                       deserialise1 &,
-                                       connlock)> &ds) {
-    return call(sn,
-                type,
-                deadline,
-                s,
-                [ds]
-                (asynccall &ths, orerror<nnp<deserialise1> > ds1, connlock cl)
-                    -> orerror<void> {
-                    if (ds1.isfailure()) return ds1.failure();
-                    else return ds(ths, *ds1.success(), cl); }); }
-
+    const t &x) {
+        return _call(sn, type, deadline, s, deserialiser(x)); }
 public:  nnp<asynccall> call(
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const std::function<orerror<void> (deserialise1 &,
-                                       connlock)> &ds) {
-    return call(
-        sn,
-        type,
-        deadline,
-        s,
-        [ds] (asynccall &, orerror<nnp<deserialise1> > ds1, connlock cl)
-            -> orerror<void> {
-            if (ds1.isfailure()) return ds1.failure();
-            else return ds(*ds1.success(), cl); }); }
+    const std::function<serialise> &s) {
+        return _call(sn, type, deadline, s, deserialiser()); }
 
     /* Convenience wrapper around the async call interface: start a
      * call, wait for it to complete, and then return the result. */
-public:  orerror<void> call(
+public:  orerror<void> _call(
     clientio io,
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<deserialiseV> &ds) {
-        return call(sn, type, deadline, s, ds)->pop(io); }
-public:  orerror<void> call(
+    const deserialiser &ds = deserialiser());
+public:  template <typename t> orerror<void> call(
     clientio io,
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<void> (deserialise1 &,
-                                       connlock)> &ds) {
-        return call(sn, type, deadline, s, ds)->pop(io); }
+    const t &x) {
+        return _call(io, sn, type, deadline, s, deserialiser(x)); }
+public:  orerror<void> call(
+    clientio io,
+    const slavename &sn,
+    interfacetype type,
+    maybe<timestamp> deadline,
+    const std::function<serialise> &s) {
+        return _call(io, sn, type, deadline, s, deserialiser()); }
 
     /* More convenient variant of the call interface for use when the
      * deserialise method needs to return a value.  Most of the
      * details of these are in connpool.tmpl. */
-public:  template <typename> class asynccallT;
-public:  template <typename t> nnp<asynccallT<t> > call(
+public:  template <typename t> nnp<asynccallT<t> > _call(
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (asynccallT<t> &,
-                                    orerror<nnp<deserialise1> >,
-                                    connlock)> &ds);
-public:  template <typename t> nnp<asynccallT<t> > call(
+    const deserialiserT<t> & = deserialiserT<t>());
+public:  template <typename t, typename u> nnp<asynccallT<t> > call(
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
-                                    connlock)> &ds);
+    const u &x) {
+    return _call<t>(sn, type, deadline, s, deserialiserT<t>(x)); }
 public:  template <typename t> nnp<asynccallT<t> > call(
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const std::function<orerror<t> (asynccallT<t> &,
-                                    deserialise1 &,
-                                    connlock)> &ds);
-public:  template <typename t> nnp<asynccallT<t> > call(
-    const slavename &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const std::function<orerror<t> (deserialise1 &,
-                                    connlock)> &ds);
-public:  template <typename t> orerror<t> call(
+    const std::function<serialise> &s) {
+    return _call<t>(sn, type, deadline, s, deserialiserT<t>()); }
+public:  template <typename t> orerror<t> _call(
     clientio io,
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (deserialise1 &,
-                                    connlock)> &ds);
-public:  template <typename t> orerror<t> call(
+    const deserialiserT<t> & = deserialiserT<t>());
+public:  template <typename t, typename u> orerror<t> call(
     clientio io,
     const slavename &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
-    const std::function<orerror<t> (orerror<nnp<deserialise1> >,
-                                    connlock)> &ds);
+    const u &x) {
+    return _call<t>(io, sn, type, deadline, s, deserialiserT<t>(x)); }
+public:  template <typename t> orerror<t> call(
+    clientio io,
+    const slavename &sn,
+    interfacetype type,
+    maybe<timestamp> deadline,
+    const std::function<serialise> &s) {
+    return _call<t>(io, sn, type, deadline, s, deserialiserT<t>()); }
 
     /* Construct a new connpool. */
 public:  static orerror<nnp<connpool> > build(const config &);
@@ -347,6 +298,53 @@ private: ~connpool();
 
 public:  static tests::hookpoint<void> reapedconnthread;
 };
+
+
+/* Cookie type representing an outstanding call.  Allocated by the
+ * call() method. */
+template <> class
+connpool::asynccallT<void> final {
+    friend connpool;
+    /* This should really be private, but I can't see how to do
+     * the necessary friend declarations. */
+public:  class impl;
+private: asynccallT(const connpool &) = delete;
+private: asynccallT() {}
+private: void operator=(const asynccall &) = delete;
+private: impl &implementation();
+private: const impl &implementation() const;
+    /* Proof of work type used to prove to pop() that the call has
+     * already finished, miplying that it will return immediately and
+     * does not need a clientio token.  Returned by finished(). */
+public:  class token {
+        friend class asynccallT;
+    private: token(); };
+    /* Check whether the call has finished (which includes success,
+     * hard failure, and timeout).  Returns a token type which can be
+     * used as a proof-of-work to make pop() non-blocking.  This will
+     * not return non-Nothing until the deserialise method has run to
+     * completion. */
+public:  maybe<token> finished() const;
+    /* Publisher which is notified at least when finished() becomes
+     * non-Nothing. */
+public:  const publisher &pub() const;
+    /* Convert a token into the result of the call, destroying the
+     * asyncall structure in the process. */
+public:  orerror<void> pop(token);
+    /* Abort a call, which may or may not be complete.  The
+     * deserialise method for the call will be invoked with
+     * error::aborted, if it has not already run.  This will not
+     * return until deserialise has, and will return the result of
+     * deserialise().  The asynccall structure is released. */
+public:  orerror<void> abort();
+    /* Blocking variant of finished(): wait until the call's finished,
+     * then return a token. */
+public:  token finished(clientio) const;
+    /* Convenience wrapper: wait for finished() to become non-Nothing
+     * and then pop() and return the result of the call. */
+public:  orerror<void> pop(clientio io) { return pop(finished(io)); }
+    /* Use abort() or pop() */
+private: ~asynccallT(); };
 
 namespace tests { void _connpool(); }
 

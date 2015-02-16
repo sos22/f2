@@ -102,8 +102,7 @@ storageclient::createstream(clientio io,
         [&jn, &stream] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::createstream.serialise(s);
             jn.serialise(s);
-            stream.serialise(s); },
-        connpool::voidcallV); }
+            stream.serialise(s); }); }
 
 orerror<void>
 storageclient::append(clientio io,
@@ -121,8 +120,7 @@ storageclient::append(clientio io,
             jn.serialise(s);
             stream.serialise(s);
             oldsize.serialise(s);
-            buf.serialise(s); },
-        connpool::voidcallV); }
+            buf.serialise(s); }); }
 
 orerror<void>
 storageclient::finish(clientio io,
@@ -136,8 +134,7 @@ storageclient::finish(clientio io,
         [&jn, &stream] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::finish.serialise(s);
             jn.serialise(s);
-            stream.serialise(s); },
-        connpool::voidcallV); }
+            stream.serialise(s); }); }
 
 orerror<pair<size_t, buffer> >
 storageclient::read(clientio io,
@@ -156,8 +153,7 @@ storageclient::read(clientio io,
             stream.serialise(s);
             start.serialise(s);
             end.serialise(s); },
-        []
-        (deserialise1 &ds, connpool::connlock)
+        [] (deserialise1 &ds, connpool::connlock)
             -> orerror<pair<size_t, buffer> >{
             size_t s(ds);
             buffer b(ds);
@@ -248,8 +244,7 @@ storageclient::removestream(clientio io,
         [&jn, &stream] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::removestream.serialise(s);
             jn.serialise(s);
-            stream.serialise(s); },
-        connpool::voidcallV); }
+            stream.serialise(s); }); }
 
 orerror<void>
 storageclient::removejob(clientio io,
@@ -261,8 +256,7 @@ storageclient::removejob(clientio io,
         timeout.future(),
         [&jn] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::removejob.serialise(s);
-            jn.serialise(s); },
-        connpool::voidcallV); }
+            jn.serialise(s); }); }
 
 storageclient::~storageclient() { }
 

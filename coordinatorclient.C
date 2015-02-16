@@ -85,8 +85,8 @@ main(int argc, char *argv[]) {
                        s.push(proto::coordinator::tag::createjob);
                        s.push(j); },
                    [&res] (deserialise1 &ds, connpool::connlock) {
-                      res.mkjust(ds);
-                      return ds.status(); })
+                       res.mkjust(ds);
+                       return ds.status(); })
             .fatal("making CREATEJOB call");
         fields::print("result " + fields::mk(res.just()) + "\n"); }
     else {

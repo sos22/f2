@@ -70,7 +70,7 @@ public: nnp<connpool::asynccall> call(const slavename &sn,
                                       interfacetype type,
                                       maybe<timestamp> deadline,
                                       const std::function<serialise> &s,
-                                      const std::function<deserialise> &ds); };
+                                      const deserialiser &ds); };
 
 class CONN : public thread {
 public: POOL &pool;
@@ -188,7 +188,7 @@ public: void delayconnect(
 public: nnp<CALL> call(maybe<timestamp>,
                        interfacetype type,
                        const std::function<serialise> &,
-                       const std::function<deserialise> &,
+                       const deserialiser &,
                        mutex_t::token);
 
     /* We start off with the lock held, to stop the connection dying
@@ -212,7 +212,7 @@ public: CONN &conn;
 public: const maybe<timestamp> deadline;
 public: const interfacetype type;
 public: const std::function<serialise> serialiser;
-public: const std::function<deserialise> deserialiser;
+public: const deserialiser deserialise;
 
     /* Notified when the call completes. */
 public: publisher pub;
@@ -238,7 +238,7 @@ public: impl(CONN &_conn,
              maybe<timestamp> _deadline,
              interfacetype _type,
              const std::function<serialise> &_serialiser,
-             const std::function<deserialise> &_deserialiser);
+             const deserialiser &_deserialise);
 
     /* Implementations of the public API. */
 public: maybe<token> finished() const;
@@ -306,23 +306,24 @@ connpool::config::operator==(const config &o) const {
 POOL &
 connpool::implementation() { return *containerof(this, impl, api); }
 
-orerror<void>
-connpool::voidcall(asynccall &, orerror<nnp<deserialise1> > ds, connlock) {
-    if (ds.isfailure()) return ds.failure();
-    else return Success; }
-
-orerror<void>
-connpool::voidcallV(orerror<nnp<deserialise1> > ds, connlock) {
-    if (ds.isfailure()) return ds.failure();
-    else return Success; }
-
 nnp<connpool::asynccall>
-connpool::call(const slavename &sn,
+connpool::_call(const slavename &sn,
                interfacetype type,
                maybe<timestamp> deadline,
                const std::function<serialise> &s,
-               const std::function<deserialise> &ds) {
+               const deserialiser &ds) {
     return implementation().call(sn, type, deadline, s, ds); }
+
+
+orerror<void>
+connpool::_call(
+    clientio io,
+    const slavename &sn,
+    interfacetype type,
+    maybe<timestamp> deadline,
+    const std::function<serialise> &s,
+    const deserialiser &ds) {
+    return _call(sn, type, deadline, s, ds)->pop(io); }
 
 orerror<nnp<connpool> >
 connpool::build(const config &cfg) {
@@ -432,7 +433,7 @@ POOL::call(const slavename &sn,
            interfacetype type,
            maybe<timestamp> deadline,
            const std::function<serialise> &s,
-           const std::function<deserialise> &ds) {
+           const deserialiser &ds) {
     assert(!shutdown.ready());
     auto token(mux.lock());
     maybe<pair<nnp<CONN>, mutex_t::token> > worker(Nothing);
@@ -484,7 +485,7 @@ CONN::finished(const list<nnp<CALL> > &calls, connlock cl) const {
 
 void
 CONN::failcall(nnp<CALL> what, error err, connlock cl) const {
-    auto callres(what->deserialiser(what->api, err, cl));
+    auto callres(what->deserialise(what->api, err, cl));
     what->mux.locked([&callres, what] (mutex_t::token tok) {
             assert(what->res(tok) == Nothing);
             what->res(tok) = callres;
@@ -710,8 +711,8 @@ CONN::processresponse(buffer &rxbuffer,
         orerror<void> callres(Success);
         /* Invoke the deserialise callback without holding the lock. */
         if (hdr.status.issuccess()) {
-            callres = c->deserialiser(c->api, _nnp(ds), cl); }
-        else callres = c->deserialiser(c->api, hdr.status.failure(), cl);
+            callres = c->deserialise(c->api, _nnp(ds), cl); }
+        else callres = c->deserialise(c->api, hdr.status.failure(), cl);
         if (callres.issuccess() && ds.isfailure()) {
             /* Really shouldn't be dropping errors here. */
             logmsg(loglevel::error,
@@ -999,7 +1000,7 @@ nnp<CALL>
 CONN::call(maybe<timestamp> deadline,
            interfacetype type,
            const std::function<serialise> &s,
-           const std::function<deserialise> &ds,
+           const deserialiser &ds,
            mutex_t::token token) {
     assert(!dying(token));
     /* XXX there should be a fast path here which sends stuff directly
@@ -1076,13 +1077,13 @@ CALL::impl(CONN &_conn,
            maybe<timestamp> _deadline,
            interfacetype _type,
            const std::function<serialise> &_serialiser,
-           const std::function<deserialise> &_deserialiser)
+           const deserialiser &_deserialise)
     : api(),
       conn(_conn),
       deadline(_deadline),
       type(_type),
       serialiser(_serialiser),
-      deserialiser(_deserialiser),
+      deserialise(_deserialise),
       pub(),
       mux(),
       _res(Nothing),

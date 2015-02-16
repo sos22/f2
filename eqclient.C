@@ -242,8 +242,7 @@ geneqclient::destroy() {
                 [&i] (serialise1 &s, connpool::connlock) {
                     proto::eq::tag::unsubscribe.serialise(s);
                     i.queuename.serialise(s);
-                    i.subid.serialise(s); },
-                connpool::voidcallV)
+                    i.subid.serialise(s); })
         .warn("unsubscribing from " + i.subid.field());
     /* Should be quick because shutdown is set. */
     i.join(clientio::CLIENTIO); }
@@ -312,8 +311,7 @@ CLIENT::startwaiter(onqueuethread oqt) {
             proto::eq::tag::wait.serialise(s);
             queuename.serialise(s);
             subid.serialise(s);
-            cursor(oqt).serialise(s); },
-        connpool::voidcallV); }
+            cursor(oqt).serialise(s); }); }
 
 void
 CLIENT::addeventtoqueue(proto::eq::eventid evt,
@@ -398,8 +396,7 @@ CLIENT::run(clientio io) {
                                         proto::eq::tag::trim.serialise(s);
                                         queuename.serialise(s);
                                         subid.serialise(s);
-                                        trim.just().serialise(s); },
-                                    connpool::voidcallV))); }
+                                        trim.just().serialise(s); }))); }
                 if (getterres.isfailure()) {
                     logmsg(loglevel::verbose, "getter failed");
                     failqueue(getterres.failure());
