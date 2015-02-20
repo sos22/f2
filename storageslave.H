@@ -23,8 +23,7 @@ class storageslave : public rpcservice2 {
     friend class rpcservice2;
 
 private: const storageconfig config;
-    /* mutable because we acquire it from the const status() method. */
-private: mutable mutex_t mux;
+private: mutex_t mux;
 private: eqserver &eqs;
 private: eventqueue<proto::storage::event> &eqq;
 public:  static orerror<void> format(const filename &fn);
@@ -43,6 +42,13 @@ private: orerror<void> called(
     interfacetype,
     nnp<incompletecall>,
     onconnectionthread) final;
+private: orerror<void> _called(
+    clientio,
+    deserialise1 &,
+    interfacetype,
+    nnp<incompletecall>,
+    onconnectionthread,
+    mutex_t::token);
 public:  orerror<void> createjob(
     const job &t);
 public:  orerror<void> createstream(

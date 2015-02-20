@@ -79,6 +79,17 @@ storageslave::called(
     interfacetype type,
     nnp<incompletecall> ic,
     onconnectionthread oct) {
+    return mux.locked<orerror<void> >([&] (mutex_t::token tok) {
+            return _called(io, ds, type, ic, oct, tok); }); }
+
+orerror<void>
+storageslave::_called(
+    clientio io,
+    deserialise1 &ds,
+    interfacetype type,
+    nnp<incompletecall> ic,
+    onconnectionthread oct,
+    mutex_t::token /* storageslave lock */) {
     /* rpcservice2 should enforce this for us, since we only claim to
      * support the two interface types. */
     assert(type == interfacetype::storage || type == interfacetype::eq);
