@@ -87,6 +87,44 @@ peername::peername(const peername &o)
     memcpy(sockaddr_, o.sockaddr_, o.sockaddrsize_);
 }
 
+peername::peername(deserialise1 &ds)
+    : sockaddr_(NULL),
+      sockaddrsize_(0) {
+    if (ds.random()) {
+        new (this) peername(quickcheck());
+        return; }
+    sockaddrsize_ = ds;
+    /* Arbitrary limit, for general sanity. */
+    if (sockaddrsize_ > 500) {
+        ds.fail(error::overflowed);
+        sockaddrsize_ = 500; }
+    sockaddr_ = malloc(sockaddrsize_);
+    ds.bytes(sockaddr_, sockaddrsize_);
+    auto sa((struct sockaddr *)sockaddr_);
+    if (sa->sa_family == AF_INET) {
+        if (sockaddrsize_ != sizeof(struct sockaddr_in)) {
+            ds.fail(error::invalidmessage); } }
+    else if (sa->sa_family == AF_INET6) {
+        if (sockaddrsize_ != sizeof(struct sockaddr_in6)) {
+            ds.fail(error::invalidmessage); } }
+    else ds.fail(error::invalidmessage);
+    if (ds.isfailure()) {
+        free(sockaddr_);
+        sockaddrsize_ = sizeof(struct sockaddr_in);
+        sockaddr_ = malloc(sockaddrsize_);
+        auto sin((struct sockaddr_in *)sockaddr_);
+        memset(sin, 0, sizeof(*sin));
+        sin->sin_family = AF_INET;
+        sin->sin_port = 12345;
+        sin->sin_addr.s_addr = htonl(INADDR_LOOPBACK); } }
+
+void
+peername::serialise(serialise1 &s) const {
+    /* Match deserialiser limit. */
+    assert(sockaddrsize_ <= 500);
+    s.push(sockaddrsize_);
+    s.bytes(sockaddr_, sockaddrsize_); }
+
 void
 peername::operator=(const peername &o) {
     free(sockaddr_);
@@ -397,4 +435,27 @@ tests::_peername() {
                     peername::port prt(q);
                     assert(p.setport(prt).getport() == prt); } }
         });
-}
+    testcaseV("peername", "serialise", [] {
+            quickcheck q;
+            serialise<peername>(q); });
+    testcaseV("peername", "serialisebad", [] {
+            {   ::buffer b;
+                {   serialise1 s(b);
+                    s.push((unsigned)10000); }
+                {   deserialise1 ds(b);
+                    peername ignore(ds);
+                    assert(ds.failure() == error::overflowed); } }
+            {   ::buffer b;
+                {   serialise1 s(b);
+                    s.push((unsigned)2);
+                    s.push((unsigned short)AF_INET); }
+                {   deserialise1 ds(b);
+                    peername ignore(ds);
+                    assert(ds.failure() == error::invalidmessage); } }
+            {   ::buffer b;
+                {   serialise1 s(b);
+                    s.push((unsigned)2);
+                    s.push((unsigned short)AF_INET6); }
+                {   deserialise1 ds(b);
+                    peername ignore(ds);
+                    assert(ds.failure() == error::invalidmessage); } } }); }

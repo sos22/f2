@@ -38,6 +38,8 @@ class peername {
 public:
     peername(const quickcheck &);
     peername(const peername &);
+    explicit peername(deserialise1 &);
+    void serialise(serialise1 &) const;
     void operator=(const peername &);
     ~peername();
     peername(const struct sockaddr *s, unsigned s_size);
