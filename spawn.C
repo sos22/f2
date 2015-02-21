@@ -93,7 +93,7 @@ process::spawn(const program &p) {
         return fromchild.failure();
 #endif
     }
-    auto pid(::fork());
+    auto pid(::vfork());
     if (pid < 0) {
 #ifndef COVERAGESKIP
         tochild.success().close();
