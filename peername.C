@@ -143,7 +143,7 @@ fields::mk(const peername &p) {
             fields::mk(htons(addr->sin6_port)).nosep() + "/";
     }
     default:
-        return "<unknown address family " + fields::mk(sa->sa_family) + ">";
+        abort();
     }
 }
 
@@ -344,10 +344,6 @@ tests::_peername() {
     testcaseV("peername", "status", [] {
             peername p((quickcheck()));
             assert(p.status() == p); });
-    testcaseV("peername", "fieldbad", [] {
-            int x = 93;
-            peername p((const sockaddr *)&x, sizeof(x));
-            fields::print(fields::mk(p) + "\n"); });
     testcaseV("peername", "udpbroadcast", [] {
             auto p(peername::udpbroadcast(peername::port(97)));
             auto sin = (const struct sockaddr_in *)p.sockaddr();
