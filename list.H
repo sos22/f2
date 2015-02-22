@@ -145,9 +145,11 @@ public: class partial : private member {
         friend t &list::pushtail(nnp<partial>);
         /* Would be private if I could figure out the friend
          * declarations. */
-    public: template <typename ... args> explicit partial(args && ...);
-    public: t &val();
-    public: const t &val() const; };
+    public:  template <typename ... args> explicit partial(args && ...);
+    public:  t &val();
+    public:  const t &val() const;
+    private: void operator=(const partial &) = delete;
+    private: partial(const partial &) = delete; };
 public: template <typename ... args> static nnp<partial> mkpartial(args &&...);
 public: t &pushtail(nnp<partial>);
 };

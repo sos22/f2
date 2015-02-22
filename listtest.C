@@ -3,6 +3,7 @@
 #include "test.H"
 
 #include "list.tmpl"
+#include "serialise.tmpl"
 
 void
 tests::_list() {
@@ -76,5 +77,101 @@ tests::_list() {
             l.pushtail(p4) = string("moo");
             assert(l.pophead() == "wibble");
             assert(l.pophead() == "bar");
-            assert(l.pophead() == "moo"); });
+            assert(l.pophead() == "moo");
+            assert(l.empty());
+            delete l.mkpartial("bazz");
+            assert(l.empty()); });
+    testcaseV("list", "serialise", [] {
+            quickcheck q;
+            ::serialise<list<int> >(q);
+            ::buffer b;
+            /* Check it doesn't blow up with implausibly large
+             * lists. */
+            serialise1 s(b);
+            s.push((unsigned)~0u);
+            deserialise1 ds(b);
+            list<int> fail(ds);
+            assert(ds.failure() == error::overflowed); });
+    testcaseV("list", "copy", [] {
+            quickcheck q;
+            for (unsigned x = 0; x < 100; x++) {
+                list<int> y(q);
+                list<int> z(y);
+                assert(y == z); } });
+    testcaseV("list", "transfer", [] {
+            quickcheck q;
+            for (unsigned x = 0; x < 100; x++) {
+                list<int> y(q);
+                list<int> sparey(y);
+                list<int> z;
+                z.transfer(y);
+                assert(z == sparey);
+                assert(y.empty()); }
+            list<int> x;
+            x.pushtail(1,2,3);
+            list<int> y;
+            y.pushtail(4,5,6);
+            x.transfer(y);
+            assert(y.empty());
+            y.pushtail(1,2,3,4,5,6);
+            assert(x == y); });
+    testcaseV("list", "head", [] {
+            auto x(list<int>::mk(1,2,3));
+            assert(x.idx(0) == 1);
+            assert(x.idx(1) == 2);
+            assert(x.idx(2) == 3);
+            assert(x.peekhead() == 1);
+            assert(x.peekhead() == 1);
+            x.pushhead(4);
+            assert(x.idx(0) == 4);
+            assert(x.idx(1) == 1);
+            assert(x.idx(2) == 2);
+            assert(x.idx(3) == 3);
+            const list<int> &y(x);
+            assert(y.idx(0) == x.idx(0));
+            assert(y.idx(1) == x.idx(1));
+            assert(x.peekhead() == 4);
+            x.drophead();
+            assert(x.peekhead() == 1);
+            x.drophead();
+            assert(x.peekhead() == 2);
+            x.drophead();
+            assert(x.peekhead() == 3);
+            x.pushhead(5);
+            assert(x.peekhead() == 5);
+            x.drophead();
+            assert(x.peekhead() == 3);
+            x.drophead();
+            assert(x.empty());
+            x.pushhead(99);
+            assert(x.peekhead() == 99);
+            x.drophead();
+            assert(x.empty()); });
+    testcaseV("list", "constiter", [] {
+            struct f { int x; f(int y) : x(y) {} };
+            auto x(list<f>::mk(1,2,3));
+            const list<f> &y(x);
+            int cntr = 1;
+            auto it(y.start());
+            while (!it.finished()) {
+                assert(it->x == cntr);
+                it.next();
+                cntr++; } });
+    testcaseV("list", "dupes", [] {
+            list<int> x;
+            assert(!x.hasdupes());
+            x.pushtail(1);
+            assert(!x.hasdupes());
+            x.pushtail(2);
+            assert(!x.hasdupes());
+            x.pushtail(1);
+            assert(x.hasdupes()); });
+    testcaseV("list", "drop", [] {
+            auto x(list<int>::mk(1,2,5));
+            x.drop(1);
+            assert(x == list<int>::mk(2,5));
+            x.drop(5);
+            assert(x == list<int>::mk(2));
+            x.drop(2);
+            assert(x == list<int>::mk()); });
 }

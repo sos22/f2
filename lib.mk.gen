@@ -95,6 +95,7 @@ testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule filename filename.C filename.H
 testmodule frequency frequency.C frequency.H
+testmodule list list.H list.tmpl
 testmodule maybe maybe.C maybe.H maybe.tmpl
 testmodule mutex mutex.C mutex.H mutex.tmpl
 testmodule parsers parsers.C parsers.H parsers.tmpl
