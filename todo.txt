@@ -121,13 +121,6 @@ Deadlock avoidance: filesystem can call into compute and storage,
 compute can call into storage, storage can't call anything.  Calls the
 other way around have to be posted.
 
-Also: poll-type calls need to have some way of bypassing admission
-control.  e.g. if the compute slave is waiting for a thousand tasks to
-complete it should be able to created a thousand posted calls against
-the relevant storage slave.
-
--- Compute slave failure recovery.
--- Storage slave failure recovery.
 -- Master failure recovery.
 -- Crapton of testing.
 -- Some kind of benchmarking.

@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc computefmt.C
+ld computefmt computefmt.o lib.a
+
+target computefmt

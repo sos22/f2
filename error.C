@@ -53,9 +53,10 @@ const error error::badsubscription(-30);
 const error error::notadir(-31);
 const error error::eqstatemismatch(-32);
 const error error::nostorageagents(-33);
+const error error::signalled(-34);
 /* When adding a new error, make sure you update lasterror and
  * errorfield::fmt() */
-static const int lasterror = 33;
+static const int lasterror = 34;
 
 class errorfield : public fields::field {
     error content;
@@ -134,6 +135,8 @@ public:
             buf.push("eqstatemismatch");
         } else if (content == error::nostorageagents) {
             buf.push("nostorageagents");
+        } else if (content == error::signalled) {
+            buf.push("signalled");
         } else {
             ("<invalid error " + fields::mk(content.e) + ">")
                 .fmt(buf); } } };

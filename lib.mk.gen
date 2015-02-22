@@ -14,6 +14,8 @@ function bits() {
     _ buildconfigimpl
     _ bytecount
     _ clustername
+    _ compute
+    _ computeagent
     _ cond
     _ connpool
     _ coordinator
@@ -32,6 +34,7 @@ function bits() {
     _ listenfd
     _ logging
     _ job
+    _ jobresult
     _ maybe
     _ mutex
     _ parsers

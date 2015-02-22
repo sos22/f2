@@ -28,6 +28,16 @@ signalnr::stop(SIGSTOP);
 const signalnr
 signalnr::term(SIGTERM);
 
+bool
+signalnr::internallygenerated() const {
+    return snr == SIGILL ||
+        snr == SIGABRT ||
+        snr == SIGBUS ||
+        snr == SIGFPE ||
+        snr == SIGSEGV ||
+        snr == SIGPIPE ||
+        snr == SIGALRM; }
+
 program::program(const filename &f)
     : exec(f),
       args() {}

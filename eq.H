@@ -10,6 +10,7 @@ class string;
 namespace fields { class field; }
 
 namespace proto {
+namespace compute { class event; }
 namespace storage { class event; }
 namespace eq {
 
@@ -36,8 +37,8 @@ public: explicit name(unsigned long _v) : genname(_v) { } };
 namespace names {
 extern const name<unsigned> testunsigned;
 extern const name<string> teststring;
-extern const name<proto::storage::event> storage; }
-
+extern const name<proto::storage::event> storage;
+extern const name<proto::compute::event> compute; }
 /* Before receiving events from a queue clients must subscribe to that
  * queue. */
 class subscriptionid {

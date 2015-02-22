@@ -13,13 +13,14 @@
 buildconfig.C
 cli
 config
+computefmt
 computeservice
 coordinatorclient
 coordinatorservice
 /master
 spawnservice
-storageservice
 storageclient
+storageservice
 storagepool/
 storagefmt
 storagespy
