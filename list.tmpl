@@ -37,7 +37,7 @@ template <typename t> void
 list<t>::serialise(serialise1 &s) const {
     unsigned len(length());
     s.push(len);
-    for (auto it(start()); !it.finished(); it.next()) it->serialise(s); }
+    for (auto it(start()); !it.finished(); it.next()) s.push(*it); }
 
 template <typename t> struct list<t>::member {
     member *next;
