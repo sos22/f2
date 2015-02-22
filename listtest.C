@@ -174,4 +174,7 @@ tests::_list() {
             assert(x == list<int>::mk(2));
             x.drop(2);
             assert(x == list<int>::mk()); });
+    testcaseV("list", "Immediate", [] {
+            assert(list<int>::mk() == list<int>(Immediate()));
+            assert(list<int>::mk(1,2,3) == list<int>(Immediate(), 1, 2, 3)); });
 }

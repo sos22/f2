@@ -16,6 +16,9 @@ template <typename t> void sort(list<t> &);
 template <typename t> void sort(
     list<t> &, const std::function<bool (const t&, const t&)> &);
 
+/* Tag type to select a constructor */
+class Immediate {};
+
 template <typename t>
 class list {
     friend void sort<t>(list<t> &,
@@ -30,6 +33,11 @@ public:
     list(const quickcheck &);
 
     template <typename ... args> static list mk(args...);
+
+    template <typename ... args> list(Immediate, args...params)
+        : head(NULL),
+          tail(NULL) {
+        pushtail(std::forward<args>(params)...); }
 
     explicit list(deserialise1 &);
     void serialise(serialise1 &) const;
