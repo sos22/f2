@@ -20,6 +20,9 @@ jobname
 job::name() const { return jobname(digest(fields::mk(*this))); }
 
 const fields::field &
+job::field() const { return fields::mk(*this); }
+
+const fields::field &
 fields::mk(const job &j) {
     return "<job:" + mk(j.message) + ">"; }
 

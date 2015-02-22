@@ -6,8 +6,13 @@
 #include "string.H"
 
 class deserialise1;
+class job;
 class jobname;
 class serialise1;
+
+namespace fields {
+class field;
+const field &mk(const job &); }
 
 /* Placeholder for now. */
 class job {
@@ -16,11 +21,7 @@ public: void serialise(serialise1 &) const;
 public: explicit job(deserialise1 &);
 public: explicit job(const string &);
 public: jobname name() const;
-};
-
-namespace fields {
-class field;
-const field &mk(const job &); }
+public: const fields::field &field() const; };
 
 template <typename> class parser;
 namespace parsers {
