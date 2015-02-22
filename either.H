@@ -5,8 +5,19 @@
 
 #include <utility>
 
+class deserialise1;
+class serialise1;
+
+/* Tag types used only to drive constructor overloading in the right
+ * direction. */
+class Left {};
+class Right {};
+
 template <typename a, typename b>
 class either {
+public:  typedef either<a,b> type;
+public:  typedef a type_left;
+public:  typedef b type_right;
 private: bool isleft_;
 private: union {
     a _left;
@@ -22,6 +33,12 @@ public:  static either left(const a &what) {
     new (&res._left) a(what);
     return res; }
 public:  either(const b &);
+public:  template <typename ... args> either(Left, args &&...params)
+    : isleft_(true) {
+    new (&_left) a(std::forward<args>(params)...); }
+public:  template <typename ... args> either(Right, args &&...params)
+    : isleft_(false) {
+    new (&_right) b(std::forward<args>(params)...); }
 public:  static either right(const b &what) {
     either<a, b> res;
     res.isleft_ = false;

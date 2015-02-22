@@ -109,4 +109,17 @@ tests::either() {
             assert(cons);
             assert(dest);
             assert(x.isright());
-            dest = false; }); }
+            dest = false; });
+    testcaseV("either", "LeftRight", [] {
+        ::either<int, char *> x(Left(), 5);
+        assert(x.isleft());
+        assert(x.left() == 5);
+        ::either<int, const char *> y(Right(), "foo");
+        assert(y.isright());
+        assert(!strcmp(y.right(), "foo"));
+        ::either<int, int> z(Left(), 7);
+        assert(z.isleft());
+        assert(z.left() == 7);
+        ::either<int, int> w(Right(), 92);
+        assert(w.isright());
+        assert(w.right() == 92); }); }
