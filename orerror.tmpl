@@ -1,0 +1,12 @@
+#ifndef ORERROR_TMPL__
+#define ORERROR_TMPL__
+
+#include "serialise.H"
+
+template <typename t> void
+orerror<t>::serialise(serialise1 &s) const {
+    s.push(errored);
+    if (errored) s.push(err);
+    else s.push(inner); }
+
+#endif /* !ORERROR_TMPL__ */
