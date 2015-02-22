@@ -46,9 +46,9 @@ public:
 
     class iter {
         friend class list;
-        list *const owner;
+        list *owner;
         member *cursor;
-        const bool reverse;
+        bool reverse;
         iter(list *owner, const bool reverse);
     public:
         bool finished() const;

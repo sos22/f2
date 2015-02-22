@@ -177,4 +177,48 @@ tests::_list() {
     testcaseV("list", "Immediate", [] {
             assert(list<int>::mk() == list<int>(Immediate()));
             assert(list<int>::mk(1,2,3) == list<int>(Immediate(), 1, 2, 3)); });
+    testcaseV("list", "assigniter", [] {
+            list<int> l(Immediate(), 1,2,3);
+            auto it1(l.start());
+            auto it2(l.start());
+            auto it3(l.start());
+            assert(*it1 == 1);
+            it1.next();
+            assert(*it1 == 2);
+            it1.next();
+            assert(*it1 == 3);
+            it1.next();
+            assert(it1.finished());
+            it2 = it1;
+            assert(it2.finished());
+            it1 = it3;
+            assert(*it1 == 1);
+            it1.next();
+            assert(*it1 == 2);
+            it1.next();
+            assert(*it1 == 3);
+            it1.next();
+            assert(it1.finished());
+            assert(*it3 == 1);
+            it3.next();
+            assert(*it3 == 2);
+            it3.next();
+            assert(*it3 == 3);
+            it3.next();
+            assert(it3.finished()); });
+    testcaseV("list", "assignreverse", [] {
+            list<int> l(Immediate(), 1,2,3);
+            auto it1(l.start());
+            auto it2(l.reverse());
+            assert(*it2 == 3);
+            it2.next();
+            assert(*it2 == 2);
+            it2 = it1;
+            assert(*it2 == 1);
+            it2.next();
+            assert(*it2 == 2);
+            it2.next();
+            assert(*it2 == 3);
+            it2.next();
+            assert(it2.finished()); });
 }
