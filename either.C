@@ -4,6 +4,9 @@
 
 #include "test.H"
 
+#include "either.tmpl"
+#include "serialise.tmpl"
+
 void
 tests::either() {
     class tracklife {
@@ -156,4 +159,7 @@ tests::either() {
         assert(z.left() == 7);
         ::either<int, int> w(Right(), 92);
         assert(w.isright());
-        assert(w.right() == 92); }); }
+        assert(w.right() == 92); });
+    testcaseV("either", "serialise", [] {
+            quickcheck q;
+            serialise<::either<int, bool> >(q); }); }

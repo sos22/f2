@@ -1,0 +1,18 @@
+#ifndef EITHER_TMPL__
+#define EITHER_TMPL__
+
+#include "serialise.H"
+
+template <typename a, typename b>
+either<a,b>::either(deserialise1 &ds)
+    : isleft_(ds) {
+    if (isleft_) new (&_left) a(ds);
+    else new (&_right) b(ds); }
+
+template <typename a, typename b> void
+either<a,b>::serialise(serialise1 &s) const {
+    s.push(isleft_);
+    if (isleft_) s.push(_left);
+    else s.push(_right); }
+
+#endif /* !EITHER_TMPL__ */

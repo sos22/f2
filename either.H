@@ -33,6 +33,8 @@ public:  either(const either &o)
     : isleft_(o.isleft_) {
     if (isleft()) new (&_left) a(o.left());
     else new (&_right) b(o.right()); }
+public:  either(deserialise1 &ds);
+public:  void serialise(serialise1 &s) const;
 public:  static either left(const a &what) {
     either<a, b> res;
     res.isleft_ = true;
