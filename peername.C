@@ -161,6 +161,9 @@ peername::operator==(const peername &o) const {
         !memcmp(sockaddr_, o.sockaddr_, sockaddrsize_); }
 
 const fields::field &
+peername::field() const { return fields::mk(*this); }
+
+const fields::field &
 fields::mk(const peername &p) {
     auto sa(p.sockaddr());
     switch (sa->sa_family) {

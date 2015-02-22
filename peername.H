@@ -6,6 +6,7 @@
 #define PEERNAME_H__
 
 class deserialise1;
+namespace fields { class field; }
 class filename;
 template <typename> class orerror;
 class peername;
@@ -81,6 +82,8 @@ public:
     /* peernames are their own status representation */
 public: typedef peername status_t;
 public: status_t status() const { return *this; }
+
+public: const fields::field &field() const;
 };
 
 namespace fields {
