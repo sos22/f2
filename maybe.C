@@ -181,4 +181,6 @@ tests::_maybe()
             assert(!dead);
             y = x;
             assert(dead); });
-}
+    testcaseV("maybe", "Just", [] {
+            maybe<int> x(Just(), 5);
+            assert(x.just() == 5); }); }

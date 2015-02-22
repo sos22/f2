@@ -39,6 +39,9 @@ public: _Nothing() {}
 };
 const class _Nothing Nothing;
 
+/* Tag type used to select the right constructor overload */
+class Just {};
+
 template <typename t>
 class maybe {
     bool _isnothing;
@@ -64,7 +67,11 @@ public:
     maybe(_Nothing) : _isnothing(true) {}
     maybe(const t &what) : _isnothing(false) { ::new (&content) t(what); }
     maybe(t &&what) : _isnothing(false) { ::new (&content) t(what); }
-
+    
+    template <typename ... args> maybe(Just, args&&...params)
+        : _isnothing(false) {
+        new (&content) t(std::forward<args>(params)...); }
+    
     /* Convert @this into a just<t> by invoking the <t> constructor,
      * using @params as the constructor arguments.  If @this is
      * already a just<t> then the t destructor is invoked to clear it
