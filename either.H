@@ -87,6 +87,14 @@ public:  template <typename ... args> void mkright(args &&...params) {
     else _right.~b();
     isleft_ = false;
     new (&_right) b(std::forward<args>(params)...); }
+public: bool operator==(const either &o) const {
+    if (isleft_ != o.isleft_) return false;
+    if (isleft_) return _left == o._left;
+    else return _right == o._right; }
+public: bool operator!=(const either &o) const {
+    if (isleft_ != o.isleft_) return true;
+    if (isleft_) return _left != o._left;
+    else return _right != o._right; }
 public:  ~either() {
     if (isleft_) _left.~a();
     else _right.~b(); }

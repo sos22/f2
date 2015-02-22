@@ -130,6 +130,20 @@ tests::either() {
             assert(dest);
             assert(x.isright());
             dest = false; });
+    testcaseV("either", "==", [] {
+            quickcheck q;
+            for (unsigned x = 0; x < 10000; x++) {
+                ::either<int, int> l(q);
+                ::either<int, int> r(q);
+                assert((l == r) == !(l != r)); }
+            assert((::either<int, char>(Left(), 5)) ==
+                   (::either<int, char>(Left(), 5)));
+            assert((::either<int, char>(Left(), 5)) !=
+                   (::either<int, char>(Left(), 6)));
+            assert((::either<int, char>(Left(), 5)) !=
+                   (::either<int, char>(Right(), 'a')));
+            assert((::either<int, int>(Left(), 5)) !=
+                   (::either<int, int>(Right(), 5))); });
     testcaseV("either", "LeftRight", [] {
         ::either<int, char *> x(Left(), 5);
         assert(x.isleft());
