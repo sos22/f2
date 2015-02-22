@@ -5,6 +5,8 @@
 
 #include <utility>
 
+#include "quickcheck.H"
+
 class deserialise1;
 class serialise1;
 
@@ -23,6 +25,10 @@ private: union {
     a _left;
     b _right; };
 private: either() {};
+public:  either(quickcheck q)
+    : isleft_(q) {
+    if (isleft_) new (&_left) a(q);
+    else new (&_right) a(q); }
 public:  either(const either &o)
     : isleft_(o.isleft_) {
     if (isleft()) new (&_left) a(o.left());

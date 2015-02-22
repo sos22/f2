@@ -68,6 +68,26 @@ tests::either() {
                 assert(!dest); }
             assert(cons);
             assert(dest); });
+    testcaseV("either", "quickcheck", [] {
+            unsigned left = 0;
+            unsigned right = 0;
+            unsigned zerol = 0;
+            unsigned zeror = 0;
+            quickcheck q;
+            for (unsigned x = 0; x < 10000; x++) {
+                ::either<int, int> y(q);
+                if (y.isleft()) {
+                    left++;
+                    if (y.left() == 0) zerol++; }
+                if (y.isright()) {
+                    right++;
+                    if (y.right() == 0) zeror++; } }
+            /* Reasonable balance between the two sides. */
+            assert(left >= right / 4);
+            assert(right >= left / 4);
+            /* Some coverage of special values. */
+            assert(zerol != 0);
+            assert(zeror != 0); });
     testcaseV("either", "=", [] {
             auto x(::either<int, int>::left(5));
             assert(x.left() == 5);
