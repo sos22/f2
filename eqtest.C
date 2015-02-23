@@ -57,7 +57,7 @@ eqtestcase(clientio io,
                                      eventqueue<unsigned> &)> &f,
            const eventqueueconfig &qconf = eventqueueconfig::dflt()) {
     clustername cn((quickcheck()));
-    slavename sn((quickcheck()));
+    agentname sn((quickcheck()));
     auto pool(connpool::build(cn).fatal("starting conn pool"));
     auto server(eqserver::build());
     auto s(rpcservice2::listen<eqtestserver>(
@@ -134,7 +134,7 @@ tests::_eqtest() {
             auto qconf(eventqueueconfig::dflt());
             qconf.queuelimit = 2;
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn)
                       .fatal("starting conn pool"));
             auto server(eqserver::build());
@@ -241,7 +241,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "badconn", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn)
                       .fatal("starting conn pool"));
             auto t(timedelta::time([&] {
@@ -256,7 +256,7 @@ tests::_eqtest() {
             assert(t < timedelta::milliseconds(200)); });
     testcaseIO("eq", "failwaiter1", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -301,7 +301,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "failwaiter2", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -343,7 +343,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "pushlostsub", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -389,7 +389,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "shutdownwaiter", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -429,7 +429,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "dropnosub", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -464,7 +464,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "multiqueue", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -524,7 +524,7 @@ tests::_eqtest() {
             pool->destroy(); });
     testcaseIO("eq", "pipeline", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -565,7 +565,7 @@ tests::_eqtest() {
             auto qconf(eventqueueconfig::dflt());
             qconf.queuelimit = 2;
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn)
                       .fatal("starting conn pool"));
             auto server(eqserver::build());
@@ -613,7 +613,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "asyncconnect", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn)
                       .fatal("starting conn pool"));
             auto server(eqserver::build());
@@ -663,7 +663,7 @@ tests::_eqtest() {
             state.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "evadvance", [] (clientio io) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn).fatal("starting conn pool"));
             auto server(eqserver::build());
             auto s(rpcservice2::listen<eqtestserver>(
@@ -730,7 +730,7 @@ tests::_eqtest() {
             statefile.unlink().fatal("unlinking test queue"); });
     testcaseIO("eq", "abortconnect", [] (clientio) {
             clustername cn((quickcheck()));
-            slavename sn((quickcheck()));
+            agentname sn((quickcheck()));
             auto pool(connpool::build(cn)
                       .fatal("starting conn pool"));
             eqclient<unsigned>::connect(

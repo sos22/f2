@@ -18,11 +18,11 @@
 beaconclientconfig::beaconclientconfig(
     const clustername &__cluster,
     maybe<interfacetype> __type,
-    const maybe<slavename> &__slave,
+    const maybe<agentname> &__agent,
     const beaconconfig &__beacon)
     : beaconclientconfig(__cluster,
                          __type,
-                         __slave,
+                         __agent,
                          __beacon,
                          timedelta::seconds(1),
                          timedelta::minutes(2)) {}
@@ -30,7 +30,7 @@ beaconclientconfig::beaconclientconfig(
 orerror<beaconclientconfig>
 beaconclientconfig::mk(const clustername &cluster,
                        maybe<interfacetype> type,
-                       const maybe<slavename> &slave,
+                       const maybe<agentname> &agent,
                        const beaconconfig &beacon,
                        timedelta queryinterval,
                        timedelta broadcastinterval) {
@@ -39,20 +39,20 @@ beaconclientconfig::mk(const clustername &cluster,
         return error::range; }
     else return beaconclientconfig(cluster,
                                    type,
-                                   slave,
+                                   agent,
                                    beacon,
                                    queryinterval,
                                    broadcastinterval); }
 
 beaconclientconfig::beaconclientconfig(const clustername &__cluster,
                                        maybe<interfacetype> __type,
-                                       const maybe<slavename> &__slave,
+                                       const maybe<agentname> &__agent,
                                        const beaconconfig &__beacon,
                                        timedelta __queryinterval,
                                        timedelta __broadcastinterval)
     : _cluster(__cluster),
       _type(__type),
-      _name(__slave),
+      _name(__agent),
       _proto(__beacon),
       _queryinterval(__queryinterval),
       _broadcastinterval(__broadcastinterval) {
@@ -64,7 +64,7 @@ parsers::__beaconclientconfig() {
     return ("<beaconclientconfig:"
             " cluster:" + __clustername() +
             ~(" type:" + _maybe(interfacetype::parser())) +
-            ~(" name:" + _maybe(_slavename())) +
+            ~(" name:" + _maybe(_agentname())) +
             ~(" proto:" + __beaconconfig()) +
             ~(" queryinterval:" + _timedelta()) +
             ~(" broadcastinterval:" + _timedelta()) +
@@ -73,7 +73,7 @@ parsers::__beaconclientconfig() {
             []
             (const pair<pair<pair<pair<pair<clustername,
                                             maybe<maybe<interfacetype> > >,
-                                       maybe<maybe<slavename> > >,
+                                       maybe<maybe<agentname> > >,
                                   maybe<beaconconfig> >,
                              maybe<timedelta> >,
                         maybe<timedelta> > &x) {
@@ -120,14 +120,14 @@ fields::mk(const beaconclientconfig &o) { return o.field(); }
 class beaconclientslot {
     friend class beaconclient;
     /* Name of remote system */
-private: slavename name;
+private: agentname name;
     /* Interface exposed by remote system */
 private: list<interfacetype> type;
     /* Where to connect to for this server? */
 private: peername server;
     /* Where is the beacon for this server? */
 private: peername beacon;
-    /* When did we last get a beacon response for this slave? */
+    /* When did we last get a beacon response for this agent? */
 private: walltime lastbeaconresponsewall;
 
     /* All mutable fields are protected by the main beaconclient
@@ -139,7 +139,7 @@ public: maybe<timestamp> lastbeaconrequest;
 public: timestamp expiry;
     /* When did we receive content of result?  */
 public: timestamp lastbeaconresponse;
-public:  beaconclientslot(const slavename &,
+public:  beaconclientslot(const agentname &,
                           const list<interfacetype> &,
                           const peername &,
                           const peername &,
@@ -150,7 +150,7 @@ public:  void status(mutex_t::token, loglevel) const;
 public:  timestamp nextsend(mutex_t::token,
                             const beaconclientconfig &) const; };
 
-beaconclientslot::beaconclientslot(const slavename &sn,
+beaconclientslot::beaconclientslot(const agentname &sn,
                                    const list<interfacetype> &_type,
                                    const peername &_server,
                                    const peername &_beacon,
@@ -229,7 +229,7 @@ beaconclient::sendbroadcast() {
         r.failure().warn("sending beacon broadcast request");
         errors++;
         return; }
-    /* A broadcast counts as a query on all known slaves. */
+    /* A broadcast counts as a query on all known agents. */
     cachelock.locked([this] (mutex_t::token) {
             for (auto it(cache.start()); !it.finished(); it.next()) {
                 it->lastbeaconrequest = timestamp::now(); } }); }
@@ -248,7 +248,7 @@ beaconclient::handletimeouts(mutex_t::token tok) {
             continue; }
         remove = false;
         if (timestamp::now() < it->nextsend(tok, config)) continue;
-        /* Time to send another beacon request for this slave. */
+        /* Time to send another beacon request for this agent. */
         buffer txbuf;
         serialise1 s(txbuf);
         proto::beacon::req(config.cluster(), it->name, Nothing).serialise(s);
@@ -389,7 +389,7 @@ beaconclient::result::result(const peername &_name,
       type(_type) {}
 
 maybe<beaconclient::result>
-beaconclient::poll(const slavename &sn) {
+beaconclient::poll(const agentname &sn) {
     return cachelock.locked<maybe<result> >(
         [this, &sn]
         (mutex_t::token) -> maybe<result> {
@@ -398,7 +398,7 @@ beaconclient::poll(const slavename &sn) {
             return Nothing; }); }
 
 beaconclient::result
-beaconclient::query(clientio io, const slavename &sn) {
+beaconclient::query(clientio io, const agentname &sn) {
     subscriber sub;
     subscription ss(sub, changed());
     while (true) {
@@ -406,7 +406,7 @@ beaconclient::query(clientio io, const slavename &sn) {
         if (res != Nothing) return res.just();
         sub.wait(io); } }
 
-beaconclient::iterator::entry::entry(const slavename &_name,
+beaconclient::iterator::entry::entry(const agentname &_name,
                                      const list<interfacetype> &_type,
                                      const peername &_peer)
     : name(_name),
@@ -423,7 +423,7 @@ beaconclient::iterator::iterator(beaconclient *what,
                 content.append(e->name, e->type, e->server); } } } );
     it.mkjust(const_cast<const list<entry> *>(&content)->start()); }
 
-const slavename &
+const agentname &
 beaconclient::iterator::name() const { return it.just()->name; }
 
 const list<interfacetype> &

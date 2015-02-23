@@ -20,18 +20,18 @@ tests::beacon() {
             /* Basic beacon functionality: can a client find a server,
              * in the simple case? */
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
-                       beaconserverconfig::dflt(cluster, slave),
+                       beaconserverconfig::dflt(cluster, agent),
                        mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             auto c(beaconclient::build(beaconclientconfig(cluster,
                                                           interfacetype::test,
-                                                          slave))
+                                                          agent))
                    .fatal("starting beacon client"));
-            auto r(c->query(io, slave));
+            auto r(c->query(io, agent));
             assert(r.type.length() == 1);
             assert(r.type.idx(0) == interfacetype::test);
             assert(r.name.getport() == port);
@@ -41,13 +41,13 @@ tests::beacon() {
             /* Make sure it hangs around past the server-specified
              * expiry time i.e. that refresh works. */
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
                        beaconserverconfig(
                            beaconconfig::dflt,
                            cluster,
-                           slave,
+                           agent,
                            timedelta::milliseconds(500)),
                        mklist(interfacetype::test),
                        port)
@@ -55,28 +55,28 @@ tests::beacon() {
             auto c(beaconclient::build(
                        beaconclientconfig::mk(cluster,
                                               interfacetype::test,
-                                              slave,
+                                              agent,
                                               beaconconfig::dflt,
                                               timedelta::milliseconds(100),
                                               timedelta::weeks(10))
                        .fatal("beaconclientconfig::mk"))
                    .fatal("starting beacon client"));
             auto start(timestamp::now());
-            c->query(io, slave);
+            c->query(io, agent);
             while (timestamp::now() < start + timedelta::milliseconds(600)) {
-                assert(c->poll(slave) != Nothing); }
+                assert(c->poll(agent) != Nothing); }
             c->destroy();
             s->destroy(io); });
     testcaseIO("beacon", "dropserver", [] (clientio io) {
             /* Do dead servers drop out of the client cache reasonably
              * promptly? */
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
                        beaconserverconfig(beaconconfig::dflt,
                                           cluster,
-                                          slave,
+                                          agent,
                                           timedelta::seconds(1)),
                        mklist(interfacetype::test),
                        port)
@@ -84,14 +84,14 @@ tests::beacon() {
             auto c(beaconclient::build(
                        beaconclientconfig::mk(cluster,
                                               interfacetype::test,
-                                              slave,
+                                              agent,
                                               beaconconfig::dflt,
                                               timedelta::milliseconds(100))
                        .fatal("building beacon client config"))
                    .fatal("starting beacon client"));
             /* Wait for client to discover server. */
-            c->query(io, slave);
-            assert(c->poll(slave) != Nothing);
+            c->query(io, agent);
+            assert(c->poll(agent) != Nothing);
             /* Shut down server. */
             s->destroy(io);
             /* Should drop out within the beaconserver liveness time,
@@ -99,33 +99,33 @@ tests::beacon() {
             auto destroyed(timestamp::now());
             (destroyed + timedelta::seconds(1) - timedelta::milliseconds(100))
                 .sleep(io);
-            assert(c->poll(slave) != Nothing);
+            assert(c->poll(agent) != Nothing);
             (destroyed + timedelta::seconds(1) + timedelta::milliseconds(100))
                 .sleep(io);
-            assert(c->poll(slave) == Nothing);
+            assert(c->poll(agent) == Nothing);
             /* Should come back almost immediately when we re-create
              * the server. */
             s = beaconserver::build(
                 beaconserverconfig(beaconconfig::dflt,
                                    cluster,
-                                   slave,
+                                   agent,
                                    timedelta::seconds(1)),
                 mklist(interfacetype::test),
                 port)
                 .fatal("restarting beacon server");
-            assert(timedelta::time([c, io, port, &slave] {
-                        assert(c->query(io, slave).name.getport() == port); })
+            assert(timedelta::time([c, io, port, &agent] {
+                        assert(c->query(io, agent).name.getport() == port); })
                 < timedelta::milliseconds(100));
             s->destroy(io);
             c->destroy(); });
     testcaseIO("beacon", "clientfilter", [] (clientio io) {
             /* Does filtering by type work? */
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
                        beaconserverconfig::dflt(cluster,
-                                                slave),
+                                                agent),
                        mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
@@ -133,72 +133,72 @@ tests::beacon() {
                                            cluster,
                                            interfacetype::storage))
                    .fatal("starting beacon client"));
-            assert(c->poll(slave) == Nothing);
+            assert(c->poll(agent) == Nothing);
             (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
-            assert(c->poll(slave) == Nothing);
+            assert(c->poll(agent) == Nothing);
             peername::port port2((quickcheck()));
             auto s2(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
-                                                 slave),
+                                                 agent),
                         mklist(interfacetype::storage),
                         port2)
                     .fatal("starting second beacon server"));
-            assert(c->query(io, slave).name.getport() == port2);
+            assert(c->query(io, agent).name.getport() == port2);
             c->destroy();
             s2->destroy(io);
             s->destroy(io); });
     testcaseIO("beacon", "iterator", [] (clientio io) {
             clustername cluster((quickcheck()));
-            slavename slave1((quickcheck()));
+            agentname agent1((quickcheck()));
             peername::port port1((quickcheck()));
-            slavename slave2((quickcheck()));
-            while (slave1 == slave2) slave2 = quickcheck();
+            agentname agent2((quickcheck()));
+            while (agent1 == agent2) agent2 = quickcheck();
             peername::port port2((quickcheck()));
-            slavename slave3((quickcheck()));
-            while (slave1 == slave3 || slave2 == slave3) slave3 = quickcheck();
+            agentname agent3((quickcheck()));
+            while (agent1 == agent3 || agent2 == agent3) agent3 = quickcheck();
             peername::port port3((quickcheck()));
             auto c(beaconclient::build(cluster)
                    .fatal("starting beacon client"));
             assert(c->start().finished());
             auto s1(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
-                                                 slave1),
+                                                 agent1),
                         mklist(interfacetype::test),
                         port1)
                     .fatal("starting beacon server"));
             auto s2(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
-                                                 slave2),
+                                                 agent2),
                         mklist(interfacetype::storage,
                                interfacetype::test),
                         port2)
                     .fatal("starting beacon server"));
             auto s3(beaconserver::build(
                         beaconserverconfig::dflt(cluster,
-                                                 slave3),
+                                                 agent3),
                         mklist(interfacetype::test2),
                         port3)
                     .fatal("starting beacon server"));
-            assert(c->query(io, slave1).name.getport() == port1);
-            assert(c->query(io, slave2).name.getport() == port2);
-            assert(c->query(io, slave3).name.getport() == port3);
+            assert(c->query(io, agent1).name.getport() == port1);
+            assert(c->query(io, agent2).name.getport() == port2);
+            assert(c->query(io, agent3).name.getport() == port3);
             bool found1 = false;
             bool found2 = false;
             bool found3 = false;
             for (auto it(c->start()); !it.finished(); it.next()) {
-                if (it.name() == slave1) {
+                if (it.name() == agent1) {
                     assert(!found1);
                     assert(it.type() == mklist(interfacetype::test));
                     assert(it.peer().getport() == port1);
                     found1 = true; }
-                else if (it.name() == slave2) {
+                else if (it.name() == agent2) {
                     assert(!found2);
                     assert(it.type().length() == 2);
                     assert(it.type().idx(0) == interfacetype::storage);
                     assert(it.type().idx(1) == interfacetype::test);
                     assert(it.peer().getport() == port2);
                     found2 = true; }
-                else if (it.name() == slave3) {
+                else if (it.name() == agent3) {
                     assert(!found3);
                     assert(it.type() == mklist(interfacetype::test2));
                     assert(it.peer().getport() == port3);
@@ -254,18 +254,18 @@ tests::beacon() {
                     if (errcount++ < 3) return error::pastend;
                     else return Success; });
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
-                       beaconserverconfig::dflt(cluster, slave),
+                       beaconserverconfig::dflt(cluster, agent),
                        mklist(interfacetype::test),
                        port)
                    .fatal("starting beacon server"));
             c = beaconclient::build(beaconclientconfig(cluster))
                 .fatal("contructing beacon");
             auto tv(timedelta::time(
-                        [c, port, &slave] {
-                            assert(c->query(clientio::CLIENTIO, slave)
+                        [c, port, &agent] {
+                            assert(c->query(clientio::CLIENTIO, agent)
                                    .name
                                    .getport() == port); }));
             assert(errcount >= 3);
@@ -279,9 +279,9 @@ tests::beacon() {
             /* Start server first so that the server broadcast doesn't
              * save the client. */
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
-            auto s(beaconserver::build(beaconserverconfig::dflt(cluster, slave),
+            auto s(beaconserver::build(beaconserverconfig::dflt(cluster, agent),
                                        mklist(interfacetype::test),
                                        port)
                    .fatal("starting beacon server"));
@@ -303,8 +303,8 @@ tests::beacon() {
                            timedelta::milliseconds(100))
                        .fatal("beaconclientconfig::mk"))
                    .fatal("beaconclient::build"));
-            auto tv(timedelta::time([c, &slave, port, io] {
-                        assert(c->query(io, slave).name.getport() == port); }));
+            auto tv(timedelta::time([c, &agent, port, io] {
+                        assert(c->query(io, agent).name.getport() == port); }));
             assert(cntr >= 3);
             /* First three broadcasts fail, and we do one every 100ms,
              * so it should take at least 200ms to complete
@@ -319,12 +319,12 @@ tests::beacon() {
              * things should drop out of the cache at the expiry time
              * and come back at the broadcast time. */
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(
                        beaconserverconfig(beaconconfig::dflt,
                                           cluster,
-                                          slave,
+                                          agent,
                                           timedelta::milliseconds(500)),
                        mklist(interfacetype::test),
                        port)
@@ -338,7 +338,7 @@ tests::beacon() {
                                            timedelta::seconds(1))
                                        .fatal("beaconclientconfig::mk"))
                    .fatal("beaconclient::build"));
-            c->query(io, slave);
+            c->query(io, agent);
             bool blocksends = true;
             unsigned cntr = 0;
             hook<orerror<void>, const udpsocket &, const peername &> h(
@@ -353,7 +353,7 @@ tests::beacon() {
                     return error::pastend; });
             /* Poll to see when it drops out. */
             auto start(timestamp::now());
-            while (c->poll(slave) != Nothing) {
+            while (c->poll(agent) != Nothing) {
                 (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
             auto drop(timestamp::now());
             /* Should be near the expiry time. */
@@ -363,7 +363,7 @@ tests::beacon() {
             assert(cntr >= 3);
             assert(cntr <= 7);
             /* Poll to see when it comes back. */
-            while (c->poll(slave) == Nothing) {
+            while (c->poll(agent) == Nothing) {
                 (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
             auto recover(timestamp::now());
             assert(recover - start >= timedelta::milliseconds(900));
@@ -407,12 +407,12 @@ tests::beacon() {
                 tests::logmsg,
                 [&nr] (loglevel level) { if (level >= loglevel::info) nr++; });
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(beaconserverconfig(
                                            beaconconfig::dflt,
                                            cluster,
-                                           slave,
+                                           agent,
                                            timedelta::milliseconds(300)),
                                        mklist(interfacetype::test),
                                        port)
@@ -426,11 +426,11 @@ tests::beacon() {
                                               timedelta::milliseconds(20))
                        .fatal("beaconclientconfig::mk"))
                    .fatal("beaconclient::build"));
-            assert(c->query(io, slave).name.getport() == port);
+            assert(c->query(io, agent).name.getport() == port);
             fail = true;
             /* Wait long enough for it to drop out of the cache. */
             (timestamp::now() + timedelta::milliseconds(400)).sleep(io);
-            assert(c->poll(slave) == Nothing);
+            assert(c->poll(agent) == Nothing);
             /* Failures should produce a plausible but not excessive
              * number of log messages. */
             assert(nr >= 3);
@@ -438,18 +438,18 @@ tests::beacon() {
             /* If the failure clears then we should be able to use the
              * server normally again. */
             fail = false;
-            assert(c->query(io, slave).name.getport() == port);
+            assert(c->query(io, agent).name.getport() == port);
             c->destroy();
             s->destroy(io); });
 #endif
     testcaseIO("beacon", "serverfailure3", [] (clientio io) {
             clustername cluster((quickcheck()));
-            slavename slave((quickcheck()));
+            agentname agent((quickcheck()));
             peername::port port((quickcheck()));
             auto s(beaconserver::build(beaconserverconfig(
                                            beaconconfig::dflt,
                                            cluster,
-                                           slave,
+                                           agent,
                                            timedelta::milliseconds(300)),
                                        mklist(interfacetype::test),
                                        port)
@@ -473,13 +473,13 @@ tests::beacon() {
                            timedelta::milliseconds(100))
                        .fatal("beaconclientconfig::mk"))
                    .fatal("beaconclient::build"));
-            assert(c->poll(slave) == Nothing);
+            assert(c->poll(agent) == Nothing);
             (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
-            assert(c->poll(slave) == Nothing);
+            assert(c->poll(agent) == Nothing);
             /* Stop injecting errors and make sure server starts working. */
             fail = false;
-            assert(timedelta::time([c, io, port, &slave] {
-                        assert(c->query(io, slave).name.getport() == port); })
+            assert(timedelta::time([c, io, port, &agent] {
+                        assert(c->query(io, agent).name.getport() == port); })
                 <= timedelta::milliseconds(300));
             c->destroy();
             s->destroy(io); });
@@ -510,7 +510,7 @@ tests::beacon() {
                     .fatal("sending bad packet"); }
             /* Something which decodes and gives a bad version. */
             peername::port port(q);
-            slavename sn(q);
+            agentname sn(q);
             {   ::buffer b;
                 interfacetype t(q);
                 timedelta ct(q);
@@ -550,7 +550,7 @@ tests::beacon() {
             clustername cn(q);
             beaconconfig underlying(q);
             peername::port port(q);
-            slavename sn(q);
+            agentname sn(q);
             auto s(beaconserver::build(
                        beaconserverconfig(
                            underlying,

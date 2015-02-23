@@ -37,7 +37,7 @@ public: rpcservice2config(const beaconserverconfig &_beacon,
                           unsigned _txbufferlimit);
     /* Pick some sensible defaults for all parameters. */
 public: static rpcservice2config dflt(const clustername &,
-                                      const slavename &); };
+                                      const agentname &); };
 
 class rpcservice2 {
 private:   class rootthread;
@@ -71,7 +71,7 @@ public:    template <typename t, typename ... args> static orerror<nnp<t> >
 public:    template <typename t, typename ... args> static orerror<nnp<t> >
     listen(clientio,
            const clustername &cn,
-           const slavename &sn,
+           const agentname &sn,
            const peername &pn,
            args &&...);
 

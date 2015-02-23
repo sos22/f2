@@ -1,5 +1,5 @@
-#ifndef STORAGESLAVE_H__
-#define STORAGESLAVE_H__
+#ifndef STORAGEAGENT_H__
+#define STORAGEAGENT_H__
 
 #include "rpcservice2.H"
 #include "storageconfig.H"
@@ -19,7 +19,7 @@ namespace proto {
 namespace storage {
 class event; } }
 
-class storageslave : public rpcservice2 {
+class storageagent : public rpcservice2 {
     friend class rpcservice2;
 
 private: const storageconfig config;
@@ -27,15 +27,15 @@ private: mutex_t mux;
 private: eqserver &eqs;
 private: eventqueue<proto::storage::event> &eqq;
 public:  static orerror<void> format(const filename &fn);
-public:  static orerror<nnp<storageslave> > build(clientio,
+public:  static orerror<nnp<storageagent> > build(clientio,
                                                   const storageconfig &config);
-private: storageslave(const constoken &,
+private: storageagent(const constoken &,
                       const storageconfig &config,
                       eqserver &eqs,
                       eventqueue<proto::storage::event> &eqq);
 public:  void destroy(clientio io);
     /* Use destroy() instead */
-private: ~storageslave();
+private: ~storageagent();
 private: orerror<void> called(
     clientio,
     deserialise1 &,
@@ -97,4 +97,4 @@ public:  orerror<void> removestream(
 public:  orerror<void> removejob(
     const jobname &jn); };
 
-#endif /* !STORAGESLAVE_H__ */
+#endif /* !STORAGEAGENT_H__ */

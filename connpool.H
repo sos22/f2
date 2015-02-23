@@ -1,5 +1,5 @@
 /* Variant of rpcclient2 which hooks into the beacon, so you can do
- * calls directly against slavenames rather than needing to do the
+ * calls directly against agentnames rather than needing to do the
  * peername lookup, and which tries to handle errors which are
  * susceptible to retransmission.  Conn pool users must specify a
  * timeout on every call; subject to that limit, the conn pool itself
@@ -21,7 +21,7 @@
 #include "timestamp.H"
 
 class publisher;
-class slavename;
+class agentname;
 
 class connpool {
 public:  class connlock;
@@ -189,21 +189,21 @@ public:  class connlock {
      * machine to hang forever as well, which is almost certainly not
      * what you want.
      */
-public:  nnp<asynccall> _call(const slavename &sn,
+public:  nnp<asynccall> _call(const agentname &sn,
                              interfacetype type,
                              maybe<timestamp> deadline,
                              const std::function<serialise> &s,
                              const deserialiser &ds = deserialiser());
     /* Wrappers to help type inference along a bit. */
 public:  template <typename t> nnp<asynccall> call(
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
     const t &x) {
         return _call(sn, type, deadline, s, deserialiser(x)); }
 public:  nnp<asynccall> call(
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s) {
@@ -213,14 +213,14 @@ public:  nnp<asynccall> call(
      * call, wait for it to complete, and then return the result. */
 public:  orerror<void> _call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
     const deserialiser &ds = deserialiser());
 public:  template <typename t> orerror<void> call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
@@ -228,7 +228,7 @@ public:  template <typename t> orerror<void> call(
         return _call(io, sn, type, deadline, s, deserialiser(x)); }
 public:  orerror<void> call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s) {
@@ -238,34 +238,34 @@ public:  orerror<void> call(
      * deserialise method needs to return a value.  Most of the
      * details of these are in connpool.tmpl. */
 public:  template <typename t> nnp<asynccallT<t> > _call(
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
     const deserialiserT<t> & = deserialiserT<t>());
 public:  template <typename t, typename u> nnp<asynccallT<t> > call(
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
     const u &x) {
     return _call<t>(sn, type, deadline, s, deserialiserT<t>(x)); }
 public:  template <typename t> nnp<asynccallT<t> > call(
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s) {
     return _call<t>(sn, type, deadline, s, deserialiserT<t>()); }
 public:  template <typename t> orerror<t> _call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
     const deserialiserT<t> & = deserialiserT<t>());
 public:  template <typename t, typename u> orerror<t> call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
@@ -273,7 +273,7 @@ public:  template <typename t, typename u> orerror<t> call(
     return _call<t>(io, sn, type, deadline, s, deserialiserT<t>(x)); }
 public:  template <typename t> orerror<t> call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s) {

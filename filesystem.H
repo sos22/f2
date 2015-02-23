@@ -1,5 +1,5 @@
 /* The filesystem is a cache recording the content of each storage
- * slave known to the beacon.  It is updated asynchronously, and can
+ * agent known to the beacon.  It is updated asynchronously, and can
  * therefore lag behind reality, and can even occasionally reorder
  * events.  It does, however, give users a couple of useful guarantees:
  *
@@ -34,7 +34,7 @@ class jobname;
 template <typename> class list;
 template <typename> class maybe;
 template <typename, typename> class pair;
-class slavename;
+class agentname;
 class streamname;
 class streamstatus;
 
@@ -45,11 +45,11 @@ private: class impl;
 private: const impl &implementation() const;
 private: impl &implementation();
 public:  static filesystem &build(connpool &, beaconclient &);
-public:  list<slavename> findjob(const jobname &jn) const;
-public:  list<pair<slavename, streamstatus> > findstream(
+public:  list<agentname> findjob(const jobname &jn) const;
+public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
     const streamname &sn) const;
-public:  maybe<slavename> nominateslave() const;
+public:  maybe<agentname> nominateagent() const;
 
     /* Tell the filesystem that something has created a new job. It
      * should pick it up eventually anyway; the only reason to call
@@ -57,6 +57,6 @@ public:  maybe<slavename> nominateslave() const;
      * particular, callers can safely assume that by the time this
      * returns the cache will have been updated to reflect the new
      * job. */
-public:  void newjob(const slavename &, const jobname &, proto::eq::eventid); };
+public:  void newjob(const agentname &, const jobname &, proto::eq::eventid); };
 
 #endif /* !FILESYSTEM_H__ */

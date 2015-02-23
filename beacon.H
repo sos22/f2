@@ -6,7 +6,7 @@
 #include "list.H"
 #include "peername.H"
 #include "maybe.H"
-#include "slavename.H"
+#include "agentname.H"
 #include "timedelta.H"
 #include "tuple.H"
 #include "version.H"
@@ -28,7 +28,7 @@ mktupleext(beaconconfig);
  * multicast) interface advertising their capabilities and the address
  * on which peers should connect to them.  Anything which can act as a
  * client should listen for these messages and use them to build up a
- * (slavename,actortype)->peername mapping.  Servers should also
+ * (agentname,actortype)->peername mapping.  Servers should also
  * listen for BEACON::req messages and respond to them with unicast
  * BEACON::resp messages to whoever sent the req; these are used to
  * populate an initial start-of-day table and for cache maintenance
@@ -41,7 +41,7 @@ namespace proto {
 namespace beacon {
 class req {
 public: req(const clustername &cluster,
-            const maybe<slavename> &name,
+            const maybe<agentname> &name,
             maybe<interfacetype> type);
 public: req(deserialise1 &);
 public: void serialise(serialise1 &) const;
@@ -49,12 +49,12 @@ public: static const unsigned magicval = 0x16e3870e;
 public: unsigned magic;
 public: class ::version version;
 public: clustername cluster;
-public: maybe<slavename> name;
+public: maybe<agentname> name;
 public: maybe<interfacetype> type;
 public: bool operator==(const req &) const; };
 class resp {
 public: resp(const clustername &,
-             const slavename &,
+             const agentname &,
              list<interfacetype>,
              peername::port, timedelta);
 public: resp(deserialise1 &);
@@ -63,7 +63,7 @@ public: static const unsigned magicval = 0x84d206a6;
 public: unsigned magic;
 public: class ::version version;
 public: clustername cluster;
-public: slavename name;
+public: agentname name;
 public: list<interfacetype> type;
 public: peername::port port;
 public: timedelta cachetime;

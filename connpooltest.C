@@ -204,7 +204,7 @@ tests::_connpool() {
             start = timestamp::now();
             assert(pool->call(
                        io,
-                       slavename("nonesuch"),
+                       agentname("nonesuch"),
                        interfacetype::test,
                        timestamp::now() + timedelta::milliseconds(10),
                        [] (serialise1 &, connpool::connlock) {
@@ -222,7 +222,7 @@ tests::_connpool() {
             assert(end < start + timedelta::milliseconds(110));
             start = timestamp::now();
             auto c(pool->call(
-                       slavename("nonesuch"),
+                       agentname("nonesuch"),
                        interfacetype::test,
                        timestamp::now() + timedelta::hours(10),
                        [] (serialise1 &, connpool::connlock) { abort(); },
@@ -241,7 +241,7 @@ tests::_connpool() {
              * much. */
             assert(end < start + timedelta::milliseconds(50));
             c = pool->call(
-                slavename("nonesuch"),
+                agentname("nonesuch"),
                 interfacetype::test,
                 timestamp::now() + timedelta::hours(10),
                 [] (serialise1 &, connpool::connlock) { abort(); },
@@ -261,7 +261,7 @@ tests::_connpool() {
     testcaseIO("connpool", "echo", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
@@ -334,7 +334,7 @@ tests::_connpool() {
     testcaseIO("connpool", "abandon1", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             waitbox<void> abandoned;
             auto srv(rpcservice2::listen<abandonservice>(
                          io,
@@ -363,7 +363,7 @@ tests::_connpool() {
     testcaseIO("connpool", "timeoutcall", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             waitbox<void> abandoned;
             auto srv(rpcservice2::listen<abandonservice>(
                          io,
@@ -391,7 +391,7 @@ tests::_connpool() {
     testcaseIO("connpool", "slow", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<slowservice>(
                          io,
                          cn,
@@ -453,7 +453,7 @@ tests::_connpool() {
     testcaseIO("connpool", "slowabandon", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<slowservice>(
                          io,
                          cn,
@@ -487,7 +487,7 @@ tests::_connpool() {
     testcaseIO("connpool", "abortcompleted", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
@@ -516,7 +516,7 @@ tests::_connpool() {
     testcaseIO("connpool", "clientdisco", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             waitbox<void> died;
             hook<void> h(rpcservice2::clientdisconnected,
                          [&died] { if (!died.ready()) died.set(); });
@@ -570,7 +570,7 @@ tests::_connpool() {
     testcaseIO("connpool", "largeresp", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto config(rpcservice2config::dflt(cn, sn));
             /* Use a small TX buffer limit to make things a bit
              * easier. */
@@ -612,7 +612,7 @@ tests::_connpool() {
     testcaseIO("connpool", "largereq", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<largereqservice>(
                          io,
                          cn,
@@ -642,7 +642,7 @@ tests::_connpool() {
     testcaseIO("connpool", "returnbuffer", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<bufferservice>(
                          io,
                          cn,
@@ -671,7 +671,7 @@ tests::_connpool() {
              * have outstanding calls. */
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<slowservice>(
                          io,
                          cn,
@@ -713,7 +713,7 @@ tests::_connpool() {
     testcaseIO("connpool", "abort1", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             waitbox<void> callstarted;
             waitbox<void> callaborted;
             auto srv(rpcservice2::listen<abortservice>(
@@ -742,7 +742,7 @@ tests::_connpool() {
     testcaseIO("connpool", "abort2", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             waitbox<void> callstarted;
             waitbox<void> callaborted;
             auto srv(rpcservice2::listen<pingservice>(
@@ -782,10 +782,10 @@ tests::_connpool() {
     testcaseIO("connpool", "connreap", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn1(q);
-            slavename sn2(q);
-            ::logmsg(loglevel::debug, "slave name 1 " + fields::mk(sn1));
-            ::logmsg(loglevel::debug, "slave name 2 " + fields::mk(sn2));
+            agentname sn1(q);
+            agentname sn2(q);
+            ::logmsg(loglevel::debug, "agent name 1 " + fields::mk(sn1));
+            ::logmsg(loglevel::debug, "agent name 2 " + fields::mk(sn2));
             auto srv1(rpcservice2::listen<echoservice>(
                           io,
                           cn,
@@ -850,7 +850,7 @@ tests::_connpool() {
     testcaseIO("connpool", "multicall", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<slowservice>(
                          io,
                          cn,
@@ -889,7 +889,7 @@ tests::_connpool() {
     testcaseIO("connpool", "doublelisten", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
@@ -907,7 +907,7 @@ tests::_connpool() {
     testcaseIO("connpool", "faildeserialiseclient", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,
@@ -931,7 +931,7 @@ tests::_connpool() {
     testcaseIO("connpool", "faildeserialiseserver", [] (clientio io) {
             quickcheck q;
             clustername cn(q);
-            slavename sn(q);
+            agentname sn(q);
             auto srv(rpcservice2::listen<echoservice>(
                          io,
                          cn,

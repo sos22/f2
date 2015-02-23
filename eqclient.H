@@ -28,7 +28,7 @@
 
 template <typename> class nnp;
 template <typename> class orerror;
-class slavename;
+class agentname;
 namespace tests { template <typename, typename...> class hookpoint; }
 
 class eqclientconfig {
@@ -72,7 +72,7 @@ public:  void start(clientio);
 public:  static orerror<nnp<geneqclient> > connect(
     clientio io,
     connpool &pool,
-    const slavename &sn,
+    const agentname &sn,
     const proto::eq::genname &,
     timestamp deadline,
     const eqclientconfig &config);
@@ -95,7 +95,7 @@ public:  class asyncconnect {
     public:  void abort(); };
 public:  static nnp<asyncconnect> connect(
     connpool &pool,
-    const slavename &sn,
+    const agentname &sn,
     const proto::eq::genname &,
     const eqclientconfig &);
 public:  const publisher &pub() const;
@@ -117,7 +117,7 @@ private: eqclient();
 public:  static orerror<nnp<eqclient> > connect(
     clientio io,
     connpool &pool,
-    const slavename &sn,
+    const agentname &sn,
     const proto::eq::name<t> &queue,
     timestamp d,
     const eqclientconfig &config = eqclientconfig::dflt()) {
@@ -162,7 +162,7 @@ public:  class asyncconnect : private geneqclient::asyncconnect {
     public:  void abort() { geneqclient::asyncconnect::abort(); } };
 public:  static nnp<asyncconnect> connect(
     connpool &pool,
-    const slavename &sn,
+    const agentname &sn,
     const proto::eq::name<t> &queue,
     const eqclientconfig &config = eqclientconfig::dflt()) {
         return _nnp(*reinterpret_cast<asyncconnect *>(

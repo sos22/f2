@@ -94,7 +94,7 @@ public:
     static const error badsubscription; /* Unknown EQ subscription. */
     static const error notadir; /* Expected directory; got something else */
     static const error eqstatemismatch; /* Event queue state not as expected. */
-    static const error nostorageslaves; /* No storage slaves available. */
+    static const error nostorageagents; /* No storage agents available. */
 };
 
 #endif

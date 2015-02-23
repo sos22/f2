@@ -43,13 +43,13 @@ function bits() {
     _ rpcservice2
     _ serialise
     _ shutdown
-    _ slavename
+    _ agentname
     _ socket
     _ spark
     _ spawn
     _ storage
     _ storageconfig
-    _ storageslave
+    _ storageagent
     _ streamname
     _ streamstatus
     _ string
@@ -120,7 +120,7 @@ EOF
 # nonce
 # orerror
 # pair
-# slavename
+# agentname
 # socket
 # spark
 # streamname

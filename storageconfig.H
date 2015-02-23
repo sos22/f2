@@ -3,7 +3,7 @@
 
 #include "beaconserver.H"
 #include "filename.H"
-#include "slavename.H"
+#include "agentname.H"
 #include "tuple.H"
 
 #define _storageconfig(ctxt, iter0, iter1)                    \

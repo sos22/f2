@@ -20,22 +20,22 @@ main(int argc, char *argv[]) {
     if (argc < 4) {
         errx(1,
              "need at least three arguments: "
-             "clustername, slavename, and mode"); }
+             "clustername, agentname, and mode"); }
     auto cluster(parsers::__clustername()
                  .match(argv[1])
                  .fatal("parsing " + fields::mk(argv[1]) +
                         " as clustername"));
-    auto sn(parsers::_slavename()
+    auto sn(parsers::_agentname()
             .match(argv[2])
             .fatal("parsing " + fields::mk(argv[2]) +
-                   " as slavename"));
+                   " as agentname"));
     auto pool(connpool::build(cluster).fatal("building connection pool"));
     if (!strcmp(argv[3], "FINDJOB")) {
         if (argc != 5) errx(1, "FINDJOB needs a jobname argument");
         auto jn(parsers::_jobname()
                 .match(argv[4])
                 .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
-        maybe<list<slavename> > res(Nothing);
+        maybe<list<agentname> > res(Nothing);
         pool->call(clientio::CLIENTIO,
                    sn,
                    interfacetype::coordinator,
@@ -56,7 +56,7 @@ main(int argc, char *argv[]) {
         auto str(parsers::_streamname()
                  .match(argv[5])
                  .fatal("parsing " + fields::mk(argv[5]) + " as streamname"));
-        maybe<list<pair<slavename, streamstatus> > > res(Nothing);
+        maybe<list<pair<agentname, streamstatus> > > res(Nothing);
         pool->call(clientio::CLIENTIO,
                    sn,
                    interfacetype::coordinator,
@@ -76,7 +76,7 @@ main(int argc, char *argv[]) {
                .match(argv[4])
                .fatal("parsing " + fields::mk(argv[4]) +
                       " as a job descriptor"));
-        maybe<slavename> res(Nothing);
+        maybe<agentname> res(Nothing);
         pool->call(clientio::CLIENTIO,
                    sn,
                    interfacetype::coordinator,

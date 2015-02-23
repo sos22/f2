@@ -39,7 +39,7 @@ private: ~asynccallT() { } };
 
 template <typename t> nnp<connpool::asynccallT<t> >
 connpool::_call(
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
@@ -62,7 +62,7 @@ connpool::_call(
 template <typename t> orerror<t>
 connpool::_call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,

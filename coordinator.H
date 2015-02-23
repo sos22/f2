@@ -11,16 +11,16 @@ private: unsigned v;
 private: explicit tag(unsigned);
 public:  explicit tag(deserialise1 &);
 public:  void serialise(serialise1 &) const;
-    /* Inputs: jobname.  Outputs: list<slavename> */
+    /* Inputs: jobname.  Outputs: list<agentname> */
 public:  static const tag findjob;
     /* Inputs: jobname, streamname.
-     * Outputs: list<pair<slavename, streamstatus> > */
+     * Outputs: list<pair<agentname, streamstatus> > */
 public:  static const tag findstream;
     /* Inputs: job
-     * Outputs: slavename
+     * Outputs: agentname
      *
-     * Makes sure that the job exists on at least one storage slave
-     * and then returns one of the slaves which has a copy of it. */
+     * Makes sure that the job exists on at least one storage agent
+     * and then returns one of the agents which has a copy of it. */
 public:  static const tag createjob;
 public:  bool operator==(tag o) const { return v == o.v; }
 public:  bool operator!=(tag o) const { return v != o.v; } }; } }

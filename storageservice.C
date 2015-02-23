@@ -11,7 +11,7 @@
 #include "pubsub.H"
 #include "shutdown.H"
 #include "storageconfig.H"
-#include "storageslave.H"
+#include "storageagent.H"
 #include "string.H"
 #include "waitbox.H"
 
@@ -28,11 +28,11 @@ main(int argc, char *argv[])
                 .fatal("cannot parse " + fields::mk(argv[1]) +
                        " as storage configuration"));
 
-    logmsg(loglevel::notice, fields::mk("storage slave starting"));
+    logmsg(loglevel::notice, fields::mk("storage agent starting"));
 
     signal(SIGPIPE, SIG_IGN);
 
-    storageslave::build(clientio::CLIENTIO, config)
-        .fatal("build storage slave");
+    storageagent::build(clientio::CLIENTIO, config)
+        .fatal("build storage agent");
 
     while (true) sleep(1000); }

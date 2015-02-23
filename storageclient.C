@@ -24,10 +24,10 @@
 
 class storageclient {
 private: connpool &pool;
-private: const slavename sn;
+private: const agentname sn;
 private: timedelta timeout;
 public:  explicit storageclient(connpool &_pool,
-                                const slavename &_sn,
+                                const agentname &_sn,
                                 timedelta _timeout)
     : pool(_pool),
       sn(_sn),
@@ -269,9 +269,9 @@ main(int argc, char *argv[]) {
     auto cluster(parsers::__clustername()
                  .match(argv[1])
                  .fatal("parsing cluser name " + fields::mk(argv[1])));
-    auto peer(parsers::_slavename()
+    auto peer(parsers::_agentname()
               .match(argv[2])
-              .fatal("parsing slave name " + fields::mk(argv[2])));
+              .fatal("parsing agent name " + fields::mk(argv[2])));
     auto pool(connpool::build(cluster).fatal("building conn pool"));
     storageclient conn(*pool, peer, timedelta::seconds(10));
     if (!strcmp(argv[3], "STALL")) {

@@ -22,7 +22,7 @@ class store;
 
 class onfilesystemthread {};
 
-/* A stream held on a remote storage slave. */
+/* A stream held on a remote storage agent. */
 class stream {
 public: proto::eq::eventid _refreshedat;
 public: proto::eq::eventid &refreshedat(onfilesystemthread) {
@@ -41,7 +41,7 @@ public: stream(proto::eq::eventid __refreshedat,
     : _refreshedat(__refreshedat),
       _status(__status) {} };
 
-/* A job held on a remote storage slave. */
+/* A job held on a remote storage agent. */
 class job {
     /* Tag which is valid if either you're in the LISTSTREAMS call or
      * you've ensured that LISTSTREAMS isn't running. */
@@ -125,7 +125,7 @@ public: orerror<void> liststreamswoken(connpool &,
 
 public: ~job(); };
 
-/* A remote storage slave. */
+/* A remote storage agent. */
 class store {
     /* Tag type indicating that you're either in the LISTJOBS call or
      * you've stopped it somehow. */
@@ -134,7 +134,7 @@ public: class inlistjobscall {
     public:  inlistjobscall(connpool::connlock) {}
     public:  static inlistjobscall mk(onfilesystemthread) {
         return inlistjobscall(); } };
-public: const slavename name;
+public: const agentname name;
     /* At all times we're either connected or trying to connect. */
 public: either<nnp<eqclient<proto::storage::event> >,
                nnp<eqclient<proto::storage::event>::asyncconnect> > _eventqueue;
@@ -178,7 +178,7 @@ public: list<pair<proto::eq::eventid, jobname> > &deferredremove(
 public: store(
     subscriber &sub,
     eqclient<proto::storage::event>::asyncconnect &_conn,
-    const slavename &_name)
+    const agentname &_name)
         : name(_name),
           _eventqueue(right<nnp<eqclient<proto::storage::event> > >(
                           _nnp(_conn))),
@@ -926,8 +926,8 @@ public:  list<store> &stores(mutex_t::token) { return _stores; }
 public:  const list<store> &stores(mutex_t::token) const { return _stores; }
 
     /* Cursor used to get rough balance across stores in
-     * nominateslave().  Mutable because it's modified by the const
-     * nominateslave() in ways which aren't visible outside of the
+     * nominateagent().  Mutable because it's modified by the const
+     * nominateagent() in ways which aren't visible outside of the
      * class. */
 public: mutable unsigned _nominateidx;
 public: unsigned &nominateidx(mutex_t::token) const { return _nominateidx; }
@@ -948,12 +948,12 @@ public:  void beaconwoken(subscriber &sub, mutex_t::token tok);
 
 public:  void dropstore(store &, mutex_t::token);
 
-public:  list<slavename> findjob(const jobname &jn) const;
-public:  list<pair<slavename, streamstatus> > findstream(
+public:  list<agentname> findjob(const jobname &jn) const;
+public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
     const streamname &sn) const;
-public:  maybe<slavename> nominateslave() const;
-public:  void newjob(const slavename &, const jobname &, proto::eq::eventid); };
+public:  maybe<agentname> nominateagent() const;
+public:  void newjob(const agentname &, const jobname &, proto::eq::eventid); };
 
 void
 filesystem::impl::run(clientio io) {
@@ -998,7 +998,7 @@ filesystem::impl::run(clientio io) {
  * the cache and update the cache as appropriate. */
 void
 filesystem::impl::beaconwoken(subscriber &sub, mutex_t::token tok) {
-    logmsg(loglevel::debug, "scan for new storage slaves");
+    logmsg(loglevel::debug, "scan for new storage agents");
     list<list<store>::iter> lost;
     for (auto it(stores(tok).start()); !it.finished(); it.next()) {
         lost.pushtail(it); }
@@ -1012,7 +1012,7 @@ filesystem::impl::beaconwoken(subscriber &sub, mutex_t::token tok) {
                 break; } }
         if (!found) {
             logmsg(loglevel::info,
-                   "new storage slave " + fields::mk(it.name()));
+                   "new storage agent " + fields::mk(it.name()));
             stores(tok).append(sub,
                                eqclient<proto::storage::event>::connect(
                                    pool,
@@ -1021,7 +1021,7 @@ filesystem::impl::beaconwoken(subscriber &sub, mutex_t::token tok) {
                                it.name()); } }
     for (auto it(lost.start()); !it.finished(); it.next()) {
         logmsg(loglevel::info,
-               "lost storage slave " + fields::mk((*it)->name));
+               "lost storage agent " + fields::mk((*it)->name));
         it->remove(); } }
 
 
@@ -1034,10 +1034,10 @@ filesystem::impl::dropstore(store &s, mutex_t::token tok) {
             it.remove();
             return; } } }
 
-/* Find all of the slaves which know anything about a particular job. */
-list<slavename>
+/* Find all of the agents which know anything about a particular job. */
+list<agentname>
 filesystem::impl::findjob(const jobname &jn) const {
-    list<slavename> res;
+    list<agentname> res;
     auto tok(mux.lock());
     for (auto sto(stores(tok).start()); !sto.finished(); sto.next()) {
         for (auto job(sto->jobs(tok).start());
@@ -1050,9 +1050,9 @@ filesystem::impl::findjob(const jobname &jn) const {
     return res; }
 
 /* Find all of our copies of a particular stream. */
-list<pair<slavename, streamstatus> >
+list<pair<agentname, streamstatus> >
 filesystem::impl::findstream(const jobname &jn, const streamname &sn) const {
-    list<pair<slavename, streamstatus> > res;
+    list<pair<agentname, streamstatus> > res;
     auto token(mux.lock());
     for (auto sto(stores(token).start()); !sto.finished(); sto.next()) {
         for (auto job(sto->jobs(token).start());
@@ -1067,8 +1067,8 @@ filesystem::impl::findstream(const jobname &jn, const streamname &sn) const {
     mux.unlock(&token);
     return res; }
 
-maybe<slavename>
-filesystem::impl::nominateslave() const {
+maybe<agentname>
+filesystem::impl::nominateagent() const {
     auto tok(mux.lock());
     if (stores(tok).empty()) {
         mux.unlock(&tok);
@@ -1083,7 +1083,7 @@ filesystem::impl::nominateslave() const {
         idx--; } }
 
 void
-filesystem::impl::newjob(const slavename &sn,
+filesystem::impl::newjob(const agentname &sn,
                          const jobname &jn,
                          proto::eq::eventid eid) {
     auto tok(mux.lock());
@@ -1093,16 +1093,16 @@ filesystem::impl::newjob(const slavename &sn,
          it.next()) {
         if (it->name == sn) sto = &*it; }
     if (sto == NULL) {
-        /* Someone created a store on a slave which we don't know
-         * about.  We're only ever invoked for slaves returned from
-         * nominateslave() and we know that the slave was in the
-         * beacon then, so we're probably racing with the slave
+        /* Someone created a store on a agent which we don't know
+         * about.  We're only ever invoked for agents returned from
+         * nominateagent() and we know that the agent was in the
+         * beacon then, so we're probably racing with the agent
          * crashing and dropping out of the beacon.  Assume that the
-         * slave's going away and drop the newjob() notification. */
+         * agent's going away and drop the newjob() notification. */
         mux.unlock(&tok);
         logmsg(loglevel::failure,
                "new job " + fields::mk(jn) +
-               " on lost slave " + fields::mk(sn));
+               " on lost agent " + fields::mk(sn));
         return; }
     sto->eqnewjob(eid, jn, tok);
     mux.unlock(&tok);
@@ -1123,19 +1123,19 @@ filesystem::build(connpool &_pool, beaconclient &_bc) {
     return thread::start<filesystem::impl>(fields::mk("filesystem"), _pool, _bc)
         ->api; }
 
-list<slavename>
+list<agentname>
 filesystem::findjob(const jobname &jn) const {
     return implementation().findjob(jn); }
 
-list<pair<slavename, streamstatus> >
+list<pair<agentname, streamstatus> >
 filesystem::findstream(const jobname &jn, const streamname &sn) const {
     return implementation().findstream(jn, sn); }
 
-maybe<slavename>
-filesystem::nominateslave() const { return implementation().nominateslave(); }
+maybe<agentname>
+filesystem::nominateagent() const { return implementation().nominateagent(); }
 
 void
-filesystem::newjob(const slavename &sn,
+filesystem::newjob(const agentname &sn,
                    const jobname &jn,
                    proto::eq::eventid eid) {
     implementation().newjob(sn, jn, eid); }

@@ -115,7 +115,7 @@ rpcservice2config::rpcservice2config(const beaconserverconfig &_beacon,
 
 rpcservice2config
 rpcservice2config::dflt(const clustername &cn,
-                        const slavename &sn) {
+                        const agentname &sn) {
     return rpcservice2config(
         beaconserverconfig::dflt(cn, sn),
         /* maxoutstandingcalls */

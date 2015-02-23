@@ -11,7 +11,7 @@
 #include "peername.H"
 #include "proto2.H"
 #include "pubsub.H"
-#include "slavename.H"
+#include "agentname.H"
 #include "socket.H"
 #include "thread.H"
 #include "util.H"
@@ -45,7 +45,7 @@ public: connpool api;
     /* Set once someone calls api::destroy() on the pool. */
 public: waitbox<void> shutdown;
 
-    /* Beacon client to use for slavename -> peername lookups. */
+    /* Beacon client to use for agentname -> peername lookups. */
 public: nnp<beaconclient> beacon;
 
 public: mutex_t mux;
@@ -66,7 +66,7 @@ public: ~impl();
 public: void run(clientio);
 
     /* Implementations of our public API, proxied through api. */
-public: nnp<connpool::asynccall> call(const slavename &sn,
+public: nnp<connpool::asynccall> call(const agentname &sn,
                                       interfacetype type,
                                       maybe<timestamp> deadline,
                                       const std::function<serialise> &s,
@@ -78,7 +78,7 @@ public: mutex_t mux;
     /* Connects the pool subscriber to the thread death publisher. */
 public: subscription deathsub;
     /* To whom are we supposed to be connected? */
-public: const slavename slave;
+public: const agentname agent;
 
     /* Set once the connection is far enough through its shutdown
      * sequence that it can't accept more calls.  dying == true should
@@ -155,7 +155,7 @@ public: orerror<void> processresponse(buffer &rxbuffer,
                                       list<nnp<CALL> > &calls,
                                       connlock cl);
 
-    /* Do the slavename->peername translation, the connect(), and the
+    /* Do the agentname->peername translation, the connect(), and the
      * hello. */
 public: maybe<fd_t> connectphase(
     clientio io,
@@ -195,7 +195,7 @@ public: nnp<CALL> call(maybe<timestamp>,
      * before we get a chance to use it, so this gives back a mutex
      * token as well as constructing the conn. */
 public: conn(const constoken &,
-             const slavename &,
+             const agentname &,
              POOL &,
              maybe<mutex_t::token> *);
 public: void run(clientio io); };
@@ -307,7 +307,7 @@ POOL &
 connpool::implementation() { return *containerof(this, impl, api); }
 
 nnp<connpool::asynccall>
-connpool::_call(const slavename &sn,
+connpool::_call(const agentname &sn,
                interfacetype type,
                maybe<timestamp> deadline,
                const std::function<serialise> &s,
@@ -318,7 +318,7 @@ connpool::_call(const slavename &sn,
 orerror<void>
 connpool::_call(
     clientio io,
-    const slavename &sn,
+    const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
     const std::function<serialise> &s,
@@ -397,7 +397,7 @@ POOL::run(clientio io) {
         auto c = (conn *)s->data;
         auto t(c->hasdied());
         if (t == Nothing) continue;
-        logmsg(loglevel::debug, "reaping " + fields::mk(c->slave));
+        logmsg(loglevel::debug, "reaping " + fields::mk(c->agent));
         /* Thread must declare itself to be dying before exiting (and
          * that's necessary for us to get away with not taking the
          * connection lock here). */
@@ -429,7 +429,7 @@ POOL::run(clientio io) {
     mux.unlock(&token); }
 
 nnp<connpool::asynccall>
-POOL::call(const slavename &sn,
+POOL::call(const agentname &sn,
            interfacetype type,
            maybe<timestamp> deadline,
            const std::function<serialise> &s,
@@ -441,7 +441,7 @@ POOL::call(const slavename &sn,
          worker == Nothing && !it.finished();
          it.next()) {
         auto cc(*it);
-        if (cc->slave != sn) continue;
+        if (cc->agent != sn) continue;
         auto workertoken(cc->mux.lock());
         /* Don't take connections which are already dying. */
         if (cc->dying(workertoken)) cc->mux.unlock(&workertoken);
@@ -606,7 +606,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                 return checktimeouts(calls, cl, idledat, connected, txbuffer);}
             else {
                 logmsg(loglevel::debug,
-                       "connection to " + fields::mk(slave) + " timed out"); } }
+                       "connection to " + fields::mk(agent) + " timed out"); } }
         /* Waiting for idle timeout. */
         return r; }
     /* Otherwise, take the soonest call timeout. */
@@ -688,7 +688,7 @@ CONN::processresponse(buffer &rxbuffer,
     if (hdr.size > proto::maxmsgsize) ds.fail(error::invalidmessage);
     if (ds.isfailure()) {
         ds.failure().warn(
-            "parsing response header from " + fields::mk(slave));
+            "parsing response header from " + fields::mk(agent));
         return ds.failure(); }
     if (hdr.size > rxbuffer.avail()) return error::underflowed;
 
@@ -705,7 +705,7 @@ CONN::processresponse(buffer &rxbuffer,
         /* This can sometimes happen if we cancel a call before
          * receiving a reply. */
         logmsg(loglevel::debug,
-               "dropping response from " + fields::mk(slave) +
+               "dropping response from " + fields::mk(agent) +
                "; no call"); }
     else {
         orerror<void> callres(Success);
@@ -716,7 +716,7 @@ CONN::processresponse(buffer &rxbuffer,
         if (callres.issuccess() && ds.isfailure()) {
             /* Really shouldn't be dropping errors here. */
             logmsg(loglevel::error,
-                   "call deserialiser for " + slave.field() +
+                   "call deserialiser for " + agent.field() +
                    " type " + c->type.field() +
                    " reported success even though deserialiser failed with " +
                    ds.failure().field()); }
@@ -741,7 +741,7 @@ CONN::connectphase(
     proto::sequencenr &nextseqnr) {
     /* Not started connecting yet -> find out where we're connecting
      * to. */
-    auto _beaconres(pool.beacon->poll(slave));
+    auto _beaconres(pool.beacon->poll(agent));
     if (_beaconres == Nothing) {
         /* Beacon doesn't know where we need to connect to yet -> wait
          * until it does. */
@@ -774,7 +774,7 @@ CONN::connectphase(
                        0));
     if (sock < 0) {
         auto e(error::from_errno());
-        e.warn("socket() for " + fields::mk(slave));
+        e.warn("socket() for " + fields::mk(agent));
         /* Not being able to use the address family is a hard error.
          * Most other connect()-time errors are soft. */
         harderror(calls, e, cl);
@@ -782,7 +782,7 @@ CONN::connectphase(
         return Nothing; }
     if (::connect(sock, peer.sockaddr(), peer.sockaddrsize()) < 0 &&
         errno != EINPROGRESS) {
-        error::from_errno().warn("connect() to " + fields::mk(slave));
+        error::from_errno().warn("connect() to " + fields::mk(agent));
         ::close(sock);
         delayconnect(debounceconnect, peer);
         return Nothing; }
@@ -816,7 +816,7 @@ CONN::connectphase(
             if (::poll(&pfd, 1, 0) < 0) {
 #ifndef COVERAGESKIP
                 auto err(error::from_errno());
-                err.warn("connect poll() " + fields::mk(slave));
+                err.warn("connect poll() " + fields::mk(agent));
                 harderror(calls, err, cl);
                 return Nothing;
 #endif
@@ -826,7 +826,7 @@ CONN::connectphase(
                 if (err.isfailure()) {
                     err.failure().warn(
                         "connecting to " + fields::mk(peer) +
-                        " for " + fields::mk(slave));
+                        " for " + fields::mk(agent));
                     ::close(sock);
                     if (err != error::timeout) {
                         delayconnect(debounceconnect, peer); }
@@ -856,7 +856,7 @@ CONN::connectphase(
             if (txbuf.empty()) break;
             if (deadline.inpast()) {
                 logmsg(loglevel::info,
-                       "timeout sending hello to " + fields::mk(slave));
+                       "timeout sending hello to " + fields::mk(agent));
                 ::close(sock);
                 return Nothing; }
             auto _deadline(checktimeouts(calls, cl, idledat, false, NULL));
@@ -971,7 +971,7 @@ CONN::workphase(clientio io,
             if (err.isfailure()) {
                 /* Treat any failure here as a lost connection and
                  * restart the connect machine. */
-                err.failure().warn("transmitting to " + fields::mk(slave));
+                err.failure().warn("transmitting to " + fields::mk(agent));
                 /* Might as well check if there are any viable
                  * responses waiting for us before we give up. */
                 (void)rxbuffer.receivefast(fd);
@@ -981,7 +981,7 @@ CONN::workphase(clientio io,
             auto err(rxbuffer.receivefast(fd));
             if (err == error::wouldblock) continue;
             if (err.isfailure()) {
-                err.failure().warn("receiving from " + fields::mk(slave));
+                err.failure().warn("receiving from " + fields::mk(agent));
                 return; }
             insub.rearm();
             while (true) {
@@ -1012,14 +1012,14 @@ CONN::call(maybe<timestamp> deadline,
     return res; }
 
 CONN::conn(const constoken &t,
-           const slavename &_slave,
+           const agentname &_agent,
            POOL &_pool,
            maybe<mutex_t::token> *token)
     : thread(t),
       pool(_pool),
       mux(),
       deathsub(_pool.sub, thread::pub(), this),
-      slave(_slave),
+      agent(_agent),
       _dying(false),
       _newcalls(),
       _aborted(),

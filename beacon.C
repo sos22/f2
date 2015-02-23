@@ -28,7 +28,7 @@ beaconconfig::dflt(
     peername::port(9004));
 
 proto::beacon::req::req(const clustername &_cluster,
-                        const maybe<slavename> &_name,
+                        const maybe<agentname> &_name,
                         maybe<interfacetype> _type)
     : magic(magicval),
       version(version::current),
@@ -60,7 +60,7 @@ proto::beacon::req::operator==(const req &o) const {
         type == o.type; }
 
 proto::beacon::resp::resp(const clustername &_cluster,
-                          const slavename &_name,
+                          const agentname &_name,
                           list<interfacetype> _type,
                           peername::port _port,
                           timedelta _cachetime)

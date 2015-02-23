@@ -28,10 +28,10 @@ mktupledef(beaconserverconfig);
 
 beaconserverconfig
 beaconserverconfig::dflt(const clustername &_cluster,
-                         const slavename &_slave) {
+                         const agentname &_agent) {
     return beaconserverconfig(beaconconfig::dflt,
                               _cluster,
-                              _slave,
+                              _agent,
                               timedelta::seconds(60)); }
 
 const parser<beaconserverconfig> &
@@ -39,14 +39,14 @@ parsers::__beaconserverconfig() {
     return ("<beaconserverconfig:" +
             ~(" proto:" + parsers::__beaconconfig()) +
             " cluster:" + parsers::__clustername() +
-            " name:" + parsers::_slavename() +
+            " name:" + parsers::_agentname() +
             ~(" cachetime:" + parsers::_timedelta()) +
             ">")
         .map<beaconserverconfig>(
             []
             (const pair<pair<pair<maybe<beaconconfig>,
                                   clustername>,
-                             slavename>,
+                             agentname>,
                         maybe<timedelta> > &w) {
             return beaconserverconfig(
                 w.first().first().first().dflt(beaconconfig::dflt),

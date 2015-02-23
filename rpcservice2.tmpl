@@ -5,7 +5,7 @@ template <typename t, typename ... args> orerror<nnp<t> >
 rpcservice2::listen(
     clientio io,
     const clustername &cn,
-    const slavename &sn,
+    const agentname &sn,
     const peername &pn,
     args && ... params) {
     return listen<t>(io,

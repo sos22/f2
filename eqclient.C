@@ -5,7 +5,7 @@
 #include "fields.H"
 #include "nnp.H"
 #include "pair.H"
-#include "slavename.H"
+#include "agentname.H"
 #include "test.H"
 #include "thread.H"
 #include "util.H"
@@ -21,7 +21,7 @@
 class CLIENT : public thread {
 public: geneqclient api;
 public: connpool &pool;
-public: const slavename slave;
+public: const agentname agent;
 public: const proto::eq::genname queuename;
 public: const proto::eq::subscriptionid subid;
 public: const eqclientconfig config;
@@ -51,7 +51,7 @@ public: maybe<proto::eq::eventid> trim;
 
 public: impl(const constoken &,
              connpool &_pool,
-             const slavename &_slave,
+             const agentname &_agent,
              proto::eq::subscriptionid _subid,
              proto::eq::genname _name,
              proto::eq::eventid _cursor,
@@ -70,12 +70,12 @@ public: geneqclient::asyncconnect api;
 public: typedef pair<proto::eq::subscriptionid, proto::eq::eventid> callres_t;
 public: connpool::asynccallT<callres_t> &inner;
 public: connpool &pool;
-public: const slavename slave;
+public: const agentname agent;
 public: const proto::eq::genname queuename;
 public: const eqclientconfig config;
 public: impl(connpool::asynccallT<callres_t> &,
              connpool &,
-             const slavename &,
+             const agentname &,
              const proto::eq::genname &,
              const eqclientconfig &);
 public: orerror<nnp<geneqclient> > pop(token);
@@ -118,12 +118,12 @@ geneqclient::asyncconnect::abort() { return implementation().abort(); }
 CONNECT::impl(
     connpool::asynccallT<callres_t> &_inner,
     connpool &_pool,
-    const slavename &_slave,
+    const agentname &_agent,
     const proto::eq::genname &_queuename,
     const eqclientconfig &_config)
     : inner(_inner),
       pool(_pool),
-      slave(_slave),
+      agent(_agent),
       queuename(_queuename),
       config(_config) {}
 
@@ -135,9 +135,9 @@ CONNECT::pop(token t) {
         return r.failure(); }
     else {
         auto &res(thread::start<CLIENT>(
-                     "EC:" + queuename.field() + ":" + fields::mk(slave),
+                     "EC:" + queuename.field() + ":" + fields::mk(agent),
                      pool,
-                     slave,
+                     agent,
                      r.success().first(),
                      queuename,
                      r.success().second(),
@@ -159,7 +159,7 @@ geneqclient::implementation() const { return *containerof(this, CLIENT, api); }
 
 nnp<geneqclient::asyncconnect>
 geneqclient::connect(connpool &pool,
-                     const slavename &sn,
+                     const agentname &sn,
                      const proto::eq::genname &name,
                      const eqclientconfig &config) {
     using namespace proto::eq;
@@ -177,7 +177,7 @@ geneqclient::connect(connpool &pool,
 orerror<nnp<geneqclient> >
 geneqclient::connect(clientio io,
                      connpool &pool,
-                     const slavename &sn,
+                     const agentname &sn,
                      const proto::eq::genname &name,
                      timestamp deadline,
                      const eqclientconfig &config) {
@@ -236,7 +236,7 @@ geneqclient::destroy() {
      * token here: the unsubscribe timeout is supposed to be short, so
      * we don't need one. */
     i.pool.call(clientio::CLIENTIO,
-                i.slave,
+                i.agent,
                 interfacetype::eq,
                 i.config.unsubscribe.future(),
                 [&i] (serialise1 &s, connpool::connlock) {
@@ -255,14 +255,14 @@ geneqclient::startingwaiter([] {});
 /* ------------------------ geneqclient implementation --------------------- */
 CLIENT::impl(const constoken &token,
              connpool &_pool,
-             const slavename &_slave,
+             const agentname &_agent,
              proto::eq::subscriptionid _subid,
              proto::eq::genname _name,
              proto::eq::eventid __cursor,
              const eqclientconfig &_config)
     : thread(token),
       pool(_pool),
-      slave(_slave),
+      agent(_agent),
       queuename(_name),
       subid(_subid),
       config(_config),
@@ -283,7 +283,7 @@ nnp<connpool::asynccallT<bool> >
 CLIENT::startgetter(onqueuethread oqt) {
     auto c(cursor(oqt));
     return pool.call<bool>(
-        slave,
+        agent,
         interfacetype::eq,
         config.get.future(),
         [this, c] (serialise1 &s, connpool::connlock) {
@@ -304,7 +304,7 @@ nnp<connpool::asynccall>
 CLIENT::startwaiter(onqueuethread oqt) {
     geneqclient::startingwaiter();
     return pool.call(
-        slave,
+        agent,
         interfacetype::eq,
         config.wait.future(),
         [this, oqt] (serialise1 &s, connpool::connlock) {
@@ -389,7 +389,7 @@ CLIENT::run(clientio io) {
                             trim.just(),
                             _nnp(
                                 *pool.call(
-                                    slave,
+                                    agent,
                                     interfacetype::eq,
                                     Nothing,
                                     [this] (serialise1 &s, connpool::connlock) {

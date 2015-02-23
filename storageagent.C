@@ -1,7 +1,7 @@
 /* XXX this can sometimes leave stuff behind after a partial
  * failure. */
 
-#include "storageslave.H"
+#include "storageagent.H"
 
 #include "buffer.H"
 #include "bytecount.H"
@@ -25,7 +25,7 @@
 #include "fieldfinal.H"
 
 orerror<void>
-storageslave::format(const filename &fn) {
+storageagent::format(const filename &fn) {
     {   auto r(fn.mkdir());
         if (r.isfailure()) return r.failure(); }
     {   auto r(eqserver::formatqueue(
@@ -37,15 +37,15 @@ storageslave::format(const filename &fn) {
                       fields::mk(fn)); }
         return r; } }
 
-orerror<nnp<storageslave> >
-storageslave::build(clientio io, const storageconfig &config) {
+orerror<nnp<storageagent> >
+storageagent::build(clientio io, const storageconfig &config) {
     auto eqs(eqserver::build());
     auto eqq(eqs->openqueue(proto::eq::names::storage,
                             config.poolpath + "queue"));
     if (eqq.isfailure()) {
         eqs->destroy();
         return eqq.failure(); }
-    return rpcservice2::listen<storageslave>(
+    return rpcservice2::listen<storageagent>(
         io,
         config.beacon.cluster,
         config.beacon.name,
@@ -54,7 +54,7 @@ storageslave::build(clientio io, const storageconfig &config) {
         *eqs,
         *eqq.success()); }
 
-storageslave::storageslave(const constoken &token,
+storageagent::storageagent(const constoken &token,
                            const storageconfig &_config,
                            eqserver &_eqs,
                            eventqueue<proto::storage::event> &_eqq)
@@ -66,14 +66,14 @@ storageslave::storageslave(const constoken &token,
       eqq(_eqq) {}
 
 void
-storageslave::destroy(clientio io) {
+storageagent::destroy(clientio io) {
     eqq.destroy(io);
     delete this; }
 
-storageslave::~storageslave() { eqs.destroy(); }
+storageagent::~storageagent() { eqs.destroy(); }
 
 orerror<void>
-storageslave::called(
+storageagent::called(
     clientio io,
     deserialise1 &ds,
     interfacetype type,
@@ -83,13 +83,13 @@ storageslave::called(
             return _called(io, ds, type, ic, oct, tok); }); }
 
 orerror<void>
-storageslave::_called(
+storageagent::_called(
     clientio io,
     deserialise1 &ds,
     interfacetype type,
     nnp<incompletecall> ic,
     onconnectionthread oct,
-    mutex_t::token /* storageslave lock */) {
+    mutex_t::token /* storageagent lock */) {
     /* rpcservice2 should enforce this for us, since we only claim to
      * support the two interface types. */
     assert(type == interfacetype::storage || type == interfacetype::eq);
@@ -194,7 +194,7 @@ storageslave::_called(
     return ds.status(); }
 
 orerror<void>
-storageslave::createjob(const job &t) {
+storageagent::createjob(const job &t) {
     logmsg(loglevel::debug, "create job " + fields::mk(t));
     auto dirname(config.poolpath + t.name().asfilename());
     {   auto r(dirname.mkdir());
@@ -207,7 +207,7 @@ storageslave::createjob(const job &t) {
     return r; }
 
 orerror<void>
-storageslave::createstream(const jobname &t, const streamname &sn) {
+storageagent::createstream(const jobname &t, const streamname &sn) {
     logmsg(loglevel::debug,
            "create empty output " + fields::mk(t) + " " + fields::mk(sn));
     filename jobdir(config.poolpath + t.asfilename());
@@ -238,7 +238,7 @@ storageslave::createstream(const jobname &t, const streamname &sn) {
     return content.createfile(); }
 
 orerror<void>
-storageslave::append(
+storageagent::append(
     const jobname &jn,
     const streamname &sn,
     bytecount oldsize,
@@ -280,7 +280,7 @@ storageslave::append(
     return Success; }
 
 orerror<streamstatus>
-storageslave::finish(
+storageagent::finish(
     const jobname &jn,
     const streamname &sn) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
@@ -299,7 +299,7 @@ storageslave::finish(
     return streamstatus::finished(sn, sz.success()); }
 
 orerror<void>
-storageslave::read(
+storageagent::read(
     const jobname &jn,
     const streamname &sn,
     bytecount start,
@@ -333,7 +333,7 @@ storageslave::read(
     return Success; }
 
 orerror<void>
-storageslave::listjobs(
+storageagent::listjobs(
     const maybe<jobname> &cursor,
     const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
@@ -381,7 +381,7 @@ storageslave::listjobs(
     return Success; }
 
 orerror<void>
-storageslave::statjob(
+storageagent::statjob(
     const jobname &jn,
     nnp<incompletecall> ic,
     acquirestxlock atl,
@@ -401,7 +401,7 @@ storageslave::statjob(
     return r; }
 
 orerror<void>
-storageslave::liststreams(
+storageagent::liststreams(
     const jobname &jn,
     const maybe<streamname> &cursor,
     const maybe<unsigned> &limit,
@@ -466,7 +466,7 @@ storageslave::liststreams(
     return Success; }
 
 orerror<streamstatus>
-storageslave::statstream(const jobname &jn,
+storageagent::statstream(const jobname &jn,
                          const streamname &sn) {
     auto jobdir(config.poolpath + jn.asfilename());
     auto streamdir(jobdir + sn.asfilename());
@@ -484,7 +484,7 @@ storageslave::statstream(const jobname &jn,
     else return streamstatus::partial(sn, sz); }
 
 orerror<void>
-storageslave::removestream(const jobname &jn,
+storageagent::removestream(const jobname &jn,
                            const streamname &sn) {
     auto jobdir(config.poolpath + jn.asfilename());
     auto streamdir(jobdir + sn.asfilename());
@@ -499,7 +499,7 @@ storageslave::removestream(const jobname &jn,
     else return Success; }
 
 orerror<void>
-storageslave::removejob(const jobname &jn) {
+storageagent::removejob(const jobname &jn) {
     logmsg(loglevel::debug, "remove job " + fields::mk(jn));
     auto dirname(config.poolpath + jn.asfilename());
     {   auto r((dirname + "job").unlink());

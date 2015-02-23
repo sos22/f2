@@ -11,7 +11,7 @@
 #include "clustername.H"
 #include "peername.H"
 #include "interfacetype.H"
-#include "slavename.H"
+#include "agentname.H"
 #include "timedelta.H"
 #include "thread.H"
 #include "tuple.H"
@@ -24,7 +24,7 @@ class clientio;
     /* What cluster are we broadcasting our beacon messages into? */    \
     iter0(ctxt, 2, mand, ref, clustername, cluster)                     \
     /* Who are we advertising? */                                       \
-    iter0(ctxt, 3, mand, ref, slavename, name)                          \
+    iter0(ctxt, 3, mand, ref, agentname, name)                          \
     /* How long may clients cache our responses for?  Note that this */ \
     /* will be measured from the point they receive the response, and */ \
     /* not the point at which we send it i.e. the actual liveness time */ \
@@ -33,7 +33,7 @@ class clientio;
 class beaconserverconfig {
     mktuplefields(beaconserverconfig, public);
 public: static beaconserverconfig dflt(const clustername &,
-                                       const slavename &); };
+                                       const agentname &); };
 mktupleext(beaconserverconfig);
 
 class beaconserver : private thread {

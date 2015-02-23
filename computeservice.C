@@ -25,13 +25,13 @@ main(int argc, char *argv[]) {
     initpubsub();
 
     if (argc != 3) {
-        errx(1, "need two arguments, a cluster name and a slave name"); }
+        errx(1, "need two arguments, a cluster name and a agent name"); }
     auto cluster(parsers::__clustername()
                  .match(argv[1])
                  .fatal("parsing cluster name " + fields::mk(argv[1])));
-    auto name(parsers::_slavename()
+    auto name(parsers::_agentname()
               .match(argv[2])
-              .fatal("parsing slave name " + fields::mk(argv[2])));
+              .fatal("parsing agent name " + fields::mk(argv[2])));
 
     auto service(rpcservice2::listen<computeservice>(
                      clientio::CLIENTIO,

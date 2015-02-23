@@ -30,10 +30,10 @@ public: connpool &pool;
 public: class _jobcreator : public thread {
     public: class machine {
             /* The create job state machine. */
-            /* XXX once we've picked a storage slave to create the job
+            /* XXX once we've picked a storage agent to create the job
              * on, we keep trying to create it there until we're told
-             * to stop.  That's possibly sub-optimal if e.g. the slave
-             * crashes but some other slave remains available. */
+             * to stop.  That's possibly sub-optimal if e.g. the agent
+             * crashes but some other agent remains available. */
             /* Tags for distinguishing subscriptions more easily. */
         public: static char subscription_ic;
         public: static char subscription_call;
@@ -44,16 +44,16 @@ public: class _jobcreator : public thread {
             /* Event ID at whcih job is created, once it has been
              * created. */
         public: maybe<proto::eq::eventid> eid;
-            /* Call to the storage slave. */
+            /* Call to the storage agent. */
         public: connpool::asynccall &call;
             /* Connects the subscriber to call.pub() */
         public: maybe<subscription> callsub;
             /* Where are we creating the job? */
-        public: const slavename slave;
+        public: const agentname agent;
             /* What is the job called? */
         public: const jobname jn;
         public: machine(rpcservice2::incompletecall &,
-                        const slavename &,
+                        const agentname &,
                         const job &,
                         connpool &,
                         subscriber &); };
@@ -97,7 +97,7 @@ coordinatorservice::called(clientio io,
     if (tag == proto::coordinator::tag::findjob) {
         jobname jn(ds);
         if (ds.isfailure()) return ds.failure();
-        list<slavename> res(fs.findjob(jn));
+        list<agentname> res(fs.findjob(jn));
         ic->complete([capres = res.steal()]
                      (serialise1 &s,
                       mutex_t::token /* txlock */,
@@ -110,7 +110,7 @@ coordinatorservice::called(clientio io,
         jobname jn(ds);
         streamname sn(ds);
         if (ds.isfailure()) return ds.failure();
-        list<pair<slavename, streamstatus> > res(fs.findstream(jn, sn));
+        list<pair<agentname, streamstatus> > res(fs.findstream(jn, sn));
         ic->complete([capres = res.steal()]
                      (serialise1 &s,
                       mutex_t::token /* txlock */,
@@ -135,15 +135,15 @@ coordinatorservice::called(clientio io,
                          oct);
             return Success; }
         /* Otherwise, start the job creation machine. */
-        auto slave(fs.nominateslave());
-        if (slave == Nothing) {
-            /* No slaves available -> fail the call. */
-            return error::nostorageslaves; }
+        auto agent(fs.nominateagent());
+        if (agent == Nothing) {
+            /* No agents available -> fail the call. */
+            return error::nostorageagents; }
         /* Otherwise, start the creation machine to complete the call
          * asynchronously. */
         assert(!jobcreator.shutdown.ready());
         jobcreator.outstanding.append(*ic,
-                                      slave.just(),
+                                      agent.just(),
                                       j,
                                       pool,
                                       jobcreator.sub);
@@ -159,7 +159,7 @@ coordinatorservice::destroying(clientio io) {
 
 coordinatorservice::_jobcreator::machine::machine(
     rpcservice2::incompletecall &_ic,
-    const slavename &_slave,
+    const agentname &_agent,
     const job &j,
     connpool &pool,
     subscriber &sub)
@@ -167,7 +167,7 @@ coordinatorservice::_jobcreator::machine::machine(
       icsub(Nothing),
       eid(Nothing),
       call(pool.call(
-               _slave,
+               _agent,
                interfacetype::storage,
                /* Will be cancelled if our client's call gets
                 * cancelled, but not before. */
@@ -180,7 +180,7 @@ coordinatorservice::_jobcreator::machine::machine(
                    eid.mkjust(ds);
                    return ds.status(); })),
       callsub(Nothing),
-      slave(_slave),
+      agent(_agent),
       jn(j.name()) {
     icsub.mkjust(sub, ic.abandoned().pub, &subscription_ic);
     callsub.mkjust(sub, call.pub(), &subscription_call); }
@@ -212,15 +212,15 @@ coordinatorservice::_jobcreator::run(clientio io) {
                  * job before we tell that the client that we're done,
                  * to avoid stupid races. */
                 /* Note that this is to some extend best effort: if
-                 * the slave drops out of the beacon then we're
+                 * the agent drops out of the beacon then we're
                  * definitely going to lose the newly created job.
                  * The point is that callers can assume that if the
                  * job's gone away when we return then something's
                  * gone wrong; there's no need to wait around for a
                  * few milliseconds to see if it's going to
                  * mysteriously reappear. */
-                owner.fs.newjob(m.slave, m.jn, m.eid.just());
-                m.ic.complete([sn = m.slave]
+                owner.fs.newjob(m.agent, m.jn, m.eid.just());
+                m.ic.complete([sn = m.agent]
                               (serialise1 &s, mutex_t::token /* txlock */) {
                                   s.push(sn); },
                               acquirestxlock(io)); }
@@ -262,9 +262,9 @@ main(int argc, char *argv[]) {
     auto cluster(parsers::__clustername()
                  .match(argv[1])
                  .fatal("parsing cluster name " + fields::mk(argv[1])));
-    auto name(parsers::_slavename()
+    auto name(parsers::_agentname()
               .match(argv[2])
-              .fatal("parsing slave name " + fields::mk(argv[2])));
+              .fatal("parsing agent name " + fields::mk(argv[2])));
     auto bc(beaconclient::build(cluster)
             .fatal("creating beacon client"));
     auto pool(connpool::build(cluster)

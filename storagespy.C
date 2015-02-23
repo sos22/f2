@@ -1,4 +1,4 @@
-/* Simple thing which watches for changes on a storage slave. */
+/* Simple thing which watches for changes on a storage agent. */
 #include <err.h>
 
 #include "clientio.H"
@@ -20,9 +20,9 @@ main(int argc, char *argv[]) {
     auto cluster(parsers::__clustername()
                  .match(argv[1])
                  .fatal("parsing cluser name " + fields::mk(argv[1])));
-    auto peer(parsers::_slavename()
+    auto peer(parsers::_agentname()
               .match(argv[2])
-              .fatal("parsing slave name " + fields::mk(argv[2])));
+              .fatal("parsing agent name " + fields::mk(argv[2])));
     auto &pool(*connpool::build(cluster).fatal("building conn pool"));
 
     auto clnt(eqclient<proto::storage::event>::connect(
@@ -34,5 +34,5 @@ main(int argc, char *argv[]) {
               .fatal("connecting storage event queue"));
     while (true) {
         auto p(clnt->pop(clientio::CLIENTIO)
-               .fatal("getting event from storage slave"));
+               .fatal("getting event from storage agent"));
         logmsg(loglevel::info, p.field()); } }

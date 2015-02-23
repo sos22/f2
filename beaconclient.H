@@ -1,8 +1,8 @@
 /* The beacon client is the client half of the beacon protocol.  It is
  * responsible for sending beacon requests and receiving beacon
  * responses (including broadcast responses), and it uses these to
- * maintain a mapping from persistent slavenames to the peernames on
- * which those slaves are currently listening. */
+ * maintain a mapping from persistent agentnames to the peernames on
+ * which those agents are currently listening. */
 #ifndef BEACONCLIENT_H__
 #define BEACONCLIENT_H__
 
@@ -12,7 +12,7 @@
 #include "logging.H"
 #include "peername.H"
 #include "interfacetype.H"
-#include "slavename.H"
+#include "agentname.H"
 #include "thread.H"
 #include "timedelta.H"
 #include "timestamp.H"
@@ -35,9 +35,9 @@ public:  const clustername &cluster() const { return _cluster; }
     /* Optionally filter on the type of remote hosts to track */
 private: maybe<interfacetype> _type;
 public:  maybe<interfacetype> type() const { return _type; }
-    /* Optionally filter on the slavename of remote hosts to track.
+    /* Optionally filter on the agentname of remote hosts to track.
      * This is only really useful from command line tools. */
-private: maybe<slavename> _name;
+private: maybe<agentname> _name;
     /* Beacon ports to use. */
 private: beaconconfig _proto;
 public:  const beaconconfig &proto() const { return _proto; }
@@ -49,7 +49,7 @@ public:  timedelta queryinterval() const { return _queryinterval; }
      * peers? */
 private: timedelta _broadcastinterval;
 public:  timedelta broadcastinterval() const { return _broadcastinterval; }
-public:  const maybe<slavename> &name() const { return _name; }
+public:  const maybe<agentname> &name() const { return _name; }
 
     /* The type system guarantees that some fields can be overridden
      * without an error, so if you're only overriding those you can
@@ -59,19 +59,19 @@ public:  const maybe<slavename> &name() const { return _name; }
 public:  beaconclientconfig(
     const clustername &,
     maybe<interfacetype> = Nothing,
-    const maybe<slavename> & = Nothing,
+    const maybe<agentname> & = Nothing,
     const beaconconfig & = beaconconfig::dflt);
 public:  static orerror<beaconclientconfig> mk(
     const clustername &,
     maybe<interfacetype> = Nothing,
-    const maybe<slavename> & = Nothing,
+    const maybe<agentname> & = Nothing,
     const beaconconfig & = beaconconfig::dflt,
     timedelta = timedelta::seconds(1),
     timedelta = timedelta::minutes(2));
 private: beaconclientconfig(
     const clustername &,
     maybe<interfacetype>,
-    const maybe<slavename> &,
+    const maybe<agentname> &,
     const beaconconfig &,
     timedelta,
     timedelta);
@@ -127,17 +127,17 @@ public:  class result {
     private: result(const peername &, const list<interfacetype> &);
     public:  const peername name;
     public:  const list<interfacetype> type; };
-    /* Query the client's current knowledge of a particular slave,
+    /* Query the client's current knowledge of a particular agent,
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */
-public:  maybe<result> poll(const slavename &);
-    /* Convenience function: query for a slavename, waiting as long as
+public:  maybe<result> poll(const agentname &);
+    /* Convenience function: query for a agentname, waiting as long as
      * necessary to get a result.  This is only really useful from
      * command line tools: if the remote machine has crashed, it'll
      * wait forever for it to come back, which is only really sensible
      * in a context where the user will control-C you if you're taking
      * an unreasonable amount of time. */
-public:  result query(clientio, const slavename &);
+public:  result query(clientio, const agentname &);
     /* Iterator for enumerating all of the entries in the cache.  If
      * given, the actortype restricts the enumeration to only return
      * entries of a particular type.  Otherwise, all entries are
@@ -152,7 +152,7 @@ public:  result query(clientio, const slavename &);
      *    actortype).
      * 2) Anything returned by the enumerator was in the cache at some
      *    point between the start and end of the enumeration.
-     * 3) The enumerator will never return any slave more than once.
+     * 3) The enumerator will never return any agent more than once.
      *
      * The caller must ensure that all iterators are released before
      * the client is destroy()ed.
@@ -162,17 +162,17 @@ public:  result query(clientio, const slavename &);
 public:  class iterator {
         friend class beaconclient;
     private: class entry {
-        public: slavename name;
+        public: agentname name;
         public: list<interfacetype> type;
         public: peername peer;
-        public: entry(const slavename &,
+        public: entry(const agentname &,
                       const list<interfacetype> &,
                       const peername &); };
     private: list<entry> content;
         /* Never Nothing except for a brief interval in the constructor */
     private: maybe<list<entry>::const_iter> it;
     private: iterator(beaconclient *, maybe<interfacetype>);
-    public:  const slavename &name() const;
+    public:  const agentname &name() const;
     public:  const list<interfacetype> &type() const;
     public:  const peername &peer() const;
     public:  bool finished() const;
