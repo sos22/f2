@@ -62,6 +62,22 @@ public:
     void serialise(serialise1 &) const;
 };
 
+static inline timedelta
+operator "" _ms(long double inner) {
+    return timedelta::nanoseconds((long)(inner * 1000000)); }
+
+static inline timedelta
+operator "" _ms(unsigned long long inner) {
+    return timedelta::milliseconds((long)inner); }
+
+static inline timedelta
+operator "" _s(long double inner) {
+    return timedelta::nanoseconds((long)(inner * 1000000000)); }
+
+static inline timedelta
+operator "" _s(unsigned long long inner) {
+    return timedelta::seconds((long)inner); }
+
 static inline timedelta operator*(double scale, timedelta v) {
     return v * scale; }
 
