@@ -15,6 +15,7 @@
 #include "frequency.H"
 #include "list.H"
 #include "logging.H"
+#include "lqueue.H"
 #include "maybe.H"
 #include "mutex.H"
 #include "parsers.H"
@@ -52,6 +53,7 @@ main(int argc, char *argv[])
     tests::_frequency();
     tests::_list();
     tests::logging();
+    tests::_lqueue();
     tests::_maybe();
     tests::mutex();
     tests::parsers();

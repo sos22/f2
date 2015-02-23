@@ -1,18 +1,5 @@
 filesystem = f, compute = c, testing = t, storage = s, infra = X
 
-c2) Extend compute slave interface with a way of turning jobs into
-    running tasks.  Tasks will hang around in memory indefinitely
-    after they terminate.  Tasks will be identified by the job which
-    created them i.e. no way of distinguishing two instances of job X
-    (might add something for debugging, but semantically they're
-    indistinguishable)
-c3) CLI interface for creating hello-world tasks directly against a
-    compute slave.  The message will include the peername which holds
-    the task.
-c4) CLI interface for getting the results of a task.  That'll just be
-    a state enumeration, plus a success/failure flag (at this stage).
-c5) CLI interface for deleting old results from the slave's task
-    table.
 f4) Coordinator starts tracking compute slaves.  This should be pretty
     trivial; just adjust beacon client config.
 f5) Coordinator takes an inventory of compute slaves as they turn up.
@@ -20,14 +7,6 @@ f5) Coordinator takes an inventory of compute slaves as they turn up.
     This'll be a separate structure to the object name -> storage
     slave mapping.  For a start, it should be a single map, because we
     shouldn't have multiple slaves building the same thing at once.
-c6) Compute slaves expose a poll interface for getting notified when
-    tasks change state.  This could be an event queue or it could be a
-    single posted RPC; not sure yet.  I like the symmetry of using
-    queues for both kinds of slave, but I'm not sure the complexity is
-    needed here, because the number of running tasks on a compute
-    slave should be far smaller than the number of objects on a
-    storage slave.
-c7) CLI for compute slave task poll interface.
 f6) Coordinator polls compute slaves to detect when tasks complete.
     At a minimum it needs to update its task table.  If the task
     failed softly and we still need the results then the job goes back
