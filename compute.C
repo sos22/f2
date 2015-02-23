@@ -72,6 +72,19 @@ proto::compute::jobstatus::finished(const jobname &jn,
                                     const orerror<jobresult> &r) {
     return jobstatus(jn, t, r); }
 
+const fields::field &
+proto::compute::jobstatus::field() const {
+    const fields::field *acc =
+        &("<jobstatus: name:" +
+          fields::mk(name) +
+          " tag:" +
+          fields::mk(tag));
+    if (result == Nothing) return *acc + " running>";
+    else if (result.just().isfailure()) {
+        return *acc + " failed:" + fields::mk(result.just().failure()) + ">"; }
+    else {
+        return *acc + " " + result.just().success().field() + ">"; } }
+
 proto::compute::event::event(const contentT &c) : content(c) {}
 
 void

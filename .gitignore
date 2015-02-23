@@ -13,8 +13,10 @@
 buildconfig.C
 cli
 config
+computeclient
 computefmt
 computeservice
+computestate
 coordinatorclient
 coordinatorservice
 /master

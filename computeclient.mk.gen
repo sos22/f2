@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc computeclient.C
+ld computeclient computeclient.o lib.a
+
+target computeclient
