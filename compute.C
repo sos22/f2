@@ -107,3 +107,16 @@ proto::compute::event::removed(const jobstatus &js) {
 proto::compute::event
 proto::compute::event::flushed() {
     return contentT(Nothing); }
+
+const fields::field &
+proto::compute::event::field() const {
+    if (content == Nothing) {
+        return fields::mk("<flushed>"); }
+    else if (content.just().isright()) {
+        return "<removed:" + fields::mk(content.just().right()) + ">"; }
+    else if (content.just().left().isright()) {
+        return "<finish:" + fields::mk(content.just().left().right()) + ">"; }
+    else {
+        return "<start:" + fields::mk(content.just().left().left().first()) +
+            "::" + fields::mk(content.just().left().left().second()) +
+            ">"; } }

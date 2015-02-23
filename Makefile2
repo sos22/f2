@@ -7,6 +7,7 @@ all: realall
 include computeclient.mk
 include computefmt.mk
 include computeservice.mk
+include computespy.mk
 include coordinatorclient.mk
 include coordinatorservice.mk
 include lib.mk

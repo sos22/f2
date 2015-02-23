@@ -16,6 +16,7 @@ config
 computeclient
 computefmt
 computeservice
+computespy
 computestate
 coordinatorclient
 coordinatorservice

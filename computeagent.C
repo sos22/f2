@@ -125,6 +125,9 @@ computeservice::maintenancethread::run(clientio io) {
                 rj->proc(muxtoken).mkright(jobresult::failure()); }
             else {
                 rj->proc(muxtoken).mkright(error::signalled); } }
+        owner.eqq(muxtoken).queue(
+            proto::compute::event::finish(rj->status(muxtoken)),
+            rpcservice2::acquirestxlock(io));
         owner.mux.unlock(&muxtoken); } }
 
 orerror<nnp<computeservice> >
@@ -205,6 +208,9 @@ computeservice::called(clientio io,
             mux.unlock(&tok);
             return error::toosoon; }
         else {
+            eqq(tok).queue(
+                proto::compute::event::removed(job.just()->status(tok)),
+                acquirestxlock(io));
             job.just().remove();
             mux.unlock(&tok);
             ic->complete(Success, acquirestxlock(io), oct);

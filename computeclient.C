@@ -27,7 +27,7 @@ main(int argc, char *argv[]) {
         errx(1, "need at least three arguments: a cluster, a peer and a mode");}
     auto cluster(parsers::__clustername()
                  .match(argv[1])
-                 .fatal("parsing cluser name " + fields::mk(argv[1])));
+                 .fatal("parsing cluster name " + fields::mk(argv[1])));
     auto peer(parsers::_agentname()
               .match(argv[2])
               .fatal("parsing agent name " + fields::mk(argv[2])));
