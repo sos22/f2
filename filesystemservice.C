@@ -63,6 +63,17 @@ filesystemservice::called(clientio io,
                      acquirestxlock(io),
                      oct);
         return Success; }
+    else if (tag == proto::filesystem::tag::nominateagent) {
+        maybe<jobname> jn(ds);
+        if (ds.isfailure()) return ds.failure();
+        ic->complete([res = fs.nominateagent(jn)]
+                     (serialise1 &s,
+                      mutex_t::token /* txlock */,
+                      onconnectionthread) {
+                         s.push(res); },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
     else {
         /* Tag deserialiser shouldn't let us get here. */
         abort(); } }

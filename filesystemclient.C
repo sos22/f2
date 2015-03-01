@@ -76,6 +76,19 @@ main(int argc, char *argv[]) {
                      s.push(str); },
                  [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
+    else if (!strcmp(argv[3], "NOMINATEAGENT")) {
+        if (argc != 4 && argc != 5) {
+            errx(1, "NOMINATEAGENT takes an optional jobname argument"); }
+        maybe<jobname> jn(Nothing);
+        if (argc == 5) {
+            jn = parsers::_jobname()
+                .match(argv[4])
+                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"); }
+        maybe<maybe<agentname> > res(Nothing);
+        makecall(proto::filesystem::tag::nominateagent,
+                 [&jn] (serialise1 &s) { s.push(jn); },
+                 [&res] (deserialise1 &ds) { res.mkjust(ds); });
+        fields::print("result " + fields::mk(res.just()) + "\n"); }
     else {
         errx(1, "unknown mode %s", argv[3]); }
     pool->destroy();

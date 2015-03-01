@@ -15,6 +15,16 @@ public:  explicit tag(deserialise1 &);
 public:  static const tag findjob;
     /* Inputs: jobname, streamname.
      * Outputs: list<pair<agentname, streamstatus> > */
-public:  static const tag findstream; }; } }
+public:  static const tag findstream;
+    /* Inputs: maybe<jobname>
+     * Outputs: maybe<agentname>
+     *
+     * Nominate a storage agent to store a particular job, or Nothing
+     * if no agents can accept new jobs right now.  The choice is
+     * arbitrary when multiple agents are available, but will usually
+     * be biassed towards an agent which holds the job nominated in
+     * the input.
+     */
+public:  static const tag nominateagent; }; } }
 
 #endif /* !FILESYSTEMPROTO_H__ */
