@@ -8,10 +8,13 @@ BINS="computeclient                   \
     computespy                       \
     coordinatorclient                \
     coordinatorservice               \
+    filesystemclient                 \
+    filesystemservice                \
     storageclient                    \
     storageservice                   \
     storagefmt                       \
     storagespy"
+
 for x in ${BINS}
 do
     cc ${x}.C

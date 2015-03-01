@@ -94,19 +94,7 @@ coordinatorservice::called(clientio io,
                            onconnectionthread oct) {
     assert(t == interfacetype::coordinator);
     proto::coordinator::tag tag(ds);
-    if (tag == proto::coordinator::tag::findjob) {
-        jobname jn(ds);
-        if (ds.isfailure()) return ds.failure();
-        list<agentname> res(fs.findjob(jn));
-        ic->complete([capres = res.steal()]
-                     (serialise1 &s,
-                      mutex_t::token /* txlock */,
-                      onconnectionthread) {
-                         s.push(capres); },
-                     acquirestxlock(io),
-                     oct);
-        return Success; }
-    else if (tag == proto::coordinator::tag::findstream) {
+    if (tag == proto::coordinator::tag::findstream) {
         jobname jn(ds);
         streamname sn(ds);
         if (ds.isfailure()) return ds.failure();

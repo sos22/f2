@@ -20,6 +20,8 @@ computespy
 computestate
 coordinatorclient
 coordinatorservice
+filesystemclient
+filesystemservice
 /master
 spawnservice
 storageclient

@@ -284,7 +284,7 @@ main(int argc, char *argv[]) {
             errx(1, "CREATEJOB needs a job name"); }
         auto job(parsers::_job()
                  .match(argv[4])
-                 .fatal("parsing job " + fields::mk(argv[3])));
+                 .fatal("parsing job " + fields::mk(argv[4])));
         auto m = conn.createjob(clientio::CLIENTIO, job);
         if (m == error::already) m.failure().warn("already created");
         else if (m.isfailure()) m.failure().fatal("creating empty job");

@@ -30,25 +30,7 @@ main(int argc, char *argv[]) {
             .fatal("parsing " + fields::mk(argv[2]) +
                    " as agentname"));
     auto pool(connpool::build(cluster).fatal("building connection pool"));
-    if (!strcmp(argv[3], "FINDJOB")) {
-        if (argc != 5) errx(1, "FINDJOB needs a jobname argument");
-        auto jn(parsers::_jobname()
-                .match(argv[4])
-                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
-        maybe<list<agentname> > res(Nothing);
-        pool->call(clientio::CLIENTIO,
-                   sn,
-                   interfacetype::coordinator,
-                   Nothing,
-                   [&jn] (serialise1 &s, connpool::connlock) {
-                       s.push(proto::coordinator::tag::findjob);
-                       s.push(jn); },
-                   [&res] (deserialise1 &ds, connpool::connlock) {
-                       res.mkjust(ds);
-                       return ds.status(); })
-            .fatal("making FINDJOB call");
-        fields::print("result " + fields::mk(res.just()) + "\n"); }
-    else if (!strcmp(argv[3], "FINDSTREAM")) {
+    if (!strcmp(argv[3], "FINDSTREAM")) {
         if (argc != 6) errx(1,"FINDJOB needs jobname and streamname arguments");
         auto jn(parsers::_jobname()
                 .match(argv[4])
