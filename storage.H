@@ -5,6 +5,7 @@
 #include "jobname.H"
 #include "list.H"
 #include "maybe.H"
+#include "proto.H"
 #include "streamname.H"
 #include "streamstatus.H"
 
@@ -53,11 +54,9 @@ public: maybe<streamname> start;
 public: maybe<streamname> end;
     /* The actual snapshot itself. */
 public: list<streamstatus> res; };
-class tag {
-private: unsigned v;
-private: explicit tag(unsigned);
-public:  explicit tag(deserialise1 &);
-public:  void serialise(serialise1 &) const;
+class tag : public proto::tag {
+private: explicit tag(unsigned char x) : proto::tag(x) {}
+public:  explicit tag(deserialise1 &ds);
     /* Inputs: job.  Outputs: Event ID of the event which will tell
      * the world about the new job. */
 public:  static const tag createjob;
@@ -88,10 +87,7 @@ public:  static const tag statstream;
     /* Inputs: jobname, streamname.  Outputs: None. */
 public:  static const tag removestream;
     /* Inputs: jobname.  Outputs: None */
-public:  static const tag removejob;
-public:  bool operator==(tag o) const { return v == o.v; }
-public:  bool operator!=(tag o) const { return v != o.v; }
-};
+public:  static const tag removejob; };
 
 class event {
 public:  enum type {

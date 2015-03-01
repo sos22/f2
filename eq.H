@@ -3,6 +3,8 @@
 #ifndef EQ_H__
 #define EQ_H__
 
+#include "proto.H"
+
 class deserialise1;
 class serialise1;
 class string;
@@ -77,13 +79,9 @@ public:  eventid succ() const { return eventid(v + 1); }
 public:  eventid gap(unsigned sz) const;
 public:  const fields::field &field() const; };
 
-class tag {
-private: unsigned v;
-private: explicit tag(unsigned _v) : v(_v) {}
+class tag : public proto::tag {
+private: explicit tag(unsigned char _v) : proto::tag(_v) {}
 public:  explicit tag(deserialise1 &);
-public:  void serialise(serialise1 &) const;
-public:  bool operator==(tag o) const { return v == o.v; }
-public:  bool operator!=(tag o) const { return v != o.v; }
     /* Subscribe to an event queue, giving the client some control
      * over when the server releases events.  Subscriptions need to be
      * used frequently to be kept live.  An outstanding poll counts as

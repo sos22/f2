@@ -59,13 +59,11 @@ const fields::field &
 fields::mk(proto::eq::eventid e) { return e.field(); }
 
 proto::eq::tag::tag(deserialise1 &ds)
-    : v(ds) {
+    : proto::tag(ds) {
     if (*this != subscribe &&
         *this != get &&
         *this != wait &&
         *this != trim &&
         *this != unsubscribe) {
-        ds.fail(error::invalidmessage); } }
-
-void
-proto::eq::tag::serialise(serialise1 &s) const { s.push(v); }
+        ds.fail(error::invalidmessage);
+        *this = subscribe; } }

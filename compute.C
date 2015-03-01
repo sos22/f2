@@ -16,12 +16,13 @@ proto::compute::tag::enumerate(12);
 const proto::compute::tag
 proto::compute::tag::drop(13);
 
-proto::compute::tag::tag(unsigned _v) : v(_v) {}
-
-proto::compute::tag::tag(deserialise1 &ds) : v(ds.poprange<unsigned>(11,13)) {}
-
-void
-proto::compute::tag::serialise(serialise1 &s) const { s.push(v); }
+proto::compute::tag::tag(deserialise1 &ds)
+    : proto::tag(ds) {
+    if (*this != start &&
+        *this != enumerate &&
+        *this != drop) {
+        ds.fail(error::invalidmessage);
+        *this = start; } }
 
 proto::compute::tasktag::tasktag(unsigned long _v) : v(_v) {}
 

@@ -8,6 +8,7 @@
 #include "maybe.H"
 #include "orerror.H"
 #include "pair.H"
+#include "proto.H"
 
 class deserialise1;
 namespace fields { class field; }
@@ -15,11 +16,9 @@ class serialise1;
 
 namespace proto {
 namespace compute {
-class tag {
-private: unsigned v;
-private: explicit tag(unsigned);
+class tag : public proto::tag {
+private: explicit tag(unsigned char c) : proto::tag(c) {}
 public:  explicit tag(deserialise1 &);
-public:  void serialise(serialise1 &) const;
     /* Inputs: job, peername.
      * Outputs: proto::eq::eventid, tasktag.
      *
@@ -43,10 +42,7 @@ public:  static const tag enumerate;
      * Drop the results of a completed job from the job table.  Only
      * valid once the job has completed.
      */
-public:  static const tag drop;
-    
-public:  bool operator==(tag o) const { return v == o.v; }
-public:  bool operator!=(tag o) const { return v != o.v; } };
+public:  static const tag drop; };
 
 /* Unique identifier for a particular incarnation of a job.  Only
  * really useful for debugging; all of the interesting APIs are

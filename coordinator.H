@@ -1,16 +1,16 @@
 #ifndef COORDINATOR_H__
 #define COORDINATOR_H__
 
+#include "proto.H"
+
 class serialise1;
 class deserialise1;
 
 namespace proto {
 namespace coordinator {
-class tag {
-private: unsigned v;
-private: explicit tag(unsigned);
+class tag : public proto::tag {
+private: explicit tag(unsigned char c) : proto::tag(c) {}
 public:  explicit tag(deserialise1 &);
-public:  void serialise(serialise1 &) const;
     /* Inputs: jobname.  Outputs: list<agentname> */
 public:  static const tag findjob;
     /* Inputs: jobname, streamname.
@@ -21,8 +21,6 @@ public:  static const tag findstream;
      *
      * Makes sure that the job exists on at least one storage agent
      * and then returns one of the agents which has a copy of it. */
-public:  static const tag createjob;
-public:  bool operator==(tag o) const { return v == o.v; }
-public:  bool operator!=(tag o) const { return v != o.v; } }; } }
+public:  static const tag createjob; }; } }
 
 #endif /* !COORINATOR_H__ */

@@ -32,10 +32,8 @@ proto::storage::tag::removestream(99);
 const proto::storage::tag
 proto::storage::tag::removejob(100);
 
-proto::storage::tag::tag(unsigned x) : v(x) {}
-
 proto::storage::tag::tag(deserialise1 &ds)
-    : v(ds) {
+    : proto::tag(ds) {
     if (*this != createjob &&
         *this != createstream &&
         *this != append &&
@@ -48,10 +46,7 @@ proto::storage::tag::tag(deserialise1 &ds)
         *this != removestream &&
         *this != removejob) {
         ds.fail(error::invalidmessage);
-        v = createjob.v; } }
-
-void
-proto::storage::tag::serialise(serialise1 &s) const { s.push(v); }
+        *this = createjob; } }
 
 proto::storage::listjobsres::listjobsres(proto::eq::eventid _when,
                                          const maybe<jobname> &_start,
