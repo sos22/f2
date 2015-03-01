@@ -1,8 +1,0 @@
-#! /bin/bash
-
-. shutil
-
-cc computespy.C
-ld computespy computespy.o lib.a
-
-target computespy

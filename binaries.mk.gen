@@ -1,0 +1,20 @@
+#! /bin/bash
+
+. shutil
+
+BINS="computeclient                   \
+    computefmt                       \
+    computeservice                   \
+    computespy                       \
+    coordinatorclient                \
+    coordinatorservice               \
+    storageclient                    \
+    storageservice                   \
+    storagefmt                       \
+    storagespy"
+for x in ${BINS}
+do
+    cc ${x}.C
+    ld ${x} ${x}.o lib.a
+    target ${x}
+done

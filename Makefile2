@@ -4,18 +4,8 @@ all: realall
 
 .SUFFIXES:
 
-include computeclient.mk
-include computefmt.mk
-include computeservice.mk
-include computespy.mk
-include coordinatorclient.mk
-include coordinatorservice.mk
+include binaries.mk
 include lib.mk
-include spawnservice.mk
-include storageclient.mk
-include storageservice.mk
-include storagefmt.mk
-include storagespy.mk
 include test.mk
 include tests.mk
 include tests/mk

@@ -1,8 +1,0 @@
-#! /bin/bash
-
-. shutil
-
-cc storageclient.C
-ld storageclient storageclient.o lib.a
-
-target storageclient

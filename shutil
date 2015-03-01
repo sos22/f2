@@ -17,9 +17,9 @@ EOF
 function ld() {
     local target=$1
     shift
-    x=${@/%.o/-c.o}
+    local x=${@/%.o/-c.o}
     x=${x/%.a/-c.a}
-    y=${@/%.o/-t.o}
+    local y=${@/%.o/-t.o}
     y=${y/%.a/-t.a}
     cat <<EOF
 $target: $* $mkfile
