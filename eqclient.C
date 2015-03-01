@@ -78,7 +78,7 @@ public: impl(connpool::asynccallT<callres_t> &,
              const agentname &,
              const proto::eq::genname &,
              const eqclientconfig &);
-public: orerror<nnp<geneqclient> > pop(token);
+public: orerror<pair<nnp<geneqclient>, proto::eq::eventid> > pop(token);
 public: void abort(); };
 
 eqclientconfig::eqclientconfig()
@@ -108,7 +108,7 @@ geneqclient::asyncconnect::finished() const {
     if (r == Nothing) return Nothing;
     else return token(r.just()); }
 
-orerror<nnp<geneqclient> >
+orerror<pair<nnp<geneqclient>, proto::eq::eventid> >
 geneqclient::asyncconnect::pop(token t) { return implementation().pop(t); }
 
 void
@@ -127,7 +127,7 @@ CONNECT::impl(
       queuename(_queuename),
       config(_config) {}
 
-orerror<nnp<geneqclient> >
+orerror<pair<nnp<geneqclient>, proto::eq::eventid> >
 CONNECT::pop(token t) {
     auto r(inner.pop(t.inner));
     if (r.isfailure()) {
@@ -143,7 +143,7 @@ CONNECT::pop(token t) {
                      r.success().second(),
                      config)->api);
         delete this;
-        return success(_nnp(res)); } }
+        return success(mkpair(_nnp(res), r.success().second().pred())); } }
 
 void
 CONNECT::abort() {
@@ -174,7 +174,7 @@ geneqclient::connect(connpool &pool,
                    return success(CONNECT::callres_t(ds)); }));
     return _nnp((new CONNECT(*r, pool, sn, name, config))->api); }
 
-orerror<nnp<geneqclient> >
+orerror<pair<nnp<geneqclient>, proto::eq::eventid> >
 geneqclient::connect(clientio io,
                      connpool &pool,
                      const agentname &sn,

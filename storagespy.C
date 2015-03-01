@@ -31,7 +31,8 @@ main(int argc, char *argv[]) {
                   peer,
                   proto::eq::names::storage,
                   timedelta::seconds(30).future())
-              .fatal("connecting storage event queue"));
+              .fatal("connecting storage event queue")
+              .first());
     while (true) {
         auto p(clnt->pop(clientio::CLIENTIO)
                .fatal("getting event from storage agent"));

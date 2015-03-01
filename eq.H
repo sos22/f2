@@ -73,6 +73,8 @@ public:  bool operator<(eventid o) const { return v < o.v; }
 public:  static eventid initial();
     /* Advance the ID by one. */
 public:  eventid succ() const { return eventid(v + 1); }
+    /* Retard the ID by one. */
+public:  eventid pred() const { return eventid(v - 1); }
     /* Advance the event ID and then round it up, because doing that
      * sort of thing when something interesting happens sometimes
      * makes bugs a bit more obvious. */

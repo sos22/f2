@@ -79,7 +79,8 @@ eqtestcase(clientio io,
                sn,
                proto::eq::names::testunsigned,
                timestamp::now() + timedelta::seconds(10))
-           .fatal("connecting eqclient"));
+           .fatal("connecting eqclient")
+           .first());
     f(io, *c, *q);
     c->destroy();
     pool->destroy();
@@ -164,7 +165,8 @@ tests::_eqtest() {
                         proto::eq::names::testunsigned,
                         timedelta::seconds(1).future(),
                         cconfig1)
-                    .fatal("connecting eqclient"));
+                    .fatal("connecting eqclient")
+                    .first());
             auto cconfig2(cconfig1);
             cconfig2.maxqueue = 2;
             auto c2(eqclient<unsigned>::connect(
@@ -174,7 +176,8 @@ tests::_eqtest() {
                         proto::eq::names::testunsigned,
                         timedelta::seconds(1).future(),
                         cconfig2)
-                    .fatal("connecting eqclient"));
+                    .fatal("connecting eqclient")
+                    .first());
             assert(c1->pop() == Nothing);
             q->queue(1, rpcservice2::acquirestxlock(io));
             assert(c1->pop(io) == 1);
@@ -220,7 +223,8 @@ tests::_eqtest() {
                 sn,
                 proto::eq::names::testunsigned,
                 timedelta::seconds(1).future())
-                .fatal("connecting eqclient");
+                .fatal("connecting eqclient")
+                .first();
             assert(c2->pop() == Nothing);
             q->queue(99, rpcservice2::acquirestxlock(io));
             assert(c2->pop(io) == 99);
@@ -286,7 +290,8 @@ tests::_eqtest() {
                        proto::eq::names::testunsigned,
                        timedelta::seconds(1).future(),
                        cconfig)
-                   .fatal("connecting eqclient"));
+                   .fatal("connecting eqclient")
+                   .first());
             startedwaiter.get(io);
             s->destroy(io);
             q->destroy(io);
@@ -330,7 +335,8 @@ tests::_eqtest() {
                        proto::eq::names::testunsigned,
                        timedelta::seconds(1).future(),
                        cconfig)
-                   .fatal("connecting eqclient"));
+                   .fatal("connecting eqclient")
+                   .first());
             startedwaiter.get(io);
             q->destroy(io);
             auto t(timedelta::time(
@@ -372,7 +378,8 @@ tests::_eqtest() {
                        proto::eq::names::testunsigned,
                        timedelta::seconds(1).future(),
                        cconfig)
-                   .fatal("connecting eqclient"));
+                   .fatal("connecting eqclient")
+                   .first());
             /* Make sure it's properly subscribed. */
             startedwaiter.get(io);
             /* Arrange to unsubscribe while the server is halfway
@@ -419,7 +426,8 @@ tests::_eqtest() {
                        proto::eq::names::testunsigned,
                        timedelta::seconds(1).future(),
                        cconfig)
-                   .fatal("connecting eqclient"));
+                   .fatal("connecting eqclient")
+                   .first());
             startedwaiter.get(io);
             c->destroy();
             pool->destroy();
@@ -452,7 +460,8 @@ tests::_eqtest() {
                        sn,
                        proto::eq::names::testunsigned,
                        timedelta::seconds(1).future())
-                   .fatal("connecting eqclient"));
+                   .fatal("connecting eqclient")
+                   .first());
             assert(c->pop() == Nothing);
             q->queue(3, rpcservice2::acquirestxlock(io));
             assert(c->pop(io) == 3);
@@ -496,7 +505,8 @@ tests::_eqtest() {
                         proto::eq::names::testunsigned,
                         timedelta::seconds(1).future(),
                         cconfig)
-                    .fatal("connecting eqclient"));
+                    .fatal("connecting eqclient")
+                    .first());
             auto c2(eqclient<string>::connect(
                         io,
                         *pool,
@@ -504,7 +514,8 @@ tests::_eqtest() {
                         proto::eq::names::teststring,
                         timedelta::seconds(1).future(),
                         cconfig)
-                    .fatal("connecting eqclient"));
+                    .fatal("connecting eqclient")
+                    .first());
             q1->queue(99, rpcservice2::acquirestxlock(io));
             q2->queue("Hello", rpcservice2::acquirestxlock(io));
             {   auto r(c1->pop(io));
@@ -549,7 +560,8 @@ tests::_eqtest() {
                        proto::eq::names::testunsigned,
                        timedelta::seconds(1).future(),
                        cconfig)
-                   .fatal("connecting eqclient"));
+                   .fatal("connecting eqclient")
+                   .first());
             q->queue(0, rpcservice2::acquirestxlock(io));
             for (unsigned x = 0; x < 1000; x++) {
                 q->queue(x+1, rpcservice2::acquirestxlock(io));
@@ -591,7 +603,8 @@ tests::_eqtest() {
                         sn,
                         proto::eq::names::testunsigned,
                         timedelta::seconds(1).future())
-                    .fatal("connecting eqclient"));
+                    .fatal("connecting eqclient")
+                    .first());
             while (nrwaiters == 0)timedelta::milliseconds(1).future().sleep(io);
             assert(nrwaiters == 1);
             auto c2(eqclient<unsigned>::connect(
@@ -600,7 +613,8 @@ tests::_eqtest() {
                         sn,
                         proto::eq::names::testunsigned,
                         timedelta::seconds(1).future())
-                    .fatal("connecting eqclient"));
+                    .fatal("connecting eqclient")
+                    .first());
             while (nrwaiters == 1)timedelta::milliseconds(1).future().sleep(io);
             assert(nrwaiters == 2);
             c2->destroy();
@@ -650,7 +664,8 @@ tests::_eqtest() {
                 assert(timedelta::time([&] { assert(sub.wait(io) == &ss);  })
                        < timedelta::milliseconds(100)); }
             auto c(conn->pop(conn->finished().just())
-                   .fatal("connecting to slow server"));
+                   .fatal("connecting to slow server")
+                   .first());
             /* Quick check that it vaguely works. */
             q->queue(52, io);
             assert(timedelta::time([&] { assert(c->pop(io) == 52); })
@@ -679,17 +694,21 @@ tests::_eqtest() {
                 .fatal("formating test queue");
             auto q(server->openqueue(proto::eq::names::testunsigned, statefile)
                    .fatal("opening test queue"));
-            auto c(eqclient<unsigned>::connect(
-                       io,
-                       *pool,
-                       sn,
-                       proto::eq::names::testunsigned,
-                       timedelta::seconds(1).future())
-                   .fatal("connecting eqclient"));
+            auto droppedeid(q->queue(123, io));
+            auto cpair(eqclient<unsigned>::connect(
+                           io,
+                           *pool,
+                           sn,
+                           proto::eq::names::testunsigned,
+                           timedelta::seconds(1).future())
+                       .fatal("connecting eqclient"));
+            assert(droppedeid <= cpair.second());
+            auto c(cpair.first());
             auto exptag(q->lastid());
             auto tag1(q->queue(5, io));
             assert(exptag.succ() == tag1);
             assert(q->lastid() == tag1);
+            assert(tag1 > cpair.second());
             auto pop1res(c->popid(io).fatal("popping first queue entry"));
             assert(pop1res.first() == tag1);
             assert(pop1res.second() == 5);
@@ -714,7 +733,8 @@ tests::_eqtest() {
                 sn,
                 proto::eq::names::testunsigned,
                 timedelta::seconds(1).future())
-                .fatal("reconnecting eqclient");
+                .fatal("reconnecting eqclient")
+                .first();
 
             auto tag3(q->queue(7, io));
             assert(tag3 > tag2);
