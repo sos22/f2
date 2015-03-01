@@ -3,11 +3,7 @@
 #include "connpool.H"
 #include "coordinator.H"
 #include "job.H"
-#include "jobname.H"
-#include "streamname.H"
-#include "streamstatus.H"
 
-#include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 
@@ -30,29 +26,7 @@ main(int argc, char *argv[]) {
             .fatal("parsing " + fields::mk(argv[2]) +
                    " as agentname"));
     auto pool(connpool::build(cluster).fatal("building connection pool"));
-    if (!strcmp(argv[3], "FINDSTREAM")) {
-        if (argc != 6) errx(1,"FINDJOB needs jobname and streamname arguments");
-        auto jn(parsers::_jobname()
-                .match(argv[4])
-                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
-        auto str(parsers::_streamname()
-                 .match(argv[5])
-                 .fatal("parsing " + fields::mk(argv[5]) + " as streamname"));
-        maybe<list<pair<agentname, streamstatus> > > res(Nothing);
-        pool->call(clientio::CLIENTIO,
-                   sn,
-                   interfacetype::coordinator,
-                   Nothing,
-                   [&jn, &str] (serialise1 &s, connpool::connlock) {
-                       s.push(proto::coordinator::tag::findstream);
-                       s.push(jn);
-                       s.push(str); },
-                   [&res] (deserialise1 &ds, connpool::connlock) {
-                       res.mkjust(ds);
-                       return ds.status(); })
-            .fatal("making FINDSTREAM call");
-        fields::print("result " + fields::mk(res.just()) + "\n"); }
-    else if (!strcmp(argv[3], "CREATEJOB")) {
+    if (!strcmp(argv[3], "CREATEJOB")) {
         if (argc != 5) errx(1, "CREATEJOB needs a job argument");
         auto j(parsers::_job()
                .match(argv[4])

@@ -12,6 +12,9 @@ public:  explicit tag(deserialise1 &);
     /* Inputs: jobname
      * Outputs: list<agentname>
      */
-public:  static const tag findjob; }; } }
+public:  static const tag findjob;
+    /* Inputs: jobname, streamname.
+     * Outputs: list<pair<agentname, streamstatus> > */
+public:  static const tag findstream; }; } }
 
 #endif /* !FILESYSTEMPROTO_H__ */

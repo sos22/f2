@@ -11,6 +11,8 @@
 #include "nnp.H"
 #include "rpcservice2.H"
 #include "serialise.H"
+#include "streamname.H"
+#include "streamstatus.H"
 
 #include "list.tmpl"
 #include "parsers.tmpl"
@@ -40,6 +42,19 @@ filesystemservice::called(clientio io,
         jobname jn(ds);
         if (ds.isfailure()) return ds.failure();
         list<agentname> res(fs.findjob(jn));
+        ic->complete([capres = res.steal()]
+                     (serialise1 &s,
+                      mutex_t::token /* txlock */,
+                      onconnectionthread) {
+                         s.push(capres); },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
+    else if (tag == proto::filesystem::tag::findstream) {
+        jobname jn(ds);
+        streamname sn(ds);
+        if (ds.isfailure()) return ds.failure();
+        list<pair<agentname, streamstatus> > res(fs.findstream(jn, sn));
         ic->complete([capres = res.steal()]
                      (serialise1 &s,
                       mutex_t::token /* txlock */,

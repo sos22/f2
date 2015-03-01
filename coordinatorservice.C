@@ -1,21 +1,14 @@
-#include "err.h"
+#include <err.h>
 
-#include "beaconclient.H"
-#include "coordinator.H"
 #include "connpool.H"
-#include "eq.H"
-#include "jobname.H"
+#include "coordinator.H"
 #include "filesystem.H"
 #include "job.H"
+#include "jobname.H"
 #include "logging.H"
-#include "nnp.H"
-#include "parsers.H"
 #include "rpcservice2.H"
 #include "serialise.H"
 #include "storage.H"
-#include "streamname.H"
-#include "streamstatus.H"
-#include "thread.H"
 
 #include "list.tmpl"
 #include "maybe.tmpl"
@@ -94,20 +87,7 @@ coordinatorservice::called(clientio io,
                            onconnectionthread oct) {
     assert(t == interfacetype::coordinator);
     proto::coordinator::tag tag(ds);
-    if (tag == proto::coordinator::tag::findstream) {
-        jobname jn(ds);
-        streamname sn(ds);
-        if (ds.isfailure()) return ds.failure();
-        list<pair<agentname, streamstatus> > res(fs.findstream(jn, sn));
-        ic->complete([capres = res.steal()]
-                     (serialise1 &s,
-                      mutex_t::token /* txlock */,
-                      onconnectionthread) {
-                         s.push(capres); },
-                     acquirestxlock(io),
-                     oct);
-        return Success; }
-    else if (tag == proto::coordinator::tag::createjob) {
+    if (tag == proto::coordinator::tag::createjob) {
         job j(ds);
         if (ds.isfailure()) return ds.failure();
         /* Quick fast path to deal with the case where the job already

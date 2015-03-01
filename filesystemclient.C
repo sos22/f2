@@ -7,6 +7,8 @@
 #include "jobname.H"
 #include "logging.H"
 #include "pubsub.H"
+#include "streamname.H"
+#include "streamstatus.H"
 
 #include "list.tmpl"
 #include "maybe.tmpl"
@@ -48,6 +50,28 @@ main(int argc, char *argv[]) {
                        res.mkjust(ds);
                        return ds.status(); })
             .fatal("making FINDJOB call");
+        fields::print("result " + fields::mk(res.just()) + "\n"); }
+    else if (!strcmp(argv[3], "FINDSTREAM")) {
+        if (argc != 6) errx(1,"FINDJOB needs jobname and streamname arguments");
+        auto jn(parsers::_jobname()
+                .match(argv[4])
+                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
+        auto str(parsers::_streamname()
+                 .match(argv[5])
+                 .fatal("parsing " + fields::mk(argv[5]) + " as streamname"));
+        maybe<list<pair<agentname, streamstatus> > > res(Nothing);
+        pool->call(clientio::CLIENTIO,
+                   sn,
+                   interfacetype::filesystem,
+                   Nothing,
+                   [&jn, &str] (serialise1 &s, connpool::connlock) {
+                       s.push(proto::filesystem::tag::findstream);
+                       s.push(jn);
+                       s.push(str); },
+                   [&res] (deserialise1 &ds, connpool::connlock) {
+                       res.mkjust(ds);
+                       return ds.status(); })
+            .fatal("making FINDSTREAM call");
         fields::print("result " + fields::mk(res.just()) + "\n"); }
     else {
         errx(1, "unknown mode %s", argv[3]); }
