@@ -33,23 +33,33 @@ main(int argc, char *argv[]) {
             .fatal("parsing " + fields::mk(argv[2]) +
                    " as agentname"));
     auto pool(connpool::build(cluster).fatal("building connection pool"));
+    
+    auto makecall(
+        [pool, &sn]
+        (proto::filesystem::tag tag,
+         const std::function<void (serialise1 &)> &serialise,
+         const std::function<void (deserialise1 &)> &deserialise) {
+            pool->call(clientio::CLIENTIO,
+                       sn,
+                       interfacetype::filesystem,
+                       Nothing,
+                       [&serialise, tag] (serialise1 &s, connpool::connlock) {
+                           s.push(tag);
+                           serialise(s); },
+                       [&deserialise] (deserialise1 &ds, connpool::connlock) {
+                           deserialise(ds);
+                           return ds.status(); })
+                .fatal("making call against filesystem agent"); });
+    
     if (!strcmp(argv[3], "FINDJOB")) {
         if (argc != 5) errx(1, "FINDJOB needs a jobname argument");
         auto jn(parsers::_jobname()
                 .match(argv[4])
                 .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
         maybe<list<agentname> > res(Nothing);
-        pool->call(clientio::CLIENTIO,
-                   sn,
-                   interfacetype::filesystem,
-                   Nothing,
-                   [&jn] (serialise1 &s, connpool::connlock) {
-                       s.push(proto::filesystem::tag::findjob);
-                       s.push(jn); },
-                   [&res] (deserialise1 &ds, connpool::connlock) {
-                       res.mkjust(ds);
-                       return ds.status(); })
-            .fatal("making FINDJOB call");
+        makecall(proto::filesystem::tag::findjob,
+                 [&jn] (serialise1 &s) { s.push(jn); },
+                 [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
     else if (!strcmp(argv[3], "FINDSTREAM")) {
         if (argc != 6) errx(1,"FINDJOB needs jobname and streamname arguments");
@@ -60,18 +70,11 @@ main(int argc, char *argv[]) {
                  .match(argv[5])
                  .fatal("parsing " + fields::mk(argv[5]) + " as streamname"));
         maybe<list<pair<agentname, streamstatus> > > res(Nothing);
-        pool->call(clientio::CLIENTIO,
-                   sn,
-                   interfacetype::filesystem,
-                   Nothing,
-                   [&jn, &str] (serialise1 &s, connpool::connlock) {
-                       s.push(proto::filesystem::tag::findstream);
-                       s.push(jn);
-                       s.push(str); },
-                   [&res] (deserialise1 &ds, connpool::connlock) {
-                       res.mkjust(ds);
-                       return ds.status(); })
-            .fatal("making FINDSTREAM call");
+        makecall(proto::filesystem::tag::findstream,
+                 [&jn, &str] (serialise1 &s) {
+                     s.push(jn);
+                     s.push(str); },
+                 [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
     else {
         errx(1, "unknown mode %s", argv[3]); }
