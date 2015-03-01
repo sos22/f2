@@ -182,27 +182,17 @@ geneqclient::connect(clientio io,
                      timestamp deadline,
                      const eqclientconfig &config) {
     using namespace proto::eq;
-    typedef pair<subscriptionid, eventid> r_t;
-    auto r(pool.call<r_t>(
-               io,
-               sn,
-               interfacetype::eq,
-               deadline,
-               [&name] (serialise1 &s, connpool::connlock) {
-                   tag::subscribe.serialise(s);
-                   name.serialise(s); },
-               [] (deserialise1 &ds, connpool::connlock) -> orerror<r_t> {
-                   return r_t(ds); }));
-    if (r.isfailure()) return r.failure();
-    else return _nnp(
-        thread::start<CLIENT>(
-            "EC:" + name.field() + ":" + fields::mk(sn),
-            pool,
-            sn,
-            r.success().first(),
-            name,
-            r.success().second(),
-            config)->api); }
+    auto cc(connect(pool, sn, name, config));
+    auto token(cc->finished());
+    {   subscriber sub;
+        subscription ss(sub, cc->pub());
+        while (token == Nothing) {
+            if (sub.wait(io, deadline) == NULL) goto timeout;
+            token = cc->finished(); } }
+    return cc->pop(token.just());
+ timeout:
+    cc->abort();
+    return error::timeout; }
 
 const publisher &
 geneqclient::pub() const { return implementation().pub; }
