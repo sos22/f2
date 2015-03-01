@@ -135,8 +135,9 @@ public: class inlistjobscall {
     public:  static inlistjobscall mk(onfilesystemthread) {
         return inlistjobscall(); } };
 public: const agentname name;
-    /* At all times we're either connected or trying to connect. */
-public: either<nnp<eqclient<proto::storage::event> >,
+    /* At all times we're either connected or trying to connect.  If
+     * we're connected we keep track of our place in the stream. */
+public: either<pair<nnp<eqclient<proto::storage::event> >, proto::eq::eventid>,
                nnp<eqclient<proto::storage::event>::asyncconnect> > _eventqueue;
 public: decltype(_eventqueue) &eventqueue(onfilesystemthread) {
     return _eventqueue;}
@@ -180,8 +181,7 @@ public: store(
     eqclient<proto::storage::event>::asyncconnect &_conn,
     const agentname &_name)
         : name(_name),
-          _eventqueue(right<nnp<eqclient<proto::storage::event> > >(
-                          _nnp(_conn))),
+          _eventqueue(Right(), _nnp(_conn)),
           _eqsub(Nothing),
           _listjobs(NULL),
           _listjobssub(Nothing),
@@ -432,7 +432,7 @@ store::reconnect(connpool &pool,
     auto ijc(abortlistjobscall(oft));
     listjobsres(ijc) = Nothing;
     eqsub(oft) = Nothing;
-    if (eventqueue(oft).isleft()) eventqueue(oft).left()->destroy();
+    if (eventqueue(oft).isleft()) eventqueue(oft).left().first()->destroy();
     else eventqueue(oft).right()->abort();
     eventqueue(oft).mkright(eqclient<proto::storage::event>::connect(
                                 pool,
@@ -710,7 +710,7 @@ store::eqevent(connpool &pool,
                subscriber &sub,
                mutex_t::token tok,
                onfilesystemthread oft) {
-    auto ev(eventqueue(oft).left()->popid());
+    auto ev(eventqueue(oft).left().first()->popid());
     if (ev == Nothing) return;
     if (ev.just().isfailure()) {
         /* Error on the event queue.  Tear it down, abort all
@@ -725,21 +725,27 @@ store::eqevent(connpool &pool,
     auto &evt(ev.just().success().second());
     switch (evt.typ) {
     case proto::storage::event::t_newjob:
-        return eqnewjob(eid, evt.job, tok);
+        eqnewjob(eid, evt.job, tok);
+        break;
     case proto::storage::event::t_removejob:
-        return eqremovejob(eid, evt.job, tok, oft);
+        eqremovejob(eid, evt.job, tok, oft);
+        break;
     case proto::storage::event::t_newstream:
-        return eqnewstream(eid, evt.job, evt.stream.just(), tok, oft);
+        eqnewstream(eid, evt.job, evt.stream.just(), tok, oft);
+        break;
     case proto::storage::event::t_finishstream:
-        return eqfinishstream(eid,
-                              evt.job,
-                              evt.stream.just(),
-                              evt.status.just(),
-                              tok,
-                              oft);
+        eqfinishstream(eid,
+                       evt.job,
+                       evt.stream.just(),
+                       evt.status.just(),
+                       tok,
+                       oft);
+        break;
     case proto::storage::event::t_removestream:
-        return eqremovestream(eid, evt.job, evt.stream.just(), tok, oft); }
-    abort(); }
+        eqremovestream(eid, evt.job, evt.stream.just(), tok, oft);
+        break; }
+    /* Advance our position in the event stream. */
+    eventqueue(oft).left().second() = eid; }
 
 /* Check if a store's finished connecting to its event queue.  If the
  * EQ connect fails then we'll drop the store. */
@@ -767,7 +773,9 @@ store::eqconnected(connpool &pool,
          * failure. */
         return res.failure(); }
     eventqueue(oft).mkleft(res.success());
-    eqsub(oft).mkjust(sub, eventqueue(oft).left()->pub(), SUBSCRIPTION_EQ);
+    eqsub(oft).mkjust(sub,
+                      eventqueue(oft).left().first()->pub(),
+                      SUBSCRIPTION_EQ);
     
     /* We may have missed some newjob events.  Start a LISTJOBS
      * machine to regenerate them. */
@@ -909,10 +917,23 @@ store::listjobswoken(connpool &pool,
 store::~store() {
     onfilesystemthread oft;
     eqsub(oft) = Nothing;
-    if (eventqueue(oft).isleft()) eventqueue(oft).left()->destroy();
+    if (eventqueue(oft).isleft()) eventqueue(oft).left().first()->destroy();
     else eventqueue(oft).right()->abort();
     listjobssub(oft) = Nothing;
     if (listjobs(oft) != NULL) listjobs(oft)->abort(); }
+
+/* An incomplete store barrier operation. */
+class pendingbarrier {
+public: const agentname an;
+public: const proto::eq::eventid eid;
+public: const std::function<void (clientio)> cb;
+public: pendingbarrier(
+    const agentname &_an,
+    proto::eq::eventid _eid,
+    const std::function<void (clientio)> &_cb)
+    : an(_an),
+      eid(_eid),
+      cb(_cb) {} };
 
 } /* End of namespace filesystemimpl */
 
@@ -935,8 +956,14 @@ public:  const list<store> &stores(mutex_t::token) const { return _stores; }
      * nominateagent().  Mutable because it's modified by the const
      * nominateagent() in ways which aren't visible outside of the
      * class. */
-public: mutable unsigned _nominateidx;
-public: unsigned &nominateidx(mutex_t::token) const { return _nominateidx; }
+public:  mutable unsigned _nominateidx;
+public:  unsigned &nominateidx(mutex_t::token) const { return _nominateidx; }
+
+    /* List of outstanding barriers, and a way of waking the worker
+     * thread when we start a new one. */
+public:  publisher barrierspub;
+public:  list<pendingbarrier> _barriers;
+public:  list<pendingbarrier> &barriers(mutex_t::token) { return _barriers; }
 
 public:  explicit impl(const thread::constoken &token,
                        connpool &_pool,
@@ -946,20 +973,29 @@ public:  explicit impl(const thread::constoken &token,
       bc(_bc),
       shutdown(),
       mux(),
-      _stores() {}
+      _stores(),
+      _nominateidx(0),
+      barrierspub(),
+      _barriers() {}
 
 public:  void run(clientio);
 
+public:  void barrierswoken(clientio, onfilesystemthread);
 public:  void beaconwoken(subscriber &sub, mutex_t::token tok);
 
 public:  void dropstore(store &, mutex_t::token);
+public:  store *findstore(const agentname &, mutex_t::token);
 
 public:  list<agentname> findjob(const jobname &jn) const;
 public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
     const streamname &sn) const;
 public:  maybe<agentname> nominateagent(const maybe<jobname> &) const;
-public:  void newjob(const agentname &, const jobname &, proto::eq::eventid); };
+public:  void newjob(const agentname &, const jobname &, proto::eq::eventid);
+public:  void storagebarrier(
+    const agentname &,
+    proto::eq::eventid,
+    const std::function<void (clientio)> &); };
 
 void
 filesystem::impl::run(clientio io) {
@@ -968,6 +1004,8 @@ filesystem::impl::run(clientio io) {
     subscriber sub;
     subscription bcsub(sub, bc.changed());
     subscription sssub(sub, shutdown.pub);
+    subscription barriersub(sub, barrierspub);
+    
     /* Force an initial beacon scan. */
     bcsub.set();
     while (!shutdown.ready()) {
@@ -975,6 +1013,8 @@ filesystem::impl::run(clientio io) {
         if (s == &sssub) continue;
         auto token(mux.lock());
         if (s == &bcsub) beaconwoken(sub, token);
+        else if (s == &barriersub) {
+            /* Handled after we drop the lock. */ }
         else if (s->data == SUBSCRIPTION_EQ) {
             auto sto(containerof(static_cast<subscription *>(s),
                                  store,
@@ -994,10 +1034,48 @@ filesystem::impl::run(clientio io) {
             auto res(j->liststreamswoken(pool, sub, token, oft));
             if (res.isfailure()) j->sto.dropjob(*j, token); }
         else abort();
-        mux.unlock(&token); }
+        mux.unlock(&token);
+        barrierswoken(io, oft); }
     /* The stores might have references to our subscriber block, so
      * they must be flushed before we return. */
     mux.locked([this] (mutex_t::token tok) { stores(tok).flush(); }); }
+
+void
+filesystem::impl::barrierswoken(clientio io, onfilesystemthread oft) {
+    list<pendingbarrier> done;
+    /* Scan the barrer list for anything which is complete while we
+       hold the lock. */
+    auto token(mux.lock());
+    bool remove;
+    for (auto barrier(barriers(token).start());
+         !barrier.finished();
+         remove ? barrier.remove() : barrier.next()) {
+        remove = false;
+        auto sto(findstore(barrier->an, token));
+        if (sto == NULL) continue;
+        /* Can't do barriers until we've connected the event queue. */
+        if (sto->eventqueue(oft).isright()) continue;
+        /* Can't do barriers if we have a LISTJOBS outstanding. */
+        if (sto->listjobs(oft) != NULL) continue;
+        /* Can't do barriers if we have any LISTSTREAMS
+         * outstanding. */
+        bool ls = false;
+        for (auto job(sto->jobs(token).start());
+             !ls && !job.finished();
+             job.next()) {
+            ls = job->liststreams(token) != NULL; }
+        if (ls) continue;
+        /* Barriers have to wait for the barrier event. */
+        if (barrier->eid > sto->eventqueue(oft).left().second()) continue;
+        remove = true;
+        done.append(*barrier); }
+    mux.unlock(&token);
+    /* Complete the barriers after we've dropped the lock. */
+    for (auto barrier(done.start()); !barrier.finished(); barrier.next()) {
+        /* XXX bit of an abuse to use a clientio token here: barrier
+         * callbacks can prevent the filesystem from shutting down,
+         * but the types imply otherwise. */
+        barrier->cb(io); } }
 
 /* Helper function which gets called whenever there's any possibility
  * that the beacon content has changed.  Compare the beacon results to
@@ -1039,6 +1117,12 @@ filesystem::impl::dropstore(store &s, mutex_t::token tok) {
         if (&s == &*it) {
             it.remove();
             return; } } }
+
+store *
+filesystem::impl::findstore(const agentname &an, mutex_t::token tok) {
+    for (auto it(stores(tok).start()); !it.finished(); it.next()) {
+        if (it->name == an) return &*it; }
+    return NULL; }
 
 /* Find all of the agents which know anything about a particular job. */
 list<agentname>
@@ -1124,6 +1208,14 @@ filesystem::impl::newjob(const agentname &sn,
     mux.unlock(&tok);
     return; }
 
+void
+filesystem::impl::storagebarrier(
+    const agentname &an,
+    proto::eq::eventid eid,
+    const std::function<void (clientio)> &cb) {
+    mux.locked([&] (mutex_t::token tok) { barriers(tok).append(an, eid, cb); });
+    barrierspub.publish(); }
+
 const filesystem::impl &
 filesystem::implementation() const {
     return *containerof(this, const filesystem::impl, api); }
@@ -1156,3 +1248,10 @@ filesystem::newjob(const agentname &sn,
                    const jobname &jn,
                    proto::eq::eventid eid) {
     implementation().newjob(sn, jn, eid); }
+
+void
+filesystem::storagebarrier(
+    const agentname &an,
+    proto::eq::eventid eid,
+    const std::function<void (clientio)> &cb) {
+    implementation().storagebarrier(an, eid, cb); }

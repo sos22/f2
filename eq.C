@@ -2,7 +2,10 @@
 
 #include "error.H"
 #include "fields.H"
+#include "parsers.H"
 #include "serialise.H"
+
+#include "parsers.tmpl"
 
 const proto::eq::name<unsigned>
 proto::eq::names::testunsigned(1);
@@ -58,6 +61,12 @@ proto::eq::eventid::field() const { return "<ev:" + fields::mk(v) + ">"; }
 const fields::field &
 fields::mk(proto::eq::eventid e) { return e.field(); }
 
+const parser<proto::eq::eventid> &
+proto::eq::eventid::_parser() {
+    return ("<ev:" + parsers::intparser<unsigned long>() + ">")
+        .map<proto::eq::eventid> ([] (const unsigned long &x) {
+                return proto::eq::eventid(x); }); }
+
 proto::eq::tag::tag(deserialise1 &ds)
     : proto::tag(ds) {
     if (*this != subscribe &&
@@ -67,3 +76,6 @@ proto::eq::tag::tag(deserialise1 &ds)
         *this != unsubscribe) {
         ds.fail(error::invalidmessage);
         *this = subscribe; } }
+
+const parser<proto::eq::eventid> &
+parsers::eq::eventid() { return proto::eq::eventid::_parser(); }

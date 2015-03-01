@@ -6,6 +6,7 @@
 #include "proto.H"
 
 class deserialise1;
+template <typename> class parser;
 class serialise1;
 class string;
 
@@ -79,7 +80,8 @@ public:  eventid pred() const { return eventid(v - 1); }
      * sort of thing when something interesting happens sometimes
      * makes bugs a bit more obvious. */
 public:  eventid gap(unsigned sz) const;
-public:  const fields::field &field() const; };
+public:  const fields::field &field() const;
+public:  static const parser<eventid> &_parser(); };
 
 class tag : public proto::tag {
 private: explicit tag(unsigned char _v) : proto::tag(_v) {}
@@ -114,5 +116,9 @@ public:  static const tag trim;
 public:  static const tag unsubscribe; }; } }
 
 namespace fields { const field &mk(proto::eq::eventid); }
+
+namespace parsers {
+namespace eq {
+const parser<proto::eq::eventid> &eventid(); } }
 
 #endif /* !EQ_H__ */

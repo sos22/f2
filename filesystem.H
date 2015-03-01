@@ -26,9 +26,12 @@
 #ifndef FILESYSTEM_H__
 #define FILESYSTEM_H__
 
+#include <functional>
+
 #include "eq.H"
 
 class beaconclient;
+class clientio;
 class connpool;
 class jobname;
 template <typename> class list;
@@ -57,6 +60,14 @@ public:  maybe<agentname> nominateagent(const maybe<jobname> &) const;
      * particular, callers can safely assume that by the time this
      * returns the cache will have been updated to reflect the new
      * job. */
-public:  void newjob(const agentname &, const jobname &, proto::eq::eventid); };
+public:  void newjob(const agentname &, const jobname &, proto::eq::eventid);
+
+    /* The implementation of the filesystemservice storagebarrier
+     * call.  Little bit of a hack; will become less so once we can
+     * merge filesystem and filesystemservice. */
+public:  void storagebarrier(
+    const agentname &,
+    proto::eq::eventid,
+    const std::function<void (clientio)> &); };
 
 #endif /* !FILESYSTEM_H__ */

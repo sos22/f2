@@ -3,6 +3,7 @@
 #include "agentname.H"
 #include "clustername.H"
 #include "connpool.H"
+#include "eq.H"
 #include "filesystemproto.H"
 #include "jobname.H"
 #include "logging.H"
@@ -89,6 +90,20 @@ main(int argc, char *argv[]) {
                  [&jn] (serialise1 &s) { s.push(jn); },
                  [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
+    else if (!strcmp(argv[3], "STORAGEBARRIER")) {
+        if (argc != 6) {
+            errx(1, "STORAGEBARRIER needs agentname and event ID arguments"); }
+        auto an(parsers::_agentname()
+                .match(argv[4])
+                .fatal("parsing " + fields::mk(argv[4]) + " as agentname"));
+        auto eid(parsers::eq::eventid()
+                 .match(argv[5])
+                 .fatal("parsing " + fields::mk(argv[5]) + " as event ID"));
+        makecall(proto::filesystem::tag::storagebarrier,
+                 [&an, &eid] (serialise1 &s) {
+                     s.push(an);
+                     s.push(eid); },
+                 [] (deserialise1 &) {}); }
     else {
         errx(1, "unknown mode %s", argv[3]); }
     pool->destroy();

@@ -74,6 +74,19 @@ filesystemservice::called(clientio io,
                      acquirestxlock(io),
                      oct);
         return Success; }
+    else if (tag == proto::filesystem::tag::storagebarrier) {
+        agentname an(ds);
+        proto::eq::eventid eid(ds);
+        if (ds.isfailure()) return ds.failure();
+        /* XXX we're not watching for aborts here! */
+        fs.storagebarrier(
+            an,
+            eid,
+            [ic] (clientio _io) {
+                ic->complete(
+                    [] (serialise1 &, mutex_t::token /* txlock */) {},
+                    _io); });
+        return Success; }
     else {
         /* Tag deserialiser shouldn't let us get here. */
         abort(); } }
