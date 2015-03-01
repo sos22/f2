@@ -116,6 +116,10 @@ public:
     /* Remove an element from the list by value.  It must be present
      * precisely once, and the type must have an == operator. */
     void drop(const t &);
+    /* Remove an element from the list by pointer.  We don't
+     * dereference the argument; it's just used to find the list
+     * element.  The referrent must be in the list. */
+    void drop(const t *);
 
     /* Grab a reference to an element of the list given its zero-based
        index.  The index must be within bounds. */

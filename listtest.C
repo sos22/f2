@@ -1,9 +1,11 @@
 #include "list.H"
 #include "string.H"
 #include "test.H"
+#include "timedelta.H"
 
 #include "list.tmpl"
 #include "serialise.tmpl"
+#include "spark.tmpl"
 
 void
 tests::_list() {
@@ -221,4 +223,37 @@ tests::_list() {
             assert(*it2 == 3);
             it2.next();
             assert(it2.finished()); });
-}
+    testcaseV("list", "dropptr", [] {
+            list<int> l(Immediate(), 1, 1, 1);
+            auto it(l.start());
+            auto p1(&*it);
+            it.next();
+            auto p2(&*it);
+            it.next();
+            auto p3(&*it);
+            l.drop(p2);
+            assert(l == list<int>(Immediate(), 1, 1));
+            it = l.start();
+            assert(&*it == p1);
+            it.next();
+            assert(&*it == p3);
+            l.drop(p3);
+            assert(l == list<int>(Immediate(), 1));
+            assert(&*l.start() == p1);
+            l.drop(p1);
+            assert(l == list<int>(Immediate())); });
+    testcaseV("list", "empty_unsafe", [] {
+            /* empty_unsafe() is like empty(), except that it does
+             * less sanity checking and it's safe while the list is
+             * under concurrent modification. */
+            list<int> l;
+            assert(l.empty_unsafe());
+            l.append(1);
+            assert(!l.empty_unsafe());
+            bool done = false;
+            spark<void> checker([&] { while (!done) l.empty_unsafe(); });
+            auto deadline((2_s).future());
+            while (deadline.infuture()) {
+                l.append(5);
+                l.pophead(); }
+            done = true; }); }

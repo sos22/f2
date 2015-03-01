@@ -540,4 +540,15 @@ list<t>::drop(const t &what) {
         else found = remove; }
     assert(found); }
 
+template <typename t> void
+list<t>::drop(const t *what) {
+    /* There's a really obvious optimisation for this using
+     * containerof, which I'm ignoring in favour of something which
+     * makes errors marginally more obvious.  That might turn out to
+     * be a mistake. */
+    for (auto it(start()); true; it.next()) {
+        if (&*it == what) {
+            it.remove();
+            return; } } }
+
 #endif /* !LIST_TMPL__ */
