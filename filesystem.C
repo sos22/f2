@@ -196,6 +196,7 @@ public: void reconnect(connpool &pool,
                        onfilesystemthread oft);
 
 public: job *findjob(const jobname &jn, mutex_t::token);
+public: const job *findjob(const jobname &jn, mutex_t::token) const;
 public: void dropjob(job &j, mutex_t::token);
 
 public: void eqnewjob(proto::eq::eventid eid,
@@ -442,6 +443,11 @@ store::reconnect(connpool &pool,
 /* Find a job by name.  Returns NULL if the job doesn't exist. */
 job *
 store::findjob(const jobname &jn, mutex_t::token tok) {
+    for (auto it(jobs(tok).start()); !it.finished(); it.next()) {
+        if (it->name == jn) return &*it; }
+    return NULL; }
+const job *
+store::findjob(const jobname &jn, mutex_t::token tok) const {
     for (auto it(jobs(tok).start()); !it.finished(); it.next()) {
         if (it->name == jn) return &*it; }
     return NULL; }
@@ -952,7 +958,7 @@ public:  list<agentname> findjob(const jobname &jn) const;
 public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
     const streamname &sn) const;
-public:  maybe<agentname> nominateagent() const;
+public:  maybe<agentname> nominateagent(const maybe<jobname> &) const;
 public:  void newjob(const agentname &, const jobname &, proto::eq::eventid); };
 
 void
@@ -1068,11 +1074,21 @@ filesystem::impl::findstream(const jobname &jn, const streamname &sn) const {
     return res; }
 
 maybe<agentname>
-filesystem::impl::nominateagent() const {
+filesystem::impl::nominateagent(const maybe<jobname> &jn) const {
     auto tok(mux.lock());
     if (stores(tok).empty()) {
         mux.unlock(&tok);
         return Nothing; }
+    /* If some store already has something on the job then return that
+     * one. */
+    if (jn != Nothing) {
+        for (auto sto(stores(tok).start()); !sto.finished(); sto.next()) {
+            auto j(sto->findjob(jn.just(), tok));
+            if (j != NULL) {
+                auto res(sto->name);
+                mux.unlock(&tok);
+                return res; } } }
+    /* Otherwise, just pick arbitrarily. */
     nominateidx(tok) = (nominateidx(tok) + 1) % stores(tok).length();
     unsigned idx = nominateidx(tok);
     for (auto it(stores(tok).start()); true; it.next()) {
@@ -1132,7 +1148,8 @@ filesystem::findstream(const jobname &jn, const streamname &sn) const {
     return implementation().findstream(jn, sn); }
 
 maybe<agentname>
-filesystem::nominateagent() const { return implementation().nominateagent(); }
+filesystem::nominateagent(const maybe<jobname> &jn) const {
+    return implementation().nominateagent(jn); }
 
 void
 filesystem::newjob(const agentname &sn,

@@ -103,7 +103,7 @@ coordinatorservice::called(clientio io,
                          oct);
             return Success; }
         /* Otherwise, start the job creation machine. */
-        auto agent(fs.nominateagent());
+        auto agent(fs.nominateagent(j.name()));
         if (agent == Nothing) {
             /* No agents available -> fail the call. */
             return error::nostorageagents; }

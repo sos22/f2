@@ -49,7 +49,7 @@ public:  list<agentname> findjob(const jobname &jn) const;
 public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
     const streamname &sn) const;
-public:  maybe<agentname> nominateagent() const;
+public:  maybe<agentname> nominateagent(const maybe<jobname> &) const;
 
     /* Tell the filesystem that something has created a new job. It
      * should pick it up eventually anyway; the only reason to call
