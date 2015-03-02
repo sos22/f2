@@ -2,6 +2,8 @@
 *-c.gcda
 *.gcov
 *.o
+*.po
+*.so
 *.d
 *~
 *.a

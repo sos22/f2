@@ -96,6 +96,7 @@ public:
     static const error eqstatemismatch; /* Event queue state not as expected. */
     static const error nostorageagents; /* No storage slaves available. */
     static const error signalled; /* Child killed by signal. */
+    static const error dlopen; /* Error loading job library. */
 };
 
 #endif

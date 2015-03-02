@@ -23,4 +23,6 @@ public:  const fields::field &field() const; };
 namespace fields {
 static inline const field &mk(version v) { return v.field(); } }
 
+#define CURRENTVERSION (version(1))
+
 #endif /* !VERSION_H__ */

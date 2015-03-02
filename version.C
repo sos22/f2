@@ -3,8 +3,10 @@
 #include "fields.H"
 #include "serialise.H"
 
-const version version::current(1);
-const version version::invalid(666);
+const version
+version::current(CURRENTVERSION);
+const version
+version::invalid(666);
 
 /* We deliberately don't fail deserialise for invalid versions so that
  * we don't get in the way of upgrade handling. */

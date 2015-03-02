@@ -1,9 +1,13 @@
 #include "computeagent.H"
 
+#include <dlfcn.h>
+
 #include "compute.H"
 #include "either.H"
 #include "eqserver.H"
 #include "job.H"
+#include "jobapi.H"
+#include "logging.H"
 #include "mutex.H"
 #include "nnp.H"
 #include "rpcservice2.H"
@@ -17,8 +21,11 @@
 
 namespace __computeagent {
 
+class computeservice;
+
 /* Synchronised by the service lock. */
 class runningjob : public thread {
+public: computeservice &owner;
 public: const job j;
 public: const proto::compute::tasktag tag;
     /* Connects main maintenance thread to our death publisher. */
@@ -26,10 +33,12 @@ public: maybe<subscription> subsc;
     /* Set by the thread as it shutds down. */
 public: maybe<orerror<jobresult> > result;
 public: explicit runningjob(const constoken &token,
+                            computeservice &_owner,
                             const job &_j,
                             proto::compute::tasktag _tag,
                             subscriber &sub)
     : thread(token),
+      owner(_owner),
       j(_j),
       tag(_tag),
       subsc(Just(), sub, pub()),
@@ -40,16 +49,14 @@ class computeservice : public rpcservice2 {
 private: class maintenancethread : public thread {
     public:  computeservice &owner;
     public:  subscriber sub;
-    public:  waitbox<void> shutdown;
     public:  explicit maintenancethread(constoken t, computeservice &_owner)
         : thread(t),
           owner(_owner),
-          sub(),
-          shutdown() {}
+          sub() {}
     private: void run(clientio); };
-    friend class maintenancethread;
 private: mutex_t mux;
 private: eqserver &eqs;
+public:  waitbox<void> shutdown;
 private: eventqueue<proto::compute::event> &_eqq;
 private: eventqueue<proto::compute::event> &eqq(mutex_t::token) { return _eqq; }
 private: list<runningjob *> _runningjobs;
@@ -66,6 +73,7 @@ public:  explicit computeservice(const constoken &token,
     : rpcservice2(token, mklist(interfacetype::compute, interfacetype::eq)),
       mux(),
       eqs(_eqs),
+      shutdown(),
       _eqq(__eqq),
       _runningjobs(),
       _finishedjobs(),
@@ -88,29 +96,45 @@ private: orerror<pair<proto::eq::eventid, proto::compute::tasktag> > start(
 
 void
 runningjob::run(clientio io) {
-    auto s(spawn::process::spawn(
-               spawn::program("/bin/echo")
-               .addarg("HELLO")
-               .addarg(j.field().c_str())));
-    if (s.isfailure()) {
-        result.mkjust(s.failure());
-        return; }
-    /* XXX there should be some way of aborting these. */
-    auto res(s.success()->join(io));
-    if (res.isleft()) {
-        if (res.left() == shutdowncode::ok) result.mkjust(jobresult::success());
-        else result.mkjust(jobresult::failure()); }
+    void *f;
+    void *v;
+    void *lib(::dlopen(j.library.str().c_str(), RTLD_NOW|RTLD_LOCAL));
+    char *fname;
+    if (asprintf(&fname,
+                 "_Z%zd%sR7waitboxIvE8clientio",
+                 strlen(j.function.c_str()),
+                 j.function.c_str()) < 0) {
+        fname = NULL;
+        result.mkjust(error::from_errno()); }
+    else if (lib == NULL) {
+        logmsg(loglevel::info,
+               "dlopen(" + j.library.field() + "):" + fields::mk(::dlerror()));
+        result.mkjust(error::dlopen); }
+    else if ((v = ::dlsym(lib, "f2version")) == NULL) {
+        logmsg(loglevel::info,
+               "dlopen(" + j.library.field() + "): f2version missing");
+        result.mkjust(error::dlopen); }
+    else if (*static_cast<version *>(v) != version::current) {
+        logmsg(loglevel::info,
+               "dlopen(" + j.library.field() + "): requested f2 version " +
+               fields::mk(*static_cast<version *>(v)) + ", but we are " +
+               fields::mk(version::current));
+        result.mkjust(error::dlopen); }
+    else if ((f = ::dlsym(lib, fname)) == NULL) {
+        logmsg(loglevel::info,
+               "dlopen("+j.library.field()+"::"+j.function.field()+"): " +
+               fields::mk(::dlerror()));
+        result.mkjust(error::dlopen); }
     else {
-        /* Process killed by a signal.  Try to guess whether it's
-         * their fault or ours. */
-        if (res.right().internallygenerated()) {
-            result.mkjust(jobresult::failure()); }
-        else result.mkjust(error::signalled); } }
+        auto fn((jobfunction *)f);
+        result.mkjust(fn(owner.shutdown, io)); }
+    if (lib != NULL) ::dlclose(lib);
+    free(fname); }
 
 void
 computeservice::maintenancethread::run(clientio io) {
-    subscription ss(sub, shutdown.pub);
-    while (!shutdown.ready()) {
+    subscription ss(sub, owner.shutdown.pub);
+    while (!owner.shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &ss) continue;
         auto rj(containerof(s, runningjob, subsc.__just()));
@@ -127,7 +151,25 @@ computeservice::maintenancethread::run(clientio io) {
         owner.eqq(muxtoken).queue(
             proto::compute::event::finish(f),
             rpcservice2::acquirestxlock(io));
-        owner.mux.unlock(&muxtoken); } }
+        owner.mux.unlock(&muxtoken); }
+    /* Shut it down.  All jobs should be watching the shutdown box, so
+     * this should terminate reasonably quickly. */
+    while (true) {
+        auto muxtoken(owner.mux.lock());
+        if (owner.runningjobs(muxtoken).empty()) {
+            owner.mux.unlock(&muxtoken);
+            break; }
+        auto j(owner.runningjobs(muxtoken).pophead());
+        /* Not really necessary, because we've already shut down the
+         * RPC interface, but easy, and makes the API cleaner. */
+        owner.finishedjobs(muxtoken).append(
+            proto::compute::jobstatus::finished(
+                j->j.name(),
+                j->tag,
+                error::shutdown));
+        owner.mux.unlock(&muxtoken);
+        j->subsc = Nothing;
+        j->join(io); } }
 
 orerror<nnp<computeservice> >
 computeservice::build(clientio io,
@@ -231,6 +273,7 @@ computeservice::start(
     runningjobs(tok).pushtail(
         thread::start<runningjob>(
             "J" + fields::mk(j.name()),
+            *this,
             j,
             tag,
             thr.sub));

@@ -10,10 +10,12 @@
 #include "version.H"
 
 class bytecount;
+class deserialise1;
 class fd_t;
 class filename;
 template <typename> class orerror;
 template <typename> class parser;
+class serialise1;
 
 namespace fields {
 class field;
@@ -25,6 +27,7 @@ class filename {
 private: string content;
 public:  filename(const char *s);
 public:  explicit filename(const string &_content) : content(_content) {}
+public:  explicit filename(deserialise1 &);
     /* Quickcheck filenames are single component i.e. no / character. */
 public:  filename(const quickcheck &q);
     /* Add another component to the end of the path, with a separating
@@ -137,6 +140,8 @@ public:  const string &str() const { return content; }
 
     /* Convert to a field. */
 public:  const fields::field &field() const;
+    
+public:  void serialise(serialise1 &) const;
 };
 
 template <typename> class parser;

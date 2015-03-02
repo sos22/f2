@@ -3,6 +3,7 @@
 #ifndef JOB_H__
 #define JOB_H__
 
+#include "filename.H"
 #include "string.H"
 
 class deserialise1;
@@ -14,12 +15,12 @@ namespace fields {
 class field;
 const field &mk(const job &); }
 
-/* Placeholder for now. */
 class job {
-public: string message;
+public: filename library;
+public: string function;
 public: void serialise(serialise1 &) const;
 public: explicit job(deserialise1 &);
-public: explicit job(const string &);
+public: job(const filename &, const string &);
 public: jobname name() const;
 public: const fields::field &field() const; };
 

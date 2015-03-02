@@ -1,0 +1,7 @@
+#! /bin/bash
+
+. shutil
+
+ccdyn testjob.C
+lddyn testjob.so testjob.po 
+echo 'realall:: testjob.so'

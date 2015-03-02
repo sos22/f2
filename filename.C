@@ -31,6 +31,9 @@ fields::mk(const filename &f) {
 filename::filename(const char *s)
     : content(s) {}
 
+filename::filename(deserialise1 &ds)
+    : content(ds) {}
+
 filename::filename(const quickcheck &q)
     : content(q.filename()) {}
 
@@ -302,6 +305,9 @@ parsers::_filename() {
 
 const fields::field &
 filename::field() const { return fields::mk(*this); }
+
+void
+filename::serialise(serialise1 &s) const { s.push(content); }
 
 /* Basic functionality tests.  A lot of these are more to make sure
    that the behaviour doesn't change unexpectedly, rather than to
