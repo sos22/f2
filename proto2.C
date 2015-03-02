@@ -1,5 +1,6 @@
 #include "proto2.H"
 
+#include "fields.H"
 #include "orerror.H"
 #include "serialise.H"
 

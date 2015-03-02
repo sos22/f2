@@ -1,23 +1,26 @@
 #ifndef VERSION_H__
 #define VERSION_H__
 
-#include "tuple.H"
-
 class deserialise1;
+namespace fields { class field; }
 class quickcheck;
 class serialise1;
 
-#define _version(ctxt, iter0, iter1)                    \
-    iter1(ctxt, 1, mand, value, unsigned, v)
 class version {
-    mktuplefields(version, public)
-public: version(deserialise1 &);
-public: void serialise(serialise1 &) const;
-public: static const version current;
+private: unsigned v;
+public:  explicit version(deserialise1 &);
+public:  explicit version(unsigned _v) : v(_v) {}
+public:  void serialise(serialise1 &) const;
+public:  static const version current;
     /* Only really useful in unit tests */
-public: static const version invalid;
-public: bool operator<(version o) const { return v < o.v; }
-public: bool operator>(version o) const { return v > o.v; } };
-mktupleext(version)
+public:  static const version invalid;
+public:  bool operator<(version o) const { return v < o.v; }
+public:  bool operator>(version o) const { return v > o.v; }
+public:  bool operator==(version o) const { return v == o.v; }
+public:  bool operator!=(version o) const { return v != o.v; }
+public:  const fields::field &field() const; };
+
+namespace fields {
+static inline const field &mk(version v) { return v.field(); } }
 
 #endif /* !VERSION_H__ */
