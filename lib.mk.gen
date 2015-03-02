@@ -27,7 +27,6 @@ function bits() {
     _ fd
     _ fields
     _ filename
-    _ filesystem
     _ filesystemproto
     _ frequency
     _ interfacetype
