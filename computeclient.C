@@ -33,24 +33,19 @@ main(int argc, char *argv[]) {
               .fatal("parsing agent name " + fields::mk(argv[2])));
     auto pool(connpool::build(cluster).fatal("building conn pool"));
     if (!strcmp(argv[3], "START")) {
-        if (argc != 6) {
-            errx(1, "START mode needs a job and a peername"); }
+        if (argc != 5) errx(1, "START mode needs a job argument");
         auto j(parsers::_job()
                .match(argv[4])
                .fatal("parsing job " + fields::mk(argv[4])));
-        auto p(parsers::_peername()
-               .match(argv[5])
-               .fatal("parsing peer name " + fields::mk(argv[5])));
         maybe<proto::eq::eventid> eid(Nothing);
         maybe<proto::compute::tasktag> tag(Nothing);
         pool->call(clientio::CLIENTIO,
                    peer,
                    interfacetype::compute,
                    Nothing,
-                   [&j, &p] (serialise1 &s, connpool::connlock) {
+                   [&j] (serialise1 &s, connpool::connlock) {
                        s.push(proto::compute::tag::start);
-                       s.push(j);
-                       s.push(p); },
+                       s.push(j); },
                    [&eid, &tag] (deserialise1 &ds, connpool::connlock) {
                        eid.mkjust(ds);
                        tag.mkjust(ds);

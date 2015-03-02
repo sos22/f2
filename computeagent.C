@@ -11,38 +11,30 @@
 #include "util.H"
 
 #include "list.tmpl"
+#include "maybe.tmpl"
 #include "rpcservice2.tmpl"
 #include "thread.tmpl"
 
 namespace __computeagent {
 
 /* Synchronised by the service lock. */
-class runningjob {
+class runningjob : public thread {
 public: const job j;
 public: const proto::compute::tasktag tag;
-public: either<nnp<spawn::process>, orerror<jobresult> > _proc;
-public: decltype(_proc) &proc(mutex_t::token) { return _proc; }
-public: decltype(_proc) const &proc(mutex_t::token) const { return _proc; }
-    /* Only accessed from service thread once constructed. */
-public: maybe<spawn::subscription> sub;
-public: explicit runningjob(const job &_j,
+    /* Connects main maintenance thread to our death publisher. */
+public: maybe<subscription> subsc;
+    /* Set by the thread as it shutds down. */
+public: maybe<orerror<jobresult> > result;
+public: explicit runningjob(const constoken &token,
+                            const job &_j,
                             proto::compute::tasktag _tag,
-                            spawn::process &__proc,
-                            subscriber &subsc)
-    : j(_j),
+                            subscriber &sub)
+    : thread(token),
+      j(_j),
       tag(_tag),
-      _proc(Left(), _nnp(__proc)),
-      sub(Just(), subsc, __proc) { }
-public: jobname name() const { return j.name(); }
-public: proto::compute::jobstatus status(mutex_t::token tok) {
-    if (proc(tok).isleft()) {
-        return proto::compute::jobstatus::running(j.name(),
-                                                  tag); }
-    else {
-        return proto::compute::jobstatus::finished(j.name(),
-                                                   tag,
-                                                   proc(tok).right()); } }
-public: bool running(mutex_t::token tok) const { return proc(tok).isleft(); } };
+      subsc(Just(), sub, pub()),
+      result(Nothing) {}
+public: void run(clientio); };
 
 class computeservice : public rpcservice2 {
 private: class maintenancethread : public thread {
@@ -60,8 +52,12 @@ private: mutex_t mux;
 private: eqserver &eqs;
 private: eventqueue<proto::compute::event> &_eqq;
 private: eventqueue<proto::compute::event> &eqq(mutex_t::token) { return _eqq; }
-private: list<runningjob> _jobtable;
-private: list<runningjob> &jobtable(mutex_t::token) { return _jobtable; }
+private: list<runningjob *> _runningjobs;
+private: list<runningjob *> &runningjobs(mutex_t::token) {
+    return _runningjobs; }
+private: list<proto::compute::jobstatus> _finishedjobs;
+private: list<proto::compute::jobstatus> &finishedjobs(mutex_t::token) {
+    return _finishedjobs; }
 private: maintenancethread &thr;
 private: subscriber sub;
 public:  explicit computeservice(const constoken &token,
@@ -71,7 +67,8 @@ public:  explicit computeservice(const constoken &token,
       mux(),
       eqs(_eqs),
       _eqq(__eqq),
-      _jobtable(),
+      _runningjobs(),
+      _finishedjobs(),
       thr(*thread::start<maintenancethread>(
               fields::mk("computemaintenance"), *this)),
       sub() {}
@@ -86,9 +83,29 @@ public:  orerror<void> called(clientio,
                               onconnectionthread);
 private: orerror<pair<proto::eq::eventid, proto::compute::tasktag> > start(
     const job &,
-    const peername &,
     mutex_t::token /* mux */,
     acquirestxlock); };
+
+void
+runningjob::run(clientio io) {
+    auto s(spawn::process::spawn(
+               spawn::program("/bin/echo")
+               .addarg("HELLO")
+               .addarg(j.field().c_str())));
+    if (s.isfailure()) {
+        result.mkjust(s.failure());
+        return; }
+    /* XXX there should be some way of aborting these. */
+    auto res(s.success()->join(io));
+    if (res.isleft()) {
+        if (res.left() == shutdowncode::ok) result.mkjust(jobresult::success());
+        else result.mkjust(jobresult::failure()); }
+    else {
+        /* Process killed by a signal.  Try to guess whether it's
+         * their fault or ours. */
+        if (res.right().internallygenerated()) {
+            result.mkjust(jobresult::failure()); }
+        else result.mkjust(error::signalled); } }
 
 void
 computeservice::maintenancethread::run(clientio io) {
@@ -96,37 +113,19 @@ computeservice::maintenancethread::run(clientio io) {
     while (!shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &ss) continue;
-        /* The synchronisation here is a bit funny. We're the only
-         * thing which can mark a job as finished and when we do so it
-         * gets removed from our subscriber, so we know that at this
-         * point the job is not finished, and the other threads are
-         * careful to never release anything which isn't finished.
-         * Otherwise, we'd get use-after-frees. */
-        auto rj(containerof(s, runningjob, sub.__just()));
+        auto rj(containerof(s, runningjob, subsc.__just()));
+        auto threadtoken(rj->hasdied());
+        if (threadtoken == Nothing) continue;
+        rj->subsc = Nothing;
+        assert(rj->result != Nothing);
         auto muxtoken(owner.mux.lock());
-        assert(rj->proc(muxtoken).isleft());
-        auto spawntoken(rj->proc(muxtoken).left()->hasdied());
-        if (spawntoken == Nothing) {
-            /* Not finished yet. */
-            owner.mux.unlock(&muxtoken);
-            continue; }
-        /* Task is done.  Pop it out. */
-        rj->sub = Nothing;
-        auto res(rj->proc(muxtoken).left()->join(spawntoken.just()));
-        if (res.isleft()) {
-            if (res.left() == shutdowncode::ok) {
-                rj->proc(muxtoken).mkright(jobresult::success()); }
-            else {
-                rj->proc(muxtoken).mkright(jobresult::failure()); }}
-        else {
-            /* Process killed by a signal.  Try to guess whether it's
-             * their fault or ours. */
-            if (res.right().internallygenerated()) {
-                rj->proc(muxtoken).mkright(jobresult::failure()); }
-            else {
-                rj->proc(muxtoken).mkright(error::signalled); } }
+        auto &f(owner.finishedjobs(muxtoken).append(
+                    proto::compute::jobstatus::finished(
+                        rj->j.name(), rj->tag, rj->result.just())));
+        owner.runningjobs(muxtoken).drop(rj);
+        rj->join(threadtoken.just());
         owner.eqq(muxtoken).queue(
-            proto::compute::event::finish(rj->status(muxtoken)),
+            proto::compute::event::finish(f),
             rpcservice2::acquirestxlock(io));
         owner.mux.unlock(&muxtoken); } }
 
@@ -162,10 +161,9 @@ computeservice::called(clientio io,
     proto::compute::tag t(ds);
     if (t == proto::compute::tag::start) {
         job j(ds);
-        peername p(ds);
         if (ds.isfailure()) return ds.failure();
         auto token(mux.lock());
-        auto r(start(j, p, token, acquirestxlock(io)));
+        auto r(start(j, token, acquirestxlock(io)));
         mux.unlock(&token);
         if (r.isfailure()) return r.failure();
         ic->complete(
@@ -180,8 +178,11 @@ computeservice::called(clientio io,
         if (ds.isfailure()) return ds.failure();
         list<proto::compute::jobstatus> res;
         auto tok(mux.lock());
-        for (auto it(jobtable(tok).start()); !it.finished(); it.next()) {
-            res.append(it->status(tok)); }
+        for (auto it(runningjobs(tok).start()); !it.finished(); it.next()) {
+            res.append(proto::compute::jobstatus::running((*it)->j.name(),
+                                                          (*it)->tag)); }
+        for (auto it(finishedjobs(tok).start()); !it.finished(); it.next()) {
+            res.append(*it); }
         auto eid(eqq(tok).lastid());
         mux.unlock(&tok);
         ic->complete(
@@ -196,25 +197,27 @@ computeservice::called(clientio io,
         jobname jn(ds);
         if (ds.isfailure()) return ds.failure();
         auto tok(mux.lock());
-        maybe<decltype(jobtable(tok).start())> job(Nothing);
-        for (auto it(jobtable(tok).start());
-             job == Nothing && !it.finished();
+        for (auto job(finishedjobs(tok).start()); !job.finished(); job.next()) {
+            if (job->name == jn) {
+                eqq(tok).queue(
+                    proto::compute::event::removed(*job),
+                    acquirestxlock(io));
+                job.remove();
+                mux.unlock(&tok);
+                ic->complete(Success, acquirestxlock(io), oct);
+                return Success; } }
+        /* It's not in the finished table.  Check for running tasks.
+         * Only really needed to give better error messages. */
+        bool running = false;
+        for (auto it(runningjobs(tok).start());
+             !running && !it.finished();
              it.next()) {
-            if (it->name() == jn) job = it; }
-        if (job == Nothing) {
-            mux.unlock(&tok);
-            return error::notfound; }
-        else if (job.just()->running(tok)) {
-            mux.unlock(&tok);
-            return error::toosoon; }
-        else {
-            eqq(tok).queue(
-                proto::compute::event::removed(job.just()->status(tok)),
-                acquirestxlock(io));
-            job.just().remove();
-            mux.unlock(&tok);
-            ic->complete(Success, acquirestxlock(io), oct);
-            return Success; } }
+            if ((*it)->j.name() == jn) {
+                mux.unlock(&tok);
+                return error::toosoon; } }
+        /* It isn't anywhere. */
+        mux.unlock(&tok);
+        return error::notfound; }
     else {
         /* Deserialiser shouldn't let us get here. */
         abort(); } }
@@ -222,21 +225,15 @@ computeservice::called(clientio io,
 orerror<pair<proto::eq::eventid, proto::compute::tasktag> >
 computeservice::start(
     const job &j,
-    const peername &pn,
     mutex_t::token tok,
     acquirestxlock atl) {
-    auto r(spawn::process::spawn(
-               spawn::program("/bin/echo")
-               .addarg("HELLO")
-               .addarg(j.field().c_str())
-               .addarg(pn.field().c_str())));
-    if (r.isfailure()) return r.failure();
     auto tag(proto::compute::tasktag::invent());
-    jobtable(tok).append(
-        j,
-        tag,
-        *r.success(),
-        thr.sub);
+    runningjobs(tok).pushtail(
+        thread::start<runningjob>(
+            "J" + fields::mk(j.name()),
+            j,
+            tag,
+            thr.sub));
     auto eid(eqq(tok).queue(proto::compute::event::start(j.name(), tag), atl));
     return mkpair(eid, tag); } }
 

@@ -19,7 +19,7 @@ namespace compute {
 class tag : public proto::tag {
 private: explicit tag(unsigned char c) : proto::tag(c) {}
 public:  explicit tag(deserialise1 &);
-    /* Inputs: job, peername.
+    /* Inputs: job.
      * Outputs: proto::eq::eventid, tasktag.
      *
      * Starts a new task running on the slave.  The input peername is
