@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "error.H"
+#include "parsers.H"
 #include "serialise.H"
 
 template <typename t>
@@ -550,5 +551,34 @@ list<t>::drop(const t *what) {
         if (&*it == what) {
             it.remove();
             return; } } }
+
+template <typename t>
+class listparser final : public parser<list<t> > {
+public: const parser<t> &inner;
+public: listparser(const parser<t> &_inner) : inner(_inner) {}
+public: orerror<typename parser<list<t> > ::result> parse(const char *)
+        const final; };
+
+template <typename t> orerror<typename parser<list<t> >::result>
+listparser<t>::parse(const char *what) const {
+    typedef typename parser<list<t> >::result result;
+    auto cursor = what;
+    if (cursor[0] != '{') return error::noparse;
+    cursor++;
+    if (cursor[0] == '}') return result(list<t>(), cursor+1);
+    orerror<result> res(Success, list<t>(), what);
+    while (true) {
+        auto subres(inner.parse(cursor));
+        if (subres.isfailure()) return subres.failure();
+        res.success().res.pushtail(subres.success().res);
+        cursor = subres.success().left;
+        if (cursor[0] == '}') {
+            res.success().left = cursor+1;
+            return res; }
+        if (!isspace(cursor[0])) return error::noparse;
+        while (isspace(cursor[0])) cursor++; } }
+
+template <typename t> const parser<list<t> > &
+list<t>::parse(const parser<t> &inner) { return *new listparser<t>(inner); }
 
 #endif /* !LIST_TMPL__ */

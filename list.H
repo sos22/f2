@@ -7,6 +7,7 @@ class deserialise1;
 class quickcheck;
 template <typename> class list;
 template <typename> class nnp;
+template <typename> class parser;
 class serialise1;
 
 /* Sorting a linked list is usually a hint that you're doing something
@@ -166,6 +167,8 @@ public: class partial : private member {
     private: partial(const partial &) = delete; };
 public: template <typename ... args> static nnp<partial> mkpartial(args &&...);
 public: t &pushtail(nnp<partial>);
+
+public: static const parser<list<t> > &parse(const parser<t> &);
 };
 
 template <typename t, typename ... args> list<t> mklist(const t &, args &&...);

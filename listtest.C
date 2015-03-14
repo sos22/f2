@@ -4,8 +4,11 @@
 #include "timedelta.H"
 
 #include "list.tmpl"
+#include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "spark.tmpl"
+
+#include "fieldfinal.H"
 
 void
 tests::_list() {
@@ -256,4 +259,29 @@ tests::_list() {
             while (deadline.infuture()) {
                 l.append(5);
                 l.pophead(); }
-            done = true; }); }
+            done = true; });
+    testcaseV("list", "parser", [] {
+            auto &p(list<int>::parse(parsers::intparser<int>()));
+            assert(p.match("{}") == list<int>());
+            assert(p.match("{1}") == list<int>::mk(1));
+            assert(p.match("{1 2}") == list<int>::mk(1, 2));
+            assert(p.match("{1\t\r\n    3}") == list<int>::mk(1, 3));
+            assert(p.match("{") == error::noparse);
+            assert(p.match("") == error::noparse);
+            assert(p.match("{abc}") == error::noparse);
+            auto r((p+parsers::strparser).match("{1 2 3}abc").fatal("dead"));
+            assert(r.first() == list<int>::mk(1, 2, 3));
+            assert(!strcmp(r.second(), "abc"));
+            auto &p2(list<const char *>::parse(parsers::strparser));
+            auto r2(p2.match("{abc def hij}").fatal("dood"));
+            assert(!strcmp(r2.idx(0), "abc"));
+            assert(!strcmp(r2.idx(1), "def"));
+            assert(!strcmp(r2.idx(2), "hij")); });
+    testcaseV("list", "field", [] {
+            auto &p(list<int>::parse(parsers::intparser<int>()));
+            quickcheck q;
+            for (unsigned x = 0; x < 100; x++) {
+                list<int> l(q);
+                auto b(fields::mk(l).c_str());
+                assert(p.match(b) == l); } });
+}
