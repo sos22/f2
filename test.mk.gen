@@ -2,16 +2,24 @@
 
 . shutil
 
-cc beacontest.C
-cc connpooltest.C
-cc eqtest.C
-cc either.C
-cc listtest.C
-cc lqueuetest.C
-cc testdriver.C
-cc testserialise.C
-cc teststring.C
-cc testwaitqueue.C
-ld test beacontest.o connpooltest.o either.o eqtest.o listtest.o lqueuetest.o testdriver.o testserialise.o teststring.o testwaitqueue.o lib.a
+declare -a tests
+tests=(beacontest.C
+     connpooltest.C
+     eqtest.C
+     either.C
+     listtest.C
+     lqueuetest.C
+     testdriver.C
+     testorerror.C
+     testserialise.C
+     teststring.C
+     testwaitqueue.C)
+declare -a objs
+for x in ${tests[@]}
+do
+    cc $x
+    objs[${#objs[*]}]=${x/.C/.o}
+done
+ld test ${objs[@]} lib.a
 
 target test

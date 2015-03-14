@@ -11,6 +11,10 @@
 class serialise1;
 class deserialise1;
 
+/* Tag type used purely to allow constructor disambiguation. */
+class _Success { };
+extern const _Success Success;
+
 template <typename t> class orerror {
     bool errored;
     union {
@@ -30,6 +34,9 @@ public:
         else new (&inner) t(o.inner); }
     orerror(t &&v) : errored(false) { new (&inner) t(std::move(v)); }
     orerror(const error &_err) : errored(true), err(_err) { }
+    template <typename ... args> orerror(_Success, args &&...params)
+        : errored(false),
+          inner(std::forward<args>(params)...) {}
     void operator=(const orerror &o) {
         if (errored) {
             if (o.errored) err = o.err;
@@ -98,9 +105,6 @@ operator!=(const t &a, const orerror<t> &b) { return b != a; }
 /* Special case for things which just return an error indication.
    This gives a slightly nicer API than maybe<error> (or at least a
    more consistent one). */
-class _Success {
-};
-extern const _Success Success;
 template <> class orerror<void> {
 private: maybe<error> content;
 public:  orerror(deserialise1 &ds)
@@ -135,5 +139,7 @@ public:  void serialise(serialise1 &s) const { content.serialise(s); }
 
 template <typename t> orerror<t>
 success(const t &x) { return x; }
+
+namespace tests { void _orerror(); }
 
 #endif /* !ORERROR_H__ */

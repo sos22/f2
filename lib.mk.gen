@@ -104,6 +104,7 @@ testmodule list list.H list.tmpl
 testmodule lqueue lqueue.H lqueue.C
 testmodule maybe maybe.C maybe.H maybe.tmpl
 testmodule mutex mutex.C mutex.H mutex.tmpl
+testmodule orerror orerror.H orerror.tmpl
 testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C

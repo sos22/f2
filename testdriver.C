@@ -56,6 +56,7 @@ main(int argc, char *argv[])
     tests::_lqueue();
     tests::_maybe();
     tests::mutex();
+    tests::_orerror();
     tests::parsers();
     tests::_peername();
     tests::pubsub();
