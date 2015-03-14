@@ -38,17 +38,20 @@ job::field() const { return fields::mk(*this); }
 const fields::field &
 fields::mk(const job &j) {
     auto acc(&("<job:" + mk(j.library) + ":"+mk(j.function)));
-    if (!j.outputs.empty()) acc = &(*acc + " ->" + mk(j.outputs));
+    for (auto it(j.outputs.start()); !it.finished(); it.next()) {
+        acc = &(*acc + " ->" + mk(*it)); }
     return *acc + ">"; }
 
 const parser<job> &
 parsers::_job() {
+    auto &output("->" + parsers::_streamname());
     return ("<job:" + _filename() + ":" + strparser +
-            ~(" ->" + list<streamname>::parse(parsers::_streamname())) + ">")
+            ~strmatcher(" ") + parsers::sepby(output, strmatcher(" ")) +
+            ">")
         .map<job>(
-            [] (const pair<pair<filename, const char *>,
-                           maybe<list<streamname> > > &what) {
-                list<streamname> empty;
-                return job(what.first().first(),
-                           string(what.first().second()),
-                           what.second().dflt(empty)); }); }
+            [] (const pair<pair<pair<filename, const char *>,
+                                maybe<void> >,
+                           list<streamname> > &what) {
+                return job(what.first().first().first(),
+                           string(what.first().first().second()),
+                           what.second()); }); }
