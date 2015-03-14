@@ -5,11 +5,6 @@ filesystem = f, compute = c, testing = t, storage = s, infra = X
    I think of a better name.  This'll be a component of the
    coordinator daemon.
 
--- Compute agent needs to be able to run non-trivial jobs, even if
-   it's just invoking them in isolation.
-
--- Extend job type with a way of specifying output streams.
-
 -- Compute agents contact the filesystem to find out where those
    output streams live.  This'll be pretty trivial at the moment,
    since they all live in the same place, but it might be handy later.
@@ -20,8 +15,6 @@ filesystem = f, compute = c, testing = t, storage = s, infra = X
 -- Have the filesystem expose an event queue indicating when streams
    disappear or become available.
 
-f4) Coordinator starts tracking compute slaves.  This should be pretty
-    trivial; just adjust beacon client config.
 f5) Coordinator takes an inventory of compute slaves as they turn up.
     It uses that to build a running job name -> compute slave mapping.
     This'll be a separate structure to the object name -> storage

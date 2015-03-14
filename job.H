@@ -4,6 +4,8 @@
 #define JOB_H__
 
 #include "filename.H"
+#include "list.H"
+#include "streamname.H"
 #include "string.H"
 
 class deserialise1;
@@ -18,9 +20,10 @@ const field &mk(const job &); }
 class job {
 public: filename library;
 public: string function;
+public: list<streamname> outputs;
 public: void serialise(serialise1 &) const;
 public: explicit job(deserialise1 &);
-public: job(const filename &, const string &);
+public: job(const filename &, const string &, const list<streamname> &);
 public: jobname name() const;
 public: const fields::field &field() const; };
 
