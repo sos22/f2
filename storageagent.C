@@ -367,7 +367,7 @@ storageagent::listjobs(
         for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
         if (!it.finished()) newcursor = *it;
         while (!it.finished()) it.remove(); }
-    ic->complete([&cursor, &newcursor, &res, this]
+    ic->complete([cursor, newcursor, r(res.steal()), this]
                  (serialise1 &s,
                   mutex_t::token /* txlock */,
                   onconnectionthread) {
@@ -375,7 +375,7 @@ storageagent::listjobs(
                                 eqq.lastid(),
                                 cursor,
                                 newcursor,
-                                res)); },
+                                r)); },
                  atl,
                  oct);
     return Success; }
