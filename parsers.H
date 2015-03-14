@@ -10,6 +10,7 @@
 
 template <typename, typename> class either;
 class filename;
+template <typename> class list;
 template <typename> class orerror;
 template <typename, typename> class pair;
 class string;
@@ -111,6 +112,11 @@ template <typename t> const parser<t> &operator+(
    the same type and we don't care which we take. */
 template <typename t> const parser<t> &operator||(
     const parser<t> &a, const parser<t> &b);
+
+/* Parse a list of things separated by other things. */
+namespace parsers {
+template <typename a> const parser<list<a> > &
+sepby(const parser<a> &what, const parser<void> &sep); }
 
 /* Syntactic sugar for mapping over concatenations. */
 namespace parsers {

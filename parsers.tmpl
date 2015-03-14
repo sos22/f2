@@ -306,6 +306,33 @@ operator||(const parser<typ> &a, const parser<typ> &b) {
     return (a|b).map(r);
 }
 
+namespace parsers {
+template <typename a> class _sepby final : public parser<list<a> > {
+public: typedef typename parser<list<a> >::result result;
+public: const parser<a> &elem;
+public: const parser<void> &sep;
+public: _sepby(const parser<a> &_elem, const parser<void> &_sep)
+    : elem(_elem),
+      sep(_sep) {}
+public: orerror<result> parse(const char *const what) const final {
+        auto cursor(what);
+        orerror<result> res(Success, list<a>::mk(), cursor);
+        while (true) {
+            auto inner(elem.parse(cursor));
+            if (inner == error::noparse) break;
+            if (inner.isfailure()) return inner.failure();
+            cursor = inner.success().left;
+            res.success().left = cursor;
+            res.success().res.pushtail(inner.success().res);
+            auto seper(sep.parse(cursor));
+            if (seper == error::noparse) break;
+            if (seper.isfailure()) return seper.failure();
+            cursor = seper.success(); }
+        return res; } };
+template <typename a> const parser<list<a> > &
+sepby(const parser<a> &what, const parser<void> &sep) {
+    return *new _sepby<a>(what, sep); } }
+
 template <typename t> void
 parsers::roundtrip(const parser<t> &what, unsigned nr) {
     for (unsigned x = 0; x < nr; x++) {

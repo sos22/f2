@@ -11,6 +11,7 @@
 #include "quickcheck.H"
 #include "test.H"
 
+#include "list.tmpl"
 #include "parsers.tmpl"
 
 orerror<void>
@@ -668,4 +669,15 @@ tests::parsers() {
                    .match("Bar") == error::noparse); });
 
     testcaseV("parsers", "roundtrip", [] {
-            parsers::roundtrip(intparser<unsigned>()); }); }
+            parsers::roundtrip(intparser<unsigned>()); });
+    testcaseV("parsers", "sepby", [] {
+            auto &p(parsers::sepby(parsers::intparser<int>(),
+                                   strmatcher(" ")));
+            assert(p.match("") == list<int>::mk());
+            assert(p.match("1") == list<int>::mk(1));
+            assert(p.match("1 2 3") == list<int>::mk(1, 2, 3));
+            assert(p.match("1 2 3 ") == error::noparse);
+            assert(p.match(" 1 2 3") == error::noparse);
+            assert((strmatcher("YYY") + p + strmatcher("XXX"))
+                   .match("YYY1 2 3XXX") ==
+                   list<int>::mk(1, 2, 3)); }); }
