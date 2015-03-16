@@ -255,7 +255,7 @@ rpcservice2::rootthread::run(clientio io) {
         return; }
 
     subscriber sub;
-    subscription ss(sub, shutdown.pub);
+    subscription ss(sub, shutdown.pub());
     list<subscription> workers;
     iosubscription ios(sub, fd.poll());
     while (!shutdown.ready()) {
@@ -323,7 +323,7 @@ rpcservice2::connworker::run(clientio io) {
     /* Always watch for errors and EOF. */
     iosubscription errsub(sub, fd.poll(POLLERR));
 
-    subscription ss(sub, owner.shutdown.pub);
+    subscription ss(sub, owner.shutdown.pub());
     subscription completedsub(sub, completedcall);
 
     buffer rxbuffer;

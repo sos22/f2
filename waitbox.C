@@ -12,13 +12,13 @@ waitbox<void>::set() {
 void
 waitbox<void>::get(clientio io) const {
     subscriber sub;
-    subscription s(sub, pub);
+    subscription s(sub, pub_);
     while (!ready()) sub.wait(io); }
 
 maybe<void>
 waitbox<void>::get(clientio io, timestamp deadline) const {
     subscriber sub;
-    subscription s(sub, pub);
+    subscription s(sub, pub_);
     while (!ready()) {
         auto r = sub.wait(io, deadline);
         if (r == NULL) return Nothing; }

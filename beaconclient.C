@@ -266,7 +266,7 @@ beaconclient::handletimeouts(mutex_t::token tok) {
 void
 beaconclient::run(clientio io) {
     subscriber sub;
-    subscription shutdownsub(sub, shutdown.pub);
+    subscription shutdownsub(sub, shutdown.pub());
     iosubscription listensub(sub, listenfd.poll());
     iosubscription clientsub(sub, clientfd.poll());
     auto nextbroadcast(timestamp::now());

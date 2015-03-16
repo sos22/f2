@@ -124,7 +124,7 @@ coordinatorservice::_jobcreator::machine::machine(
     connpool &pool,
     subscriber &sub)
     : ic(_ic),
-      icsub(Just(), sub, ic.abandoned().pub, &subscription_ic),
+      icsub(Just(), sub, ic.abandoned().pub(), &subscription_ic),
       eid(Nothing),
       call(pool.call(
                _fs,
@@ -219,7 +219,7 @@ coordinatorservice::_jobcreator::callevt(machine &m, acquirestxlock atl) {
 
 void
 coordinatorservice::_jobcreator::run(clientio io) {
-    subscription ssub(sub, shutdown.pub);
+    subscription ssub(sub, shutdown.pub());
     acquirestxlock atl(io);
     while (!shutdown.ready()) {
         auto ss(sub.wait(io));

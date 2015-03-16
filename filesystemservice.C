@@ -1067,7 +1067,7 @@ filesystem::impl::run(clientio io) {
     
     subscriber sub;
     subscription bcsub(sub, bc.changed());
-    subscription sssub(sub, shutdown.pub);
+    subscription sssub(sub, shutdown.pub());
     subscription barriersub(sub, barrierspub);
     
     /* Force an initial beacon scan. */

@@ -371,7 +371,7 @@ QUEUE::poll::poll(nnp<rpcservice2::incompletecall> _ic,
     : ic(_ic),
       subid(_subid),
       eid(_eid),
-      abandonmentsub(subscribe, _ic->abandoned().pub, q) {}
+      abandonmentsub(subscribe, _ic->abandoned().pub(), q) {}
 
 proto::eq::eventid
 QUEUE::allocid(mutex_t::token tok) {
@@ -474,7 +474,7 @@ SERVER::impl(const constoken &t)
 
 void
 SERVER::run(clientio io) {
-    subscription shutdownsub(sub, shutdown.pub);
+    subscription shutdownsub(sub, shutdown.pub());
     rpcservice2::acquirestxlock atl(io);
     while (!shutdown.ready()) {
         auto notified(sub.wait(io));

@@ -95,7 +95,7 @@ public: orerror<void> called(
     auto deadline(timestamp::now() + delay);
     outstanding.append([deadline, key, ic] {
             {   subscriber sub;
-                subscription ss(sub, ic->abandoned().pub);
+                subscription ss(sub, ic->abandoned().pub());
                 while (deadline.infuture() && !ic->abandoned().ready()) {
                     sub.wait(clientio::CLIENTIO, deadline); } }
             ic->complete(
@@ -186,7 +186,7 @@ public: orerror<void> called(
     assert(worker == Nothing);
     worker.mkjust([this, ic] {
             {   subscriber sub;
-                subscription ss(sub, ic->abandoned().pub);
+                subscription ss(sub, ic->abandoned().pub());
                 while (!ic->abandoned().ready()) sub.wait(clientio::CLIENTIO); }
             callaborted.set();
             ic->fail(error::toosoon, acquirestxlock(clientio::CLIENTIO)); });

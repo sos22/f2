@@ -94,7 +94,7 @@ beaconserver::run(clientio io) {
     subscriber sub;
     iosubscription listensub(sub, listenfd.poll());
     iosubscription clientsub(sub, clientfd.poll());
-    subscription shutdownsub(sub, shutdown.pub);
+    subscription shutdownsub(sub, shutdown.pub());
 
     /* Response is always the same, so pre-populate it. */
     proto::beacon::resp response(config.cluster,

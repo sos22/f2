@@ -133,7 +133,7 @@ runningjob::run(clientio io) {
 
 void
 computeservice::maintenancethread::run(clientio io) {
-    subscription ss(sub, owner.shutdown.pub);
+    subscription ss(sub, owner.shutdown.pub());
     while (!owner.shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &ss) continue;

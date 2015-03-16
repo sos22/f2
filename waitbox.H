@@ -11,27 +11,23 @@ class clientio;
    someone puts a value in it.  */
 template <typename t>
 class waitbox {
-    mutable mutex_t mux; /* mutable because we need to acquire it from
-                          * the const ready() method. */
-    maybe<t> content;
-    publisher pub_;
-public:  waitbox() : mux(), content(Nothing), pub(pub_) {};
-public:  const publisher &pub;
+private: mutable mutex_t mux; /* mutable because we need to acquire it
+                               * from the const ready() method. */
+private: maybe<t> content;
+private: publisher pub_;
+public:  waitbox() : mux(), content(Nothing) {};
+public:  const publisher &pub() { return pub_; }
 
     /* Set the waitbox.  Must be called at most once. */
-    void set(const t &what);
+public:  void set(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
-    const t &get(clientio) const;
-    /* Wait for the waitbox with a timeout, returning its contents if
-     * it is set or Nothing if we time out. */
-    maybe<t> &get(clientio, timestamp) const;
+public:  const t &get(clientio) const;
     /* Return the contents of the waitbox if it's been set and Nothing
      * otherwise. */
-    maybe<t> poll() const;
+public:  maybe<t> poll() const;
     /* Check whether the waitbox is set, returning true if it is and
        false otherwise. */
-    bool ready() const;
-};
+public:  bool ready() const; };
 
 /* Special case for void. */
 template <>
@@ -39,12 +35,11 @@ class waitbox<void> {
 private: mutable mutex_t mux;
 private: maybe<void> content;
 private: publisher pub_;
-public:  waitbox() : mux(), content(Nothing), pub(pub_) {};
-public:  const publisher &pub;
+public:  waitbox() : mux(), content(Nothing) {}
+public:  const publisher &pub() const { return pub_; }
 public:  void set();
 public:  void get(clientio) const;
 public:  maybe<void> get(clientio, timestamp) const;
-public:  bool ready() const;
-};
+public:  bool ready() const; };
 
 #endif

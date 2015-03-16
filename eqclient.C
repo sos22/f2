@@ -322,7 +322,7 @@ CLIENT::run(clientio io) {
     onqueuethread oqt;
     
     subscriber sub;
-    subscription ss(sub, shutdown.pub);
+    subscription ss(sub, shutdown.pub());
     /* Non-Nothing as long as the getter exists. */
     maybe<subscription> gettersub(Nothing);
     /* Non-Nothing as long as the waiter exists. */

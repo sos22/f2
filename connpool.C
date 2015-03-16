@@ -390,7 +390,7 @@ POOL::~impl() { beacon->destroy(); }
 
 void
 POOL::run(clientio io) {
-    subscription ss(sub, shutdown.pub);
+    subscription ss(sub, shutdown.pub());
     while (!shutdown.ready()) {
         auto s(sub.wait(io));
         if (s == &ss) continue;
@@ -1029,7 +1029,7 @@ CONN::conn(const constoken &t,
 void
 CONN::run(clientio io) {
     subscriber sub;
-    subscription shutdownsub(sub, pool.shutdown.pub);
+    subscription shutdownsub(sub, pool.shutdown.pub());
     subscription newcallssub(sub, callschanged);
 
     /* The connlock isn't really a lock, it's just a tag to indicate

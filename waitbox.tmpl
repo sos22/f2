@@ -13,7 +13,7 @@ waitbox<t>::ready() const {
 template <typename t> const t &
 waitbox<t>::get(clientio io) const {
     subscriber sub;
-    subscription s(sub, pub);
+    subscription s(sub, pub_);
     while (!ready()) sub.wait(io);
     return content.just(); }
 
