@@ -55,6 +55,7 @@ private: class maintenancethread : public thread {
           owner(_owner),
           sub() {}
     private: void run(clientio); };
+private: const agentname fs;
 private: mutex_t mux;
 private: eqserver &eqs;
 public:  waitbox<void> shutdown;
@@ -69,9 +70,11 @@ private: list<proto::compute::jobstatus> &finishedjobs(mutex_t::token) {
 private: maintenancethread &thr;
 private: subscriber sub;
 public:  explicit computeservice(const constoken &token,
+                                 const agentname &_fs,
                                  eqserver &_eqs,
                                  eventqueue<proto::compute::event> &__eqq)
     : rpcservice2(token, mklist(interfacetype::compute, interfacetype::eq)),
+      fs(_fs),
       mux(),
       eqs(_eqs),
       shutdown(),
@@ -83,6 +86,7 @@ public:  explicit computeservice(const constoken &token,
       sub() {}
 public:  static orerror<nnp<computeservice> > build(clientio io,
                                                     const clustername &cn,
+                                                    const agentname &fs,
                                                     const agentname &sn,
                                                     const filename &config);
 public:  orerror<void> called(clientio,
@@ -177,6 +181,7 @@ computeservice::maintenancethread::run(clientio io) {
 orerror<nnp<computeservice> >
 computeservice::build(clientio io,
                       const clustername &cn,
+                      const agentname &fs,
                       const agentname &sn,
                       const filename &statefile) {
     auto &eqs(*eqserver::build());
@@ -193,6 +198,7 @@ computeservice::build(clientio io,
         cn,
         sn,
         peername::all(peername::port::any),
+        fs,
         eqs,
         *eqq.success()); }
 
@@ -290,8 +296,9 @@ computeagent::format(const filename &f) {
 orerror<nnp<computeagent> >
 computeagent::build(clientio io,
                     const clustername &cn,
+                    const agentname &fs,
                     const agentname &an,
                     const filename &f) {
-    auto r(__computeagent::computeservice::build(io, cn, an, f));
+    auto r(__computeagent::computeservice::build(io, cn, fs, an, f));
     if (r.isfailure()) return r.failure();
     else return _nnp(*(computeagent *)&*r.success()); }
