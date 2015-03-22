@@ -7,6 +7,7 @@
 #include "eqserver.H"
 #include "job.H"
 #include "jobapi.H"
+#include "jobapiimpl.H"
 #include "logging.H"
 #include "mutex.H"
 #include "nnp.H"
@@ -101,7 +102,7 @@ runningjob::run(clientio io) {
     void *lib(::dlopen(j.library.str().c_str(), RTLD_NOW|RTLD_LOCAL));
     char *fname;
     if (asprintf(&fname,
-                 "_Z%zd%sR7waitboxIvE8clientio",
+                 "_Z%zd%sR6jobapi8clientio",
                  strlen(j.function.c_str()),
                  j.function.c_str()) < 0) {
         fname = NULL;
@@ -127,7 +128,9 @@ runningjob::run(clientio io) {
         result.mkjust(error::dlopen); }
     else {
         auto fn((jobfunction *)f);
-        result.mkjust(fn(owner.shutdown, io)); }
+        auto &api(newjobapi());
+        result.mkjust(fn(api, io));
+        deletejobapi(api); }
     if (lib != NULL) ::dlclose(lib);
     free(fname); }
 

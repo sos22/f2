@@ -7,6 +7,6 @@ SETVERSION;
 jobfunction testfunction;
 
 jobresult
-testfunction(waitbox<void> &, clientio) {
+testfunction(jobapi &, clientio) {
     logmsg(loglevel::info, "We are alive!");
     return jobresult::success(); }

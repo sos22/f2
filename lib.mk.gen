@@ -34,6 +34,7 @@ function bits() {
     _ listenfd
     _ logging
     _ job
+    _ jobapi
     _ jobresult
     _ lqueue
     _ maybe
