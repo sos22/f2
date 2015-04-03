@@ -37,6 +37,7 @@ function bits() {
     _ jobapi
     _ jobresult
     _ lqueue
+    _ map
     _ maybe
     _ mutex
     _ parsers
@@ -103,6 +104,7 @@ testmodule filename filename.C filename.H
 testmodule frequency frequency.C frequency.H
 testmodule list list.H list.tmpl
 testmodule lqueue lqueue.H lqueue.C
+testmodule map map.C map.H map.tmpl
 testmodule maybe maybe.C maybe.H maybe.tmpl
 testmodule mutex mutex.C mutex.H mutex.tmpl
 testmodule orerror orerror.H orerror.tmpl

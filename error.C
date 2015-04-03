@@ -55,9 +55,10 @@ const error error::eqstatemismatch(-32);
 const error error::nostorageagents(-33);
 const error error::signalled(-34);
 const error error::dlopen(-35);
+const error error::duplicate(-36);
 /* When adding a new error, make sure you update lasterror and
  * errorfield::fmt() */
-static const int lasterror = 35;
+static const int lasterror = 36;
 
 class errorfield : public fields::field {
     error content;
@@ -142,6 +143,8 @@ public:
             buf.push("signalled");
         } else if (content == error::dlopen) {
             buf.push("dlopen");
+        } else if (content == error::duplicate) {
+            buf.push("duplicate");
         } else {
             ("<invalid error " + fields::mk(content.e) + ">")
                 .fmt(buf); } } };

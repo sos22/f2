@@ -1,0 +1,134 @@
+#ifndef MAP_TMPL__
+#define MAP_TMPL__
+
+#include "map.H"
+
+namespace fields {
+template <typename k, typename v> const field &mk(const map<k, v> &m) {
+    return m.field(); } }
+
+template <typename key, typename value, unsigned long hash(const key &)> bool
+map<key, value, hash>::isprime(unsigned what) {
+    return map<int, int, default_hashfn>::isprime(what); }
+
+template <typename key, typename value, unsigned long hash(const key &)> void
+map<key, value, hash>::rehash(unsigned nr) {
+    reinterpret_cast<map<int, int, default_hashfn> *>(this)->rehash(nr); }
+
+template <typename key, typename value, unsigned long hash(const key &)>unsigned
+map<key, value, hash>::nextsize(unsigned nr) {
+    return map<int, int, default_hashfn>::nextsize(nr); }
+
+template <typename key, typename value, unsigned long hash(const key &)>unsigned
+map<key, value, hash>::prevsize(unsigned nr) {
+    return map<int, int, default_hashfn>::prevsize(nr); }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+map<key, value, hash>::map(deserialise1 &ds)
+    : nrbuckets(0),
+      /* Impose an arbitrary limit on the size of serialised hash
+       * tables, for general sanity. */
+      nritems(0),
+      buckets(NULL) {
+    auto nr(ds.poprange<unsigned>(0,1000000));
+    /* Pick a sensible size. */
+    unsigned nb = 0;
+    while (nb <= nr) nb = nextsize(nb);
+    rehash(nb);
+    /* Deserialise the entries. */
+    for (unsigned x = 0; x < nr; x++) {
+        auto e(new entry(key(ds), value(ds)));
+        if (get(e->k) != Nothing) {
+            if (!ds.random()) ds.fail(error::duplicate);
+            delete e; }
+        else {
+            e->next = buckets[e->h % nrbuckets];
+            buckets[e->h % nrbuckets] = e;
+            nritems++; } } }
+
+template <typename key, typename value, unsigned long hash(const key &)> void
+map<key, value, hash>::serialise(serialise1 &s) const {
+    s.push(nritems);
+    for (unsigned x = 0; x < nrbuckets; x++) {
+        for (auto e(buckets[x]); e != NULL; e = e->next) {
+            s.push(e->k);
+            s.push(e->v); } } }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+map<key, value, hash>::map(const map &src)
+    : nrbuckets(src.nrbuckets),
+      nritems(0),
+      buckets(new entry *[nrbuckets]) {
+    for (unsigned x = 0; x < nrbuckets; x++) {
+        auto p(&buckets[x]);
+        for (auto b(src.buckets[x]); b != NULL; b = b->next) {
+            *p = new entry(b->h, b->k, b->v);
+            p = &(*p)->next;
+            nritems++; }
+        *p = NULL; }
+    assert(nritems == src.nritems); }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+map<key, value, hash>::~map() {
+    for (unsigned x = 0; x < nrbuckets; x++) {
+        while (buckets[x] != NULL) {
+            auto n(buckets[x]->next);
+            delete buckets[x];
+            buckets[x] = n;
+            nritems--; } }
+    assert(nritems == 0);
+    delete [] buckets; }
+
+template <typename key, typename value, unsigned long hash(const key &)> void
+map<key, value, hash>::set(const key &k, const value &v) {
+    assert(get(k) == Nothing);
+    if (nrbuckets == 0 || nritems > nrbuckets * 8) rehash(nextsize(nrbuckets));
+    assert(nrbuckets != 0);
+    auto b(new entry(k, v));
+    b->next = buckets[b->h % nrbuckets];
+    buckets[b->h % nrbuckets] = b;
+    nritems++; }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+maybe<value>
+map<key, value, hash>::get(const key &k) const {
+    if (nrbuckets == 0) return Nothing;
+    auto h(hash(k));
+    auto prev(&buckets[h % nrbuckets]);
+    while (*prev) {
+        auto b(*prev);
+        if (b->h == h && b->k == k) return b->v;
+        prev = &b->next; }
+    return Nothing; }
+
+template <typename key, typename value, unsigned long hash(const key &)> void
+map<key, value, hash>::clear(const key &k) {
+    auto h(hash(k));
+    auto prev(&buckets[h % nrbuckets]);
+    while (*prev) {
+        auto b(*prev);
+        if (b->h == h && b->k == k) {
+            *prev = b->next;
+            delete b;
+            nritems--;
+            if (nritems < nrbuckets / 8) rehash(prevsize(nrbuckets));
+            return; }
+        prev = &b->next; }
+    abort(); }
+
+template <typename key, typename value, unsigned long hash(const key &)> bool
+map<key, value, hash>::operator==(const map &o) const {
+    if (nritems != o.nritems) return false;
+    for (unsigned x = 0; x < nrbuckets; x++) {
+        for (auto b(buckets[x]); b != NULL; b = b->next) {
+            auto y(o.nrbuckets == nrbuckets ? x : b->h % o.nrbuckets);
+            auto c(o.buckets[y]);
+            while (true) {
+                if (c == NULL) return false;
+                if (c->h == b->h && c->k == b->k) {
+                    if (c->v == b->v) break;
+                    else return false; }
+                c = c->next; } } }
+    return true; }
+
+#endif /* !MAP_TMPL__ */

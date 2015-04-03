@@ -10,6 +10,7 @@ tests=(beacontest.C
      listtest.C
      lqueuetest.C
      testdriver.C
+     testmap.C
      testorerror.C
      testserialise.C
      teststring.C
