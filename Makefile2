@@ -13,7 +13,7 @@ include tests/mk
 
 # The all target only builds things which most people would want.  The
 # coverage check and test suite are under a different target.
-everything: realall covall testall
+everything: realall covall testall profall
 
 config: config.gen
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@

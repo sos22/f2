@@ -21,6 +21,8 @@ function ld() {
     x=${x/%.a/-c.a}
     local y=${@/%.o/-t.o}
     y=${y/%.a/-t.a}
+    local z=${@/%.o/-p.o}
+    z=${z/%.a/-p.a}
     cat <<EOF
 $target: $* $mkfile
 	\$(LD) -Wl,-E -o \$@.tmp $* -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
@@ -28,10 +30,13 @@ ${target}-c: $x $mkfile
 	\$(LD) -Wl,-E --coverage -o \$@.tmp $x -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-t: $y $mkfile
 	\$(LD) -Wl,-E -o \$@.tmp $y -ldl -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+${target}-p: $z $mkfile
+	\$(LD) -Wl,-E -o \$@.tmp $z -pg -ldl -lstdc++ -lm -lrt -lpthread -lgcov && mv -f \$@.tmp \$@
 clean::
 	rm -f $target $target.tmp
 	rm -f ${target}-c.tmp ${target}-c
 	rm -f ${target}-t.tmp ${target}-t
+	rm -f ${target}-p.tmp ${target}-p
 EOF
 }
 
@@ -53,12 +58,15 @@ ${obj/.o/-t.o}: $src config
 	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
 	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+${obj/.o/-p.o}: $src config
+	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${CPPFLAGS} ${CXXFLAGS} -O3 -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src config
-	\$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
+	\$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
 	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
+	rm -f ${obj/.o/-p.o} ${obj}-p.tmp
 EOF
 	    ;;
 	c)
@@ -72,12 +80,15 @@ ${obj/.o/-t.o}: $src config
 	ccache \$(CC) $dashi -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
 	ccache \$(CC) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+${obj/.o/-p.o}: $src config
+	ccache \$(CC) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${CPPFLAGS} ${CFLAGS} -O3 -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src config
-	\$(CC) $dashi ${CFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
+	\$(CC) $dashi ${CFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
 	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
+	rm -f ${obj/.o/-p.o} ${obj}-p.tmp
 EOF
 	    ;;
 	*)
@@ -98,8 +109,10 @@ ${target/%.a/-c.a}: ${@/%.o/-c.o}
 	ar cqs \$@.tmp ${@/%.o/-c.o} && mv \$@.tmp \$@
 ${target/%.a/-t.a}: ${@/%.o/-t.o}
 	ar cqs \$@.tmp ${@/%.o/-t.o} && mv \$@.tmp \$@
+${target/%.a/-p.a}: ${@/%.o/-p.o}
+	ar cqs \$@.tmp ${@/%.o/-p.o} && mv \$@.tmp \$@
 clean::
-	rm -f $target ${target/%.a/-c.a} ${target/%.a/-t.a}
+	rm -f $target ${target/%.a/-c.a} ${target/%.a/-t.a} ${target/%.a/-p.a}
 EOF
 }
 
@@ -109,6 +122,7 @@ function target()
 realall:: $1
 covall:: ${1}-c
 testall:: ${1}-t
+profall:: ${1}-p
 EOF
 }
 
