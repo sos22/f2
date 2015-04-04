@@ -11,6 +11,23 @@
 
 void
 tests::_buffer(void) {
+    testcaseV("buffer", "basic", [] {
+            ::buffer b;
+            b.queue("HELLO", 5);
+            assert(b.avail() == 5);
+            assert(b.offset() == 0);
+            assert(!memcmp(b.linearise(0, 5), "HELLO", 5));
+            assert(!memcmp(b.linearise(3, 5), "LO", 2));
+            assert(b.idx(2) == 'L');
+            b.discard(3);
+            assert(b.avail() == 2);
+            assert(b.offset() == 3);
+            assert(!memcmp(b.linearise(3, 5), "LO", 2));
+            b.queue("WOO", 3);
+            assert(b.avail() == 5);
+            assert(b.offset() == 3);
+            assert(!memcmp(b.linearise(3, 5), "LO", 2));
+            assert(!memcmp(b.linearise(3, 8), "LOWOO", 5)); });
     testcaseS(
         "buffer",
         "fuzz",
@@ -388,7 +405,7 @@ tests::_buffer(void) {
                 assert(strcmp(fields::mk(buf).c_str(), "<buffer: >") == 0); }
             {   ::buffer buf;
                 assert(strcmp(fields::mk(buf).showshape().c_str(),
-                              "<buffer: prod:0 cons:0 []>") == 0); }
+                              "<buffer: [<0+0:3fe0-3fe0>]>") == 0); }
             {   ::buffer buf;
                 buf.queue("AAAAAAAAAAAAAAAA", 16);
                 assert(strcmp(fields::mk(buf).c_str(),
@@ -460,7 +477,7 @@ tests::_buffer(void) {
                 buf.fetch(&b, 1);
                 assert(strcmp(
                            fields::mk(buf).showshape().c_str(),
-                           "<buffer: prod:5 cons:1 [{prod:5;cons:1;sz:16,352[ELLO]}]>")
+                           "<buffer: [<0+1:3fe0-3fdb ELLO>]>")
                        == 0); } });
     testcaseV("buffer", "transfer", [] {
             ::buffer buf1;

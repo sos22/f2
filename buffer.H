@@ -30,26 +30,41 @@ class buffer {
     class subbuf {
     public:
         subbuf *next;
-        unsigned sz;
-        size_t prod;
-        size_t cons;
-        unsigned char payload[];
-    };
+        /* Buffer offset of payload[0] (which might not be interesting
+         * data if we have start slack). */
+        size_t startoff;
+        /* Buffer offset of last allocated byte in payload (which
+         * might be slack, or might even be past the end of the
+         * buffer) */
+        size_t endoff;
+        /* Number of unused bytes at the beginning of the payload
+         * space. */
+        unsigned startslack;
+        /* Number of unused bytes at the end of the payload
+         * space. */
+        unsigned endslack;
+        void squashstartslack();
+        static subbuf *fresh(size_t start, size_t minsize);
+        /* Convert an offset in buffer space to a pointer into the
+         * payload area. */
+        void *payload(size_t offset) {
+            return (void *)((uintptr_t)_payload - startoff + offset); }
+        /* Buffer offset of the first byte in this subbuffer. */
+        size_t start() const { return startoff + startslack; }
+        /* Buffer offset of the last byte in this subbuffer, plus
+         * one. */
+        size_t end() const { return endoff - endslack; }
+        /* Number of bytes in this subbuffer. */
+        unsigned size() const { return (unsigned)(end() - start()); }
+        unsigned char _payload[]; };
+    /* There is always at least one sub-buffer in the buffer, even
+     * when the buffer is empty. */
     subbuf *first;
     subbuf *last;
-    /* How many bytes have we produced in this buffer, ever? */
-    size_t prod;
-    /* How many bytes have we removed from this buffer, ever? */
-    size_t cons;
-
-    subbuf *newsubbuf(size_t, bool);
-    subbuf *extend_end(size_t sz = 0) { return newsubbuf(sz, true); }
-    subbuf *unlinked_subbuf(size_t sz) { return newsubbuf(sz, false); }
     void operator=(const buffer &o) = delete;
 public: buffer(const buffer &o);
-public:
-    buffer() : first(NULL), last(NULL), prod(0), cons(0) {}
-    ~buffer();
+public: buffer();
+public: ~buffer();
 
 public:  explicit buffer(deserialise1 &);
 public:  void serialise(serialise1 &) const;
