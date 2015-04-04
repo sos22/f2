@@ -42,10 +42,9 @@ class buffer {
     /* How many bytes have we removed from this buffer, ever? */
     size_t cons;
 
-    subbuf *newsubbuf(size_t, bool, bool, bool);
-    subbuf *extend_end(size_t sz = 0) { return newsubbuf(sz, false, false, true); }
-    subbuf *extend_start(size_t sz) { return newsubbuf(sz, true, true, true); }
-    subbuf *unlinked_subbuf(size_t sz) { return newsubbuf(sz, false, false, false); }
+    subbuf *newsubbuf(size_t, bool);
+    subbuf *extend_end(size_t sz = 0) { return newsubbuf(sz, true); }
+    subbuf *unlinked_subbuf(size_t sz) { return newsubbuf(sz, false); }
     void operator=(const buffer &o) = delete;
 public: buffer(const buffer &o);
 public:
@@ -97,10 +96,6 @@ public:  void serialise(serialise1 &) const;
      * bytes than are available.  Discards the bytes rather than
      * copying them if @buf is NULL. */
     void fetch(void *buf, size_t sz);
-    /* Copy some bytes from memory to the start of the buffer.  The
-     * buffer is expanded as needed to make space.  This is the
-     * inverse of fetch(). */
-    void pushback(const void *, size_t sz);
     /* Transfer the contents of @buf to the end of this buffer.  @buf
      * is made empty.  Equivalent to:
      *

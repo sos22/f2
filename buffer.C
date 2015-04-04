@@ -25,7 +25,7 @@
 #include "timedelta.tmpl"
 
 buffer::subbuf *
-buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
+buffer::newsubbuf(size_t sz, bool insert)
 {
     subbuf *res;
     size_t newsz;
@@ -35,25 +35,15 @@ buffer::newsubbuf(size_t sz, bool middle, bool atstart, bool insert)
     new (res) subbuf();
     res->sz = (unsigned)(newsz - sizeof(*res));
     assert(res->sz == newsz - sizeof(*res));
-    if (middle)
-        res->prod = (res->sz + sz) / 2;
-    else
-        res->prod = 0;
+    res->prod = 0;
     res->cons = res->prod;
     if (insert) {
-        if (atstart) {
-            res->next = first;
+        res->next = NULL;
+        if (last)
+            last->next = res;
+        else
             first = res;
-            if (!last)
-                last = res;
-        } else {
-            res->next = NULL;
-            if (last)
-                last->next = res;
-            else
-                first = res;
-            last = res;
-        }
+        last = res;
     }
     return res;
 }
@@ -244,25 +234,6 @@ buffer::fetch(void *buf, size_t sz)
             assert(sz == 0);
             last = NULL; }
     }
-}
-
-void
-buffer::pushback(const void *what, size_t sz)
-{
-    assert(cons >= sz);
-    if (!sz) return;
-    auto b(first);
-    assert(!b || b->cons < b->prod);
-    if (!(b && b->cons >= sz)) {
-        b = extend_start(sz);
-        assert(b->cons <= b->sz);
-    }
-    assert(b);
-    assert(b->cons <= b->sz);
-    assert(b->cons >= sz);
-    b->cons -= sz;
-    memcpy((void *)((unsigned long)b->payload + b->cons), what, sz);
-    cons -= sz;
 }
 
 size_t
@@ -678,7 +649,7 @@ tests::buffer(void)
                     assert(b->avail() == size);
                     assert(b->offset() == (unsigned long)cons);
                     assert(size == (size_t)(prod - cons));
-                    switch (random() % 6) {
+                    switch (random() % 5) {
                     case 0: {
                         size_t sz = random() % 65536;
                         t.detail(" queue %zd", sz);
@@ -706,20 +677,6 @@ tests::buffer(void)
                         break;
                     }
                     case 2: {
-                        if (!cons)
-                            continue;
-                        size_t sz = (unsigned long)random() % cons;
-                        t.detail(" pushback %zd", sz);
-                        content = (unsigned char *)realloc(content, size + sz);
-                        memmove(content + sz, content, size);
-                        for (unsigned k = 0; k < sz; k++)
-                            content[k] = (unsigned char)cntr++;
-                        b->pushback(content, sz);
-                        cons -= sz;
-                        size += sz;
-                        break;
-                    }
-                    case 3: {
                         if (!size)
                             continue;
                         size_t sz = (unsigned long)random() % size;
@@ -730,7 +687,7 @@ tests::buffer(void)
                         size -= sz;
                         break;
                     }
-                    case 4: {
+                    case 3: {
                         if (size <= 1)
                             continue;
                         size_t start = cons +
@@ -745,7 +702,7 @@ tests::buffer(void)
                             assert( buf[k] == content[k+start-cons]);
                         break;
                     }
-                    case 5: {
+                    case 4: {
                         if (!size)
                             continue;
                         size_t off = cons + ((unsigned long)random() % size);
@@ -759,17 +716,6 @@ tests::buffer(void)
                 delete b;
             }
         });
-
-    /* A couple more test cases to get to 100% coverage */
-    testcaseV("buffer", "pushbackempty", [] () {
-            ::buffer buf;
-            buf.queue("Hello", 5);
-            char b[5];
-            buf.fetch(b, 5);
-            buf.pushback(b, 5);
-            char b2[5];
-            buf.fetch(b2, 5);
-            assert(!memcmp(b2, "Hello", 5)); });
 
     testcaseV("buffer", "serialise", [] {
             /* Normal case. */
