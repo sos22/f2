@@ -236,6 +236,64 @@ tests::_buffer(void) {
                 assert(!memcmp(bb, "IJKLM", 5)); }
             pipe.success().close(); });
 
+    testcaseIO("buffer", "fullreceive", [] (clientio io) {
+            auto pipe(fd_t::pipe().fatal("pipe"));
+            buffer b;
+            for (unsigned x = 0; x < 1010; x++) {
+                char somestuff[100];
+                memset(somestuff, 'A', sizeof(somestuff));
+                pipe.write.write(io, somestuff, sizeof(somestuff))
+                    .fatal("write");
+                b.receivefast(pipe.read).fatal("read"); }
+            for (auto x(b.offset()); x < b.offset()+b.avail(); x++) {
+                assert(b.idx(x) == 'A'); }
+            pipe.close(); });
+
+    testcaseIO("buffer", "rereceive", [] (clientio io) {
+            /* Try to trigger the path where we have to memmove()
+             * before receiving, rather than allocating another
+             * buffer. */
+            auto pipe(fd_t::pipe().fatal("pipe"));
+            buffer b;
+            char somestuff[16300];
+            memset(somestuff, 'B', sizeof(somestuff));
+            pipe.write.write(io, somestuff, sizeof(somestuff))
+                .fatal("write");
+            b.receivefast(pipe.read).fatal("read");
+            b.discard(16200);
+            pipe.write.write(io, somestuff, sizeof(somestuff))
+                .fatal("write");
+            b.receivefast(pipe.read).fatal("read2");
+            for (auto x(b.offset()); x < b.offset()+b.avail(); x++) {
+                assert(b.idx(x) == 'B'); }
+            pipe.close(); });
+
+    testcaseIO("buffer", "sendedges", [] (clientio) {
+            auto pipe(fd_t::pipe().fatal("pipe"));
+            buffer b;
+            char somestuff[16300];
+            memset(somestuff, 'C', sizeof(somestuff));
+            b.queue(somestuff, sizeof(somestuff));
+            b.queue(somestuff, sizeof(somestuff));
+            /* Should now be two sub-buffers in the buffer.  Drain the
+             * first one.*/
+            b.sendfast(pipe.write).fatal("write1");
+            assert(b.avail() == sizeof(somestuff));
+            /* And the second one. */
+            b.sendfast(pipe.write).fatal("write2");
+            assert(b.avail() == 0);
+            /* Try that again, but discard some bytes part-way through. */
+            pipe.close();
+            pipe = fd_t::pipe().fatal("pipe2");
+            memset(somestuff, 'C', sizeof(somestuff));
+            b.queue(somestuff, sizeof(somestuff));
+            b.queue(somestuff, 10000);
+            b.discard(sizeof(somestuff) - 10);
+            /* Should now have a 10 byte sub-buffer followed by a 10k
+             * one, which should get sent in a single write. */
+            b.sendfast(pipe.write).fatal("write3");
+            assert(b.avail() == 0);
+            pipe.close(); });
     testcaseIO("buffer", "receivetimeout", [] (clientio io) {
             auto pipe(fd_t::pipe());
             assert(pipe.issuccess());

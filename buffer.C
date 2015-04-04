@@ -71,9 +71,8 @@ buffer::receive(clientio io,
         last->next = b;
         last = b;
         mru = last; }
-    auto tocopy(last->endslack);
-    if (limit != Nothing && tocopy < limit.just()) {
-        tocopy = (unsigned)limit.just(); }
+    auto tocopy(min(last->endslack,
+                    (uint32_t)min(limit.dflt(UINT64_MAX), UINT32_MAX)));
     auto read(fd.read(io,
                       last->payload(last->end()),
                       tocopy,
