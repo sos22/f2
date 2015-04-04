@@ -8,6 +8,7 @@
 #include "timestamp.H"
 
 #include "list.tmpl"
+#include "spark.tmpl"
 
 void
 tests::_waitqueue() {

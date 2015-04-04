@@ -13,6 +13,8 @@
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "mutex.tmpl"
+#include "test.tmpl"
 #include "thread.tmpl"
 
 #define CLIENT geneqclient::impl
@@ -341,10 +343,13 @@ CLIENT::run(clientio io) {
      * otherwise. */
     maybe<pair<proto::eq::eventid, nnp<connpool::asynccall> > >
         trimmer(Nothing);
-
+    trimmer.silencecompiler(proto::eq::eventid::compilerdummy(),
+                            *(connpool::asynccall *)NULL);
+    
     /* The last thing we've successfully trimmed, or Nothing if we
      * haven't trimmed anything yet. */
     maybe<proto::eq::eventid> trimmedto(Nothing);
+    trimmedto.silencecompiler(proto::eq::eventid::compilerdummy());
     
     gettersub.mkjust(sub, getter->pub());
     

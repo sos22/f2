@@ -46,7 +46,6 @@ public:
     void sleep(clientio) const;
 
     static timestamp now();
-    static timestamp fromtimespec(timespec);
 };
 
 #endif /* TIMESTAMP_H__ */

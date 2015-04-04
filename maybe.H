@@ -62,7 +62,11 @@ public:
      * Nothing, and does a move on the inner t. */
     maybe(maybe &&o)
         : _isnothing(o._isnothing) {
-        if (!_isnothing) new (&content) t(std::move(o.content)); }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+        if (!_isnothing) new (&content) t(std::move(o.content));
+#pragma GCC diagnostic pop
+    }
     ~maybe() { if (isjust()) content.~t(); }
     maybe(_Nothing) : _isnothing(true) {}
     maybe(const t &what) : _isnothing(false) { ::new (&content) t(what); }
@@ -161,7 +165,19 @@ public:
      * whether the maybe is non-Nothing, and without dereferencing
      * @this at all.  This is only really useful for containerof. */
     const t &__just() const { return content; }
-
+    
+    /* Suppress maybe-uninitialised compiler warnings on content by
+     * pretending to initialise it.  These warnings should always be
+     * spurious, so this should always be safe; it's purely for
+     * working around compiler weaknesses. */
+    /* It's also quite expensive for types with non-trivial
+     * constructors.  Fortunately, gcc only seems to generate the bad
+     * warning for primitive types, so we should be okay. */
+    template <typename ... args> void silencecompiler(args &&...params) {
+        assert(_isnothing);
+        new (&content) t(std::forward<args>(params)...);
+        content.~t(); }
+    
     const fields::field &field() const;
 };
 

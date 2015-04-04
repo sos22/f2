@@ -20,6 +20,7 @@
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "test.tmpl"
 #include "thread.tmpl"
 
 /* Because I got bored typing the same thing over and over again. */
@@ -611,6 +612,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         return r; }
     /* Otherwise, take the soonest call timeout. */
     maybe<timestamp> res(Nothing);
+    res.silencecompiler(timestamp::now());
     for (auto it(calls.start()); !it.finished(); it.next()) {
         if (res == Nothing) res = (*it)->deadline;
         else if ((*it)->deadline != Nothing &&

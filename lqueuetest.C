@@ -5,6 +5,8 @@
 #include "spark.H"
 #include "test.H"
 
+#include "spark.tmpl"
+
 void
 tests::_lqueue() {
     testcaseIO("lqueue", "basics", [] (clientio) {

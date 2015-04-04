@@ -10,6 +10,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
+#include "test.tmpl"
 #include "thread.tmpl"
 
 #include "fieldfinal.H"
@@ -409,6 +410,7 @@ QUEUE::trim(mutex_t::token tok) {
         allocedto(tok) = max(usedto(tok), allocedto(tok));
         return; }
     maybe<proto::eq::eventid> trimto(Nothing);
+    trimto.silencecompiler(proto::eq::eventid::compilerdummy());
     for (auto it(subscriptions(tok).start()); !it.finished(); it.next()) {
         if (trimto == Nothing || trimto.just() > it->next) trimto = it->next; }
     /* We can sometimes drop an event before the trimto point reaches
@@ -701,6 +703,7 @@ eqserver::impl::trim(
         q->mux.unlock(&token);
         return error::toosoon; }
     maybe<nnp<QUEUE::sub> > subs(Nothing);
+    subs.silencecompiler(*(QUEUE::sub *)NULL);
     for (auto it(q->subscriptions(token).start());
          !it.finished() && subs == Nothing;
          it.next()) {

@@ -26,10 +26,10 @@ map<key, value, hash>::prevsize(unsigned nr) {
 template <typename key, typename value, unsigned long hash(const key &)>
 map<key, value, hash>::map(deserialise1 &ds)
     : nrbuckets(0),
-      /* Impose an arbitrary limit on the size of serialised hash
-       * tables, for general sanity. */
       nritems(0),
       buckets(NULL) {
+    /* Impose an arbitrary limit on the size of serialised hash
+     * tables, for general sanity. */
     auto nr(ds.poprange<unsigned>(0,1000000));
     /* Pick a sensible size. */
     unsigned nb = 0;

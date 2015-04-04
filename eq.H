@@ -81,7 +81,10 @@ public:  eventid pred() const { return eventid(v - 1); }
      * makes bugs a bit more obvious. */
 public:  eventid gap(unsigned sz) const;
 public:  const fields::field &field() const;
-public:  static const parser<eventid> &_parser(); };
+public:  static const parser<eventid> &_parser();
+    /* Occasionally necessary to work around compiler problems.
+     * Should never be used for anything real. */
+public:  static eventid compilerdummy() { return eventid(0xf001deadul); } };
 
 class tag : public proto::tag {
 private: explicit tag(unsigned char _v) : proto::tag(_v) {}

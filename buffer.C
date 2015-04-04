@@ -470,6 +470,7 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
         void flush() {
             if (repeatcount != 0) {
                 bool suppressrepeats;
+                suppressrepeats = false;
                 switch (_this.content) {
                 case c_ascii:
                     suppressrepeats = repeatcount >= 4;

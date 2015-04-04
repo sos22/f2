@@ -114,5 +114,7 @@ public:  const fields::field &field() const; };
 
 template <> bool map<int, int, default_hashfn>::isprime(unsigned );
 template <> void map<int, int, default_hashfn>::rehash(unsigned);
+template <> unsigned map<int, int, default_hashfn>::nextsize(unsigned);
+template <> unsigned map<int, int, default_hashfn>::prevsize(unsigned);
 
 #endif /* !MAP_H__ */

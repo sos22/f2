@@ -15,6 +15,8 @@
 #include "string.H"
 #include "waitbox.H"
 
+#include "parsers.tmpl"
+
 int
 main(int argc, char *argv[])
 {

@@ -8,6 +8,7 @@
 #include "test.H"
 
 #include "rpcservice2.tmpl"
+#include "test.tmpl"
 
 #include "fieldfinal.H"
 

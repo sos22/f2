@@ -29,7 +29,10 @@ serialise(quickcheck &q, unsigned nr = 1000) {
         {   deserialiser ds(buf);
             t res(ds);
             assert(ds.status().issuccess());
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
             assert(res == val);
+#pragma GCC diagnostic pop
             assert(buf.avail() == ds.offset()); } } }
 
 template <typename t> t
