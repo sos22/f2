@@ -62,6 +62,9 @@ class buffer {
      * when the buffer is empty. */
     subbuf *first;
     subbuf *last;
+    /* The last subbuffer to be accessed, to try to speed up linear
+     * scans through large buffers a bit. */
+    subbuf *mru;
     void operator=(const buffer &o) = delete;
 public: buffer(const buffer &o);
 public: buffer(_Steal, buffer &o);

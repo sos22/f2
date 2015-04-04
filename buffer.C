@@ -37,17 +37,21 @@ buffer::subbuf::fresh(size_t start, size_t minsize) {
 
 buffer::buffer(const buffer &o)
     : first(NULL),
-      last(NULL) {
+      last(NULL),
+      mru(NULL) {
     first = subbuf::fresh(o.offset(), DEFAULT_BUF_SIZE);
     last = first;
+    mru = first;
     for (auto it(o.first); it != NULL; it = it->next) {
         queue(it->payload(it->start()), it->size()); } }
 
 buffer::buffer()
     : first(NULL),
-      last(NULL) {
+      last(NULL),
+      mru(NULL) {
     first = subbuf::fresh(0, DEFAULT_BUF_SIZE);
-    last = first; }
+    last = first;
+    mru = first; }
 
 orerror<void>
 buffer::receive(clientio io,
@@ -65,7 +69,8 @@ buffer::receive(clientio io,
         /* Need a new buffer. */
         auto b = subbuf::fresh(last->end(), DEFAULT_BUF_SIZE);
         last->next = b;
-        last = b; }
+        last = b;
+        mru = last; }
     auto tocopy(last->endslack);
     if (limit != Nothing && tocopy < limit.just()) {
         tocopy = (unsigned)limit.just(); }
@@ -118,6 +123,7 @@ buffer::sendfast(fd_t fd) {
     while (first->size() == 0) {
         auto n(first->next);
         free(first);
+        if (mru == first) mru = n;
         first = n; }
     /* Avoid sending very small things over the wire for no good
      * reason. */
@@ -136,7 +142,8 @@ buffer::sendfast(fd_t fd) {
             auto b(first->next);
             first->next = b->next;
             free(b);
-            if (last == b) last = first; } }
+            if (last == b) last = first;
+            if (mru == b) mru = last; } }
     auto wrote(fd.writefast(first->payload(first->start()), first->size()));
     if (wrote.isfailure()) return wrote.failure();
     assert(wrote.success() <= first->size());
@@ -206,6 +213,7 @@ buffer::fetch(void *buf, size_t sz) {
         if (first->size() == 0 && first != last) {
             auto n(first->next);
             free(first);
+            if (mru == first) mru = n;
             first = n; } } }
 
 size_t
@@ -216,9 +224,11 @@ buffer::discard(size_t sz) { fetch(NULL, sz); }
 
 buffer::buffer(_Steal, buffer &o)
     : first(o.first),
-      last(o.last) {
+      last(o.last),
+      mru(o.mru) {
     o.first = subbuf::fresh(o.offset(), DEFAULT_BUF_SIZE);
-    o.last = o.first; }
+    o.last = o.first;
+    o.mru = o.first; }
 
 unsigned char
 buffer::idx(size_t off) const {
@@ -240,20 +250,13 @@ buffer::linearise(size_t start, size_t end) {
            a bit easier. */
         static unsigned char b;
         return &b; }
-    auto prev(&first);
-    auto it(first);
+    subbuf *it(NULL);
     /* Skip the bits which are unambiguously too soon. */
-    while (it->end() <= start) {
-        /* Drop empty buffers; they can't help us here. */
-        if (it->start() == it->end()) {
-            auto n(it->next);
-            free(it);
-            assert(it != last);
-            *prev = n;
-            it = n;
-            continue; }
-        prev = &it->next;
-        it = *prev; }
+    if (mru->start() <= start) it = mru;
+    else if (last->start() <= start) it = last;
+    else it = first;
+    while (it->end() <= start) it = it->next;
+    mru = it;
     /* @it contains at least some of the data we need.  If it contains
      * all of it then we're done. */
     if (it->end() >= end) return it->payload(start);
@@ -272,6 +275,7 @@ buffer::linearise(size_t start, size_t end) {
             if (n->size() == 0) {
                 it->next = n->next;
                 free(n);
+                if (mru == n) mru = it;
                 if (it->next == NULL) last = it; } }
         return it->payload(start); }
     /* Going to need a new buffer. */
@@ -285,13 +289,8 @@ buffer::linearise(size_t start, size_t end) {
     b->endslack -= (unsigned)tocopy;
     it->endslack += (unsigned)tocopy;
     assert(it->end() == start);
-    assert(*prev == it);
     auto n(it->next);
-    if (it->end() == it->start()) {
-        *prev = b;
-        assert(it != last);
-        free(it); }
-    else it->next = b;
+    it->next = b;
     it = n;
     while (b->end() != end) {
         assert(b->endslack > 0);
@@ -305,11 +304,14 @@ buffer::linearise(size_t start, size_t end) {
         if (it->end() == it->start()) {
             n = it->next;
             free(it);
+            if (it == mru && n == NULL) mru = first;
+            if (it == mru) mru = n;
             if (it == last) assert(n == NULL);
             it = n; } }
     b->next = it;
     if (b->next == NULL) last = b;
     if (n != NULL) assert(n->start() == b->end());
+    mru = b;
     return b->payload(start); }
 
 /* linearise doesn't change any externally-visible state of the
@@ -345,7 +347,8 @@ fields::mk(const buffer &b) {
 
 buffer::buffer(deserialise1 &ds)
     : first(NULL),
-      last(NULL) {
+      last(NULL),
+      mru(NULL) {
     size_t start(ds);
     size_t end(ds);
     if (end < start) ds.fail(error::invalidmessage);
@@ -362,7 +365,8 @@ buffer::buffer(deserialise1 &ds)
     s->endslack -= (unsigned)(end - start);
     assert(s->end() == end);
     first = s;
-    last = s; }
+    last = s;
+    mru = s; }
 
 void
 buffer::serialise(serialise1 &s) const {
@@ -536,6 +540,7 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
     for (auto it(b.first); it; it = it->next) {
         if (showshape_) {
             if (it != b.first) buf.push("...");
+            if (it == b.mru) buf.push("!");
             buf.push("<");
             fields::mk(it->startoff).base(16).hidebase().nosep().fmt(buf);
             buf.push("+");

@@ -134,6 +134,7 @@ tests::_buffer(void) {
                 deserialise1 ds(outer);
                 ::buffer output(ds);
                 assert(output.contenteq(inner));
+                assert(!memcmp(output.linearise(1, 5), "nNeR", 4));
                 /* Not sure whether it matters that the offset is
                  * preserved, but might as well test it. */
                 assert(output.offset() == inner.offset()); }
@@ -405,7 +406,7 @@ tests::_buffer(void) {
                 assert(strcmp(fields::mk(buf).c_str(), "<buffer: >") == 0); }
             {   ::buffer buf;
                 assert(strcmp(fields::mk(buf).showshape().c_str(),
-                              "<buffer: [<0+0:3fe0-3fe0>]>") == 0); }
+                              "<buffer: [!<0+0:3fe0-3fe0>]>") == 0); }
             {   ::buffer buf;
                 buf.queue("AAAAAAAAAAAAAAAA", 16);
                 assert(strcmp(fields::mk(buf).c_str(),
@@ -477,7 +478,7 @@ tests::_buffer(void) {
                 buf.fetch(&b, 1);
                 assert(strcmp(
                            fields::mk(buf).showshape().c_str(),
-                           "<buffer: [<0+1:3fe0-3fdb ELLO>]>")
+                           "<buffer: [!<0+1:3fe0-3fdb ELLO>]>")
                        == 0); } });
     testcaseV("buffer", "transfer", [] {
             ::buffer buf1;
