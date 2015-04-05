@@ -96,12 +96,26 @@ template <typename t> t
 atomicload(const t &what) {
     return __sync_fetch_and_add((t *)&what, 0); }
 
+template <typename t> t
+atomicswap(t &what, t n) {
+    t old(what);
+    while (true) {
+        auto nv = __sync_val_compare_and_swap(&what, old, n);
+        if (nv == old) return old;
+        old = nv; } }
+
 template int loadacquire(const int &);
+template unsigned long loadacquire(const unsigned long &);
 template bool loadacquire(const bool &);
 template void storerelease(bool *, bool);
+template void storerelease(unsigned long *, unsigned long);
 template unsigned atomicload(const unsigned &);
+template unsigned long atomicload(const unsigned long &);
 template void atomicinc(unsigned &);
+template void atomicinc(unsigned long &);
 template unsigned atomicloaddec(unsigned &);
+template unsigned atomicswap(unsigned &, unsigned);
+template unsigned long atomicswap(unsigned long &, unsigned long);
 
 void
 mb() { asm volatile("mfence\n"); }

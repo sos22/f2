@@ -53,6 +53,13 @@ timedelta::time(std::function<void ()> what) {
     what();
     return timestamp::now() - start; }
 
+timespec
+timedelta::astimespec() const {
+    timespec res;
+    res.tv_sec = v / 1'000'000'000;
+    res.tv_nsec = v % 1'000'000'000;
+    return res; }
+
 void
 timedelta::serialise(serialise1 &s) const { s.push(v); }
 

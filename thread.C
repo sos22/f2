@@ -4,6 +4,7 @@
 
 #include "error.H"
 #include "fields.H"
+#include "profile.H"
 #include "test.H"
 #include "tid.H"
 #include "timedelta.H"
@@ -46,7 +47,9 @@ thread::pthreadstart(void *_this) {
     thr->tid_.set(tid::me());
     this_name = thr->name;
     prctl(PR_SET_NAME, (unsigned long)this_name, 0, 0);
+    profilenewthread();
     thr->run(clientio::CLIENTIO);
+    profileendthread();
     /* Tell subscribers that we died. */
     storerelease(&thr->dead, true);
     thr->_pub.publish();

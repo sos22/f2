@@ -4,7 +4,7 @@
 
 #include <stdlib.h>
 
-#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
 
 template <typename t> class orerror;
 
@@ -16,6 +16,7 @@ template <typename t> void storerelease(t *where, t what);
 template <typename t> t atomicload(const t &what);
 template <typename t> t atomicloaddec(t &what);
 template <typename t> void atomicinc(t &what);
+template <typename t> t atomicswap(t &what, t);
 
 template <typename t> t
 min(const t &a) { return a; }

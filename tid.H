@@ -15,6 +15,7 @@ class tid {
 public:
     tid() = delete;
     static tid me();
+    unsigned os() const { return val; }
     bool operator==(const tid &) const;
 };
 

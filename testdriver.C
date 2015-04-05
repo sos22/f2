@@ -21,6 +21,7 @@
 #include "mutex.H"
 #include "parsers.H"
 #include "peername.H"
+#include "profile.H"
 #include "pubsub.H"
 #include "serialise.H"
 #include "spawn.H"
@@ -73,13 +74,21 @@ main(int argc, char *argv[])
 
     signal(SIGPIPE, SIG_IGN);
 
-    if (argc > 1 && !strcmp(argv[1], "--verbose")) {
-        initlogging("tests");
-        argv++;
-        argc--; }
+    while (argc > 1) {
+        if (!strcmp(argv[1], "--verbose")) {
+            initlogging("tests");
+            argv++;
+            argc--; }
+        else if (!strcmp(argv[1], "--profile")) {
+            startprofiling();
+            argv++;
+            argc--; }
+        else break; }
 
     switch (argc) {
     case 1: tests::listcomponents(); break;
     case 2: tests::listtests(argv[1]); break;
     case 3: tests::runtest(argv[1], argv[2]); break;
-    default: errx(1, "need zero, one, or two arguments"); } }
+    default: errx(1, "need zero, one, or two arguments"); }
+    stopprofiling();
+    return 0; }

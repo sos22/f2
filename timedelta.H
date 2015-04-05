@@ -55,6 +55,7 @@ public:
     timestamp future() const;
 
     long as_milliseconds() const { return (v + 500000) / 1000000; }
+    timespec astimespec() const;
 
     template <typename t> static timeres<t> time(std::function<t ()>);
     static timedelta time(std::function<void ()>);
