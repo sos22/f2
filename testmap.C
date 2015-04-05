@@ -1,6 +1,7 @@
 #include "map.H"
 #include "string.H"
 #include "test.H"
+#include "timedelta.H"
 
 #include "map.tmpl"
 #include "serialise.tmpl"
@@ -172,6 +173,34 @@ tests::_map() {
             assert(a);
             assert(b);
             assert(c); });
+    testcaseV("map", "intperf", [] {
+            static const unsigned nr = 10'000'000;
+            auto m = new map<int, int>();
+            auto build(timedelta::time([m] {
+                        for (unsigned x = 0; x < nr; x++) {
+                            m->set(x * 1000117, x); } }));
+            printf("build %s\n", fields::mk(build).c_str());
+            auto scan1(timedelta::time([m] {
+                        for (unsigned x = 0; x < nr; x++) {
+                            m->get(x * 1000117); } }));
+            printf("scan1 %s\n", fields::mk(scan1).c_str());
+            auto scan2(timedelta::time([m] {
+                        for (unsigned x = 0; x < nr; x++) {
+                            m->get(((x * 10000229) % nr) * 1000117); } }));
+            printf("scan2 %s\n", fields::mk(scan2).c_str());
+            auto scan3(timedelta::time([m] {
+                        for (unsigned x = 0; x < nr; x++) {
+                            m->get(x * 1000117); } }));
+            printf("scan3 %s\n", fields::mk(scan3).c_str());
+            auto scan4(timedelta::time([m] {
+                        for (unsigned x = 0; x < nr; x++) {
+                            m->get(((x * 20000059) % nr) * 1000117); } }));
+            printf("scan4 %s\n", fields::mk(scan4).c_str());
+            auto destroy(timedelta::time([m] { delete m; }));
+            printf("destroy %s\n", fields::mk(destroy).c_str());
+            printf(
+                "total %s\n",
+                fields::mk(build+scan1+scan2+scan3+scan4+destroy).c_str()); });
     testcaseV("map", "serialise", [] {
             quickcheck q;
             /* The random map generator is expensive enough that we
