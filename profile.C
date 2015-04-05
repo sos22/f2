@@ -124,9 +124,39 @@ monitorthread(void * /* ctxt */) {
     lock.unlock(&tok);
     auto f(fopen("profile.raw", "w"));
     if (!f) err(1, "fopen(\"profile.raw\")");
-    fprintf(f, "discard=%ld\n", discards);
+    fprintf(f, "discard %ld\n", discards);
+    auto m(fopen("/proc/self/maps", "r"));
+    if (!m) err(1, "fopen(\"/proc/self/maps\")");
+    char *lineptr(NULL);
+    size_t lineptrsize(0);
+    while (true) {
+        auto s = getline(&lineptr, &lineptrsize, m);
+        if (s < 0) {
+            if (!feof(m)) err(1, "reading /proc/self/maps");
+            break; }
+        lineptrsize = s;
+        unsigned long start;
+        unsigned long end;
+        char r;
+        char w;
+        char x;
+        char p;
+        unsigned long offset;
+        unsigned dev0;
+        unsigned dev1;
+        unsigned long ino;
+        char *path;
+        int nr = sscanf(lineptr,
+                        "%lx-%lx %c%c%c%c %lx %x:%x %lx %ms",
+                        &start, &end, &r, &w, &x, &p, &offset, &dev0, &dev1,
+                        &ino, &path);
+        if (nr < 11 || r != 'r' || x != 'x') continue;
+        fprintf(f, "map %lx %lx %lx %s\n", start, end, offset, path);
+        free(path); }
+    fclose(m);
+    free(lineptr);
     for (auto it(secondlevel.start()); !it.finished(); it.next()) {
-        fprintf(f, "%ld 0x%lx\n", it.value(), it.key()); }
+        fprintf(f, "sample %ld 0x%lx\n", it.value(), it.key()); }
     if (fclose(f) == EOF) err(1, "fclose(\"profile.raw\")");
     return NULL; }
 

@@ -6,23 +6,37 @@ import subprocess
 import sys
 
 def lookup_addr(addr):
-    p = subprocess.Popen("addr2line -fie ./test-t 0x%x | c++filt" % addr,
+    f = False
+    a = addr
+    for (start, end, offset, path) in maps:
+        if start <= addr < end:
+            bin = path
+            if f:
+                a -= start
+            break
+        f = True
+    else:
+        path = "./test-t"
+    p = subprocess.Popen("addr2line -fie %s 0x%x | c++filt" % (bin, a),
                          stdout = subprocess.PIPE,
                          shell = True)
-    return p.communicate()[0].split("\n")
+    return ["%x" % addr] + p.communicate()[0].split("\n")
     
 samples = []
 discard = None
+maps = []
 for l in sys.stdin.xreadlines():
-    w = l.split("=")
-    if len(w) == 2:
-        assert w[0] == "discard"
+    w = l.split()
+    if w[0] == "discard":
         assert discard == None
         discard = int(w[1])
-        continue
-    assert len(w) == 1
-    w = l.split()
-    samples.append((int(w[0]), lookup_addr(int(w[1], 16))))
+    elif w[0] == "map":
+        maps.append((int(w[1], 16), int(w[2], 16), int(w[3], 16), w[4]))
+    elif w[0] == "sample":
+        samples.append((int(w[1]), lookup_addr(int(w[2], 16))))
+    else:
+        print "unknown line type %s" % w[0]
+        sys.exit(1)
 
 print "discard %d" % discard
 samples.sort()
@@ -30,6 +44,6 @@ total = 0
 for (c, _v) in samples:
     total += c
 for (c, v) in samples:
-    print "%20f %s" % ((c * 100.0) / total, v[0])
+    print "%10f %s" % ((c * 100.0) / total, v[0])
     for l in v[1:]:
-        print "%20s %s" % ("", l)
+        print "%10s %s" % ("", l)
