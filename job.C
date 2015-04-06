@@ -43,7 +43,7 @@ fields::mk(const job &j) {
     return *acc + ">"; }
 
 const parser<job> &
-parsers::_job() {
+job::parser() {
     auto &output("->" + streamname::parser());
     return ("<job:" + filename::parser() + ":" + string::parser() +
             ~strmatcher(" ") + parsers::sepby(output, strmatcher(" ")) +

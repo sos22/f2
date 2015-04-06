@@ -5,6 +5,7 @@
 
 #include "filename.H"
 #include "list.H"
+#include "parsers.H"
 #include "streamname.H"
 #include "string.H"
 
@@ -25,10 +26,7 @@ public: void serialise(serialise1 &) const;
 public: explicit job(deserialise1 &);
 public: job(const filename &, const string &, const list<streamname> &);
 public: jobname name() const;
-public: const fields::field &field() const; };
-
-template <typename> class parser;
-namespace parsers {
-const parser<job> &_job(); }
+public: const fields::field &field() const;
+public: static const ::parser<job> &parser(); };
 
 #endif /* !JOB_H__ */

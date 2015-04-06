@@ -28,7 +28,7 @@ main(int argc, char *argv[]) {
     auto pool(connpool::build(cluster).fatal("building connection pool"));
     if (!strcmp(argv[3], "CREATEJOB")) {
         if (argc != 5) errx(1, "CREATEJOB needs a job argument");
-        auto j(parsers::_job()
+        auto j(job::parser()
                .match(argv[4])
                .fatal("parsing " + fields::mk(argv[4]) +
                       " as a job descriptor"));

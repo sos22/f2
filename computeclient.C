@@ -34,7 +34,7 @@ main(int argc, char *argv[]) {
     auto pool(connpool::build(cluster).fatal("building conn pool"));
     if (!strcmp(argv[3], "START")) {
         if (argc != 5) errx(1, "START mode needs a job argument");
-        auto j(parsers::_job()
+        auto j(job::parser()
                .match(argv[4])
                .fatal("parsing job " + fields::mk(argv[4])));
         maybe<proto::eq::eventid> eid(Nothing);

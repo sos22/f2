@@ -282,7 +282,7 @@ main(int argc, char *argv[]) {
     else if (!strcmp(argv[3], "CREATEJOB")) {
         if (argc != 5) {
             errx(1, "CREATEJOB needs a job name"); }
-        auto job(parsers::_job()
+        auto job(job::parser()
                  .match(argv[4])
                  .fatal("parsing job " + fields::mk(argv[4])));
         auto m = conn.createjob(clientio::CLIENTIO, job);
