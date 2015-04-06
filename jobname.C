@@ -19,7 +19,7 @@ string
 jobname::asfilename() const { return d.denseprintable(); }
 
 const parser< ::jobname> &
-parsers::_jobname() {
+jobname::parser() {
     auto &d(digest::parser());
     return (("<jobname:" + d + ">") || d)
         .map<jobname>([] (const digest &_d) { return jobname(_d); }); }

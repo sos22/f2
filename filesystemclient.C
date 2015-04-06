@@ -55,7 +55,7 @@ main(int argc, char *argv[]) {
     
     if (!strcmp(argv[3], "FINDJOB")) {
         if (argc != 5) errx(1, "FINDJOB needs a jobname argument");
-        auto jn(parsers::_jobname()
+        auto jn(jobname::parser()
                 .match(argv[4])
                 .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
         maybe<list<agentname> > res(Nothing);
@@ -65,7 +65,7 @@ main(int argc, char *argv[]) {
         fields::print("result " + fields::mk(res.just()) + "\n"); }
     else if (!strcmp(argv[3], "FINDSTREAM")) {
         if (argc != 6) errx(1,"FINDJOB needs jobname and streamname arguments");
-        auto jn(parsers::_jobname()
+        auto jn(jobname::parser()
                 .match(argv[4])
                 .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
         auto str(parsers::_streamname()
@@ -83,7 +83,7 @@ main(int argc, char *argv[]) {
             errx(1, "NOMINATEAGENT takes an optional jobname argument"); }
         maybe<jobname> jn(Nothing);
         if (argc == 5) {
-            jn = parsers::_jobname()
+            jn = jobname::parser()
                 .match(argv[4])
                 .fatal("parsing " + fields::mk(argv[4]) + " as jobname"); }
         maybe<maybe<agentname> > res(Nothing);

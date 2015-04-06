@@ -18,15 +18,8 @@ class field;
 const field &mk(const jobname &);
 }
 
-namespace parsers {
-/* Having the parser called the same thing as the type makes gcc seg
-   fault (4.6.3-1ubuntu5, anyway).  Don't do that. */
-const parser< ::jobname> &_jobname();
-}
-
 class jobname {
     friend const fields::field &fields::mk(const jobname &);
-    friend const parser< ::jobname> &parsers::_jobname();
     friend class job;
 private: digest d;
 private: explicit jobname(digest _d) : d(_d) {}
@@ -39,6 +32,6 @@ public:  bool operator>=(const jobname &o) const { return d >= o.d; }
 public:  bool operator>(const jobname &o) const { return d > o.d; }
 public:  explicit jobname(deserialise1 &);
 public:  void serialise(serialise1 &) const;
-};
+public:  static const ::parser<jobname> &parser(); };
 
 #endif /* !JOBNAME_H__ */

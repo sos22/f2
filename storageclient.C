@@ -292,7 +292,7 @@ main(int argc, char *argv[]) {
     else if (!strcmp(argv[3], "CREATESTREAM")) {
         if (argc != 6) {
             errx(1, "CREATESTREAM needs a job and stream name"); }
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[3])));
         auto stream(parsers::_streamname()
@@ -306,7 +306,7 @@ main(int argc, char *argv[]) {
             errx(1,
                  "APPEND needs a job, a stream name, the old size, "
                  "and a thing to append"); }
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         auto stream(parsers::_streamname()
@@ -322,7 +322,7 @@ main(int argc, char *argv[]) {
     else if (!strcmp(argv[3], "FINISH")) {
         if (argc != 6) {
             errx(1, "FINISH needs a job and a stream name"); }
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         auto stream(parsers::_streamname()
@@ -335,7 +335,7 @@ main(int argc, char *argv[]) {
             errx(1,
                  "READ needs a job and a stream name, and "
                  "optionally takes a start end end offset"); }
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         auto stream(parsers::_streamname()
@@ -362,7 +362,7 @@ main(int argc, char *argv[]) {
             errx(1,"LISTJOBS takes optional cursor and limit arguments only"); }
         maybe<jobname> start(Nothing);
         if (argc > 4) {
-            start = parsers::_jobname().match(argv[4])
+            start = jobname::parser().match(argv[4])
                 .fatal("parsing job name " + fields::mk(argv[4])); }
         maybe<unsigned> limit(Nothing);
         if (argc > 5) {
@@ -373,7 +373,7 @@ main(int argc, char *argv[]) {
         fields::print(fields::mk(r) + "\n"); }
     else if (strcmp(argv[3], "STATJOB") == 0) {
         if (argc != 5) errx(1,"STATJOB takes jobname argument only");
-        jobname j(parsers::_jobname()
+        jobname j(jobname::parser()
                   .match(argv[4])
                   .fatal("parsing jobname " + fields::mk(argv[4])));
         fields::print(fields::mk(conn.statjob(clientio::CLIENTIO, j)
@@ -384,7 +384,7 @@ main(int argc, char *argv[]) {
             errx(1,
                  "LISTSTREAMS takes a job name and "
                  "optional cursor and limit arguments"); }
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         maybe<streamname> start(Nothing);
@@ -401,7 +401,7 @@ main(int argc, char *argv[]) {
     else if (strcmp(argv[3], "STATSTREAM") == 0) {
         if (argc != 6) {
             errx(1, "STATSTREAM takes a job name and a stream name"); }
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         auto stream(parsers::_streamname()
@@ -413,7 +413,7 @@ main(int argc, char *argv[]) {
                        .fatal(fields::mk("statting stream"))) +
             "\n"); }
     else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         auto stream(parsers::_streamname()
@@ -422,7 +422,7 @@ main(int argc, char *argv[]) {
         conn.removestream(clientio::CLIENTIO, job, stream)
             .fatal(fields::mk("removing stream")); }
     else if (strcmp(argv[3], "REMOVEJOB") == 0) {
-        auto job(parsers::_jobname()
+        auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
         conn.removejob(clientio::CLIENTIO, job)

@@ -73,7 +73,7 @@ main(int argc, char *argv[]) {
     else if (!strcmp(argv[3], "DROP")) {
         if (argc != 5) {
             errx(1, "DROP mode takes a single argument, the job name to drop");}
-        auto j(parsers::_jobname()
+        auto j(jobname::parser()
                .match(argv[4])
                .fatal("parsing job " + fields::mk(argv[4])));
         pool->call(clientio::CLIENTIO,

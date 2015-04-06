@@ -340,7 +340,7 @@ storageagent::listjobs(
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const {
-    auto &parser(parsers::_jobname());
+    auto &parser(jobname::parser());
     list<jobname> res;
     {   filename::diriter it(config.poolpath);
         for (/**/;
