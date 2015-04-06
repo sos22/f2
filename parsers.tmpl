@@ -335,8 +335,9 @@ sepby(const parser<a> &what, const parser<void> &sep) {
 
 template <typename t> void
 parsers::roundtrip(const parser<t> &what, unsigned nr) {
+    quickcheck q;
     for (unsigned x = 0; x < nr; x++) {
-        t val((quickcheck()));
+        t val(q);
         auto c(fields::mk(val).c_str());
         auto res(what.match(c));
         assert(res == val); } }

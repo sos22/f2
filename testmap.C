@@ -1,9 +1,11 @@
 #include "map.H"
+#include "parsers.H"
 #include "string.H"
 #include "test.H"
 #include "timedelta.H"
 
 #include "map.tmpl"
+#include "parsers.tmpl"
 #include "serialise.tmpl"
 
 void
@@ -222,6 +224,13 @@ tests::_map() {
                            map<string, int>("\"", 3).field().c_str()));
             assert(!strcmp("{\"\\\"\"=>\"->\"}",
                            map<string, string>("\"", "->").field().c_str()));});
+    testcaseV("map", "parser", [] {
+            parsers::roundtrip(map<int, int>::parser(
+                                   parsers::intparser<int>(),
+                                   parsers::intparser<int>()));
+            parsers::roundtrip(map<string, string>::parser(
+                                   string::parser(),
+                                   string::parser())); });
     testcaseV("map", "serialise", [] {
             quickcheck q;
             /* The random map generator is expensive enough that we

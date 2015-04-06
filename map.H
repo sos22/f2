@@ -118,7 +118,11 @@ public:  class constiterator {
 public:  constiterator start() const { return constiterator(this); }
     /* Field interface. */
 public:  class fieldimpl;
-public:  const fieldimpl &field() const; };
+public:  const fieldimpl &field() const;
+    /* Parser interface. */
+public:  class parserimpl;
+public:  static const parserimpl &parser(const parser<_key> &,
+                                         const parser<_value> &); };
 
 template <> bool map<int, int, default_hashfn>::isprime(unsigned );
 template <> void map<int, int, default_hashfn>::rehash(unsigned);

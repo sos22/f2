@@ -169,5 +169,51 @@ const typename map<_key, _value, hash>::fieldimpl &
 map<_key, _value, hash>::field() const {
     return *new fieldimpl(*this); };
 
+template <class _key, class _value, unsigned long hash(const _key &)>
+class map<_key, _value, hash>::parserimpl
+    : public ::parser<map<_key, _value, hash> > {
+    typedef ::parser<map<_key, _value, hash> > selfT;
+    friend class map;
+private: const ::parser<_key> &key;
+private: const ::parser<_value> &value;
+private: parserimpl(const ::parser<_key> &k, const ::parser<_value> &v)
+    : key(k), value(v) {}
+public:  orerror<typename selfT::result> parse(const char *start) const {
+    orerror<typename selfT::result> res(Success, map(), start);
+    if (res.success().left[0] != '{') {
+        res = error::noparse;
+        return res; }
+    res.success().left++;
+    while (res.issuccess() && res.success().left[0] != '}') {
+        auto key_res(key.parse(res.success().left));
+        if (key_res.isfailure()) {
+            res = key_res.failure();
+            return res; }
+        if (memcmp(key_res.success().left, "=>", 2)) {
+            res = error::noparse;
+            return res; }
+        if (res.success().res.get(key_res.success().res) != Nothing) {
+            res = error::duplicate;
+            return res; }
+        auto value_res(value.parse(key_res.success().left+2));
+        if (value_res.isfailure()) {
+            res = value_res.failure();
+            return res; }
+        res.success().res.set(key_res.success().res, value_res.success().res);
+        res.success().left = value_res.success().left;
+        if (res.success().left[0] == ';' &&
+            res.success().left[1] != '}') {
+            res.success().left++; }
+        else if (res.success().left[0] != '}') {
+            res = error::noparse;
+            return res; } }
+    res.success().left++;
+    return res; } };
+
+template <class _key, class _value, unsigned long hash(const _key &)>
+const typename map<_key, _value, hash>::parserimpl &
+map<_key, _value, hash>::parser(const ::parser<_key> &k,
+                                const ::parser<_value> &v) {
+    return *new parserimpl(k, v); };
 
 #endif /* !MAP_TMPL__ */

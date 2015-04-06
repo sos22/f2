@@ -92,7 +92,10 @@ public:
         else return f(inner); }
 
     bool operator==(const error &e) const { return errored && err == e; }
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     bool operator==(const t &e) const { return !errored && inner == e; }
+#pragma GCC diagnostic pop
     bool operator!=(const error &e) const { return !(*this == e); }
     bool operator!=(const t &e) const { return !(*this == e); }
 
