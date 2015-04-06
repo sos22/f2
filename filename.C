@@ -309,9 +309,9 @@ filename::unlink() const {
     else return error::from_errno(); }
 
 const parser<filename> &
-parsers::_filename() {
-    return ("<filename:" + strparser + ">")
-        .map<filename>([] (const char *x) { return filename(string(x)); }); }
+filename::parser() {
+    return ("<filename:" + string::parser() + ">")
+        .map<filename>([] (const string &x) { return filename(x); }); }
 
 const fields::field &
 filename::field() const { return fields::mk(*this); }
@@ -325,7 +325,7 @@ filename::serialise(serialise1 &s) const { s.push(content); }
 void
 tests::_filename() {
     testcaseV("filename", "parser", [] {
-            parsers::roundtrip(parsers::_filename()); });
+            parsers::roundtrip<filename>(); });
     testcaseV("filename", "basics", [] {
             filename foo("foo");
             assert(foo + "bar" == filename("foo/bar"));

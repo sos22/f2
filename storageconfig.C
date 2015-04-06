@@ -11,7 +11,7 @@ mktupledef(storageconfig)
 const parser<storageconfig> &
 parsers::__storageconfig() {
     return ("<storageconfig:" +
-            ~(" poolpath:" + _filename()) +
+            ~(" poolpath:" + filename::parser()) +
             " beacon:" + __beaconserverconfig() +
             ">")
         .map<storageconfig>(

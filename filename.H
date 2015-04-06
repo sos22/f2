@@ -142,12 +142,7 @@ public:  const string &str() const { return content; }
 public:  const fields::field &field() const;
     
 public:  void serialise(serialise1 &) const;
-};
-
-template <typename> class parser;
-namespace parsers {
-const parser<filename> &_filename();
-}
+public:  static const ::parser<filename> &parser(); };
 
 namespace tests {
 void _filename();

@@ -45,13 +45,13 @@ fields::mk(const job &j) {
 const parser<job> &
 parsers::_job() {
     auto &output("->" + parsers::_streamname());
-    return ("<job:" + _filename() + ":" + strparser +
+    return ("<job:" + filename::parser() + ":" + string::parser() +
             ~strmatcher(" ") + parsers::sepby(output, strmatcher(" ")) +
             ">")
         .map<job>(
-            [] (const pair<pair<pair<filename, const char *>,
+            [] (const pair<pair<pair<filename, string>,
                                 maybe<void> >,
                            list<streamname> > &what) {
                 return job(what.first().first().first(),
-                           string(what.first().first().second()),
+                           what.first().first().second(),
                            what.second()); }); }
