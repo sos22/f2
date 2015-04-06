@@ -274,6 +274,11 @@ _doubleparser::parse(const char *start) const {
 static _doubleparser __doubleparser;
 const parser<double> &parsers::doubleparser((__doubleparser));
 
+namespace parsers {
+template <> const parser<int> &
+defaultparser<int>() {
+    return intparser<int>(); } }
+
 void
 tests::parsers() {
     using namespace parsers;

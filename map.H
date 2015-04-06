@@ -10,6 +10,7 @@
 
 #include "list.H"
 #include "pair.H"
+#include "parsers.H"
 #include "steal.H"
 
 class deserialise1;
@@ -121,8 +122,9 @@ public:  class fieldimpl;
 public:  const fieldimpl &field() const;
     /* Parser interface. */
 public:  class parserimpl;
-public:  static const parserimpl &parser(const parser<_key> &,
-                                         const parser<_value> &); };
+public:  static const parserimpl &parser(
+    const parser<_key> & = parsers::defaultparser<_key>(),
+    const parser<_value> & = parsers::defaultparser<_value>()); };
 
 template <> bool map<int, int, default_hashfn>::isprime(unsigned );
 template <> void map<int, int, default_hashfn>::rehash(unsigned);

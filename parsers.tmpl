@@ -342,4 +342,7 @@ parsers::roundtrip(const parser<t> &what, unsigned nr) {
         auto res(what.match(c));
         assert(res == val); } }
 
+template <typename t> const parser<t> &
+parsers::defaultparser() { return t::parser(); }
+
 #endif /* !PARSERS_TMPL__ */

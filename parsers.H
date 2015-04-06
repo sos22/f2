@@ -130,13 +130,18 @@ template <typename o,
               const ::parser<pair<pair<pair<pair<pair<a, b>, c>, d>, e>, f> > &in,
               const std::function<o (a, b, c, d, e, f)> &func); }
 
+namespace parsers {
+template <typename t> const parser<t> &defaultparser();
+template <> const parser<int> &defaultparser<int>(); }
+
 namespace tests {
 void parsers(void);
 }
 
 /* Test support */
 namespace parsers {
-template <typename t> void roundtrip(const parser<t> &, unsigned nr = 1000);
+template <typename t> void roundtrip(const parser<t> & = defaultparser<t>(),
+                                     unsigned nr = 1000);
 }
 
 #endif /* !PARSERS_H__ */

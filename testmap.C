@@ -225,12 +225,8 @@ tests::_map() {
             assert(!strcmp("{\"\\\"\"=>\"->\"}",
                            map<string, string>("\"", "->").field().c_str()));});
     testcaseV("map", "parser", [] {
-            parsers::roundtrip(map<int, int>::parser(
-                                   parsers::intparser<int>(),
-                                   parsers::intparser<int>()));
-            parsers::roundtrip(map<string, string>::parser(
-                                   string::parser(),
-                                   string::parser())); });
+            parsers::roundtrip<map<int, int> >();
+            parsers::roundtrip<map<string, string> >(); });
     testcaseV("map", "serialise", [] {
             quickcheck q;
             /* The random map generator is expensive enough that we
