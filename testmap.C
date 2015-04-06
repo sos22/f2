@@ -203,19 +203,24 @@ tests::_map() {
                 fields::mk(build+scan1+scan2+scan3+scan4+destroy).c_str()); });
     testcaseV("map", "field", [] {
 #define tst(expected, ...)                                              \
-            assert(!strcmp(expected,map<int, int>(__VA_ARGS__).field().c_str()))
+            {   auto r = map<int, int>(__VA_ARGS__).field().c_str();    \
+                if (strcmp(expected, r)) {                              \
+                    fprintf(stderr, "wanted %s, got %s\n",              \
+                            expected,                                   \
+                            r);                                         \
+                    abort(); } }
             tst("{}");
-            tst("{1->2}", 1, 2);
-            tst("{1->2;3->4}", 1, 2, 3, 4);
+            tst("{1=>2}", 1, 2);
+            tst("{1=>2;3=>4}", 1, 2, 3, 4);
 #undef tst
             assert(!strcmp("{}", map<string, int>().field().c_str()));
-            assert(!strcmp("{foo->3}",
+            assert(!strcmp("{foo=>3}",
                            map<string, int>("foo", 3).field().c_str()));
-            assert(!strcmp("{\"}\"->3}",
+            assert(!strcmp("{\"}\"=>3}",
                            map<string, int>("}", 3).field().c_str()));
-            assert(!strcmp("{\"\\\"\"->3}",
+            assert(!strcmp("{\"\\\"\"=>3}",
                            map<string, int>("\"", 3).field().c_str()));
-            assert(!strcmp("{\"\\\"\"->\"->\"}",
+            assert(!strcmp("{\"\\\"\"=>\"->\"}",
                            map<string, string>("\"", "->").field().c_str()));});
     testcaseV("map", "serialise", [] {
             quickcheck q;

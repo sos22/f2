@@ -161,7 +161,7 @@ public:  void fmt(fields::fieldbuf &buf) const {
         if (!f) buf.push(";");
         f = false;
         fields::mk(it.key()).escape().fmt(buf);
-        buf.push("->");
+        buf.push("=>");
         fields::mk(it.value()).escape().fmt(buf); }
     buf.push("}"); } };
 template <class _key, class _value, unsigned long hash(const _key &)>
