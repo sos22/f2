@@ -295,7 +295,7 @@ main(int argc, char *argv[]) {
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[3])));
-        auto stream(parsers::_streamname()
+        auto stream(streamname::parser()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[4])));
         auto m = conn.createstream(clientio::CLIENTIO, job, stream);
@@ -309,7 +309,7 @@ main(int argc, char *argv[]) {
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
-        auto stream(parsers::_streamname()
+        auto stream(streamname::parser()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         auto oldsize(parsers::_bytecount()
@@ -325,7 +325,7 @@ main(int argc, char *argv[]) {
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
-        auto stream(parsers::_streamname()
+        auto stream(streamname::parser()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         conn.finish(clientio::CLIENTIO, job, stream)
@@ -338,7 +338,7 @@ main(int argc, char *argv[]) {
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
-        auto stream(parsers::_streamname()
+        auto stream(streamname::parser()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         maybe<bytecount> start(Nothing);
@@ -389,7 +389,7 @@ main(int argc, char *argv[]) {
                  .fatal("parsing job name " + fields::mk(argv[4])));
         maybe<streamname> start(Nothing);
         if (argc > 5) {
-            start = parsers::_streamname().match(argv[5])
+            start = streamname::parser().match(argv[5])
                 .fatal("parsing stream name " +fields::mk(argv[5])); }
         maybe<unsigned> limit(Nothing);
         if (argc > 6) {
@@ -404,7 +404,7 @@ main(int argc, char *argv[]) {
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
-        auto stream(parsers::_streamname()
+        auto stream(streamname::parser()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         fields::print(
@@ -416,7 +416,7 @@ main(int argc, char *argv[]) {
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
-        auto stream(parsers::_streamname()
+        auto stream(streamname::parser()
                     .match(argv[5])
                     .fatal("parsing stream name " + fields::mk(argv[5])));
         conn.removestream(clientio::CLIENTIO, job, stream)

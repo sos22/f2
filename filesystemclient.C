@@ -68,7 +68,7 @@ main(int argc, char *argv[]) {
         auto jn(jobname::parser()
                 .match(argv[4])
                 .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
-        auto str(parsers::_streamname()
+        auto str(streamname::parser()
                  .match(argv[5])
                  .fatal("parsing " + fields::mk(argv[5]) + " as streamname"));
         maybe<list<pair<agentname, streamstatus> > > res(Nothing);

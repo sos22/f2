@@ -43,10 +43,11 @@ void
 streamname::serialise(serialise1 &s) const { content.serialise(s); }
 
 const parser<streamname> &
-parsers::_streamname() {
-    return (("<stream:" + strparser + ">") || strparser)
+streamname::parser() {
+    auto &s(string::parser());
+    return (("<stream:" + s + ">") || s)
         .maperr<streamname>(
-            [] (const char * x) -> orerror<streamname> {
+            [] (const string &x) -> orerror<streamname> {
                 auto r(streamname::mk(x));
                 if (r == Nothing) return error::noparse;
                 else return r.just(); }); }

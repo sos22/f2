@@ -37,14 +37,14 @@ job::field() const { return fields::mk(*this); }
 
 const fields::field &
 fields::mk(const job &j) {
-    auto acc(&("<job:" + mk(j.library) + ":"+mk(j.function)));
+    auto acc(&("<job:" + mk(j.library) + ":"+ mk(j.function)));
     for (auto it(j.outputs.start()); !it.finished(); it.next()) {
         acc = &(*acc + " ->" + mk(*it)); }
     return *acc + ">"; }
 
 const parser<job> &
 parsers::_job() {
-    auto &output("->" + parsers::_streamname());
+    auto &output("->" + streamname::parser());
     return ("<job:" + filename::parser() + ":" + string::parser() +
             ~strmatcher(" ") + parsers::sepby(output, strmatcher(" ")) +
             ">")

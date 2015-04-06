@@ -410,7 +410,7 @@ storageagent::liststreams(
     acquirestxlock atl,
     onconnectionthread oct) const {
     auto dir(config.poolpath + jn.asfilename());
-    const parser<streamname> &parser(parsers::_streamname());
+    const parser<streamname> &parser(streamname::parser());
     list<streamstatus> res;
     {   filename::diriter it(dir);
         for (/**/;

@@ -17,9 +17,6 @@ namespace fields {
 class field;
 const field &mk(const streamname &);
 }
-namespace parsers {
-const parser< ::streamname> &_streamname();
-}
 
 namespace wireproto {
 class tx_message;
@@ -27,7 +24,6 @@ class tx_message;
 
 class streamname {
     friend const fields::field &fields::mk(const streamname &);
-    friend const parser< ::streamname> &parsers::_streamname();
     friend class wireproto::tx_message;
 private: string content;
 private: explicit streamname(const string &);
@@ -42,6 +38,6 @@ public:  bool operator==(const streamname &o) const {return content==o.content;}
 public:  bool operator!=(const streamname &o) const {return content!=o.content;}
 public:  bool operator>=(const streamname &o) const {return content>=o.content;}
 public:  bool operator>(const streamname &o) const { return content >o.content;}
-};
+public:  static const ::parser<streamname> &parser(); };
 
 #endif /* !STREAMNAME_H__ */
