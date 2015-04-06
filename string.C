@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "fields.H"
+#include "map.H"
 #include "parsers.H"
 #include "proto2.H"
 #include "quickcheck.H"
@@ -134,3 +135,8 @@ const parser<string> &
 string::parser(void) {
     return parsers::strparser.map<string>([] (const char *const &inner) {
             return string(inner); }); }
+
+unsigned long
+string::hash() const {
+    if (content == NULL) return 0;
+    else return default_hashfn(content); }

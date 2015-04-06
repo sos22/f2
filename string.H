@@ -54,7 +54,8 @@ public:  const char *c_str() const;
 public:  const fields::strfield &field() const { return fields::mk(*this); }
 
 public:  static const ::parser<string> &parser();
-};
+
+public:  unsigned long hash() const; };
 
 namespace tests { void _string(void); }
 

@@ -9,8 +9,7 @@ template <> unsigned long
 default_hashfn<unsigned long>(const unsigned long &what) { return what; }
 
 template <> unsigned long
-default_hashfn<string>(const string &what) {
-    auto c(what.c_str());
+default_hashfn<const char *>(const char *const &c) {
     ssize_t l(strlen(c));
     unsigned long acc(0);
     ssize_t i = 0;
@@ -23,6 +22,10 @@ default_hashfn<string>(const string &what) {
         i++; }
     acc = acc * 7 + a;
     return acc; }
+
+template <> unsigned long
+default_hashfn<char *>(char *const &c) {
+    return default_hashfn<const char *>(c); }
 
 template <> bool
 map<int, int, default_hashfn>::isprime(unsigned what) {

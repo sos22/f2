@@ -5,6 +5,9 @@
 #include "map.H"
 #include "parsers.H"
 
+template <typename t> unsigned long
+default_hashfn(const t &x) { return x.hash(); }
+
 namespace fields {
 template <typename k, typename v> const field &mk(const map<k, v> &m) {
     return m.field(); } }
