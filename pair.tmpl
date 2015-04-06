@@ -1,0 +1,15 @@
+#ifndef PAIR_TMPL__
+#define PAIR_TMPL__
+
+template <typename a, typename b>
+pair<a, b>::pair(const quickcheck &q) : fst(q), snd(q) {}
+
+template <typename a, typename b> const fields::field &
+pair<a, b>::field() const {
+    return "<" + fields::mk(fst) + ";" + fields::mk(snd) + ">"; }
+
+template <typename a, typename b> const ::parser<pair<a, b> > &
+pair<a, b>::parser(const ::parser<a> &_a, const ::parser<b> &_b) {
+    return "<" + _a + ";" + _b + ">"; }
+
+#endif /* !PAIR_TMPL__ */

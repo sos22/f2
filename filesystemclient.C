@@ -13,6 +13,7 @@
 
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "pair.tmpl"
 #include "parsers.tmpl"
 
 #include "fieldfinal.H"

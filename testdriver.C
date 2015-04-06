@@ -60,6 +60,7 @@ main(int argc, char *argv[])
     tests::_maybe();
     tests::mutex();
     tests::_orerror();
+    tests::_pair();
     tests::parsers();
     tests::_peername();
     tests::pubsub();

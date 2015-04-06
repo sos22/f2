@@ -13,6 +13,7 @@ tests=(beacontest.C
      testdriver.C
      testmap.C
      testorerror.C
+     testpair.C
      testserialise.C
      teststring.C
      testwaitqueue.C)
