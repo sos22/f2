@@ -13,13 +13,8 @@ class field;
 const field &mk(const digest &d);
 }
 
-namespace parsers {
-const parser< ::digest> &_digest();
-}
-
 class digest {
     friend const fields::field &fields::mk(const digest &d);
-    friend const parser< ::digest> &parsers::_digest();
     unsigned long val;
 private: explicit digest(unsigned long _val) : val(_val) {}
 public:  explicit digest(const fields::field &);
@@ -32,6 +27,8 @@ public:  bool operator==(const digest &o) const { return val == o.val; }
 public:  bool operator!=(const digest &o) const { return val != o.val; }
 public:  bool operator>=(const digest &o) const { return val >= o.val; }
 public:  bool operator>(const digest &o) const { return val > o.val; }
+
+public:  static const ::parser<digest> &parser();
 
     /* A representation of the digest which is reasonably dense and
        composed entirely of ASCII characters. */

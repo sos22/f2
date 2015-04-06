@@ -44,9 +44,8 @@ fields::mk(const digest &d)
     return "<digest:" + mk(d.val).base(16).uppercase() + ">";
 }
 
-const parser<digest> &
-parsers::_digest() {
-    return (("<digest:" + intparser<unsigned long>() + ">") ||
-            intparser<unsigned long>())
-        .map<digest>([] (unsigned long what) {
-                return digest(what); }); }
+const ::parser<digest> &
+digest::parser() {
+    auto &p(parsers::intparser<unsigned long>());
+    return (("<digest:" + p + ">") || p)
+        .map<digest>([] (unsigned long what) { return digest(what); }); }
