@@ -15,6 +15,7 @@
 class deserialise1;
 class serialise1;
 template <typename> class maybe;
+template <typename> class parser;
 
 namespace fields {
 class field;
@@ -113,7 +114,8 @@ public:  class constiterator {
     public:  const _value &value() const { return cursor->v; } };
 public:  constiterator start() const { return constiterator(this); }
     /* Field interface. */
-public:  const fields::field &field() const; };
+public:  class fieldimpl;
+public:  const fieldimpl &field() const; };
 
 template <> bool map<int, int, default_hashfn>::isprime(unsigned );
 template <> void map<int, int, default_hashfn>::rehash(unsigned);

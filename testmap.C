@@ -201,6 +201,22 @@ tests::_map() {
             printf(
                 "total %s\n",
                 fields::mk(build+scan1+scan2+scan3+scan4+destroy).c_str()); });
+    testcaseV("map", "field", [] {
+#define tst(expected, ...)                                              \
+            assert(!strcmp(expected,map<int, int>(__VA_ARGS__).field().c_str()))
+            tst("{}");
+            tst("{1->2}", 1, 2);
+            tst("{1->2;3->4}", 1, 2, 3, 4);
+#undef tst
+            assert(!strcmp("{}", map<string, int>().field().c_str()));
+            assert(!strcmp("{foo->3}",
+                           map<string, int>("foo", 3).field().c_str()));
+            assert(!strcmp("{\"}\"->3}",
+                           map<string, int>("}", 3).field().c_str()));
+            assert(!strcmp("{\"\\\"\"->3}",
+                           map<string, int>("\"", 3).field().c_str()));
+            assert(!strcmp("{\"\\\"\"->\"->\"}",
+                           map<string, string>("\"", "->").field().c_str()));});
     testcaseV("map", "serialise", [] {
             quickcheck q;
             /* The random map generator is expensive enough that we

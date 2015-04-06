@@ -1,6 +1,7 @@
 #ifndef MAP_TMPL__
 #define MAP_TMPL__
 
+#include "fields.H"
 #include "map.H"
 
 namespace fields {
@@ -142,5 +143,26 @@ map<key, value, hash>::operator==(const map &o) const {
                     else return false; }
                 c = c->next; } } }
     return true; }
+
+template <class _key, class _value, unsigned long hash(const _key &)>
+class map<_key, _value, hash>::fieldimpl : public fields::field {
+    friend class map;
+private: const map &what;
+private: explicit fieldimpl(const map &_what) : what(_what) {}
+public:  void fmt(fields::fieldbuf &buf) const {
+    buf.push("{");
+    auto f(true);
+    for (auto it(what.start()); !it.finished(); it.next()) {
+        if (!f) buf.push(";");
+        f = false;
+        fields::mk(it.key()).escape().fmt(buf);
+        buf.push("->");
+        fields::mk(it.value()).escape().fmt(buf); }
+    buf.push("}"); } };
+template <class _key, class _value, unsigned long hash(const _key &)>
+const typename map<_key, _value, hash>::fieldimpl &
+map<_key, _value, hash>::field() const {
+    return *new fieldimpl(*this); };
+
 
 #endif /* !MAP_TMPL__ */
