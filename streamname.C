@@ -51,3 +51,6 @@ streamname::parser() {
                 auto r(streamname::mk(x));
                 if (r == Nothing) return error::noparse;
                 else return r.just(); }); }
+
+unsigned long
+streamname::hash() const { return content.hash(); }

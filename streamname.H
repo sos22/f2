@@ -38,6 +38,7 @@ public:  bool operator==(const streamname &o) const {return content==o.content;}
 public:  bool operator!=(const streamname &o) const {return content!=o.content;}
 public:  bool operator>=(const streamname &o) const {return content>=o.content;}
 public:  bool operator>(const streamname &o) const { return content >o.content;}
-public:  static const ::parser<streamname> &parser(); };
+public:  static const ::parser<streamname> &parser();
+public:  unsigned long hash() const; };
 
 #endif /* !STREAMNAME_H__ */
