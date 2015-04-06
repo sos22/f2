@@ -16,6 +16,7 @@ class deserialise1;
 class serialise1;
 template <typename> class maybe;
 template <typename> class parser;
+class quickcheck;
 
 namespace fields {
 class field;
@@ -56,6 +57,8 @@ private: void rehash(unsigned);
     /* Serialise/deserialise interface. */
 public:  map(deserialise1 &ds);
 public:  void serialise(serialise1 &s) const;
+    /* Construct a random map. */
+public:  map(quickcheck &);
     /* Construct an empty map. */
 public:  map() : nrbuckets(0), nritems(0), buckets(NULL) {}
     /* Construct a map from an immediate list of items. */

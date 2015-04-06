@@ -31,7 +31,7 @@ map<key, value, hash>::map(deserialise1 &ds)
       buckets(NULL) {
     /* Impose an arbitrary limit on the size of serialised hash
      * tables, for general sanity. */
-    auto nr(ds.poprange<unsigned>(0,1000000));
+    auto nr(ds.poprange<unsigned>(0,ds.random()?10:1000000));
     /* Pick a sensible size. */
     unsigned nb = 0;
     while (nb <= nr) nb = nextsize(nb);
@@ -54,6 +54,11 @@ map<key, value, hash>::serialise(serialise1 &s) const {
         for (auto e(buckets[x]); e != NULL; e = e->next) {
             s.push(e->k);
             s.push(e->v); } } }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+map<key, value, hash>::map(quickcheck &q) {
+    deserialise1 ds(q);
+    new (this) map(ds); }
 
 template <typename key, typename value, unsigned long hash(const key &)>
 map<key, value, hash>::map(const map &src)

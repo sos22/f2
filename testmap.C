@@ -224,4 +224,15 @@ tests::_map() {
              * when it's full of strings). */
             serialise<map<int, int> >(q, 100);
             serialise<map<string, int> >(q, 10); });
-}
+    testcaseV("map", "quickcheck", [] {
+            unsigned nrempty(0);
+            unsigned zerokey(0);
+            quickcheck q;
+            for (unsigned x = 0; x < 10000; x++) {
+                map<int, int> m(q);
+                if (m.nritems == 0) nrempty++;
+                if (m.get(0) != Nothing) zerokey++; }
+            assert(nrempty != 0);
+            assert(nrempty < 1200);
+            assert(zerokey > 10);
+            assert(zerokey < 900); }); }
