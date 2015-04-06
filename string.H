@@ -6,6 +6,7 @@
 #include <stddef.h>
 
 class deserialise1;
+template <typename> class parser;
 class quickcheck;
 class serialise1;
 class string;
@@ -51,6 +52,8 @@ public:  void truncate(size_t sz);
 public:  const char *c_str() const;
 
 public:  const fields::strfield &field() const { return fields::mk(*this); }
+
+public:  static const ::parser<string> &parser();
 };
 
 namespace tests { void _string(void); }

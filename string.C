@@ -4,14 +4,16 @@
 #include <string.h>
 
 #include "fields.H"
+#include "parsers.H"
 #include "proto2.H"
 #include "quickcheck.H"
 #include "serialise.H"
 
+#include "parsers.tmpl"
 #include "serialise.tmpl"
 
 const fields::strfield &
-fields::mk(const string &s) { return mk(s.content ?: ""); }
+fields::mk(const string &s) { return mk(s.content ?: "").escape(); }
 
 string::string()
     : content(NULL) {}
@@ -127,3 +129,8 @@ string::c_str() const {
     return content
         ? content
         : ""; }
+
+const parser<string> &
+string::parser(void) {
+    return parsers::strparser.map<string>([] (const char *const &inner) {
+            return string(inner); }); }
