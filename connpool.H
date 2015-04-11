@@ -15,7 +15,6 @@
 #include "interfacetype.H"
 #include "nnp.H"
 #include "orerror.H"
-#include "probability.H"
 #include "test.H"
 #include "timedelta.H"
 #include "timestamp.H"
