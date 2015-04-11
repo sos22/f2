@@ -48,8 +48,14 @@ public:
             if (o.errored) {
                 inner.~t();
                 errored = true;
-                new (&inner) error(o.err); }
+                new (&err) error(o.err); }
             else inner = o.inner; } }
+    void operator=(const error &e) {
+        if (errored) err = e;
+        else {
+            inner.~t();
+            errored = true;
+            new (&err) error(e); } }
     ~orerror() {
         if (errored) err.~error();
         else inner.~t(); }
