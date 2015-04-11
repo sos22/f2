@@ -10,14 +10,11 @@
 
 #include "list.H"
 #include "pair.H"
+#include "steal.H"
 
 class deserialise1;
 class serialise1;
 template <typename> class maybe;
-
-/* Tag type indicating that we should use a steal constructor. */
-class _Steal { };
-extern const _Steal Steal;
 
 namespace fields {
 class field;
