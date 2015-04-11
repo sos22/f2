@@ -47,30 +47,35 @@ filename::operator==(const filename &o) const {
 
 orerror<buffer>
 filename::readasbuffer() const {
+    orerror<buffer> res(Success);
     int fd(open(content.c_str(), O_RDONLY));
-    if (fd < 0) return error::from_errno();
+    if (fd < 0) {
+        res = error::from_errno();
+        return res; }
     struct stat st;
     if (fstat(fd, &st) < 0) {
         ::close(fd);
-        return error::from_errno(); }
+        res = error::from_errno();
+        return res; }
     if ((st.st_mode & S_IFMT) != S_IFREG) {
         ::close(fd);
-        return error::from_errno(ESPIPE); }
-    buffer res;
+        res = error::from_errno(ESPIPE);
+        return res; }
     while (true) {
         /* Arbitrarily read whole-file readin to 10MB to prevent
          * someone doing something stupid. */
-        if (bytecount::bytes(res.avail()) >= 10_MB) {
+        if (bytecount::bytes(res.success().avail()) >= 10_MB) {
             close(fd);
-            return error::overflowed; }
+            res = error::overflowed;
+            return res; }
         /* Local file IO is assumed to be fast, so no clientio
          * token. */
-        auto r(res.receive(clientio::CLIENTIO, fd_t(fd)));
+        auto r(res.success().receive(clientio::CLIENTIO, fd_t(fd)));
         readasbufferloop.trigger(&r);
         if (r.issuccess()) continue;
         close(fd);
-        if (r == error::disconnected) return res.steal();
-        else return r.failure(); } }
+        if (r != error::disconnected) res = r.failure();
+        return res; } }
 
 orerror<string>
 filename::readasstring() const {
@@ -206,26 +211,31 @@ orerror<buffer>
 filename::read(bytecount start, bytecount end) const {
     assert(end >= start);
     auto need((end - start).just());
+    orerror<buffer> res(Success);
     auto _fd(::open(content.c_str(), O_RDONLY));
     if (_fd < 0) return error::from_errno();
     if (start != 0_B) {
         assert(start.b <= INT64_MAX);
         auto r(::lseek(_fd, (off_t)start.b, SEEK_SET));
-        if (r < 0) return error::from_errno();
-        else if ((uint64_t)r != start.b) return error::pastend; }
+        if (r < 0) {
+            res = error::from_errno();
+            return res; }
+        else if ((uint64_t)r != start.b) {
+            res = error::pastend;
+            return res; } }
     fd_t fd(_fd);
-    buffer res;
-    while (res.avail() < need.b) {
+    while (res.success().avail() < need.b) {
         /* IO to local files doesn't really need a clientio token. */
-        auto r(res.receive(clientio::CLIENTIO,
-                           fd,
-                           Nothing,
-                           need.b - res.avail()));
+        auto r(res.success().receive(clientio::CLIENTIO,
+                                     fd,
+                                     Nothing,
+                                     need.b - res.success().avail()));
         if (r.isfailure()) {
             ::close(_fd);
-            return r.failure(); } }
+            res = r.failure();
+            return res; } }
     ::close(_fd);
-    return res.steal(); }
+    return res; }
 
 filename::diriter::diriter(const class filename &f)
     : dir((DIR *)0xf001ul) {

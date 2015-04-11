@@ -363,7 +363,7 @@ tests::_buffer(void) {
             buf1.queue("HELLO", 5);
             char b;
             buf1.fetch(&b, 1);
-            ::buffer buf2(buf1.steal());
+            ::buffer buf2(Steal, buf1);
             assert(buf2.avail() == 4);
             assert(buf2.offset() == 1);
             assert(buf1.avail() == 0);

@@ -214,14 +214,11 @@ buffer::offset() const { return first->start(); }
 void
 buffer::discard(size_t sz) { fetch(NULL, sz); }
 
-buffer
-buffer::steal() {
-    buffer res;
-    res.first = first;
-    res.last = last;
-    first = subbuf::fresh(first->start(), DEFAULT_BUF_SIZE);
-    last = first;
-    return res; }
+buffer::buffer(_Steal, buffer &o)
+    : first(o.first),
+      last(o.last) {
+    o.first = subbuf::fresh(o.offset(), DEFAULT_BUF_SIZE);
+    o.last = o.first; }
 
 unsigned char
 buffer::idx(size_t off) const {

@@ -7,6 +7,7 @@
 #include "fields.H"
 #include "list.H"
 #include "maybe.H"
+#include "steal.H"
 #include "timestamp.H"
 
 class clientio;
@@ -63,6 +64,7 @@ class buffer {
     subbuf *last;
     void operator=(const buffer &o) = delete;
 public: buffer(const buffer &o);
+public: buffer(_Steal, buffer &o);
 public: buffer();
 public: ~buffer();
 
@@ -142,11 +144,6 @@ public:  void serialise(serialise1 &) const;
      *
      * But usually more efficient. */
     void discard(size_t amt);
-
-    /* Return a new buffer which is a copy of this one and
-     * simultaneously reset this buffer to be empty.  offset() on this
-     * buffer is unchanged, but avail() becomes zero. */
-    buffer steal();
 
     /* Return a pointer to a range of the buffer, defragmenting as
      * necessary to ensure that the region is linear.  @start and @end

@@ -211,7 +211,7 @@ geneqclient::pop() {
     else {
         auto &e(i.queue(tok).peekhead());
         maybe<orerror<pair<proto::eq::eventid, buffer> > > res(
-            success(mkpair(e.first(), e.second().steal())));
+            success(mkpair(e.first(), buffer(Steal, e.second()))));
         i.queue(tok).pophead();
         i.mux.unlock(&tok);
         return res; } }
@@ -285,7 +285,7 @@ CLIENT::startgetter(onqueuethread oqt) {
             maybe<pair<proto::eq::eventid, buffer> > res(ds);
             if (res == Nothing) return true;
             else {
-                buffer b(res.just().second().steal());
+                buffer b(Steal, res.just().second());
                 addeventtoqueue(res.just().first(), b, cl);
                 trim = c;
                 return false; } }); }
@@ -308,7 +308,7 @@ CLIENT::addeventtoqueue(proto::eq::eventid evt,
                         buffer &buf,
                         connpool::connlock) {
     mux.locked([&] (mutex_t::token tok) {
-            queue(tok).append(mkpair(evt, buf.steal()));
+            queue(tok).append(mkpair(evt, buffer(Steal, buf)));
             pub.publish(); }); }
 
 void
