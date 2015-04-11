@@ -249,22 +249,18 @@ public: orerror<void> abort(); };
 
 /* ----------------------------- config type ---------------------------- */
 connpool::config::config(const beaconclientconfig &_beacon,
-                         probability _forceretry,
                          timedelta _idletimeout,
                          timedelta _connecttimeout,
                          timedelta _hellotimeout,
                          timedelta _debounceconnect)
     : beacon(_beacon),
-      forceretry(_forceretry),
       idletimeout(_idletimeout),
       connecttimeout(_connecttimeout),
       hellotimeout(_hellotimeout),
       debounceconnect(_debounceconnect) {}
 
-connpool::config::config(const beaconclientconfig &_beacon,
-                         probability _forceretry)
+connpool::config::config(const beaconclientconfig &_beacon)
     : beacon(_beacon),
-      forceretry(_forceretry),
       idletimeout(timedelta::seconds(60)),
       connecttimeout(timedelta::seconds(10)),
       hellotimeout(timedelta::seconds(10)),
@@ -272,7 +268,6 @@ connpool::config::config(const beaconclientconfig &_beacon,
 
 orerror<connpool::config>
 connpool::config::mk(const beaconclientconfig &bc,
-                     probability forceretry,
                      timedelta idletimeout,
                      timedelta connecttimeout,
                      timedelta hellotimeout,
@@ -283,7 +278,6 @@ connpool::config::mk(const beaconclientconfig &bc,
         debounceconnect < timedelta::seconds(0)) {
         return error::invalidparameter; }
     else return config(bc,
-                       forceretry,
                        idletimeout,
                        connecttimeout,
                        hellotimeout,
@@ -297,7 +291,6 @@ connpool::config::dflt(const clustername &cn) {
 bool
 connpool::config::operator==(const config &o) const {
     return beacon == o.beacon &&
-        forceretry == o.forceretry &&
         idletimeout == o.idletimeout &&
         connecttimeout == o.connecttimeout &&
         hellotimeout == o.hellotimeout &&

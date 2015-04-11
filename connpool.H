@@ -92,12 +92,6 @@ private: impl &implementation();
 public:  class config {
         /* Beacon configuration. */
     public: beaconclientconfig beacon;
-        /* Probability of forcing the initial send of a message to be
-         * from the connection thread (i.e. the same context as
-         * retransmits) even when it would normally be processed
-         * directly at the call site.  That's always slower, but is
-         * useful for exercising some corner cases of the API. */
-    public: probability forceretry;
         /* How long should idle connections hang around before we
          * conclude they're no longer needed and garbage collect
          * them? */
@@ -112,17 +106,14 @@ public:  class config {
         /* How long to wait between connects to the same peername when
          * we hit an error other than a timeout? */
     public: timedelta debounceconnect;
-    public: config(const beaconclientconfig &,
-                   probability = probability::never);
+    public: explicit config(const beaconclientconfig &);
     private: config(const beaconclientconfig &,
-                    probability,
                     timedelta,
                     timedelta,
                     timedelta,
                     timedelta);
     public: static orerror<config> mk(
         const beaconclientconfig &,
-        probability forceretry = probability::never,
         timedelta idletimeout = timedelta::seconds(60),
         timedelta connecttimeout = timedelta::seconds(10),
         timedelta hellotimeout = timedelta::seconds(10),

@@ -775,7 +775,6 @@ tests::_connpool() {
             quickcheck q;
             beaconclientconfig bcc((clustername(q)));
             assert(connpool::config::mk(bcc,
-                                        probability::never,
                                         timedelta::seconds(-1)) ==
                    error::invalidparameter);
             assert(connpool::config(bcc) == connpool::config::mk(bcc)); });
