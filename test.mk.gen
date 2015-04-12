@@ -15,8 +15,7 @@ tests=(beacontest.C
      testorerror.C
      testpair.C
      testserialise.C
-     teststring.C
-     testwaitqueue.C)
+     teststring.C)
 declare -a objs
 for x in ${tests[@]}
 do

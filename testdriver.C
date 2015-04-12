@@ -31,7 +31,6 @@
 #include "test.H"
 #include "thread.H"
 #include "timedelta.H"
-#include "waitqueue.H"
 #include "walltime.H"
 
 int
@@ -71,7 +70,6 @@ main(int argc, char *argv[])
     tests::_string();
     tests::thread();
     tests::_timedelta();
-    tests::_waitqueue();
     tests::_walltime();
 
     signal(SIGPIPE, SIG_IGN);

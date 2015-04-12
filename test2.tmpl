@@ -1,0 +1,53 @@
+#ifndef TEST2_TMPL__
+#define TEST2_TMPL__
+
+#include "pubsub.H"
+
+#include "list.tmpl"
+#include "map.tmpl"
+
+template <typename ... argsT> void
+testmodule::applyinit(
+    LineCoverage c,
+    argsT &&...args) {
+    linecoverage = c;
+    applyinit(std::forward<argsT>(args)...); }
+
+template <typename ... argsT> void
+testmodule::applyinit(
+    BranchCoverage c,
+    argsT &&...args) {
+    branchcoverage = c;
+    applyinit(std::forward<argsT>(args)...); }
+
+template <typename ... argsT> void
+testmodule::applyinit(
+    const string &s, const std::function<void ()> &f,
+    argsT &&...args) {
+    tests.set(s, f);
+    applyinit(std::forward<argsT>(args)...); }
+
+template <typename ... argsT> void
+testmodule::applyinit(
+    const string &s, const std::function<void (clientio)> &f,
+    argsT &&...args) {
+    applyinit(
+        s,
+        [f] {
+            initpubsub();
+            f(clientio::CLIENTIO);
+            deinitpubsub(clientio::CLIENTIO); },
+        std::forward<argsT>(args)...); }
+
+template <typename ... argsT>
+testmodule::testmodule(
+    const string &_name,
+    const list<filename> &_files,
+    argsT &&...args)
+    : name(_name),
+      files(_files),
+      linecoverage(90_pc),
+      branchcoverage(50_pc) {
+    applyinit(std::forward<argsT>(args)...); }
+
+#endif /* !TEST2_TMPL__ */

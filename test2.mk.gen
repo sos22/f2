@@ -1,0 +1,12 @@
+#! /bin/bash
+
+. shutil
+declare -a objs
+for x in tests/unit/*.C test2.C
+do
+    cc $x
+    objs[${#objs[*]}]=${x/.C/.o}
+done
+ld test2 ${objs[@]} lib.a
+
+target test2

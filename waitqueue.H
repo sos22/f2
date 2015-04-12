@@ -63,6 +63,4 @@ public: t pop(clientio io) {
     mux.unlock(&tok);
     return res; } };
 
-namespace tests { void _waitqueue(); }
-
 #endif /* !WAITQUEUE_H__ */
