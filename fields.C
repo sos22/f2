@@ -1,6 +1,7 @@
 #include "fields.H"
 
 #include <assert.h>
+#include <float.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -513,11 +514,11 @@ intfield::fmt(fieldbuf &out) const
     out.push(buf);
 }
 
-doublefield::doublefield(double _val)
+doublefield::doublefield(long double _val)
     : field(), val_(_val)
 {}
 const doublefield &
-doublefield::n(double val)
+doublefield::n(long double val)
 {
     return *new doublefield(val);
 }
@@ -526,13 +527,13 @@ doublefield::fmt(fieldbuf &b) const
 {
     char buf[64];
     int r;
-    r = snprintf(buf, sizeof(buf), "%f", val_);
+    r = snprintf(buf, sizeof(buf), "%.*Lg", __DECIMAL_DIG__, val_);
     assert(r > 0);
     assert(r < (long)sizeof(buf));
     b.push(buf);
 }
 const doublefield &
-mk_double(double d)
+mk_double(long double d)
 {
     return doublefield::n(d);
 }

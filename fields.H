@@ -105,14 +105,14 @@ static inline const intfield &mk(int x) { return mk((long)x); }
 static inline const intfield &mk(unsigned x) { return mk((unsigned long)x); }
 
 class doublefield : public field {
-    double val_;
-    doublefield(double _val);
+    long double val_;
+    doublefield(long double _val);
     doublefield(const doublefield &o) = delete;
 public:
-    static const doublefield &n(double val);
+    static const doublefield &n(long double val);
     void fmt(fieldbuf &) const;
 };
-const doublefield &mk_double(double);
+const doublefield &mk_double(long double);
 
 void print(const field &f);
 
