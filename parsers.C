@@ -260,19 +260,19 @@ const parser<char> &intparser() {
     return *new intparser_<char, true>(); }
 }
 
-class _doubleparser : public parser<double> {
+class _longdoubleparser : public parser<long double> {
 public:  orerror<result> parse(const char *) const;
 };
-orerror<_doubleparser::result>
-_doubleparser::parse(const char *start) const {
+orerror<_longdoubleparser::result>
+_longdoubleparser::parse(const char *start) const {
     int n;
-    double r;
-    int rr = sscanf(start, "%lf%n", &r, &n);
+    long double r;
+    int rr = sscanf(start, "%Lf%n", &r, &n);
     if (rr <= 0) return error::noparse;
     else return result(r, start + n); }
 
-static _doubleparser __doubleparser;
-const parser<double> &parsers::doubleparser((__doubleparser));
+static _longdoubleparser __longdoubleparser;
+const parser<long double> &parsers::longdoubleparser((__longdoubleparser));
 
 namespace parsers {
 template <> const parser<int> &
@@ -596,9 +596,9 @@ tests::parsers() {
                    == error::noparse); });
 
     testcaseV("parsers", "double", [] {
-            assert(doubleparser.match("7.25") == 7.25);
-            assert(doubleparser.match("-1") == -1);
-            assert(doubleparser.match("Z") == error::noparse); });
+            assert(longdoubleparser.match("7.25") == 7.25);
+            assert(longdoubleparser.match("-1") == -1);
+            assert(longdoubleparser.match("Z") == error::noparse); });
 
     testcaseV(
         "parsers",

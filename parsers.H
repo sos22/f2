@@ -98,7 +98,7 @@ template <typename inttype> const parser<inttype> &intparser();
 template <> const parser<unsigned long> &intparser();
 template <> const parser<long> &intparser();
 
-extern const parser<double> &doubleparser;
+extern const parser<long double> &longdoubleparser;
 }
 
 /* Convenience functions. */
