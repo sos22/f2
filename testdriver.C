@@ -12,7 +12,6 @@
 #include "fd.H"
 #include "fields.H"
 #include "filename.H"
-#include "frequency.H"
 #include "list.H"
 #include "logging.H"
 #include "lqueue.H"
@@ -52,7 +51,6 @@ main(int argc, char *argv[])
     tests::fd();
     tests::fields();
     tests::_filename();
-    tests::_frequency();
     tests::_list();
     tests::logging();
     tests::_lqueue();

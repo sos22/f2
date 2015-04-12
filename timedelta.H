@@ -4,7 +4,6 @@
 #include <functional>
 
 class deserialise1;
-class frequency;
 class quickcheck;
 class serialise1;
 class timedelta;
@@ -20,7 +19,6 @@ const field &mk(const timedelta &);
 class timedelta {
     friend const fields::field &fields::mk(const timedelta &);
     friend class timestamp;
-    friend timedelta operator/(double, frequency);
     long v;
     explicit timedelta(long _v) : v(_v) {}
 public:
@@ -40,7 +38,6 @@ public:
     timestamp operator+(timestamp) const;
     timedelta operator+(timedelta d) const { return timedelta(v+d.v); }
     timedelta operator-(timedelta d) const { return timedelta(v-d.v); }
-    double operator*(frequency) const;
     timedelta operator*(double d) const {
         return timedelta((long)((double)v * d)); }
     double operator/(timedelta d) const { return (double)v/(double)d.v; }

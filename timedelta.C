@@ -3,7 +3,6 @@
 #include "parsers.H"
 #include "quickcheck.H"
 #include "fields.H"
-#include "frequency.H"
 #include "serialise.H"
 #include "test.H"
 #include "timestamp.H"
@@ -27,12 +26,6 @@ timestamp
 timedelta::operator+(timestamp ts) const
 {
     return ts + *this;
-}
-
-double
-timedelta::operator *(frequency f) const
-{
-    return (double)v * f.hz_ / 1e9;
 }
 
 const fields::field &
@@ -76,7 +69,6 @@ tests::_timedelta() {
                    timedelta::milliseconds(100) +
                    timedelta::microseconds(800000) +
                    timedelta::nanoseconds(100000000));
-            assert(timedelta::milliseconds(500) * frequency::hz(2) == 1);
             assert(timedelta::seconds(1) / timedelta::milliseconds(10) == 100);
             assert(timedelta::milliseconds(100).as_milliseconds() == 100);
             assert(timedelta::milliseconds(5) < timedelta::milliseconds(10));
