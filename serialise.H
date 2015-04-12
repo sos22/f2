@@ -46,6 +46,7 @@ public:  operator int();
 public:  operator unsigned int();
 public:  operator long();
 public:  operator unsigned long();
+public:  operator long double();
     /* Extract something by just copying the raw bits.  Only used to
      * implement the conversion operators. */
 private: template <typename t> t pop();
@@ -92,6 +93,7 @@ template <> void serialise1::push(const int &);
 template <> void serialise1::push(const unsigned int &);
 template <> void serialise1::push(const long &);
 template <> void serialise1::push(const unsigned long &);
+template <> void serialise1::push(const long double &);
 
 /* Hooks for testing upgrade before we have another version to upgrade
  * to. */

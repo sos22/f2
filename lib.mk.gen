@@ -41,6 +41,7 @@ function bits() {
     _ mutex
     _ parsers
     _ peername
+    _ percentage
     _ profile
     _ proto
     _ proto2

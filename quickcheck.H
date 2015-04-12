@@ -20,6 +20,7 @@ public: operator char() const;
 public: operator bool() const;
     /* Cauchy distributed with location 0 and scale 1 */
 public: operator double() const;
+public: operator long double() const;
     /* Returns a string in the quickcheck heap using the entire 8 bit
      * char space, except for nul.  The pointer remains valid until
      * the quickcheck heap is reset.  The strings length is roughly

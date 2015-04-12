@@ -32,6 +32,7 @@ deserialise1::operator int() { return pop<int>(); }
 deserialise1::operator unsigned int() { return pop<unsigned int>(); }
 deserialise1::operator long() { return pop<long>(); }
 deserialise1::operator unsigned long() { return pop<unsigned long>(); }
+deserialise1::operator long double() { return pop<long double>(); }
 
 void
 deserialise1::bytes(void *buf, size_t s) {
@@ -91,3 +92,5 @@ template <> void
 serialise1::push(const long &x) { pushfundamental(x); }
 template <> void
 serialise1::push(const unsigned long &x) { pushfundamental(x); }
+template <> void
+serialise1::push(const long double &x) { pushfundamental(x); }

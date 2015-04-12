@@ -61,6 +61,9 @@ quickcheck::operator double() const {
     /* Standard Cauchy distribution, because why not? */
     return tan(M_PI * (drand48() - .5)); }
 
+quickcheck::operator long double() const {
+    return tanl(M_PI * (drand48() - .5)); }
+
 quickcheck::operator const char *() const {
     unsigned long r = (unsigned long)random();
     switch (r % 64) {

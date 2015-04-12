@@ -12,6 +12,7 @@
 #include "fd.H"
 #include "fields.H"
 #include "filename.H"
+#include "percentage.H"
 #include "list.H"
 #include "logging.H"
 #include "lqueue.H"
@@ -20,6 +21,7 @@
 #include "mutex.H"
 #include "parsers.H"
 #include "peername.H"
+#include "percentage.H"
 #include "profile.H"
 #include "pubsub.H"
 #include "serialise.H"
@@ -61,6 +63,7 @@ main(int argc, char *argv[])
     tests::_pair();
     tests::parsers();
     tests::_peername();
+    tests::_percentage();
     tests::pubsub();
     tests::_serialise();
     tests::_spawn();
