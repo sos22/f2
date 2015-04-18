@@ -8,6 +8,7 @@
 #include "logging.H"
 #include "profile.H"
 
+#include "list.tmpl"
 #include "map.tmpl"
 
 #include "fieldfinal.H"
@@ -34,11 +35,13 @@ testmodule::listtests() const {
 
 void
 testmodule::printmodule() const {
-    printf("%s\n",
-           (fields::padright(fields::mk(name), 20) +
-            fields::padright(linecoverage.p.field(), 10) +
-            fields::padright(branchcoverage.p.field(), 10) +
-            fields::mk(files)).c_str()); }
+    printf("Module: %s\n", fields::padright(name.field(), 20).c_str());
+    printf("    Line coverage:   %s\n",
+           fields::padright(linecoverage.p.field(), 10).c_str());
+    printf("    Branch coverage: %s\n",
+           fields::padright(branchcoverage.p.field(), 10).c_str());
+    for (auto it(files.start()); !it.finished(); it.next()) {
+        printf("    File:            %s\n", it->str().c_str()); } }
 
 void
 testmodule::runtest(const string &what) const {
@@ -63,6 +66,7 @@ main(int argc, char *argv[]) {
     
     signal(SIGPIPE, SIG_IGN);
     
+    bool stat = false;
     while (argc > 1) {
         if (!strcmp(argv[1], "--verbose")) {
             initlogging("tests");
@@ -70,6 +74,10 @@ main(int argc, char *argv[]) {
             argc--; }
         else if (!strcmp(argv[1], "--profile")) {
             startprofiling();
+            argv++;
+            argc--; }
+        else if (!strcmp(argv[1], "--stat")) {
+            stat = true;
             argv++;
             argc--; }
         else break; }
@@ -85,7 +93,9 @@ main(int argc, char *argv[]) {
     else {
         auto &module(*modules->get(argv[1])
                      .fatal("no such module: " + fields::mk(argv[1])));
-        if (argc == 2) module.listtests();
+        if (argc == 2) {
+            if (stat) module.printmodule();
+            else module.listtests(); }
         else if (argc == 3) {
             if (strcmp(argv[2], "*")) module.runtest(argv[2]);
             else module.runtests(); }

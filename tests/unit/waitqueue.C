@@ -7,7 +7,7 @@
 
 static testmodule __waitqueuetest(
     "waitqueue",
-    list<filename>::mk("waitqueue.H", "waitqueue.tmpl"),
+    list<filename>::mk("waitqueue.C", "waitqueue.H"),
     testmodule::LineCoverage(20_pc),
     testmodule::BranchCoverage(10_pc),
     "basics", [] (clientio io) {
