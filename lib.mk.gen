@@ -102,7 +102,6 @@ testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
 testmodule filename filename.C filename.H
 testmodule frequency frequency.C frequency.H
-testmodule list list.H list.tmpl
 testmodule lqueue lqueue.H lqueue.C
 testmodule map map.C map.H map.tmpl
 testmodule maybe maybe.C maybe.H maybe.tmpl

@@ -13,7 +13,6 @@
 #include "fields.H"
 #include "filename.H"
 #include "percentage.H"
-#include "list.H"
 #include "logging.H"
 #include "lqueue.H"
 #include "map.H"
@@ -52,7 +51,6 @@ main(int argc, char *argv[])
     tests::fd();
     tests::fields();
     tests::_filename();
-    tests::_list();
     tests::logging();
     tests::_lqueue();
     tests::_map();

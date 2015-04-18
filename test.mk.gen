@@ -7,7 +7,6 @@ tests=(beacontest.C
      connpooltest.C
      eqtest.C
      either.C
-     listtest.C
      lqueuetest.C
      testbuffer.C
      testdriver.C
