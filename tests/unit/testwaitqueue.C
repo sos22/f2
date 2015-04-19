@@ -9,8 +9,8 @@
 static testmodule __waitqueuetest(
     "waitqueue",
     list<filename>::mk("waitqueue.C", "waitqueue.H"),
-    testmodule::LineCoverage(20_pc),
-    testmodule::BranchCoverage(10_pc),
+    testmodule::LineCoverage(90_pc),
+    testmodule::BranchCoverage(60_pc),
     "basics", [] (clientio io) {
         waitqueue<string> wq;
         assert(wq.pop() == Nothing);
