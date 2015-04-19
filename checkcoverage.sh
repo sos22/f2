@@ -12,7 +12,7 @@ eval $(<${t} sed 's/^[[:space:]]*Branch coverage:[[:space:]]*\([0-9.]*\)%/targbr
 eval $(head -n 1 ${report})
 rm -f ${t}
 
-r=$(echo "${targbranch} <= ${branchcoverage:-0} && ${targline} <= ${linecoverage:-0}" | bc)
+r=$(echo "${targbranch}*0.999 <= ${branchcoverage:-0} && ${targline}*.999 <= ${linecoverage:-0}" | bc)
 
 if [ $r -eq 1 ]
 then
