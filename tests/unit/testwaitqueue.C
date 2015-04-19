@@ -3,6 +3,7 @@
 #include "timedelta.H"
 #include "waitqueue.H"
 
+#include "spark.tmpl"
 #include "test2.tmpl"
 
 static testmodule __waitqueuetest(
