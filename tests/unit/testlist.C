@@ -1,6 +1,7 @@
 #include "list.H"
 #include "test2.H"
 #include "timedelta.H"
+#include "util.H"
 
 #include "parsers.tmpl"
 #include "serialise.tmpl"
@@ -254,7 +255,11 @@ static testmodule __listtest(
         l.append(1);
         assert(!l.empty_unsafe());
         bool done = false;
-        spark<void> checker([&] { while (!done) l.empty_unsafe(); });
+        spark<void> checker([&] {
+                /* This doesn't need full acquire semantics; it just
+                 * needs to not get completely eliminated by the
+                 * compiler.  Acquire is easier, though. */
+                while (!loadacquire(done)) l.empty_unsafe(); });
         auto deadline((2_s).future());
         while (deadline.infuture()) {
             l.append(5);
