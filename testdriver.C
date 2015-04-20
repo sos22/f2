@@ -3,7 +3,6 @@
 #include <signal.h>
 
 #include "buffer.H"
-#include "clustername.H"
 #include "cond.H"
 #include "connpool.H"
 #include "either.H"
@@ -39,7 +38,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::__clustername();
     tests::cond();
     tests::_connpool();
     tests::either();

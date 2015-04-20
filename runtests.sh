@@ -17,7 +17,7 @@ summary=${outdir}/summary1
     do
         if ./testmodule.sh ${modname} ${outdir}/${modname}
         then
-            if ./checkcoverage.sh ${modname} ${outdir}/${modname}
+            if ./checkcoverage.sh ${outdir}/${modname}
             then
                 printf "2 %-20s pass\n" ${modname} >> ${summary}
             else

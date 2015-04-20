@@ -28,7 +28,4 @@ template <typename> class parser;
 namespace parsers {
 const parser<clustername> &__clustername(); }
 
-namespace tests {
-void __clustername(); }
-
 #endif /* !CLUSTERNAME_H__ */

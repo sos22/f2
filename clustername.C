@@ -1,14 +1,10 @@
 #include "clustername.H"
 
-#include "error.H"
 #include "fields.H"
 #include "parsers.H"
-#include "quickcheck.H"
 #include "serialise.H"
-#include "test.H"
 
 #include "parsers.tmpl"
-#include "serialise.tmpl"
 
 const unsigned
 clustername::maxsize = 100;
@@ -52,19 +48,3 @@ parsers::__clustername() {
                 auto r(clustername::mk(str));
                 if (r.isjust()) return r.just();
                 else return error::overflowed; }); }
-
-void
-tests::__clustername() {
-    testcaseV("clustername", "parsers", [] {
-            parsers::roundtrip(parsers::__clustername()); });
-    testcaseV("clustername", "serialise", [] {
-            quickcheck q;
-            serialise<clustername>(q); });
-    testcaseV("clustername", "baddeserialise", [] {
-            string s = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-            while (s.len() < clustername::maxsize) s = s + s;
-            ::buffer b;
-            serialise1(b).push(s);
-            deserialise1 ds(b);
-            clustername cn(ds);
-            assert(ds.isfailure()); }); }

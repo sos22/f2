@@ -85,7 +85,7 @@ linecov=$(echo "scale=4; ${execlines} / $nrlines" | bc)
 branchcov=$(echo "scale=4; ${takenbranches} / $nrbranches" | bc)
 
 # Build the final report.
-echo branchcoverage=${branchcov} linecoverage=${linecov} > ${outfile}
+echo module=${module} branchcoverage=${branchcov} linecoverage=${linecov} > ${outfile}
 echo ------ >> ${outfile}
 cd ${t2}
 gcov -o ${t} -s ${base} $(find ${t} -type f -name '*.gcda') > /dev/null
