@@ -3,8 +3,6 @@
 #include <signal.h>
 
 #include "buffer.H"
-#include "cond.H"
-#include "connpool.H"
 #include "either.H"
 #include "error.H"
 #include "fd.H"
@@ -38,8 +36,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::cond();
-    tests::_connpool();
     tests::either();
     tests::_eqtest();
     tests::_error();

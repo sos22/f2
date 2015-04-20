@@ -336,6 +336,4 @@ public:  orerror<void> pop(clientio io) { return pop(finished(io)); }
     /* Use abort() or pop() */
 private: ~asynccallT(); };
 
-namespace tests { void _connpool(); }
-
 #endif /* !CONNPOOL_H__ */

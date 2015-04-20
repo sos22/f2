@@ -3,8 +3,7 @@
 . shutil
 
 declare -a tests
-tests=(connpooltest.C
-     eqtest.C
+tests=(eqtest.C
      either.C
      lqueuetest.C
      testdriver.C

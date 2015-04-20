@@ -91,7 +91,6 @@ buildconfig.d:
 EOF
 
 testmodule either either.C either.H
-testmodule connpool connpool.C connpool.H
 testmodule eq eqclient.C eqclient.H eqserver.C eqserver.H
 testmodule error error.C error.H
 testmodule fd fd.C fd.H
