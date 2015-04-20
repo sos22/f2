@@ -118,12 +118,22 @@ EOF
 
 function target()
 {
+    local dep=$2
     cat <<EOF
 realall:: $1
 covall:: ${1}-c
 testall:: ${1}-t
 profall:: ${1}-p
 EOF
+    if [ "Z$dep" != "Z" ]
+    then
+        cat <<EOF
+${1}: ${dep}
+${1}-c: ${dep}
+${1}-t: ${dep}
+${1}-p: ${dep}
+EOF
+    fi
 }
 
 function testmodule()

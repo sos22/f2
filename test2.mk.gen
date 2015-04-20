@@ -9,4 +9,19 @@ do
 done
 ld test2 ${objs[@]} lib.a
 
-target test2
+target test2 test2.mk
+
+cat <<EOF
+test2.mk: tests/unit/modulelist
+
+tests/unit/modulelist: _does_not_exist_
+	@(echo tests/unit/*.C > tests/unit/modulelist.new;                    \
+	if cmp -s tests/unit/modulelist.new tests/unit/modulelist > /dev/null;\
+	then                                                                  \
+		rm -f tests/unit/modulelist.new;                              \
+	else                                                                  \
+		mv tests/unit/modulelist.new tests/unit/modulelist;           \
+	fi )
+
+clean:: tests/unit/modulelist
+EOF

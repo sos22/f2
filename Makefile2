@@ -24,3 +24,11 @@ clean::
 %: %.gen config
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 
+# Specital target which is sometimes useful for forcing something to
+# get rebuilt every time.  Mostly useful for makefile fragments,
+# because if one of them is a direct dependency of .PHONY then you get
+# an infinite loop.
+
+.PHONY: _does_not_exist_
+_does_not_exist_:
+	@(! [ -e _does_not_exist_ ])
