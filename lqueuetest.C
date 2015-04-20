@@ -6,6 +6,7 @@
 #include "test.H"
 
 #include "spark.tmpl"
+#include "test.tmpl"
 
 void
 tests::_lqueue() {
