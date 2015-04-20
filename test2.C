@@ -55,10 +55,27 @@ testmodule::runtest(const string &what) const {
         ();
     alarm(0); }
 
+static list<string>
+shuffle(_Steal s, list<string> &what) {
+    list<string> res;
+    unsigned len(what.length());
+    while (len != 0) {
+        unsigned idx((unsigned)random() % len);
+        auto &elem(what.idx(idx));
+        res.append(s, elem);
+        what.drop(&elem);
+        len--; }
+    assert(what.empty());
+    return res; }
+
 void
 testmodule::runtests() const {
+    list<string> schedule;
     for (auto it(tests.start()); !it.finished(); it.next()) {
-        runtest(it.key()); } }
+        schedule.pushtail(it.key()); }
+    list<string> shuffled(shuffle(Steal, schedule));
+    for (auto it(shuffled.start()); !it.finished(); it.next()) {
+        runtest(*it); } }
 
 int
 main(int argc, char *argv[]) {

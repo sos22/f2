@@ -5,6 +5,7 @@
 
 #include <stddef.h>
 
+class _Steal;
 class deserialise1;
 template <typename> class parser;
 class quickcheck;
@@ -24,6 +25,7 @@ public:  string();
        pointer must be malloc()ed and nul-terminated.  The string will
        take responsibility for eventually releasing it. */
 public:  static string steal(char *&);
+public:  string(_Steal, string &);
 public:  string(const char *);
 public:  string(const string &);
 public:  string(string &&);

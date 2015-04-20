@@ -35,9 +35,9 @@ string::string(const string &o)
               ? strdup(o.content)
               : NULL) {}
 
-string::string(string &&o)
-    : content(o.content) {
-    o.content = NULL; }
+string::string(string &&o) : string(Steal, o) {}
+
+string::string(_Steal, string &o) : content(o.content) { o.content = NULL; }
 
 string::string(deserialise1 &ds) {
     if (ds.random()) content = strdup((const char *)quickcheck());
