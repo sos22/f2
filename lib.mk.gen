@@ -90,7 +90,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule cond cond.C cond.H
 testmodule either either.C either.H
 testmodule connpool connpool.C connpool.H
 testmodule eq eqclient.C eqclient.H eqserver.C eqserver.H

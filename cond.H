@@ -43,8 +43,4 @@ public:
 
 };
 
-namespace tests {
-void cond();
-}
-
 #endif /* !COND_H__ */
