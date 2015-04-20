@@ -41,7 +41,6 @@ main(int argc, char *argv[])
     srandom((unsigned)now.tv_usec);
 
     tests::beacon();
-    tests::_buffer();
     tests::__clustername();
     tests::cond();
     tests::_connpool();

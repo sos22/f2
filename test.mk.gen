@@ -8,7 +8,6 @@ tests=(beacontest.C
      eqtest.C
      either.C
      lqueuetest.C
-     testbuffer.C
      testdriver.C
      testmap.C
      testorerror.C

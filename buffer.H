@@ -200,6 +200,4 @@ public:  const bufferfield &showrepeats() const;
 private: void fmt(fields::fieldbuf &) const;
 };
 
-namespace tests { void _buffer(); }
-
 #endif /* !BUFFER_H__ */
