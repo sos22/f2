@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <err.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include "filename.H"
 #include "logging.H"
@@ -48,9 +49,11 @@ testmodule::runtest(const string &what) const {
     printf("%s\n",
            (fields::padright(name.field(), 20) +
             fields::padright(what.field(), 20)).c_str());
+    alarm(30);
     tests.get(what)
         .fatal("no such test: " + name.field() + "::" + what.field())
-        (); }
+        ();
+    alarm(0); }
 
 void
 testmodule::runtests() const {
