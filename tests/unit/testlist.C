@@ -12,7 +12,7 @@ static testmodule __listtest(
     "list",
     list<filename>::mk("list.H", "list.tmpl"),
     testmodule::LineCoverage(100_pc),
-    testmodule::BranchCoverage(30_pc),
+    testmodule::BranchCoverage(20_pc),
     "pushtail", [] {
         list<int> l;
         l.pushtail(5,6,7,8);
