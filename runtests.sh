@@ -11,7 +11,6 @@ trap "rm -rf ${outdir}" EXIT
 
 summary=${outdir}/summary1
 : > ${summary}
-res=true
 ./test2-c |
     sed 's/^Module: \(.*\)/\1/p;d' |
     while read modname
@@ -23,11 +22,9 @@ res=true
                 printf "2 %-20s pass\n" ${modname} >> ${summary}
             else
                 printf "1 %-20s coverage\n" ${modname} >> ${summary}
-                res=false
             fi
         else
             printf "0 %-20s fail\n" ${modname} >> ${summary}
-            res=false
         fi
     done
 
@@ -36,7 +33,11 @@ sort -n ${summary} |
 
 rm ${outdir}/summary1
 
-grep -vw pass ${outdir}/summary || true
+if grep -vw pass ${outdir}/summary
+then
+    exit 1
+else
+    exit 0
+fi
 
-$res
 trap "" EXIT
