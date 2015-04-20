@@ -33,11 +33,11 @@ sort -n ${summary} |
 
 rm ${outdir}/summary1
 
+trap "" EXIT
+
 if grep -vw pass ${outdir}/summary
 then
     exit 1
 else
     exit 0
 fi
-
-trap "" EXIT
