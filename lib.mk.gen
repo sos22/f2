@@ -90,7 +90,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule beacon beaconclient.C beaconclient.H beaconserver.C beaconserver.H
 testmodule cond cond.C cond.H
 testmodule either either.C either.H
 testmodule clustername clustername.C clustername.H

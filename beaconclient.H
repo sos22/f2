@@ -7,7 +7,6 @@
 #define BEACONCLIENT_H__
 
 #include "beacon.H"
-#include "beacontest.H"
 #include "clustername.H"
 #include "logging.H"
 #include "peername.H"
@@ -90,7 +89,6 @@ class beaconclient : private thread {
     friend class pausedthread<beaconclient>;
     friend class thread;
     friend class iterator;
-    friend void tests::beacon();
 private: const beaconclientconfig config;
     /* Protects @cache.  Leaf lock.  mutable because it's acquired
      * from status(). */
@@ -101,9 +99,11 @@ private: waitbox<void> shutdown;
 private: publisher _changed;
     /* Used to listen to broadcast messages. */
 private: udpsocket listenfd;
+public:  udpsocket &__test_listenfd() { return listenfd; }
     /* Used to listen for directed messages and to send all
      * responses. */
 private: udpsocket clientfd;
+public:  udpsocket &__test_clientfd() { return clientfd; }
     /* How many errors have we suffered, ever? */
 private: unsigned errors;
     /* How many requests have we ignored because of the filter,
@@ -125,6 +125,8 @@ private: void handletimeouts(mutex_t::token);
 public:  class result {
         friend class beaconclient;
     private: result(const peername &, const list<interfacetype> &);
+    private: result() = delete;
+    private: void operator=(const result &) = delete;
     public:  const peername name;
     public:  const list<interfacetype> type; };
     /* Query the client's current knowledge of a particular agent,

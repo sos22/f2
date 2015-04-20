@@ -3,8 +3,7 @@
 . shutil
 
 declare -a tests
-tests=(beacontest.C
-     connpooltest.C
+tests=(connpooltest.C
      eqtest.C
      either.C
      lqueuetest.C

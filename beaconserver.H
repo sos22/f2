@@ -7,7 +7,6 @@
 #define BEACONSERVER_H__
 
 #include "beacon.H"
-#include "beacontest.H"
 #include "clustername.H"
 #include "peername.H"
 #include "interfacetype.H"
@@ -39,7 +38,6 @@ mktupleext(beaconserverconfig);
 class beaconserver : private thread {
     friend class thread;
     friend class pausedthread<beaconserver>;
-    friend void tests::beacon();
 
 private: beaconserver() = delete;
 private: beaconserver(const beaconserver &) = delete;
@@ -50,6 +48,7 @@ private: const list<interfacetype> advertisetype;
 private: const peername::port advertiseport;
 private: udpsocket listenfd;
 private: udpsocket clientfd;
+public:  udpsocket &__test_clientfd() { return clientfd; }
 private: waitbox<void> shutdown;
 private: unsigned errors; /* total number of errors, ever */
 private: unsigned ignored; /* total number of ignored requests,

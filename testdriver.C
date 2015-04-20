@@ -2,7 +2,6 @@
 #include <err.h>
 #include <signal.h>
 
-#include "beacontest.H"
 #include "buffer.H"
 #include "clustername.H"
 #include "cond.H"
@@ -40,7 +39,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::beacon();
     tests::__clustername();
     tests::cond();
     tests::_connpool();
