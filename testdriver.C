@@ -3,7 +3,6 @@
 #include <signal.h>
 
 #include "buffer.H"
-#include "error.H"
 #include "fd.H"
 #include "fields.H"
 #include "filename.H"
@@ -35,7 +34,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::_error();
     tests::fd();
     tests::fields();
     tests::_filename();

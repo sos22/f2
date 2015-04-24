@@ -6,19 +6,20 @@
 #include <string.h>
 
 #include "fields.H"
+#include "list.H"
 #include "logging.H"
 #include "parsers.H"
 #include "quickcheck.H"
 #include "string.H"
-#include "test.H"
 
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
-#include "test.tmpl"
 
-static const int firsterror = 0;
+using namespace __error_private;
+
+const int __error_private::firsterror = 0;
 const error error::unknown(0);
 const error error::disconnected(-1);
 const error error::overflowed(-2);
@@ -58,7 +59,7 @@ const error error::dlopen(-35);
 const error error::duplicate(-36);
 /* When adding a new error, make sure you update lasterror and
  * errorfield::fmt() */
-static const int lasterror = 36;
+const int __error_private::lasterror = 36;
 
 class errorfield : public fields::field {
     error content;
@@ -216,52 +217,3 @@ error::error(deserialise1 &ds) {
         _e = error::unknown.e;
         ds.fail(error::invalidmessage); }
     e = _e; }
-
-void
-tests::_error() {
-    testcaseV("error", "eq", [] {
-            for (int x = -lasterror;
-                 x <= firsterror + 10;
-                 x++) {
-                for (int y = -lasterror;
-                     y <= firsterror + 10;
-                     y++) {
-                    assert((::error(x) == ::error(y)) ==
-                           (x == y)); } } });
-    testcaseV("error", "neq", [] {
-            for (int x = -lasterror;
-                 x <= firsterror + 10;
-                 x++) {
-                for (int y = -lasterror;
-                     y <= firsterror + 10;
-                     y++) {
-                    assert((::error(x) != ::error(y)) ==
-                           (x != y)); } } });
-    testcaseV("error", "uniqfields", [] {
-            list<string> fmted;
-            for (int x = -lasterror; x <= firsterror + 10; x++) {
-                fmted.pushtail(string(fields::mk(error(x)).c_str())); }
-            assert(!fmted.hasdupes()); });
-    testcaseV("error", "errno", [] {
-            errno = 7;
-            auto e(error::from_errno());
-            assert(errno == 99);
-            assert(e == error::from_errno(7)); });
-    testcaseV("error", "fmtinvalid", [] {
-            assert(!strcmp(fields::mk(error(-99)).c_str(),
-                           "<invalid error -99>")); });
-    testcaseV("error", "serialise", [] {
-            quickcheck q;
-            serialise<error>(q); });
-#if TESTING
-    testcaseV("error", "warn", [] {
-            bool warned = false;
-            eventwaiter<loglevel> logwait(
-                tests::logmsg,
-                [&warned] (loglevel level) {
-                    if (level == loglevel::failure) {
-                        assert(!warned);
-                        warned = true; } });
-            error::underflowed.warn("should underflow"); });
-#endif
-}

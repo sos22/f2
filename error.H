@@ -13,20 +13,16 @@ template <typename t> class orerror;
 template <> class orerror<void>;
 class quickcheck;
 
-namespace tests {
-void _error();
-}
-
 /* Wrapper around errno.  Must be POD. */
 class error {
     friend class errorfield;
-    friend void tests::_error();
     int e;
     explicit error(const int &_e) : e(_e) {}
     int unwrap() const;
 public:
     error(deserialise1 &);
     error() : e(unknown.e) {}
+    static error __test_mkerr(int _e) { return error(_e); }
 
     bool operator==(const error &o) const { return e == o.e; }
     bool operator!=(const error &o) const { return e != o.e; }
@@ -99,5 +95,10 @@ public:
     static const error dlopen; /* Error loading job library. */
     static const error duplicate; /* Duplicate key in map. */
 };
+
+namespace __error_private {
+extern const int firsterror;
+extern const int lasterror;
+}
 
 #endif
