@@ -46,8 +46,8 @@ testmodule::testmodule(
     argsT &&...args)
     : name(_name),
       files(_files),
-      linecoverage(90_pc),
-      branchcoverage(50_pc) {
+      linecoverage(100_pc),
+      branchcoverage(100_pc) {
     applyinit(std::forward<argsT>(args)...); }
 
 #endif /* !TEST2_TMPL__ */

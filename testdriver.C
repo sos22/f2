@@ -2,8 +2,6 @@
 #include <err.h>
 #include <signal.h>
 
-#include "buffer.H"
-#include "fd.H"
 #include "fields.H"
 #include "filename.H"
 #include "percentage.H"
@@ -34,7 +32,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::fd();
     tests::fields();
     tests::_filename();
     tests::logging();
