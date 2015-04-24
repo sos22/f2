@@ -9,12 +9,6 @@
 
 namespace tests {
 
-class support {
-public:
-    void msg(const char *fmt, ...) __attribute__((format(printf, 2, 3)));
-    void detail(const char *fmt, ...) __attribute__((format(printf, 2, 3)));
-};
-
 /* Test events are a way of interfering with a program's operation
  * while it runs, making it easier to explore races or error
  * conditions.  The idea is that the program to be tested defines some
@@ -140,10 +134,6 @@ void testcaseIO(
     const char *component,
     const char *test,
     std::function<void (clientio)> doit);
-void testcaseS(
-    const char *component,
-    const char *test,
-    std::function<void (support &)> doit);
 
 void listcomponents();
 void listtests(const char *component);

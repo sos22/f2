@@ -21,21 +21,6 @@
 
 namespace tests {
 
-void
-support::msg(const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    vprintf(fmt, args);
-    va_end(args);
-    printf("\n");
-}
-
-void
-support::detail(const char *, ...)
-{
-}
-
 #if TESTING
 tests::eventwaiter<void>::eventwaiter(
     tests::event<void> &_evt,
@@ -74,7 +59,7 @@ tests::hookpoint<void>::set(tests::hook<void> *what) {
 
 struct test {
     const char *name;
-    std::function<void (support &)> doit;
+    std::function<void ()> doit;
 };
 
 struct testcomponent {
@@ -88,12 +73,6 @@ void
 testcaseV(const char *c_name,
           const char *t_name,
           std::function<void ()> doit) {
-    testcaseS(c_name, t_name, [doit] (support &) { doit(); }); }
-
-void
-testcaseS(const char *c_name,
-          const char *t_name,
-          std::function<void (support &)> doit) {
     testcomponent *component;
     component = NULL;
     for (auto it(components.start()); !it.finished(); it.next()) {
@@ -140,8 +119,7 @@ void runtest(const char *component, const char *t) {
             if (strcmp(t, "*") && strcmp(it2->name, t)) continue;
             printf("%15s %60s\n", it->name, it2->name);
             foundtest = true;
-            support s;
-            it2->doit(s); }
+            it2->doit(); }
         if (!foundtest) {
             error::notfound.fatal(
                 "cannot find test " + fields::mk(t) + "::" +
