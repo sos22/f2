@@ -2,6 +2,12 @@
 
 set -e
 
+if [ $# -ne 1 ]
+then
+    echo "Need a single argument, the test report to analyse"
+    exit 1
+fi
+
 report=${1}
 
 eval $(head -n 1 ${report})

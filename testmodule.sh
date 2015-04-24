@@ -2,6 +2,12 @@
 
 set -e
 
+if [ $# -ne 2 ]
+then
+    echo "Need two arguments: the test module, and the file to place the output in"
+    exit 1
+fi
+
 : ${TMPDIR:=/tmp}
 module=${1}
 outfile=${2}
