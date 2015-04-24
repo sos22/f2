@@ -149,8 +149,6 @@ void listcomponents();
 void listtests(const char *component);
 void runtest(const char *component, const char *test);
 
-
-void _eqtest();
 }
 
 #endif

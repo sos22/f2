@@ -90,7 +90,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule eq eqclient.C eqclient.H eqserver.C eqserver.H
 testmodule error error.C error.H
 testmodule fd fd.C fd.H
 testmodule fields fields.C fieldfinal.H tmpheap.C
