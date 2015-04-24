@@ -108,8 +108,4 @@ template <typename r, typename a> either <a, r> left(const a &what) {
 template <typename l, typename a> either <l, a> right(const a &what) {
     return either<l, a>::right(what); }
 
-namespace tests {
-void either();
-}
-
 #endif /* !EITHER_H__ */

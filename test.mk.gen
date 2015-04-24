@@ -4,7 +4,6 @@
 
 declare -a tests
 tests=(eqtest.C
-     either.C
      lqueuetest.C
      testdriver.C
      testmap.C

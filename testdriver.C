@@ -3,7 +3,6 @@
 #include <signal.h>
 
 #include "buffer.H"
-#include "either.H"
 #include "error.H"
 #include "fd.H"
 #include "fields.H"
@@ -36,7 +35,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::either();
     tests::_eqtest();
     tests::_error();
     tests::fd();
