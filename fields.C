@@ -34,14 +34,6 @@ fieldbuf::fieldbuf()
 }
 
 void
-fieldbuf::reset()
-{
-    assert(!!head == !!tail);
-    head = NULL;
-    tail = NULL;
-}
-
-void
 fieldbuf::push(const char *what)
 {
     size_t sz(strlen(what) + 1);

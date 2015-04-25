@@ -22,7 +22,6 @@ class fieldbuf {
     fragment *tail;
 public:
     fieldbuf();
-    void reset();
     char *c_str(maybe<unsigned> limit = Nothing);
     void push(const char *);
 };
