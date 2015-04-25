@@ -4,6 +4,7 @@
 #include "test2.H"
 
 #include "rpcservice2.tmpl"
+#include "test.tmpl"
 #include "test2.tmpl"
 
 #include "fieldfinal.H"

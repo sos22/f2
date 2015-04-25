@@ -8,6 +8,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "rpcservice2.tmpl"
+#include "spark.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
 
