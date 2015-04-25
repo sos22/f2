@@ -120,8 +120,4 @@ template <typename t> const field &mk(const ::maybe<t> &m);
 
 };
 
-namespace tests {
-void fields();
-}
-
 #endif /* !FIELDS_H__ */

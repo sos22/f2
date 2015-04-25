@@ -32,7 +32,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::fields();
     tests::_filename();
     tests::logging();
     tests::_lqueue();
