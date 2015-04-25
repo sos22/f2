@@ -29,6 +29,7 @@ static testmodule __testfields(
     /* Ideally, tmpheap would have its own unit test, but it's covered
      * pretty thoroughly by this one, so this'll do for now. */
     list<filename>::mk("fields.C", "fields.H", "fieldfinal.H", "tmpheap.C"),
+    testmodule::BranchCoverage(70_pc),
     "helloworld", [] { simpletest(mk("Hello world"), "Hello world"); },
     "trunc", [] { simpletest(trunc(mk("Hello world"), 3), "Hel"); },
     "padleft", [] { simpletest(padleft(trunc(mk("Hello"), 3), 5), "  Hel");},
@@ -129,6 +130,20 @@ static testmodule __testfields(
         simpletest(mk(list<int>()), "{}");
         simpletest(mk(list<int>::mk(1)), "{1}");
         simpletest(mk(list<int>::mk(1, 12)), "{1 12}"); },
+    "copyfield", [] {
+        class copyable : public field {
+        private: bool iscopy;
+        private:  copyable() : field(), iscopy(false) {}
+        private: copyable(const copyable &o) : field(o), iscopy(true) {}
+        public: void fmt(fieldbuf &b) const {
+            if (iscopy) b.push("copy");
+            else b.push("base"); }
+        public:  static const copyable &mk() { return *new copyable(); }
+        public:  const copyable &copy() const {return *new copyable(*this); } };
+        auto &orig(copyable::mk());
+        auto &c(orig.copy());
+        assert(!strcmp(orig.c_str(), "base"));
+        assert(!strcmp(c.c_str(), "copy")); },
     "escape", [] {
         simpletest(mk("foo").escape(), "foo");
         simpletest(mk("foo bar").escape(), "\"foo bar\"");
