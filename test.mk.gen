@@ -5,7 +5,6 @@
 declare -a tests
 tests=(testdriver.C
      testmap.C
-     testorerror.C
      testpair.C
      testserialise.C
      teststring.C)
