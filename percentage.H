@@ -28,6 +28,4 @@ namespace fields {
 static inline const field &
 mk(percentage p) { return p.field(); } }
 
-namespace tests { void _percentage(); }
-
 #endif /* !PERCENTAGE_H__ */
