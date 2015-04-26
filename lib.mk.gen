@@ -90,9 +90,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule fields fields.C fieldfinal.H tmpheap.C
-testmodule filename filename.C filename.H
-testmodule frequency frequency.C frequency.H
 testmodule lqueue lqueue.H lqueue.C
 testmodule map map.C map.H map.tmpl
 testmodule maybe maybe.C maybe.H maybe.tmpl

@@ -3,7 +3,6 @@
 #include <signal.h>
 
 #include "fields.H"
-#include "filename.H"
 #include "percentage.H"
 #include "logging.H"
 #include "lqueue.H"
@@ -32,7 +31,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::_filename();
     tests::logging();
     tests::_lqueue();
     tests::_map();

@@ -20,9 +20,9 @@
 #include "parsers.tmpl"
 #include "test.tmpl"
 
-static tests::event<orerror<void> *> readasbufferloop;
-static tests::event<ssize_t *> createfileloop;
-static tests::event<struct dirent **> diriterevt;
+tests::event<orerror<void> *> testhooks::filename::readasbufferloop;
+tests::event<ssize_t *> testhooks::filename::createfileloop;
+tests::event<struct dirent **> testhooks::filename::diriterevt;
 
 const fields::field &
 fields::mk(const filename &f) {
@@ -71,7 +71,7 @@ filename::readasbuffer() const {
         /* Local file IO is assumed to be fast, so no clientio
          * token. */
         auto r(res.success().receive(clientio::CLIENTIO, fd_t(fd)));
-        readasbufferloop.trigger(&r);
+        testhooks::filename::readasbufferloop.trigger(&r);
         if (r.issuccess()) continue;
         close(fd);
         if (r != error::disconnected) res = r.failure();
@@ -98,7 +98,7 @@ filename::createfile(const void *c, bytecount s) const {
     ssize_t this_time;
     for (off = 0; off < s.b; off += (size_t)this_time) {
         this_time = ::write(fd, (const void *)((uintptr_t)c + off), s.b - off);
-        createfileloop.trigger(&this_time);
+        testhooks::filename::createfileloop.trigger(&this_time);
         if (this_time <= 0) {
             auto r(this_time == 0
                    ? error::truncated
@@ -264,7 +264,7 @@ filename::diriter::next() {
     int e(errno);
     errno = 0;
     auto de(::readdir(dir.success()));
-    diriterevt.trigger(&de);
+    testhooks::filename::diriterevt.trigger(&de);
     if (de == NULL) {
         closedir(dir.success());
         if (errno == 0) dir = NULL;
@@ -318,149 +318,3 @@ filename::field() const { return fields::mk(*this); }
 
 void
 filename::serialise(serialise1 &s) const { s.push(content); }
-
-/* Basic functionality tests.  A lot of these are more to make sure
-   that the behaviour doesn't change unexpectedly, rather than to
-   check that the current behaviour is actually desirable. */
-void
-tests::_filename() {
-    testcaseV("filename", "parser", [] {
-            parsers::roundtrip<filename>(); });
-    testcaseV("filename", "basics", [] {
-            filename foo("foo");
-            assert(foo + "bar" == filename("foo/bar"));
-            foo.unlink();
-            (foo + "bar").unlink();
-            foo.rmdir();
-            assert(foo.isfile() == false);
-            assert(!foo
-                   .createfile(fields::mk(5))
-                   .isfailure());
-            assert(foo.createfile(fields::mk(5)) == error::already);
-            assert(foo.isfile() == true);
-            assert(foo.readasstring() == string("5"));
-            assert(foo.size() == 1_B);
-            {   auto r(foo.read(0_B,1_B).fatal("read foo"));
-                assert(r.avail() == 1);
-                assert(r.offset() == 0);
-                assert(r.idx(0) == '5'); }
-            assert(foo.read(1_B,2_B) == error::disconnected);
-            assert(foo.createfile() == error::from_errno(EEXIST));
-            assert(filename("/dev/tty").readasstring() ==
-                   error::from_errno(ESPIPE));
-            assert(foo.unlink().issuccess());
-            assert(foo.unlink() == error::already);
-            assert(foo.createfile().issuccess());
-            assert(foo.createfile() == error::already);
-            assert(foo.mkdir() == error::from_errno(EEXIST));
-            assert(foo.unlink().issuccess());
-            assert(foo.isfile() == false);
-            assert(foo.mkdir().issuccess());
-            assert(foo.mkdir() == error::already);
-            assert(foo.isfile() == error::from_errno(EISDIR));
-            assert((foo + "bar").createfile().issuccess());
-            {   list<string> r;
-                for (filename::diriter it(foo); !it.finished(); it.next()) {
-                    r.pushtail(string(it.filename())); }
-                sort(r);
-                assert(r.length() == 3);
-                assert(r.idx(0) == ".");
-                assert(r.idx(1) == "..");
-                assert(r.idx(2) == "bar"); }
-            assert(foo.rmdir() == error::notempty);
-            assert((foo + "bar").unlink().issuccess());
-            assert(foo.rmdir().issuccess());
-        });
-    testcaseV("filename", "fifo", [] {
-            filename foo2("foo2");
-            foo2.unlink();
-            if(mknod("foo2",0600|S_IFIFO,0)<0)error::from_errno().fatal("foo2");
-            assert(foo2.isfile() == error::notafile);
-            assert(foo2.rmdir() == error::from_errno(ENOTDIR));
-            filename::diriter it(foo2);
-            assert(it.isfailure());
-            assert(it.failure() == error::from_errno(ENOTDIR));
-            assert(foo2.unlink().issuccess()); });
-    testcaseV("filename", "bigfile", [] {
-            filename foo3("foo3");
-            foo3.unlink();
-            assert(foo3.createfile(fields::mk("ABCD")).issuccess());
-            {   auto r(foo3.openappend(4_B).fatal("openappend"));
-                unsigned char buf[8192];
-                memset(buf, 'Z', 8192);
-                for (unsigned long x = 0; x < 10000000; x += sizeof(buf)) {
-                    assert(r.write(clientio::CLIENTIO, buf, sizeof(buf))
-                           == sizeof(buf)); }
-                r.close(); }
-            {   auto r(foo3.read(1_B, 5_B).fatal("readbig"));
-                assert(r.avail() == 4);
-                assert(r.offset() == 0);
-                assert(r.idx(0) == 'B');
-                assert(r.idx(1) == 'C');
-                assert(r.idx(2) == 'D');
-                assert(r.idx(3) == 'Z'); }
-            assert(foo3.readasstring() == error::overflowed);
-            assert(foo3.unlink().issuccess());
-            assert(foo3.createfile().issuccess());
-            {   auto r(foo3.openappend(0_B).fatal("openappend"));
-                assert(r.write(clientio::CLIENTIO, "AB\0CD", 5) == 5);
-                r.close(); }
-            assert(foo3.readasstring() == error::noparse);
-            assert(foo3.unlink().issuccess()); });
-    testcaseV("filename", "readempty", [] {
-            filename foo("foo");
-            foo.unlink();
-            foo.createfile(fields::mk("ABCD")).fatal("cannot make foo");
-            auto r(foo.read(2_B, 2_B)
-                   .fatal("empty read"));
-            assert(r.empty());
-            foo.unlink().fatal("unlinking foo"); });
-    testcaseV("filename", "rodir", [] {
-            filename dir("foo4");
-            dir.rmdir();
-            auto file(dir + "bar");
-            dir.mkdir().fatal("foo4");
-            if (chmod("foo4", 0) < 0) error::from_errno().fatal("chmod");
-            assert(file.createfile() == error::from_errno(EACCES));
-            assert(file.createfile(fields::mk(73)) ==
-                   error::from_errno(EACCES));
-            assert(file.isfile() == error::from_errno(EACCES));
-            assert(file.unlink() == error::from_errno(EACCES));
-            dir.rmdir().fatal("rm foo4"); });
-#if TESTING
-    testcaseV("filename", "errinject", [] {
-            {   eventwaiter<orerror<void> *> w(
-                    readasbufferloop, [] (orerror<void> *what) {
-                        *what = error::from_errno(ETXTBSY); });
-                filename foo("foo");
-                foo.unlink();
-                foo.createfile(fields::mk(7)).fatal("create foo");
-                assert(foo.readasstring() == error::from_errno(ETXTBSY));
-                foo.unlink().fatal("unlink foo"); }
-            {   eventwaiter<ssize_t *> w(
-                    createfileloop, [] (ssize_t *what) {
-                        filename("foo").unlink().fatal("badness");
-                        errno = ETXTBSY;
-                        *what = -1; });
-                filename foo("foo");
-                foo.unlink();
-                assert(foo.createfile(fields::mk(73)) ==
-                       error::from_errno(ETXTBSY)); }
-            {   filename f("foo");
-                f.mkdir().fatal("mkdir foo");
-                filename::diriter it(f);
-                assert(!it.isfailure());
-                eventwaiter<struct dirent **> w(
-                    diriterevt, [] (struct dirent **d) {
-                        errno = ETXTBSY;
-                        *d = NULL; });
-                assert(!it.isfailure());
-                it.next();
-                assert(it.isfailure());
-                assert(it.failure() == error::from_errno(ETXTBSY));
-                f.rmdir().fatal("removing foo"); } } );
-#endif
-    testcaseV("filename", "str", [] {
-            assert((filename("foo") + "bar").str() ==
-                   string("foo/bar")); });
-}

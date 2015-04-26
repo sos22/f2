@@ -144,8 +144,12 @@ public:  const fields::field &field() const;
 public:  void serialise(serialise1 &) const;
 public:  static const ::parser<filename> &parser(); };
 
-namespace tests {
-void _filename();
-}
+struct dirent;
+namespace tests { template <typename> class event; }
+namespace testhooks {
+namespace filename {
+extern tests::event<orerror<void> *> readasbufferloop;
+extern tests::event<ssize_t *> createfileloop;
+extern tests::event< ::dirent **> diriterevt; } }
 
 #endif /* !FILE_H__ */
