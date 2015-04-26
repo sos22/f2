@@ -30,9 +30,11 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    tests::logging();
-    tests::_map();
-    tests::_maybe();
+    /* Ones which are hard to convert to the new model: */
+    tests::logging(); /* tests .C-local class */
+    tests::_map(); /* Relies on test being friends with thing under test */
+    tests::_spawn(); /* More complicated dependency rules */
+
     tests::mutex();
     tests::_orerror();
     tests::_pair();
@@ -41,7 +43,6 @@ main(int argc, char *argv[])
     tests::_percentage();
     tests::pubsub();
     tests::_serialise();
-    tests::_spawn();
     tests::__storageconfig();
     tests::_string();
     tests::thread();
