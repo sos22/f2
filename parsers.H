@@ -134,10 +134,6 @@ namespace parsers {
 template <typename t> const parser<t> &defaultparser();
 template <> const parser<int> &defaultparser<int>(); }
 
-namespace tests {
-void parsers(void);
-}
-
 /* Test support */
 namespace parsers {
 template <typename t> void roundtrip(const parser<t> & = defaultparser<t>(),
