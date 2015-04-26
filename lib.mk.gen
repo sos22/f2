@@ -90,7 +90,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule lqueue lqueue.H lqueue.C
 testmodule map map.C map.H map.tmpl
 testmodule maybe maybe.C maybe.H maybe.tmpl
 testmodule mutex mutex.C mutex.H mutex.tmpl

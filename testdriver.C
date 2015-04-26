@@ -5,7 +5,6 @@
 #include "fields.H"
 #include "percentage.H"
 #include "logging.H"
-#include "lqueue.H"
 #include "map.H"
 #include "maybe.H"
 #include "mutex.H"
@@ -32,7 +31,6 @@ main(int argc, char *argv[])
     srandom((unsigned)now.tv_usec);
 
     tests::logging();
-    tests::_lqueue();
     tests::_map();
     tests::_maybe();
     tests::mutex();
