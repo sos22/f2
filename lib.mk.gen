@@ -91,7 +91,6 @@ buildconfig.d:
 EOF
 
 testmodule map map.C map.H map.tmpl
-testmodule mutex mutex.C mutex.H mutex.tmpl
 testmodule orerror orerror.H orerror.tmpl
 testmodule parsers parsers.C parsers.H parsers.tmpl
 testmodule peername peername.C peername.H
