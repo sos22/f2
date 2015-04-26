@@ -35,7 +35,6 @@ main(int argc, char *argv[])
     tests::_map(); /* Relies on test being friends with thing under test */
     tests::_spawn(); /* More complicated dependency rules */
 
-    tests::_peername();
     tests::_percentage();
     tests::pubsub();
     tests::_serialise();

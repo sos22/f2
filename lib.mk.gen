@@ -91,7 +91,6 @@ buildconfig.d:
 EOF
 
 testmodule map map.C map.H map.tmpl
-testmodule peername peername.C peername.H
 testmodule pubsub pubsub.C
 testmodule serialise serialise.C serialise.H serialise.tmpl
 testmodule spawn spawn.C spawn.H
