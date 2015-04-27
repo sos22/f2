@@ -1,4 +1,4 @@
-#include <arpa/inet.h>
+#include <netinet/in.h>
 
 #include "peername.H"
 #include "test2.H"
@@ -20,7 +20,7 @@ static testmodule __testpeername(
         auto p(peername::udpbroadcast(peername::port(97)));
         auto sin = (const struct sockaddr_in *)p.sockaddr();
         assert(p.sockaddrsize() == sizeof(*sin));
-        assert(sin->sin_port == htons(97));
+        assert(sin->sin_port == 97 << 8);
         assert(sin->sin_addr.s_addr == 0xffffffff); },
     "all", [] {
         auto p(peername::all(peername::port::any));
