@@ -23,5 +23,6 @@ tests/unit/modulelist: _does_not_exist_
 		mv tests/unit/modulelist.new tests/unit/modulelist;           \
 	fi )
 
-clean:: tests/unit/modulelist
+clean::
+	rm tests/unit/modulelist
 EOF
