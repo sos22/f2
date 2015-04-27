@@ -17,8 +17,12 @@ public:  class LineCoverage {
 public:  class BranchCoverage {
     public: percentage p;
     public: explicit BranchCoverage(percentage _p) : p(_p) {} };
+public:  class Dependency {
+    public: filename fn;
+    public: explicit Dependency(const filename &_fn) : fn(_fn) {} };
 private: string name;
 private: list<filename> files;
+private: list<filename> dependencies;
 private: LineCoverage linecoverage;
 private: BranchCoverage branchcoverage;
 private: map<string, std::function<void ()> > tests;
@@ -28,6 +32,9 @@ private: template <typename ... argsT> void applyinit(
     argsT &&...args);
 private: template <typename ... argsT> void applyinit(
     BranchCoverage,
+    argsT &&...args);
+private: template <typename ... argsT> void applyinit(
+    const Dependency &,
     argsT &&...args);
 private: template <typename ... argsT> void applyinit(
     const string &s, const std::function<void ()> &f,
@@ -42,6 +49,7 @@ public:  template <typename ... argsT> testmodule(
 public:  void listtests() const;
 public:  void printmodule() const;
 public:  void runtest(const string &name) const;
-public:  void runtests() const; };
+public:  void runtests() const;
+public:  void prepare() const; };
 
 #endif /* !TEST2_H__ */

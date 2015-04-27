@@ -28,6 +28,6 @@ public:
 
     static orerror<shutdowncode> parse(const char *);
     bool operator==(shutdowncode) const;
-};
+    bool operator!=(shutdowncode o) const { return !(*this == o); } };
 
 #endif /* !SHUTDOWN_H__ */

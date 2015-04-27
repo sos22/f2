@@ -22,6 +22,13 @@ testmodule::applyinit(
 
 template <typename ... argsT> void
 testmodule::applyinit(
+    const Dependency &c,
+    argsT &&...args) {
+    dependencies.append(c.fn);
+    applyinit(std::forward<argsT>(args)...); }
+
+template <typename ... argsT> void
+testmodule::applyinit(
     const string &s, const std::function<void ()> &f,
     argsT &&...args) {
     tests.set(s, f);

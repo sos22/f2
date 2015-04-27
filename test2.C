@@ -8,6 +8,7 @@
 #include "filename.H"
 #include "logging.H"
 #include "profile.H"
+#include "spawn.H"
 
 #include "list.tmpl"
 #include "map.tmpl"
@@ -77,6 +78,28 @@ testmodule::runtests() const {
     for (auto it(shuffled.start()); !it.finished(); it.next()) {
         runtest(*it); } }
 
+void
+testmodule::prepare() const {
+    if (dependencies.empty()) return;
+    initpubsub();
+    spawn::program p("/usr/bin/make");
+    for (auto it(dependencies.start()); !it.finished(); it.next()) {
+        p.addarg(it->str()); }
+    auto res(spawn::process::spawn(p)
+             .fatal("starting make")
+             ->join(clientio::CLIENTIO));
+    if (res.isright()) {
+        fprintf(stderr,
+                "make died with signal %s\n",
+                res.right().field().c_str());
+        exit(1); }
+    else if (res.left() != shutdowncode::ok) {
+        fprintf(stderr,
+                "make failed with code %s\n",
+                fields::mk(res.left()).c_str());
+        exit(1); }
+    deinitpubsub(clientio::CLIENTIO); }
+
 int
 main(int argc, char *argv[]) {
     struct timeval now;
@@ -108,7 +131,9 @@ main(int argc, char *argv[]) {
                  "cannot specify a specific test without "
                  "specifying a specific module"); }
         for (auto it(modules->start()); !it.finished(); it.next()) {
-            if (argc == 3) it.value()->runtests();
+            if (argc == 3) {
+                it.value()->prepare();
+                it.value()->runtests(); }
             else it.value()->listtests(); } }
     else {
         auto &module(*modules->get(argv[1])
@@ -117,6 +142,7 @@ main(int argc, char *argv[]) {
             if (stat) module.printmodule();
             else module.listtests(); }
         else if (argc == 3) {
+            module.prepare();
             if (strcmp(argv[2], "*")) module.runtest(argv[2]);
             else module.runtests(); }
         else errx(1, "too many arguments"); }

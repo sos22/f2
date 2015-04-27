@@ -9,6 +9,7 @@
 #include "pubsub.H"
 #include "shutdown.H"
 
+namespace fields { class field; }
 
 namespace spawn {
 
@@ -49,7 +50,7 @@ public:  bool operator==(signalnr o) const { return snr == o.snr; }
      * itself (e.g. SIGABRT, SIGSEGV) or was sent from something else
      * (e.g. SIGKILL, SIGTERM). */
 public:  bool internallygenerated() const;
-};
+public:  const fields::field &field() const; };
 
 class process {
     friend class subscription;

@@ -28,6 +28,9 @@ signalnr::stop(SIGSTOP);
 const signalnr
 signalnr::term(SIGTERM);
 
+const fields::field &
+signalnr::field() const { return "sig" + fields::mk(snr); }
+
 bool
 signalnr::internallygenerated() const {
     return snr == SIGILL ||
