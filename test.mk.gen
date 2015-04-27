@@ -3,8 +3,7 @@
 . shutil
 
 declare -a tests
-tests=(testdriver.C
-     testmap.C)
+tests=(testdriver.C)
 declare -a objs
 for x in ${tests[@]}
 do

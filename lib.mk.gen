@@ -91,7 +91,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule map map.C map.H map.tmpl
 testmodule spawn spawn.C spawn.H
 
 cat <<EOF
