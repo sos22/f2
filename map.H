@@ -33,8 +33,11 @@ template <> unsigned long default_hashfn<char *>(char *const &);
 
 template <typename _key,
           typename _value,
+          unsigned long hash(const _key &) = default_hashfn> class testmap;
+template <typename _key,
+          typename _value,
           unsigned long hash(const _key &) = default_hashfn> class map {
-    friend void tests::_map();
+    friend class testmap<_key, _value, hash>;
     template <typename k, typename, unsigned long h(const k &)>
         friend class map;
 private: class entry {

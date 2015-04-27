@@ -54,6 +54,7 @@ function bits() {
     _ socket
     _ spark
     _ spawn
+    _ steal
     _ storage
     _ storageconfig
     _ storageagent

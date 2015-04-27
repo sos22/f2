@@ -8,10 +8,23 @@
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 
+template <typename _k, typename _v, unsigned long _h(const _k &)>
+class testmap : public map<_k, _v, _h> {
+public: typedef map<_k, _v, _h> base;
+public: typedef testmap<_k, _v, _h> thisT;
+public: template <typename ... args> testmap(args &&... params)
+    : base(std::forward<args>(params)...) { }
+public: unsigned &nrbuckets() { return base::nrbuckets; }
+public: unsigned &nritems() { return base::nritems; }
+public: static bool isprime(unsigned x) { return base::isprime(x); }
+public: static unsigned nextsize(unsigned x) { return base::nextsize(x); }
+public: static unsigned prevsize(unsigned x) { return base::prevsize(x); }
+public: void rehash(unsigned x) { base::rehash(x); } };
+
 void
 tests::_map() {
     testcaseV("map", "basics", [] {
-            map<int, string> m;
+            testmap<int, string> m;
             assert(m.get(5) == Nothing);
             m.set(5, "hello");
             assert(m.get(5) == "hello");
@@ -23,7 +36,7 @@ tests::_map() {
             m.set(6, "dead");
             assert(m.get(6) == "dead");
             assert(m.get(5) == "hello");
-            map<int, string> m2(m);
+            testmap<int, string> m2(m);
             assert(m.get(5) == "hello");
             assert(m.get(6) == "dead");
             assert(m2.get(5) == "hello");
@@ -33,13 +46,13 @@ tests::_map() {
             assert(m.get(6) == "dead");
             assert(m2.get(5) == Nothing);
             assert(m2.get(6) == "dead");
-            map<int, string> m3(Steal, m);
+            testmap<int, string> m3(Steal, m);
             assert(m.get(5) == Nothing);
             assert(m.get(6) == Nothing);
             assert(m3.get(5) == "hello");
             assert(m3.get(6) == "dead"); });
     testcaseV("map", "isprime", [] {
-            typedef map<int, int> iT;
+            typedef testmap<int, int> iT;
             /* Exhaustive for small numbers */
             assert(!iT::isprime(0));
             assert(!iT::isprime(1));
@@ -67,7 +80,7 @@ tests::_map() {
             assert(iT::isprime(1003061837));
             assert(!iT::isprime(1003061838)); });
     testcaseV("map", "nextsize", [] {
-            typedef map<int, int> iT;
+            typedef testmap<int, int> iT;
             unsigned c = 0;
             for (unsigned x = 0; x < 9; x++) {
                 unsigned n = iT::nextsize(c);
@@ -81,7 +94,7 @@ tests::_map() {
     testcaseV("map", "collisions", [] {
             /* Engineer a lot of collisions in a small table (because
              * we know the hash function). */
-            map<int, int> m;
+            testmap<int, int> m;
             for (unsigned x = 1; x < 5; x++) {
                 m.set(x * 7, x * 3);
                 for (unsigned y = 1; y <= x; y++) {
@@ -95,27 +108,27 @@ tests::_map() {
             /* Insert a load of entries in the table, so that it
              * grows, and then take them back out again, so that it
              * shrinks. */
-            map<int, long> m;
+            testmap<int, long> m;
             for (unsigned x = 0; x < 1000000; x++) {
                 assert(m.get(x) == Nothing);
                 m.set(x, x+1);
                 assert(m.get(x) == x+1);
-                assert(m.nritems == x+1);
-                assert(m.nrbuckets >= x / 10);
-                assert(m.nrbuckets <= x * 10 + 10); }
+                assert(m.nritems() == x+1);
+                assert(m.nrbuckets() >= x / 10);
+                assert(m.nrbuckets() <= x * 10 + 10); }
             for (unsigned x = 0; x < 1000000; x++) {
                 m.clear(x);
                 assert(m.get(x) == Nothing);
-                assert(m.nritems == 999999 - x);
-                assert(m.nrbuckets >= m.nritems / 10);
-                assert(m.nrbuckets <= m.nritems * 10 + 10); } });
+                assert(m.nritems() == 999999 - x);
+                assert(m.nrbuckets() >= m.nritems() / 10);
+                assert(m.nrbuckets() <= m.nritems() * 10 + 10); } });
     testcaseV("map", "immediate", [] {
-            map<int, int> m(5,6, 10,11);
+            testmap<int, int> m(5,6, 10,11);
             assert(m.get(5) == 6);
             assert(m.get(10) == 11);
             assert(m.get(11) == Nothing); });
     testcaseV("map", "==", [] {
-            typedef map<int, int> T;
+            typedef testmap<int, int> T;
             assert(T() == T());
             assert(T() != T(1,2));
             assert(T(1,2) == T(1,2));
@@ -134,7 +147,7 @@ tests::_map() {
                 do { k = (int)random(); } while (m1.get(k) != Nothing);
                 m1.set(k, (int)random()); }
             T m2(m1);
-            assert(m2.nrbuckets != 23);
+            assert(m2.nrbuckets() != 23);
             m2.rehash(23);
             assert(m1 == m2);
             m2.set(53, m2.get(53).dflt(5)+3);
@@ -144,7 +157,7 @@ tests::_map() {
                    default_hashfn(string("goodbye")));
             assert(default_hashfn(string("hello")) ==
                    default_hashfn(string("hello")));
-            map<string, string> m("hello", "bob",
+            testmap<string, string> m("hello", "bob",
                                   "goodbye", "bob",
                                   "greetings", "charlie");
             assert(m.get("hello") == "bob");
@@ -154,7 +167,7 @@ tests::_map() {
             assert(m == (map<string, string>("goodbye", "bob",
                                              "greetings", "charlie"))); });
     testcaseV("map", "iterator", [] {
-            map<int, int> m(5, 7, 1, 2, 3, 4);
+            testmap<int, int> m(5, 7, 1, 2, 3, 4);
             bool a(false);
             bool b(false);
             bool c(false);
@@ -177,7 +190,7 @@ tests::_map() {
             assert(c); });
     testcaseV("map", "intperf", [] {
             static const unsigned nr = 10'000'000;
-            auto m = new map<int, int>();
+            auto m = new testmap<int, int>();
             auto build(timedelta::time([m] {
                         for (unsigned x = 0; x < nr; x++) {
                             m->set(x * 1000117, x); } }));
@@ -205,7 +218,7 @@ tests::_map() {
                 fields::mk(build+scan1+scan2+scan3+scan4+destroy).c_str()); });
     testcaseV("map", "field", [] {
 #define tst(expected, ...)                                              \
-            {   auto r = map<int, int>(__VA_ARGS__).field().c_str();    \
+            {   auto r = testmap<int, int>(__VA_ARGS__).field().c_str();    \
                 if (strcmp(expected, r)) {                              \
                     fprintf(stderr, "wanted %s, got %s\n",              \
                             expected,                                   \
@@ -215,15 +228,15 @@ tests::_map() {
             tst("{1=>2}", 1, 2);
             tst("{1=>2;3=>4}", 1, 2, 3, 4);
 #undef tst
-            assert(!strcmp("{}", map<string, int>().field().c_str()));
+            assert(!strcmp("{}", testmap<string, int>().field().c_str()));
             assert(!strcmp("{foo=>3}",
-                           map<string, int>("foo", 3).field().c_str()));
+                           testmap<string, int>("foo", 3).field().c_str()));
             assert(!strcmp("{\"}\"=>3}",
-                           map<string, int>("}", 3).field().c_str()));
+                           testmap<string, int>("}", 3).field().c_str()));
             assert(!strcmp("{\"\\\"\"=>3}",
-                           map<string, int>("\"", 3).field().c_str()));
+                           testmap<string, int>("\"", 3).field().c_str()));
             assert(!strcmp("{\"\\\"\"=>\"->\"}",
-                           map<string, string>("\"", "->").field().c_str()));});
+                           testmap<string, string>("\"", "->").field().c_str()));});
     testcaseV("map", "parser", [] {
             parsers::roundtrip<map<int, int> >();
             parsers::roundtrip<map<string, string> >(); });
@@ -232,15 +245,15 @@ tests::_map() {
             /* The random map generator is expensive enough that we
              * can't just accept the usual 1000 iterations (especially
              * when it's full of strings). */
-            serialise<map<int, int> >(q, 100);
-            serialise<map<string, int> >(q, 10); });
+            serialise<testmap<int, int> >(q, 100);
+            serialise<testmap<string, int> >(q, 10); });
     testcaseV("map", "quickcheck", [] {
             unsigned nrempty(0);
             unsigned zerokey(0);
             quickcheck q;
             for (unsigned x = 0; x < 10000; x++) {
-                map<int, int> m(q);
-                if (m.nritems == 0) nrempty++;
+                testmap<int, int> m(q);
+                if (m.nritems() == 0) nrempty++;
                 if (m.get(0) != Nothing) zerokey++; }
             assert(nrempty != 0);
             assert(nrempty < 1200);
