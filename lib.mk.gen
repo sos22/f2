@@ -91,13 +91,6 @@ buildconfig.d:
 	@true
 EOF
 
-testmodule spawn spawn.C spawn.H
-
-cat <<EOF
-spawn-cov-report: tests/abort/abort
-spawn-cov-report: spawnservice-c
-EOF
-
 # Things which would benefit from unit tests:
 #
 # logging

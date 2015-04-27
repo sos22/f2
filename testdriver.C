@@ -32,7 +32,6 @@ main(int argc, char *argv[])
 
     /* Ones which are hard to convert to the new model: */
     tests::logging(); /* tests .C-local class */
-    tests::_spawn(); /* More complicated dependency rules */
 
     signal(SIGPIPE, SIG_IGN);
 
