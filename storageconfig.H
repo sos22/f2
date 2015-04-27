@@ -18,7 +18,4 @@ namespace parsers {
 const parser<storageconfig> &__storageconfig();
 }
 
-namespace tests {
-void __storageconfig(); }
-
 #endif /* !STORAGECONFIG_H__ */

@@ -1,8 +1,6 @@
 #include "storageconfig.H"
 
-#include "fields.H"
 #include "parsers.H"
-#include "test.H"
 
 #include "parsers.tmpl"
 
@@ -20,8 +18,3 @@ parsers::__storageconfig() {
             return storageconfig(
                 x.first().dflt(filename("storagepool")),
                 x.second()); }); }
-
-void
-tests::__storageconfig() {
-    testcaseV("storageconfig", "parsers", [] {
-            parsers::roundtrip(parsers::__storageconfig()); }); }
