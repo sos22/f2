@@ -92,7 +92,6 @@ EOF
 
 testmodule map map.C map.H map.tmpl
 testmodule spawn spawn.C spawn.H
-testmodule thread thread.C thread.tmpl thread.H
 testmodule timedelta timedelta.C timedelta.H
 testmodule walltime walltime.C
 

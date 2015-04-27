@@ -35,7 +35,6 @@ main(int argc, char *argv[])
     tests::_map(); /* Relies on test being friends with thing under test */
     tests::_spawn(); /* More complicated dependency rules */
 
-    tests::thread();
     tests::_timedelta();
     tests::_walltime();
 
