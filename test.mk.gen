@@ -5,7 +5,6 @@
 declare -a tests
 tests=(testdriver.C
      testmap.C
-     testserialise.C
      teststring.C)
 declare -a objs
 for x in ${tests[@]}
