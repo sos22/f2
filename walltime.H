@@ -31,6 +31,7 @@ class walltime {
 private: long v; /* nanoseconds since epoch */
 private: walltime() = delete;
 private: explicit walltime(long _v) : v(_v) {}
+public:  static walltime __testmk(long v) { return walltime(v); }
 public:  walltime(quickcheck);
 public:  bool operator==(walltime) const;
 public:  static walltime now();

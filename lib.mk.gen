@@ -92,7 +92,6 @@ EOF
 
 testmodule map map.C map.H map.tmpl
 testmodule spawn spawn.C spawn.H
-testmodule walltime walltime.C
 
 cat <<EOF
 spawn-cov-report: tests/abort/abort

@@ -35,8 +35,6 @@ main(int argc, char *argv[])
     tests::_map(); /* Relies on test being friends with thing under test */
     tests::_spawn(); /* More complicated dependency rules */
 
-    tests::_walltime();
-
     signal(SIGPIPE, SIG_IGN);
 
     while (argc > 1) {
