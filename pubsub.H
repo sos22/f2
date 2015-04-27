@@ -182,8 +182,6 @@ void deinitpubsub(clientio);
 
 namespace tests {
 template <typename> class event;
-extern event<void> iosubdetachrace;
-void pubsub();
-}
+extern event<void> iosubdetachrace; }
 
 #endif /* !PUBSUB_H__ */
