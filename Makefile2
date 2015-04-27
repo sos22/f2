@@ -7,7 +7,6 @@ all: realall
 include binaries.mk
 include lib.mk
 include spawnservice.mk
-include test.mk
 include test2.mk
 include testjob.mk
 include tests.mk

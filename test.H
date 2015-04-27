@@ -120,25 +120,6 @@ public:  ~hookpoint();
      * I could figure out how to make hookpoint<void> friends with all
      * the other varieties of hookpoint. */
 public:  void set(hook<void, args...> *);
-public:  void wait(); };
-
-
-/* Different test cases need different arguments, and for some reason
-   overloading doesn't work properly with lambdas, so have a bunch of
-   different functions for registering cases. */
-void testcaseV(
-    const char *component,
-    const char *test,
-    std::function<void ()> doit);
-void testcaseIO(
-    const char *component,
-    const char *test,
-    std::function<void (clientio)> doit);
-
-void listcomponents();
-void listtests(const char *component);
-void runtest(const char *component, const char *test);
-
-}
+public:  void wait(); }; }
 
 #endif
