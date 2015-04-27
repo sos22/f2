@@ -361,56 +361,55 @@ fields::mk(const memlog_entry &e) {
 
 void
 tests::logging() {
-    testcaseV("logging", "memlog", [] () {
-            memlog_sink ms;
-            ms.msg("Hello");
-            ms.msg("World");
-            ms.msg("Goodbye");
-            {   list<memlog_entry> l;
-                auto truncat(ms.fetch(memlog_idx::min, 0, l));
-                assert(l.empty());
-                assert(truncat.isjust());
-                assert(truncat.just() == memlog_idx::min); }
-            {   list<memlog_entry> l;
-                auto truncat(ms.fetch(memlog_idx::min, 999, l));
-                assert(l.length() == 3);
-                assert(truncat == Nothing);
-                unsigned long idx = 0;
-                for (auto it(l.start()); !it.finished(); it.next()) {
-                    assert(it->idx.as_long() == idx + memlog_idx::min.as_long());
-                    switch (idx) {
-                    case 0:
-                        assert(!strcmp(it->msg, "Hello"));
-                        break;
-                    case 1:
-                        assert(!strcmp(it->msg, "World"));
-                        break;
-                    case 2:
-                        assert(!strcmp(it->msg, "Goodbye"));
-                        break;
-                    default:
-                        abort();
-                    }
-                    idx++; } }
-            {   list<memlog_entry> l;
-                auto truncat1(ms.fetch(memlog_idx::min, 1, l));
-                assert(l.length() == 1);
-                assert(truncat1.isjust());
-                assert(l.peekhead().idx == memlog_idx::min);
-                assert(!strcmp(l.peekhead().msg, "Hello"));
-                l.flush();
-                auto truncat2(ms.fetch(truncat1.just(), 1, l));
-                assert(l.length() == 1);
-                assert(truncat2.isjust());
-                assert(l.peekhead().idx == truncat1.just());
-                assert(!strcmp(l.peekhead().msg, "World"));
-                l.flush();
-                auto truncat3(ms.fetch(truncat2.just(), 1, l));
-                assert(l.length() == 1);
-                assert(truncat3 == Nothing);
-                assert(l.peekhead().idx == truncat2.just());
-                assert(!strcmp(l.peekhead().msg, "Goodbye")); }
-            ms.flush(); }); }
+    memlog_sink ms;
+    ms.msg("Hello");
+    ms.msg("World");
+    ms.msg("Goodbye");
+    {   list<memlog_entry> l;
+        auto truncat(ms.fetch(memlog_idx::min, 0, l));
+        assert(l.empty());
+        assert(truncat.isjust());
+        assert(truncat.just() == memlog_idx::min); }
+    {   list<memlog_entry> l;
+        auto truncat(ms.fetch(memlog_idx::min, 999, l));
+        assert(l.length() == 3);
+        assert(truncat == Nothing);
+        unsigned long idx = 0;
+        for (auto it(l.start()); !it.finished(); it.next()) {
+            assert(it->idx.as_long() == idx + memlog_idx::min.as_long());
+            switch (idx) {
+            case 0:
+                assert(!strcmp(it->msg, "Hello"));
+                break;
+            case 1:
+                assert(!strcmp(it->msg, "World"));
+                break;
+            case 2:
+                assert(!strcmp(it->msg, "Goodbye"));
+                break;
+            default:
+                abort();
+            }
+            idx++; } }
+    {   list<memlog_entry> l;
+        auto truncat1(ms.fetch(memlog_idx::min, 1, l));
+        assert(l.length() == 1);
+        assert(truncat1.isjust());
+        assert(l.peekhead().idx == memlog_idx::min);
+        assert(!strcmp(l.peekhead().msg, "Hello"));
+        l.flush();
+        auto truncat2(ms.fetch(truncat1.just(), 1, l));
+        assert(l.length() == 1);
+        assert(truncat2.isjust());
+        assert(l.peekhead().idx == truncat1.just());
+        assert(!strcmp(l.peekhead().msg, "World"));
+        l.flush();
+        auto truncat3(ms.fetch(truncat2.just(), 1, l));
+        assert(l.length() == 1);
+        assert(truncat3 == Nothing);
+        assert(l.peekhead().idx == truncat2.just());
+        assert(!strcmp(l.peekhead().msg, "Goodbye")); }
+    ms.flush(); }
 
 namespace tests {
 event<loglevel> logmsg;

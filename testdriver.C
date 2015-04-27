@@ -30,9 +30,6 @@ main(int argc, char *argv[])
     printf("Seed: %lx\n", now.tv_usec);
     srandom((unsigned)now.tv_usec);
 
-    /* Ones which are hard to convert to the new model: */
-    tests::logging(); /* tests .C-local class */
-
     signal(SIGPIPE, SIG_IGN);
 
     while (argc > 1) {

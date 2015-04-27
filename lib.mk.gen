@@ -90,22 +90,3 @@ cat << EOF
 buildconfig.d:
 	@true
 EOF
-
-# Things which would benefit from unit tests:
-#
-# logging
-# mastersecret
-# nonce
-# orerror
-# pair
-# agentname
-# socket
-# spark
-# streamname
-# streamstatus
-# string
-# tcpsocket
-# tid
-# timestamp
-# udpsocket
-# waitbox
