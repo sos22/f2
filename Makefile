@@ -8,10 +8,13 @@ realall: all
 	@$(MAKE) -r -R -f Makefile2 $@
 
 clean:
-	rm -f buildconfig.C
+	rm -f buildconfig.C config
 	make -r -R -f Makefile2 clean
 
-buildconfig.C:
+config: config.gen
+	@./$< $@ > $@.tmp && mv -f $@.tmp $@
+
+buildconfig.C: config
 	@./buildconfig.sh > buildconfig.C.tmp;\
 	if diff -q buildconfig.C.tmp buildconfig.C 2>/dev/null;\
 	then\
