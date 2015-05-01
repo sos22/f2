@@ -85,8 +85,3 @@ do
 done
 
 ar lib.a $(bits .o)
-
-cat << EOF
-buildconfig.d:
-	@true
-EOF
