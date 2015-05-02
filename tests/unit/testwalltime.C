@@ -7,7 +7,7 @@
 
 static testmodule __testwalltime(
     "walltime",
-    list<filename>::mk("walltime.C"),
+    list<filename>::mk("walltime.C", "walltime.H"),
     testmodule::BranchCoverage(70_pc),
     "granularity", [] (clientio io) {
         auto last(walltime::now());

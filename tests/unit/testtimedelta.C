@@ -8,7 +8,7 @@
 
 static testmodule __testtimedelta(
     "timedelta",
-    list<filename>::mk("timedelta.C", "timedelta.H"),
+    list<filename>::mk("timedelta.C", "timedelta.H", "timedelta.tmpl"),
     testmodule::LineCoverage(85_pc),
     testmodule::BranchCoverage(65_pc),
     "parsers", [] { parsers::roundtrip(parsers::_timedelta()); },
