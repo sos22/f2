@@ -9,8 +9,28 @@ outdir=$1
 mkdir ${outdir}
 trap "rm -rf ${outdir}" EXIT
 
+# summary1 has one line for every individual test.  The first field of
+# the line is a sort key and the rest is the message itself.
+
+# Defined sort keys:
+#
+# 2 -- test passed
+# 1 -- coverage failure
+# 0 -- test really failed
+
+function pass() {
+    printf "2 %-20s pass\n" $1 >> ${summary}
+}
+function coverage() {
+    printf "1 %-20s coverage\n" $1 >> ${summary}
+}
+function fail() {
+    printf "1 %-20s fail\n" $1 >> ${summary}
+}
+
 summary=${outdir}/summary1
 : > ${summary}
+# Run the unit tests.
 ./test2-c |
     sed 's/^Module: \(.*\)/\1/p;d' |
     while read modname
@@ -19,14 +39,52 @@ summary=${outdir}/summary1
         then
             if ./checkcoverage.sh ${outdir}/${modname}
             then
-                printf "2 %-20s pass\n" ${modname} >> ${summary}
+                pass ${modname}
             else
-                printf "1 %-20s coverage\n" ${modname} >> ${summary}
+                coverage ${modname}
             fi
         else
-            printf "0 %-20s fail\n" ${modname} >> ${summary}
+            fail ${modname}
         fi
     done
+
+# And some checks that the list of covered files is reasonable.
+coveredfiles=${outdir}/coveredfiles
+./test2-c | grep File: | sed 's/ *File: *//' | sort > ${coveredfiles}
+
+# No file should be tested by more than one module
+dupecoverage=pass
+if < ${coveredfiles} uniq -c | grep -vq '^ *1 '
+then
+    echo 'Some files present in multiple test modules:'
+    < ${coveredfiles} uniq -c | grep -v '^ *1 ' | sort -n
+    dupecoverage=fail
+fi
+${dupecoverage} dupecoverage
+
+# Every test covered by a test module should actually exist
+testmissing=pass
+for coveredfile in `cat ${coveredfiles}`
+do
+    if ! [ -e $coveredfile ]
+    then
+        echo $coveredfile has a test module but does not exist?
+        testmissing=fail
+    fi
+done
+$testmissing testmissing
+
+# Every source file should be covered by a test module
+allcovered=pass
+for x in *.C *.H *.tmpl
+do
+    if ! grep -q $x $coveredfiles
+    then
+        echo "No test for $x"
+        allcovered=coverage
+    fi
+done
+${allcovered} allcovered
 
 sort -n ${summary} |
     sed 's/^[012] //' > ${outdir}/summary
