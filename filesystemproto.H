@@ -1,7 +1,7 @@
 #ifndef FILESYSTEMPROTO_H__
 #define FILESYSTEMPROTO_H__
 
-#include "proto.H"
+#include "proto2.H"
 
 namespace proto {
 namespace filesystem {

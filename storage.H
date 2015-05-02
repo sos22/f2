@@ -5,7 +5,7 @@
 #include "jobname.H"
 #include "list.H"
 #include "maybe.H"
-#include "proto.H"
+#include "proto2.H"
 #include "streamname.H"
 #include "streamstatus.H"
 

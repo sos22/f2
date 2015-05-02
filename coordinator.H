@@ -1,7 +1,7 @@
 #ifndef COORDINATOR_H__
 #define COORDINATOR_H__
 
-#include "proto.H"
+#include "proto2.H"
 
 class serialise1;
 class deserialise1;

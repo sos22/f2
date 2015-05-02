@@ -8,7 +8,7 @@
 #include "maybe.H"
 #include "orerror.H"
 #include "pair.H"
-#include "proto.H"
+#include "proto2.H"
 
 class deserialise1;
 namespace fields { class field; }

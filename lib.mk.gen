@@ -43,7 +43,6 @@ function bits() {
     _ peername
     _ percentage
     _ profile
-    _ proto
     _ proto2
     _ pubsub
     _ quickcheck

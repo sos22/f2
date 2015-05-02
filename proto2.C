@@ -21,6 +21,11 @@ const fields::field &
 proto::sequencenr::field() const {
     return "<seq:" + fields::mk(val) + ">"; }
 
+proto::tag::tag(deserialise1 &ds) : d(ds) {}
+
+void
+proto::tag::serialise(serialise1 &s) const { s.push(d); }
+
 proto::reqheader::reqheader(unsigned _size,
                             version _vers,
                             interfacetype _type,

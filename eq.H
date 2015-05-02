@@ -3,7 +3,7 @@
 #ifndef EQ_H__
 #define EQ_H__
 
-#include "proto.H"
+#include "proto2.H"
 
 class deserialise1;
 template <typename> class parser;
