@@ -93,7 +93,12 @@ eqtestcase(clientio io,
 
 static testmodule __testeq(
     "eq",
-    list<filename>::mk("eqclient.C", "eqclient.H", "eqserver.C", "eqserver.H"),
+    list<filename>::mk("eq.C",
+                       "eq.H",
+                       "eqclient.C",
+                       "eqclient.H",
+                       "eqserver.C",
+                       "eqserver.H"),
     testmodule::BranchCoverage(75_pc),
     testmodule::LineCoverage(94_pc),
     "basic", [] (clientio io) {
