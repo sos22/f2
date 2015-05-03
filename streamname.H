@@ -7,24 +7,12 @@
 #include "string.H"
 
 class deserialise1;
-class serialise1;
-class streamname;
-
+namespace fields { class field; }
 template <typename> class maybe;
 template <typename> class parser;
-
-namespace fields {
-class field;
-const field &mk(const streamname &);
-}
-
-namespace wireproto {
-class tx_message;
-}
+class serialise1;
 
 class streamname {
-    friend const fields::field &fields::mk(const streamname &);
-    friend class wireproto::tx_message;
 private: string content;
 private: explicit streamname(const string &);
 private: bool isvalid() const;
@@ -39,6 +27,11 @@ public:  bool operator!=(const streamname &o) const {return content!=o.content;}
 public:  bool operator>=(const streamname &o) const {return content>=o.content;}
 public:  bool operator>(const streamname &o) const { return content >o.content;}
 public:  static const ::parser<streamname> &parser();
-public:  unsigned long hash() const; };
+public:  unsigned long hash() const;
+public:  const fields::field &field() const; };
+
+namespace fields {
+static inline const field &
+mk(const streamname &s) { return s.field(); } }
 
 #endif /* !STREAMNAME_H__ */

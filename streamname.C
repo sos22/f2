@@ -1,24 +1,12 @@
 #include "streamname.H"
 
-#include "either.H"
 #include "fields.H"
 #include "parsers.H"
 #include "serialise.H"
 
 #include "parsers.tmpl"
 
-const fields::field &
-fields::mk(const streamname &s) {
-    return "<stream:" + mk(s.content) + ">"; }
-
-streamname::streamname(const string &o)
-    : content(o) {}
-
-maybe<streamname>
-streamname::mk(const string &s) {
-    streamname res(s);
-    if (!res.isvalid()) return Nothing;
-    else return res; }
+streamname::streamname(const string &o) : content(o) {}
 
 bool
 streamname::isvalid() const {
@@ -29,9 +17,14 @@ streamname::isvalid() const {
         if (!isprint(c[x]) || c[x] == '/') return false; }
     return true; }
 
+maybe<streamname>
+streamname::mk(const string &s) {
+    streamname res(s);
+    if (!res.isvalid()) return Nothing;
+    else return res; }
+
 string
-streamname::asfilename() const {
-    return content; }
+streamname::asfilename() const { return content; }
 
 streamname::streamname(deserialise1 &ds)
     : content(ds) {
@@ -54,3 +47,6 @@ streamname::parser() {
 
 unsigned long
 streamname::hash() const { return content.hash(); }
+
+const fields::field &
+streamname::field() const { return "<stream:" + content.field() + ">"; }
