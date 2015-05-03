@@ -17,7 +17,7 @@ static testmodule __testfilename(
     "filename",
     list<filename>::mk("filename.C", "filename.H"),
     testmodule::LineCoverage(75_pc),
-    testmodule::BranchCoverage(60_pc),
+    testmodule::BranchCoverage(50_pc),
     "parser", [] { parsers::roundtrip<filename>(); },
     "basics", [] {
         filename foo("foo");
@@ -153,4 +153,20 @@ static testmodule __testfilename(
             f.rmdir().fatal("removing foo"); } },
 #endif
     "str", [] {
-        assert((filename("foo") + "bar").str() == string("foo/bar")); });
+        assert((filename("foo") + "bar").str() == string("foo/bar")); },
+    "mktemp", [] {
+        /* Should be able to create a few hundred temporary files
+         * without any collisions. */
+        list<filename> created;
+        quickcheck q;
+        for (unsigned x = 0; x < 200; x++) {
+            auto f(filename::mktemp(q).fatal("creating temp " + fields::mk(x)));
+            assert(!f.isdir().fatal("isdir"));
+            assert(!f.isfile().fatal("isdir"));
+            if ((bool)q) f.createfile().fatal("createfile");
+            else f.mkdir().fatal("mkdir");
+            created.append(f); }
+        for (auto it(created.start()); !it.finished(); it.next()) {
+            auto e(it->rmdir());
+            if (e == error::from_errno(ENOTDIR)) e = it->unlink();
+            e.fatal("removing " + it->field()); } });

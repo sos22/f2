@@ -57,8 +57,7 @@ static testmodule __teststorageservice(
                == shutdowncode(1)); },
     "unformatted", [] (clientio io) {
         quickcheck q;
-        filename f(q);
-        while (f.isfile().fatal("f") || f.isdir().fatal("g")) f = q;
+        auto f(filename::mktemp(q).fatal("mktemp"));
         f.mkdir().fatal("making " + f.field());
         assert(spawn::process::spawn(
                    spawn::program(storageservice)
@@ -78,8 +77,7 @@ static testmodule __teststorageservice(
         quickcheck q;
         clustername cn(q);
         agentname an(q);
-        filename f(q);
-        while (f.isfile().fatal("f") || f.isdir().fatal("g")) f = q;
+        auto f(filename::mktemp(q).fatal("mktemp"));
         assert(spawn::process::spawn(spawn::program(storagefmt).addarg(f.str()))
                .fatal("starting spawnfmt")
                ->join(io)

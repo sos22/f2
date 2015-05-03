@@ -326,6 +326,19 @@ filename::unlink() const {
     else if (errno == ENOENT) return error::already;
     else return error::from_errno(); }
 
+orerror<filename>
+filename::mktemp(quickcheck q) {
+    orerror<filename> res(Success, q);
+    while (true) {
+        auto e(res.success().isfile());
+        if (e.issuccess()) { if (e.success() == false) break; }
+        else {
+            if (e != error::notafile && e != error::from_errno(EISDIR)) {
+                res = e.failure();
+                break; } }
+        res = q; }
+    return res; }
+
 const parser<filename> &
 filename::parser() {
     return ("<filename:" + string::parser() + ">")
