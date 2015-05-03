@@ -4,6 +4,14 @@
 #include "serialise.H"
 
 template <typename t> void
+orerror<t>::operator=(const t &w) {
+    if (errored) {
+        err.~error();
+        new (&inner) t(w);
+        errored = false; }
+    else inner = w; }
+
+template <typename t> void
 orerror<t>::serialise(serialise1 &s) const {
     s.push(errored);
     if (errored) s.push(err);

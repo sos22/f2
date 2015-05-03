@@ -17,6 +17,7 @@
 #include "test.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
 

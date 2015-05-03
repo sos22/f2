@@ -1,13 +1,14 @@
 #include "orerror.H"
 #include "test2.H"
 
+#include "orerror.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testorerror(
     "orerror",
     list<filename>::mk("orerror.H", "orerror.tmpl"),
     /* A test with lousy coverage is still better than no test at all... */
-    testmodule::LineCoverage(20_pc),
+    testmodule::LineCoverage(25_pc),
     testmodule::BranchCoverage(0.1_pc),
     "constructsucc", [] {
         class cons {
@@ -35,4 +36,15 @@ static testmodule __testorerror(
         {   orerror<noeq> base(Success);
             assert(base.issuccess());
             base = error::range;
-            assert(base == error::range); } });
+            assert(base == error::range); } },
+    "=", [] {
+        /* Should be able to convert a failure into a success with
+         * operator = */
+        orerror<int> x(error::already);
+        assert(x == error::already);
+        x = 5;
+        assert(x == 5);
+        x = 7;
+        assert(x == 7);
+        x = error::notempty;
+        assert(x == error::notempty); });

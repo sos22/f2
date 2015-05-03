@@ -56,6 +56,7 @@ public:
             inner.~t();
             errored = true;
             new (&err) error(e); } }
+    void operator=(const t &w);
     ~orerror() {
         if (errored) err.~error();
         else inner.~t(); }
