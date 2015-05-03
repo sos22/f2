@@ -24,6 +24,11 @@ clean::
 %: %.gen config
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 
+# Specialise the .gen rule for config so that it doesn't induce a
+# circular dependency.
+config: config.gen
+	@./$< $@ > $@.tmp && mv -f $@.tmp $@
+
 # Special target which is sometimes useful for forcing something to
 # get rebuilt every time.  Mostly useful for makefile fragments,
 # because if one of them is a direct dependency of .PHONY then you get
