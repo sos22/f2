@@ -32,6 +32,8 @@ public:  job(
     const map<streamname, inputsrc> &_inputs,
     const list<streamname> &_outputs);
 public: jobname name() const;
+public: bool operator==(const job &) const;
+public: bool operator!=(const job &j) const { return !(*this == j); }
 public: const fields::field &field() const;
 public: static const ::parser<job> &parser(); };
 

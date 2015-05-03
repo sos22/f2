@@ -44,6 +44,12 @@ job::job(deserialise1 &ds)
 jobname
 job::name() const { return jobname(digest(fields::mk(*this))); }
 
+bool
+job::operator==(const job &o) const {
+    return library == o.library &&
+        function == o.function &&
+        inputs == o.inputs &&
+        outputs == o.outputs; }
 
 const fields::field &
 job::field() const {
