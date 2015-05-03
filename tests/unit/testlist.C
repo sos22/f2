@@ -304,5 +304,17 @@ static testmodule __listtest(
         assert(it->x == 3);
         assert(it->y == 4);
         it.next();
-        assert(it.finished()); }
+        assert(it.finished()); },
+    "issorted", [] {
+        assert(list<int>(Immediate()).issorted());
+        assert(list<int>(Immediate(), 5).issorted());
+        assert(list<int>(Immediate(), 5, 6).issorted());
+        assert(list<int>(Immediate(), 5, 6, 7).issorted());
+        assert(!list<int>(Immediate(), 6, 5).issorted());
+        assert(!list<int>(Immediate(), 5, 6, -100).issorted());
+        /* Check that issorted() and sort() agree on the desired order. */
+        list<int> l(Immediate(), 5, 7, 1, 99, -5);
+        assert(!l.issorted());
+        sort(l);
+        assert(l.issorted()); }
     );

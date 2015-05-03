@@ -146,6 +146,9 @@ public:
        work. */
     bool hasdupes() const;
 
+    /* Check whether a list is currently sorted. */
+    bool issorted() const;
+
     /* Create a new list and initialise it by running a mapping
        function over this list. */
     template <typename other_t> list<other_t> map(

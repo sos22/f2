@@ -444,6 +444,18 @@ list<t>::hasdupes() const {
             it2.next(); } }
     return false; }
 
+template <typename t> bool
+list<t>::issorted() const {
+    auto it(start());
+    auto itlag(it);
+    if (it.finished()) return true;
+    it.next();
+    while (!it.finished()) {
+        if (*it < *itlag) return false;
+        it.next();
+        itlag.next(); }
+    return true; }
+
 template <typename t> template <typename other_t> list<other_t>
 list<t>::map(std::function<other_t (const t&)> what) const {
     list<other_t> res;
