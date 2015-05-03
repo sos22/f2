@@ -131,6 +131,9 @@ public:  orerror<void> mkdir() const;
     /* Remove a directory.  Fails and returns error::notempty if the
      * directory is not empty. */
 public:  orerror<void> rmdir() const;
+    /* Delete a file, or remove a directory and all of its contents.
+     * Returns error::already if it doesn't exist. */
+public:  orerror<void> rmtree() const;
     /* Delete a file.  Returns error::already if it doesn't exist, not
      * error::notfound. */
 public:  orerror<void> unlink() const;

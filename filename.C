@@ -302,6 +302,23 @@ filename::rmdir() const {
     else return error::from_errno(); }
 
 orerror<void>
+filename::rmtree() const {
+    filename::diriter di(*this);
+    while (!di.isfailure() && !di.finished()) {
+        if (strcmp(di.filename(), ".") != 0 &&
+            strcmp(di.filename(),"..") != 0) {
+            auto e((*this + string(di.filename())).rmtree());
+            if (e.isfailure()) return e.failure(); }
+        di.next(); }
+    if (di.isfailure()) {
+        if (di.failure() == error::notfound) return error::already;
+        else if (di.failure() != error::from_errno(ENOTDIR)) {
+            return di.failure(); } }
+    auto e(unlink());
+    if (e == error::from_errno(EISDIR)) return rmdir();
+    else return e; }
+
+orerror<void>
 filename::unlink() const {
     int r(::unlink(content.c_str()));
     if (r == 0) return Success;

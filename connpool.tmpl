@@ -5,6 +5,8 @@
 #error Include connpool.H before connpool.tmpl
 #endif
 
+#include "maybe.tmpl"
+
 template <typename t> class connpool::asynccallT final {
     friend class connpool;
 private: asynccall *inner;
