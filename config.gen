@@ -19,5 +19,6 @@ CC=gcc
 LD=gcc-4.9
 GCOV=gcov-4.9
 PREFIX="$(pwd)"
+CPPFLAGS+=" -DPREFIX=\\\\\"$(pwd)\\\\\""
 EOF
 

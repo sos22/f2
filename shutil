@@ -53,13 +53,13 @@ function cc() {
 	    cat <<EOF
 -include $dep
 $obj: $src config
-	ccache \$(CXX) $dashi -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+	ccache \$(CXX) $dashi -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -DEXESUFFIX="" -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
 ${obj/.o/-t.o}: $src config
-	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
+	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -DEXESUFFIX=\"-t\" -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
-	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage -DEXESUFFIX=\"-c\" ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
 ${obj/.o/-p.o}: $src config
-	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${CPPFLAGS} ${CXXFLAGS} -O3 -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
+	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${CPPFLAGS} ${CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src config
 	\$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::

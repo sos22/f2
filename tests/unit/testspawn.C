@@ -10,7 +10,7 @@ using namespace spawn;
 static testmodule __spawntest(
     "spawn",
     list<filename>::mk("spawn.C", "spawn.H"),
-    testmodule::Dependency("spawnservice-c"),
+    testmodule::Dependency("spawnservice" EXESUFFIX),
     testmodule::Dependency("tests/abort/abort"),
     /* Coverage looks quite low on these tests, partly because gcov
      * can't collect coverage for anything which calls exec() or dies

@@ -7,7 +7,6 @@
 
 #include "spawnservice.h"
 
-#include "buildconfig.H"
 #include "clientio.H"
 #include "fields.H"
 #include "test.H"
@@ -91,7 +90,7 @@ process::spawn(const program &p) {
     unsigned nrargs(p.args.length());
     const char *args[nrargs + 3];
     int i(0);
-    auto path(buildconfig::us.programname("spawnservice"));
+    filename path(PREFIX "/spawnservice" EXESUFFIX);
     args[i++] = path.str().c_str();
     args[i++] = p.exec.str().c_str();
     for (auto it(p.args.start()); !it.finished(); it.next()) {

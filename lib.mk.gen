@@ -11,7 +11,6 @@ function bits() {
     _ beaconclient
     _ beaconserver
     _ buffer
-    _ buildconfigimpl
     _ bytecount
     _ clustername
     _ compute
@@ -72,10 +71,6 @@ function bits() {
     _ version
     _ waitbox
     _ walltime
-    # Putting buildconfig last in this list means that it gets built
-    # fairly late, which means that you find out about compile errors
-    # in the interesting bits of the build that little bit sooner.
-    _ buildconfig
 }
 
 for x in $(bits .C)

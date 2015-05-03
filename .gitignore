@@ -13,14 +13,13 @@
 *-c
 *-p
 *.log
-buildconfig.C
 cli
-config
 computeclient
 computefmt
 computeservice
 computespy
 computestate
+config
 coordinatorclient
 coordinatorservice
 filesystemclient

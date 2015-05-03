@@ -1,24 +1,33 @@
-realall: all
+all: realall
 
-.PHONY: buildconfig.C clean
+-include config
+
 .SUFFIXES:
 
-# Forward most targets to the real makefile, once we've built the config file.
-%: buildconfig.C
-	@$(MAKE) -r -R -f Makefile2 $@
+include binaries.mk
+include lib.mk
+include spawnservice.mk
+include test2.mk
+include testjob.mk
+include tests.mk
+include tests/mk
 
-clean:
-	rm -f buildconfig.C config
-	make -r -R -f Makefile2 clean
+# The all target only builds things which most people would want.  The
+# coverage check and test suite are under a different target.
+everything: realall covall testall profall
 
-config: config.gen
+clean::
+	find . -name '*.log' -o -name '*~' -o -name '*.gcov' -o -name   \
+		'*-c.gcda' -o -name '*-c.gcno'                        | \
+		xargs rm
+
+%: %.gen config
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 
-buildconfig.C: config
-	@./buildconfig.sh > buildconfig.C.tmp;\
-	if diff -q buildconfig.C.tmp buildconfig.C 2>/dev/null;\
-	then\
-	   rm buildconfig.C.tmp;\
-	else\
-	   mv buildconfig.C.tmp buildconfig.C;\
-	fi
+# Special target which is sometimes useful for forcing something to
+# get rebuilt every time.  Mostly useful for makefile fragments,
+# because if one of them is a direct dependency of .PHONY then you get
+# an infinite loop.
+.PHONY: _does_not_exist_
+_does_not_exist_:
+	@(! [ -e _does_not_exist_ ])
