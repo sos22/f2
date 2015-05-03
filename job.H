@@ -15,19 +15,18 @@ class deserialise1;
 class job;
 class jobname;
 class serialise1;
-namespace fields {
-class field;
-const field &mk(const job &); }
+namespace fields { class field; }
 
 class job {
-public: typedef pair<jobname, streamname> inputsrc;
-public: filename library;
-public: string function;
-public: map<streamname, inputsrc> inputs;
-public: list<streamname> outputs;
-public: void serialise(serialise1 &) const;
-public: explicit job(deserialise1 &);
-public: job(
+public:  typedef pair<jobname, streamname> inputsrc;
+public:  filename library;
+public:  string function;
+public:  map<streamname, inputsrc> inputs;
+    /* Private because it must be kept sorted. */
+private: list<streamname> outputs;
+public:  void serialise(serialise1 &) const;
+public:  explicit job(deserialise1 &);
+public:  job(
     const filename &_library,
     const string &_function,
     const map<streamname, inputsrc> &_inputs,
@@ -35,5 +34,9 @@ public: job(
 public: jobname name() const;
 public: const fields::field &field() const;
 public: static const ::parser<job> &parser(); };
+
+namespace fields {
+static inline const field &
+mk(const job &j) { return j.field(); } }
 
 #endif /* !JOB_H__ */

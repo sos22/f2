@@ -22,7 +22,8 @@ job::job(const filename &_library,
     : library(_library),
       function(_function),
       inputs(_inputs),
-      outputs(_outputs) {}
+      outputs(_outputs) {
+      sort(outputs); }
 
 void
 job::serialise(serialise1 &s) const {
@@ -35,21 +36,22 @@ job::job(deserialise1 &ds)
     : library(ds),
       function(ds),
       inputs(ds),
-      outputs(ds) {}
+      outputs(ds) {
+    if (!outputs.issorted()) {
+        ds.fail(error::invalidmessage);
+        outputs.flush(); } }
 
 jobname
 job::name() const { return jobname(digest(fields::mk(*this))); }
 
-const fields::field &
-job::field() const { return fields::mk(*this); }
 
 const fields::field &
-fields::mk(const job &j) {
-    auto acc(&("<job:" + mk(j.library) + ":"+ mk(j.function)));
-    for (auto it(j.inputs.start()); !it.finished(); it.next()) {
-        acc = &(*acc + " -<" + mk(it.key()) + ":" + mk(it.value())); }
-    for (auto it(j.outputs.start()); !it.finished(); it.next()) {
-        acc = &(*acc + " ->" + mk(*it)); }
+job::field() const {
+    auto acc(&("<job:" + library.field() + ":"+ function.field()));
+    for (auto it(inputs.start()); !it.finished(); it.next()) {
+        acc = &(*acc + " -<" + it.key().field() + ":" + it.value().field()); }
+    for (auto it(outputs.start()); !it.finished(); it.next()) {
+        acc = &(*acc + " ->" + it->field()); }
     return *acc + ">"; }
 
 const parser<job> &
@@ -80,4 +82,5 @@ job::parser() {
                         res.success().inputs.set(it->left().first(),
                                                  it->left().second()); }
                     else res.success().outputs.append(it->right()); }
+                sort(res.success().outputs);
                 return res; }); }
