@@ -10,7 +10,7 @@ BINS="computeclient                   \
     coordinatorservice               \
     filesystemclient                 \
     filesystemservice                \
-    storageclient                    \
+    storagecli                       \
     storageservice                   \
     storagefmt                       \
     storagespy"
