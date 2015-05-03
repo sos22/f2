@@ -180,10 +180,10 @@ public:  class connlock {
      * what you want.
      */
 public:  nnp<asynccall> _call(const agentname &sn,
-                             interfacetype type,
-                             maybe<timestamp> deadline,
-                             const std::function<serialise> &s,
-                             const deserialiser &ds = deserialiser());
+                              interfacetype type,
+                              maybe<timestamp> deadline,
+                              const std::function<serialise> &s,
+                              const deserialiser &ds = deserialiser());
     /* Wrappers to help type inference along a bit. */
 public:  template <typename t> nnp<asynccall> call(
     const agentname &sn,

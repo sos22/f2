@@ -54,8 +54,9 @@ function bits() {
     _ spawn
     _ steal
     _ storage
-    _ storageconfig
     _ storageagent
+    _ storageconfig
+    _ storageclient
     _ streamname
     _ streamstatus
     _ string

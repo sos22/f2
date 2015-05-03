@@ -1,3 +1,4 @@
+/* This also acts as a test for rpcservice2. */
 #include "connpool.H"
 #include "rpcservice2.H"
 #include "spark.H"
@@ -187,7 +188,12 @@ public: orerror<void> called(
 
 static testmodule __testconnpool(
     "connpool",
-    list<filename>::mk("connpool.C", "connpool.H"),
+    list<filename>::mk("connpool.C",
+                       "connpool.H",
+                       "connpool.tmpl",
+                       "rpcservice2.C",
+                       "rpcservice2.H",
+                       "rpcservice2.tmpl"),
     testmodule::LineCoverage(85_pc),
     testmodule::BranchCoverage(70_pc),
     "null", [] (clientio io) {
