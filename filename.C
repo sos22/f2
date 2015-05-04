@@ -332,6 +332,14 @@ filename::rename(const filename &o) const {
         return error::from_errno(); }
     else return Success; }
 
+orerror<bool>
+filename::contenteq(const filename &o) const {
+    auto us(readasbuffer());
+    if (us.isfailure()) return us.failure();
+    auto them(o.readasbuffer());
+    if (them.isfailure()) return them.failure();
+    return us.success().contenteq(them.success()); }
+
 orerror<filename>
 filename::mktemp(quickcheck q) {
     orerror<filename> res(Success, q);

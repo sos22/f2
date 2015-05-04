@@ -141,6 +141,9 @@ public:  orerror<void> unlink() const;
     /* Atomically rename a file. */
 public:  orerror<void> rename(const filename &) const;
 
+    /* Compare two files byte-for-byte to see whether they're equal. */
+public:  orerror<bool> contenteq(const filename &) const;
+
     /* Create a filename which doesn't currently exist.  There's
      * nothing to stop it being created after this returns, so only
      * really useful for test programs. */
