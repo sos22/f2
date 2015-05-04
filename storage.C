@@ -10,6 +10,8 @@
 #include "fieldfinal.H"
 
 const proto::storage::tag
+proto::storage::tag::ping(89);
+const proto::storage::tag
 proto::storage::tag::createjob(90);
 const proto::storage::tag
 proto::storage::tag::createstream(91);
@@ -34,7 +36,8 @@ proto::storage::tag::removejob(100);
 
 proto::storage::tag::tag(deserialise1 &ds)
     : proto::tag(ds) {
-    if (*this != createjob &&
+    if (*this != ping &&
+        *this != createjob &&
         *this != createstream &&
         *this != append &&
         *this != finish &&

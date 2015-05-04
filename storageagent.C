@@ -96,7 +96,12 @@ storageagent::_called(
     assert(type == interfacetype::storage || type == interfacetype::eq);
     if (type == interfacetype::eq) return eqs.called(io, ds, ic, oct);
     proto::storage::tag tag(ds);
-    if (tag == proto::storage::tag::createjob) {
+    if (tag == proto::storage::tag::ping) {
+        ic->complete([] (serialise1 &, mutex_t::token, onconnectionthread) { },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
+    else if (tag == proto::storage::tag::createjob) {
         job j(ds);
         if (ds.isfailure()) return ds.failure();
         auto r(createjob(j));

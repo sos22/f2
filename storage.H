@@ -57,6 +57,9 @@ public: list<streamstatus> res; };
 class tag : public proto::tag {
 private: explicit tag(unsigned char x) : proto::tag(x) {}
 public:  explicit tag(deserialise1 &ds);
+    /* Inputs: None.  Outputs: None.  Just check that the service is
+     * alive. */
+public:  static const tag ping;
     /* Inputs: job.  Outputs: Event ID of the event which will tell
      * the world about the new job. */
 public:  static const tag createjob;

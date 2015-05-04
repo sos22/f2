@@ -19,13 +19,12 @@ private: const class impl &impl() const;
 
 public:  class asyncconnect {
         friend class storageclient;
-    private: connpool &cp;
-    private: const agentname an;
-    private: connpool::asynccall &cl;
-    private: asyncconnect(connpool &, const agentname &);
+    private: class impl;
+    private: class impl &impl();
+    private: const class impl &impl() const;
     public:  typedef orerror<nnp<storageclient> > resT;
     public:  class token {
-            friend class asyncconnect;
+            friend class impl;
         private: connpool::asynccall::token inner;
         private: token(connpool::asynccall::token _inner) : inner(_inner) {} };
     public:  maybe<token> finished() const;
@@ -40,8 +39,6 @@ public:  static orerror<nnp<storageclient> > connect(
     connpool &,
     const agentname &);
 
-public:  orerror<list<job> > listjobs(clientio) const;
-public:  orerror<void> createjob(clientio, const job &);
 public:  void destroy(); };
 
 #endif /* !STORAGECLIENT_H__ */
