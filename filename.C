@@ -326,6 +326,12 @@ filename::unlink() const {
     else if (errno == ENOENT) return error::already;
     else return error::from_errno(); }
 
+orerror<void>
+filename::rename(const filename &o) const {
+    if (::rename(content.c_str(), o.content.c_str()) < 0) {
+        return error::from_errno(); }
+    else return Success; }
+
 orerror<filename>
 filename::mktemp(quickcheck q) {
     orerror<filename> res(Success, q);
