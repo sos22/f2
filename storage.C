@@ -14,8 +14,6 @@ proto::storage::tag::ping(89);
 const proto::storage::tag
 proto::storage::tag::createjob(90);
 const proto::storage::tag
-proto::storage::tag::createstream(91);
-const proto::storage::tag
 proto::storage::tag::append(92);
 const proto::storage::tag
 proto::storage::tag::finish(93);
@@ -30,15 +28,12 @@ proto::storage::tag::liststreams(97);
 const proto::storage::tag
 proto::storage::tag::statstream(98);
 const proto::storage::tag
-proto::storage::tag::removestream(99);
-const proto::storage::tag
 proto::storage::tag::removejob(100);
 
 proto::storage::tag::tag(deserialise1 &ds)
     : proto::tag(ds) {
     if (*this != ping &&
         *this != createjob &&
-        *this != createstream &&
         *this != append &&
         *this != finish &&
         *this != read &&
@@ -46,7 +41,6 @@ proto::storage::tag::tag(deserialise1 &ds)
         *this != statjob &&
         *this != liststreams &&
         *this != statstream &&
-        *this != removestream &&
         *this != removejob) {
         ds.fail(error::invalidmessage);
         *this = createjob; } }

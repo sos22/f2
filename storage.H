@@ -63,8 +63,6 @@ public:  static const tag ping;
     /* Inputs: job.  Outputs: Event ID of the event which will tell
      * the world about the new job. */
 public:  static const tag createjob;
-    /* Inputs: jobname, streamname.  Outputs: None */
-public:  static const tag createstream;
     /* Inputs: jobname, streamname, buffer, offset.  Outputs: None */
 public:  static const tag append;
     /* Inputs: jobname, streamname.  Outputs: None */
@@ -87,8 +85,6 @@ public:  static const tag statjob;
 public:  static const tag liststreams;
     /* Inputs: jobname, streamname.  Outputs: streamstatus. */
 public:  static const tag statstream;
-    /* Inputs: jobname, streamname.  Outputs: None. */
-public:  static const tag removestream;
     /* Inputs: jobname.  Outputs: None */
 public:  static const tag removejob; };
 

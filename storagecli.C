@@ -34,9 +34,6 @@ public:  explicit storageclient(connpool &_pool,
       timeout(_timeout) {}
 public:  orerror<proto::eq::eventid> createjob(clientio,
                                                const job &);
-public:  orerror<void> createstream(clientio,
-                                    const jobname &,
-                                    const streamname &);
 public:  orerror<void> append(clientio,
                               const jobname &,
                               const streamname &,
@@ -65,9 +62,6 @@ public:  orerror<streamstatus> statstream(
     clientio,
     const jobname &,
     const streamname &);
-public:  orerror<void> removestream(clientio,
-                                    const jobname &,
-                                    const streamname &);
 public:  orerror<void> removejob(clientio,
                                  const jobname &);
 public:  ~storageclient(); };
@@ -89,20 +83,6 @@ storageclient::createjob(clientio io,
             if (ds.isfailure()) return ds.failure();
             else return eid; }); }
 
-
-orerror<void>
-storageclient::createstream(clientio io,
-                            const jobname &jn,
-                            const streamname &stream) {
-    return pool.call(
-        io,
-        sn,
-        interfacetype::storage,
-        timestamp::now() + timeout,
-        [&jn, &stream] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::createstream.serialise(s);
-            jn.serialise(s);
-            stream.serialise(s); }); }
 
 orerror<void>
 storageclient::append(clientio io,
@@ -233,20 +213,6 @@ storageclient::statstream(clientio io,
             return streamstatus(ds); }); }
 
 orerror<void>
-storageclient::removestream(clientio io,
-                            const jobname &jn,
-                            const streamname &stream) {
-    return pool.call(
-        io,
-        sn,
-        interfacetype::storage,
-        timestamp::now() + timeout,
-        [&jn, &stream] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::removestream.serialise(s);
-            jn.serialise(s);
-            stream.serialise(s); }); }
-
-orerror<void>
 storageclient::removejob(clientio io,
                          const jobname &jn) {
     return pool.call(
@@ -289,18 +255,6 @@ main(int argc, char *argv[]) {
         if (m == error::already) m.failure().warn("already created");
         else if (m.isfailure()) m.failure().fatal("creating empty job");
         else fields::print("result: " + fields::mk(m.success()) + "\n"); }
-    else if (!strcmp(argv[3], "CREATESTREAM")) {
-        if (argc != 6) {
-            errx(1, "CREATESTREAM needs a job and stream name"); }
-        auto job(jobname::parser()
-                 .match(argv[4])
-                 .fatal("parsing job name " + fields::mk(argv[3])));
-        auto stream(streamname::parser()
-                    .match(argv[5])
-                    .fatal("parsing stream name " + fields::mk(argv[4])));
-        auto m = conn.createstream(clientio::CLIENTIO, job, stream);
-        if (m == error::already) m.failure().warn("already created");
-        else if (m.isfailure()) m.failure().fatal("creating empty stream"); }
     else if (!strcmp(argv[3], "APPEND")) {
         if (argc != 8) {
             errx(1,
@@ -412,15 +366,6 @@ main(int argc, char *argv[]) {
             fields::mk(conn.statstream(clientio::CLIENTIO, job, stream)
                        .fatal(fields::mk("statting stream"))) +
             "\n"); }
-    else if (strcmp(argv[3], "REMOVESTREAM") == 0) {
-        auto job(jobname::parser()
-                 .match(argv[4])
-                 .fatal("parsing job name " + fields::mk(argv[4])));
-        auto stream(streamname::parser()
-                    .match(argv[5])
-                    .fatal("parsing stream name " + fields::mk(argv[5])));
-        conn.removestream(clientio::CLIENTIO, job, stream)
-            .fatal(fields::mk("removing stream")); }
     else if (strcmp(argv[3], "REMOVEJOB") == 0) {
         auto job(jobname::parser()
                  .match(argv[4])

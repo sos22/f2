@@ -50,11 +50,7 @@ private: orerror<void> _called(
     nnp<incompletecall>,
     onconnectionthread,
     mutex_t::token);
-public:  orerror<void> createjob(
-    const job &t);
-public:  orerror<void> createstream(
-    const jobname &t,
-    const streamname &sn);
+private: orerror<void> createjob(const job &t);
 public:  orerror<void> append(
     const jobname &t,
     const streamname &sn,
@@ -90,9 +86,6 @@ private: orerror<void> liststreams(
     acquirestxlock atl,
     onconnectionthread oct) const;
 private: orerror<streamstatus> statstream(
-    const jobname &jn,
-    const streamname &sn);
-public:  orerror<void> removestream(
     const jobname &jn,
     const streamname &sn);
 public:  orerror<void> removejob(

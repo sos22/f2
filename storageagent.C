@@ -140,14 +140,6 @@ storageagent::_called(
                      acquirestxlock(io),
                      oct);
         return Success; }
-    else if (tag == proto::storage::tag::createstream) {
-        jobname j(ds);
-        streamname s(ds);
-        if (!ds.isfailure()) {
-            auto r(createstream(j, s));
-            if (!r.isfailure()) {
-                eqq.queue(proto::storage::event::newstream(j, s), io); }
-            ic->complete(r, io, oct); } }
     else if (tag == proto::storage::tag::append) {
         jobname job(ds);
         streamname stream(ds);
@@ -206,15 +198,6 @@ storageagent::_called(
                                   s.push(r.success()); },
                               io,
                               oct); } }
-    else if (tag == proto::storage::tag::removestream) {
-        jobname job(ds);
-        streamname stream(ds);
-        if (!ds.isfailure()) {
-            auto r(removestream(job, stream));
-            if (!r.isfailure()) {
-                eqq.queue(proto::storage::event::removestream(job, stream),
-                          io); }
-            ic->complete(r, io, oct); } }
     else if (tag == proto::storage::tag::removejob) {
         jobname job(ds);
         if (!ds.isfailure()) {
@@ -249,36 +232,6 @@ storageagent::createjob(const job &t) {
         .warn("removing partially constructed job " + dirname.field());
     return r.failure(); }
 
-orerror<void>
-storageagent::createstream(const jobname &t, const streamname &sn) {
-    logmsg(loglevel::debug,
-           "create empty output " + fields::mk(t) + " " + fields::mk(sn));
-    filename jobdir(config.poolpath + t.asfilename());
-    {   auto r(jobdir.isdir());
-        if (r.isfailure()) return r.failure();
-        else if (!r.success()) return error::toosoon; }
-    filename streamdir(jobdir + sn.asfilename());
-    {   auto r(streamdir.mkdir());
-        if (r.isfailure() && r != error::already) return r.failure(); }
-    filename content(streamdir + "content");
-    filename finished(streamdir + "finished");
-    auto cexists(content.isfile());
-    if (cexists.isfailure()) return cexists.failure();
-    auto fexists(finished.isfile());
-    if (fexists.isfailure()) return fexists.failure();
-    if (cexists == true && fexists == true) {
-        /* Already have job results -> tell caller to stop */
-        return error::already; }
-    /* Remove any leftover finished marker. */
-    if (fexists == true) {
-        auto r(finished.unlink());
-        if (r != Success && r != error::already) return r.failure(); }
-    /* Create the new content file. */
-    {   auto r(content.createfile());
-        if (r == Success || r == error::already) return Success; }
-    {   auto r(content.unlink());
-        if (r.isfailure()) return r.failure(); }
-    return content.createfile(); }
 
 orerror<void>
 storageagent::append(
@@ -515,21 +468,6 @@ storageagent::statstream(const jobname &jn,
         sz = r.success(); }
     if (finished) return streamstatus::finished(sn, sz);
     else return streamstatus::partial(sn, sz); }
-
-orerror<void>
-storageagent::removestream(const jobname &jn,
-                           const streamname &sn) {
-    auto jobdir(config.poolpath + jn.asfilename());
-    auto streamdir(jobdir + sn.asfilename());
-    bool already;
-    {   auto r((streamdir + "content").unlink());
-        if (r != Success && r != error::already) return r.failure();
-        already = r == error::already; }
-    {   auto r((streamdir + "finished").unlink());
-        if (r != Success && r != error::already) return r.failure(); }
-    streamdir.rmdir().warn("cannot remove " + fields::mk(streamdir));
-    if (already) return error::already;
-    else return Success; }
 
 orerror<void>
 storageagent::removejob(const jobname &jn) {
