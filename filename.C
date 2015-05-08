@@ -242,7 +242,8 @@ filename::diriter::diriter(const class filename &f)
     : dir((DIR *)0xf001ul) {
     DIR *d = opendir(f.content.c_str());
     if (d == NULL) {
-        dir = error::from_errno();
+        if (errno == ENOENT) dir = error::notfound;
+        else dir = error::from_errno();
         entry = NULL; }
     else {
         dir = d;
@@ -258,13 +259,16 @@ filename::diriter::failure() const {
 
 bool
 filename::diriter::finished() const {
-    return dir.success() == NULL; }
+    return dir.isfailure() || dir.success() == NULL; }
 
 void
 filename::diriter::next() {
     int e(errno);
     errno = 0;
     auto de(::readdir(dir.success()));
+    while (de != NULL &&
+           (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)) {
+        de = ::readdir(dir.success()); }
     testhooks::filename::diriterevt.trigger(&de);
     if (de == NULL) {
         closedir(dir.success());

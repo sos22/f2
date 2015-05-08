@@ -348,13 +348,8 @@ storageagent::listjobs(
     auto &parser(jobname::parser());
     list<jobname> res;
     {   filename::diriter it(config.poolpath);
-        for (/**/;
-                 !it.isfailure() && !it.finished();
-                 it.next()) {
-            if (strcmp(it.filename(), ".") == 0 ||
-                strcmp(it.filename(), "..") == 0 ||
-                strcmp(it.filename(), "queue") == 0) {
-                continue; }
+        for (/**/; !it.finished(); it.next()) {
+            if (strcmp(it.filename(), "queue") == 0) continue;
             auto jn(parser.match(it.filename()));
             if (jn.isfailure()) {
                 jn.failure().warn(
@@ -418,13 +413,8 @@ storageagent::liststreams(
     const parser<streamname> &parser(streamname::parser());
     list<streamstatus> res;
     {   filename::diriter it(dir);
-        for (/**/;
-                 !it.isfailure() && !it.finished();
-                 it.next()) {
-            if (strcmp(it.filename(), ".") == 0 ||
-                strcmp(it.filename(), "..") == 0 ||
-                strcmp(it.filename(), "job") == 0) {
-                continue; }
+        for (/**/; !it.finished(); it.next()) {
+            if (strcmp(it.filename(), "job") == 0) continue;
             auto sn(parser.match(it.filename()));
             if (sn.isfailure()) {
                 sn.failure().warn(

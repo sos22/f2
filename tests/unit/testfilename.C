@@ -152,8 +152,24 @@ static testmodule __testfilename(
             assert(it.failure() == error::from_errno(ETXTBSY));
             f.rmdir().fatal("removing foo"); } },
 #endif
-    "str", [] {
-        assert((filename("foo") + "bar").str() == string("foo/bar")); },
+    "str", [] { assert((filename("foo") + "bar").str() == string("foo/bar")); },
+    "iterbad", [] {
+        filename::diriter it(filename("does not exist"));
+        assert(it.finished());
+        assert(it.isfailure());
+        assert(it.failure() == error::notfound); },
+    "iter..", [] {
+        quickcheck q;
+        auto t(filename::mktemp(q).fatal("mktemp"));
+        t.mkdir().fatal("mkdir");
+        assert(!filename::diriter(t).isfailure());
+        assert(filename::diriter(t).finished());
+        (t + "foo").createfile();
+        filename::diriter it(t);
+        for ( ; !it.finished(); it.next()) {
+            assert(strcmp(it.filename(), "foo") == 0); }
+        assert(!it.isfailure());
+        t.rmtree().fatal("removing " + t.field()); },
     "mktemp", [] {
         /* Should be able to create a few hundred temporary files
          * without any collisions. */
