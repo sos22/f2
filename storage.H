@@ -13,9 +13,6 @@ class deserialise1;
 namespace fields { class field; }
 class serialise1;
 
-/* XXX there's a lot of code dupe between the stream implementation
- * and the job one.  It might actually have been better to build a
- * more generic filesystem API here. */
 namespace proto {
 namespace storage {
 class listjobsres {
@@ -92,9 +89,7 @@ class event {
 public:  enum type {
         t_newjob = 96,
         t_removejob,
-        t_newstream,
         t_finishstream,
-        t_removestream,
     };
 public:  void serialise(serialise1 &) const;
 public:  explicit event(deserialise1 &);
@@ -108,12 +103,10 @@ public:  maybe<streamname> stream; /* For all but jewjob and removejob */
 public:  maybe<streamstatus> status; /* for finish stream */
 public:  static event newjob(const jobname &);
 public:  static event removejob(const jobname &);
-public:  static event newstream(const jobname &, const streamname &);
 public:  static event finishstream(
     const jobname &,
     const streamname &,
     const streamstatus &);
-public:  static event removestream(const jobname &, const streamname &);
 public:  const fields::field &field() const;
 };
 }

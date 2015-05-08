@@ -158,12 +158,6 @@ public: const list<stream> &content(onfilesystemthread) const {
 public: list<stream> &content_unsafe(onfilesystemthread) {
     return _content; }
 
-    /* Removes which had to be deffered because of an outstanding
-     * LISTSTREAMS.  Process them when the LISTSTREAMS finishes. */
-public: list<pair<proto::eq::eventid, streamname> > _deferredremove;
-public: list<pair<proto::eq::eventid, streamname> > &deferredremove(
-    onfilesystemthread) { return _deferredremove; }
-
 public: job(store &_sto,
             proto::eq::eventid __refreshedat,
             const jobname &_name)
@@ -173,8 +167,7 @@ public: job(store &_sto,
       _liststreams(NULL),
       _liststreamssub(Nothing),
       _liststreamsres(Nothing),
-      _content(),
-      _deferredremove() {}
+      _content() {}
 
 public: stream *findstream(const streamname &sn, onfilesystemthread);
 public: void removestream(stream &, mutex_t::token, onfilesystemthread);
@@ -270,20 +263,10 @@ public: void eqremovejob(proto::eq::eventid eid,
                          const jobname &jn,
                          mutex_t::token,
                          onfilesystemthread);
-public: void eqnewstream(proto::eq::eventid eid,
-                         const jobname &jn,
-                         const streamname &sn,
-                         mutex_t::token,
-                         onfilesystemthread);
 public: void eqfinishstream(proto::eq::eventid eid,
                             const jobname &jn,
                             const streamname &sn,
                             const streamstatus &status,
-                            mutex_t::token,
-                            onfilesystemthread);
-public: void eqremovestream(proto::eq::eventid eid,
-                            const jobname &jn,
-                            const streamname &sn,
                             mutex_t::token,
                             onfilesystemthread);
 
@@ -451,10 +434,6 @@ job::liststreamswoken(connpool &pool,
                    " on " + fields::mk(sto.name) +
                    " at " + fields::mk(result.when));
             content(tok, ofs).append(result.when, *it); } }
-    /* Flush the deferred events queue. */
-    while (!deferredremove(ofs).empty()) {
-        auto r(deferredremove(ofs).pophead());
-        sto.eqremovestream(r.first(), name, r.second(), tok, ofs); }
     /* If the server truncated the results then kick off another call
      * to get the rest. */
     auto next(result.end);
@@ -593,60 +572,6 @@ store::eqremovejob(proto::eq::eventid eid,
                " because LISTJOBS outstanding");
         deferredremove(oft).append(mkpair(eid, job)); } }
 
-/* Process an event queue newstream event. */
-void
-store::eqnewstream(proto::eq::eventid eid,
-                   const jobname &jn,
-                   const streamname &sn,
-                   mutex_t::token tok,
-                   onfilesystemthread oft) {
-    auto j(findjob(jn, tok));
-    if (j == NULL) {
-        /* Drop newstream events for jobs we don't know about.  If the
-         * job is still live then we'll eventually find out about it
-         * and recover that way, and if it's been removed then we
-         * don't need to do anything at all. */
-        logmsg(loglevel::debug,
-               "drop new stream event " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid));
-        return; }
-    auto s(j->findstream(sn, oft));
-    if (s != NULL) {
-        /* We already know about this stream, so the newstream event
-         * must have been delayed. */
-        if (eid > s->refreshedat(oft)) {
-            /* This shouldn't happen.  We thought the stream was live
-             * at time T and we just got an event saying it was
-             * created at time T+n.  That implies that either we were
-             * wrong to say it was live at T or that we've missed a
-             * removestream event between T and T+n. */
-            logmsg(loglevel::error,
-                   "detected inconsistency in stream liveness"
-                   " from new stream event " + fields::mk(jn) +
-                   "::" + fields::mk(sn) +
-                   " at " + fields::mk(eid) +
-                   " on " + fields::mk(name) +
-                   "; was " + fields::mk(s->status(oft)) +
-                   " at " + fields::mk(s->refreshedat(oft)));
-            /* Update the cached liveness and hope for the best. */
-            s->refreshedat(oft) = eid; }
-        else {
-            /* We already knew it was live at time T and we were just
-             * told it was created at time T-n.  That's fine. */
-            logmsg(loglevel::debug,
-                   "drop old new stream event " + fields::mk(jn) +
-                   "::" + fields::mk(sn) +
-                   " at " + fields::mk(eid) +
-                   "; cache at " + s->refreshedat(oft).field()); } }
-    else {
-        /* Fresh stream.  Add it to the job. */
-        logmsg(loglevel::info,
-               "new stream " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid));
-        j->content(tok, oft).append(eid, streamstatus::empty(sn)); } }
-
 /* Process an event queue finish stream event. */
 void
 store::eqfinishstream(proto::eq::eventid eid,
@@ -710,62 +635,6 @@ store::eqfinishstream(proto::eq::eventid eid,
     s->status(tok, oft) = status;
     s->refreshedat(oft) = eid; }
 
-/* Process an event queue removestream event. */
-void
-store::eqremovestream(proto::eq::eventid eid,
-                      const jobname &jn,
-                      const streamname &sn,
-                      mutex_t::token tok,
-                      onfilesystemthread oft) {
-    auto j(findjob(jn, tok));
-    if (j == NULL) {
-        /* If we don't have the job then we don't have any of its
-         * streams and we don't have any LISTSTREAMS for it, so we're
-         * fine. */
-        logmsg(loglevel::debug,
-               "remove stream " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid) +
-               " but job is missing");
-        return; }
-    {   auto s(j->findstream(sn, oft));
-        if (s == NULL) {
-            logmsg(loglevel::debug,
-                   "remove stream " + fields::mk(jn) +
-                   "::" + fields::mk(sn) +
-                   " at " + fields::mk(eid) +
-                   " but it's already gone"); }
-        else {
-            if (s->refreshedat(oft) >= eid) {
-                /* Already know stream alive at time T, so can safely
-                 * ignore message that it was removed at T-n, because
-                 * it was reconstructed and the remove message got
-                 * delayed after a LISTSTREAMS. */
-                logmsg(loglevel::debug,
-                       "drop remove stream " + fields::mk(jn) +
-                       "::" + fields::mk(sn) +
-                       " at " + fields::mk(eid) +
-                       " because stream live at " +
-                       fields::mk(s->refreshedat(oft)));
-                return; }
-            /* This is the actual remove operation. */
-            j->removestream(*s, tok, oft); } }
-    /* Need to make sure the remove isn't reordered with the discovery
-     * of the stream in a LISTSTREAMS, to avoid resurrection bugs. */
-    if (j->liststreams(tok) != NULL) {
-        j->deferredremove(oft).append(mkpair(eid, sn));
-        logmsg(loglevel::debug,
-               "defer remove " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid) +
-               " because of outstanding LISTSTREAMS"); }
-    else {
-        logmsg(loglevel::debug,
-               "process remove stream " + fields::mk(jn) +
-               "::" + fields::mk(sn) +
-               " at " + fields::mk(eid) +
-               " to completion"); } }
-
 /* Check for events on the queue.  Note that this responds to an error
  * by reconnecting the event queue.  It's only a proper error if that
  * reconnection fails. */
@@ -794,9 +663,6 @@ store::eqevent(connpool &pool,
     case proto::storage::event::t_removejob:
         eqremovejob(eid, evt.job, tok, oft);
         break;
-    case proto::storage::event::t_newstream:
-        eqnewstream(eid, evt.job, evt.stream.just(), tok, oft);
-        break;
     case proto::storage::event::t_finishstream:
         eqfinishstream(eid,
                        evt.job,
@@ -804,9 +670,6 @@ store::eqevent(connpool &pool,
                        evt.status.just(),
                        tok,
                        oft);
-        break;
-    case proto::storage::event::t_removestream:
-        eqremovestream(eid, evt.job, evt.stream.just(), tok, oft);
         break; }
     /* Advance our position in the event stream. */
     eventqueue(oft).left().second() = eid; }

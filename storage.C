@@ -124,18 +124,10 @@ proto::storage::event::removejob(const jobname &j) {
     return event(t_removejob, j, Nothing, Nothing); }
 
 proto::storage::event
-proto::storage::event::newstream(const jobname &j, const streamname &s) {
-    return event(t_newstream, j, s, Nothing); }
-
-proto::storage::event
 proto::storage::event::finishstream(const jobname &j,
                                     const streamname &s,
                                     const streamstatus &stat) {
     return event(t_finishstream, j, s, stat); }
-
-proto::storage::event
-proto::storage::event::removestream(const jobname &j, const streamname &s) {
-    return event(t_removestream, j, s, Nothing); }
 
 void
 proto::storage::event::serialise(serialise1 &s) const {
@@ -145,32 +137,25 @@ proto::storage::event::serialise(serialise1 &s) const {
     case t_newjob:
     case t_removejob:
         break;
-    case t_newstream:
-    case t_removestream:
-        s.push(stream.just());
-        break;
     case t_finishstream:
         s.push(stream.just());
         s.push(status.just());
         break; } }
 
 proto::storage::event::event(deserialise1 &ds)
-    : typ((type)ds.poprange<int>(t_newjob, t_removestream)),
+    : typ((type)ds.poprange<int>(t_newjob, t_finishstream)),
       job(ds),
       stream(Nothing),
       status(Nothing) {
     switch (typ) {
     case t_newjob:
     case t_removejob:
-        break;
-    case t_newstream:
-    case t_removestream:
-        stream.mkjust(ds);
-        break;
+        return;
     case t_finishstream:
         stream.mkjust(ds);
         status.mkjust(ds);
-        break; } }
+        return; }
+    abort(); }
 
 
 const fields::field &
@@ -184,16 +169,9 @@ proto::storage::event::field() const {
     case t_removejob:
         base = &fields::mk("removejob ");
         break;
-    case t_newstream:
-        base = &fields::mk("newstream ");
-        break;
     case t_finishstream:
         base = &fields::mk("finish ");
-        break;
-    case t_removestream:
-        base = &fields::mk("removestream ");
-        break;
-    }
+        break; }
     assert(base != NULL);
     return *base + fields::mk(job) +
         "::" + fields::mk(stream) +
