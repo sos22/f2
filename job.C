@@ -18,28 +18,28 @@
 job::job(const filename &_library,
          const string &_function,
          const map<streamname, inputsrc> &_inputs,
-         const list<streamname> &_outputs)
+         const list<streamname> &__outputs)
     : library(_library),
       function(_function),
       inputs(_inputs),
-      outputs(_outputs) {
-      sort(outputs); }
+      _outputs(__outputs) {
+      sort(_outputs); }
 
 void
 job::serialise(serialise1 &s) const {
     s.push(library);
     s.push(function);
     s.push(inputs);
-    s.push(outputs); }
+    s.push(_outputs); }
 
 job::job(deserialise1 &ds)
     : library(ds),
       function(ds),
       inputs(ds),
-      outputs(ds) {
-    if (!outputs.issorted()) {
+      _outputs(ds) {
+    if (!outputs().issorted()) {
         ds.fail(error::invalidmessage);
-        outputs.flush(); } }
+        _outputs.flush(); } }
 
 jobname
 job::name() const { return jobname(digest(fields::mk(*this))); }
@@ -49,14 +49,14 @@ job::operator==(const job &o) const {
     return library == o.library &&
         function == o.function &&
         inputs == o.inputs &&
-        outputs == o.outputs; }
+        outputs() == o.outputs(); }
 
 const fields::field &
 job::field() const {
     auto acc(&("<job:" + library.field() + ":"+ function.field()));
     for (auto it(inputs.start()); !it.finished(); it.next()) {
         acc = &(*acc + " -<" + it.key().field() + ":" + it.value().field()); }
-    for (auto it(outputs.start()); !it.finished(); it.next()) {
+    for (auto it(outputs().start()); !it.finished(); it.next()) {
         acc = &(*acc + " ->" + it->field()); }
     return *acc + ">"; }
 
@@ -87,6 +87,6 @@ job::parser() {
                             return res; }
                         res.success().inputs.set(it->left().first(),
                                                  it->left().second()); }
-                    else res.success().outputs.append(it->right()); }
-                sort(res.success().outputs);
+                    else res.success()._outputs.append(it->right()); }
+                sort(res.success()._outputs);
                 return res; }); }

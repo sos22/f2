@@ -5,7 +5,7 @@
 
 const fields::field &
 fields::mk(const streamstatus &sn) {
-    return "<streamstatus: name=" + mk(sn.name_) +
+    return "<streamstatus: name=" + sn.name_.field() +
         " finished:" + mk(sn.finished_) +
         " size:" + sn.size.field() + ">"; }
 

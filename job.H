@@ -23,7 +23,8 @@ public:  filename library;
 public:  string function;
 public:  map<streamname, inputsrc> inputs;
     /* Private because it must be kept sorted. */
-private: list<streamname> outputs;
+private: list<streamname> _outputs;
+public:  const list<streamname> &outputs() const { return _outputs; }
 public:  void serialise(serialise1 &) const;
 public:  explicit job(deserialise1 &);
 public:  job(
