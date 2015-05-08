@@ -27,16 +27,20 @@
 
 orerror<void>
 storageagent::format(const filename &fn) {
-    {   auto r(fn.mkdir());
-        if (r.isfailure()) return r.failure(); }
-    {   auto r(eqserver::formatqueue(
-                   proto::eq::names::storage,
-                   fn + "queue"));
-        if (r.isfailure()) {
-            fn.rmdir()
-                .warn("cannot remove partial storage pool " +
-                      fields::mk(fn)); }
-        return r; } }
+    orerror<void> r(fn.mkdir());
+    if (r == error::already) {
+        /* Replacing an empty directory is allowed (if for no reason
+         * other than crash recovery). */
+        filename::diriter it(fn);
+        if (it.isfailure()) return it.failure();
+        if (!it.finished()) return error::already; }
+    /* Creating the queue is the commit point. */
+    r = eqserver::formatqueue(proto::eq::names::storage, fn + "queue");
+    if (r.isfailure()) {
+        fn.rmdir()
+            .warn("cannot remove partial storage pool " +
+                  fields::mk(fn)); }
+    return r; }
 
 orerror<nnp<storageagent> >
 storageagent::build(clientio io, const storageconfig &config) {
