@@ -70,6 +70,28 @@ storageagent::storageagent(const constoken &token,
       eqs(_eqs),
       eqq(_eqq) {}
 
+orerror<void>
+storageagent::initialise(clientio) {
+    /* Check for jobs which got half constructed before we crashed and
+     * remove them. */
+    filename::diriter it(config.poolpath);
+    for (/**/; !it.finished(); it.next()) {
+        if (!strcmp(it.filename(), "queue")) continue;
+        auto jobname(config.poolpath + it.filename());
+        auto complete(jobname + "complete");
+        auto r(complete.isfile());
+        if (r.isfailure()) return r.failure();
+        if (r.success() == false) {
+            logmsg(loglevel::notice,
+                   "remove incomplete job " +
+                   jobname.field() +
+                   " for crash recovery");
+            auto r2((config.poolpath + it.filename()).rmtree());
+            r2.warn("failed to remove " + jobname.field());
+            if (r2.isfailure()) return r2; } }
+    if (it.isfailure()) return it.failure();
+    else return Success; }
+
 void
 storageagent::destroy(clientio io) {
     eqq.destroy(io);
@@ -207,14 +229,25 @@ orerror<void>
 storageagent::createjob(const job &t) {
     logmsg(loglevel::debug, "create job " + fields::mk(t));
     auto dirname(config.poolpath + t.name().asfilename());
-    {   auto r(dirname.mkdir());
-        if (r.isfailure() && r != error::already) return r.failure(); }
-    auto r((dirname + "job").serialiseobj(t));
-    if (r.isfailure()) {
-        dirname.rmdir()
-            .warn("removing partially constructed job " +
-                  fields::mk(dirname)); }
-    return r; }
+    orerror<void> r(dirname.mkdir());
+    if (r.isfailure()) return r.failure();
+    r = (dirname + "job").serialiseobj(t);
+    if (r.isfailure()) goto fail;
+    for (auto it(t.outputs().start()); !it.finished(); it.next()) {
+        auto fn(dirname + it->asfilename());
+        r = fn.mkdir();
+        if (r.isfailure()) goto fail;
+        r = (fn + "content").createfile();
+        if (r.isfailure()) goto fail; }
+    r = (dirname + "complete").createfile();
+    if (r.isfailure()) goto fail;
+    return Success;
+ fail:
+    r.failure().warn("creating job " + t.field());
+    dirname
+        .rmtree()
+        .warn("removing partially constructed job " + dirname.field());
+    return r.failure(); }
 
 orerror<void>
 storageagent::createstream(const jobname &t, const streamname &sn) {
@@ -502,11 +535,13 @@ orerror<void>
 storageagent::removejob(const jobname &jn) {
     logmsg(loglevel::debug, "remove job " + fields::mk(jn));
     auto dirname(config.poolpath + jn.asfilename());
-    {   auto r((dirname + "job").unlink());
+    {   /* Start by removing the complete tag, so that crash recovery
+         * will finish off the removal for us. */
+        auto r((dirname + "complete").unlink());
         if (r.isfailure()) return r.failure(); }
-    auto r(dirname.rmdir());
+    auto r(dirname.rmtree());
     if (r.isfailure()) {
         r.failure().warn(
-            "remove job directory " + fields::mk(dirname) +
-            " after remove job descriptor"); }
+            "remove job directory " + dirname.field() +
+            " after marking it incomplete"); }
     return r; }
