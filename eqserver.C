@@ -231,7 +231,7 @@ geneventqueue::formatqueue(const proto::eq::genname &name,
     s.push(name);
     s.push(proto::eq::eventid::initial());
     s.push(config);
-    return statefile.createfile(buf); }
+    return statefile.replace(buf); }
 
 orerror<nnp<geneventqueue> >
 geneventqueue::openqueue(const proto::eq::genname &expectedname,
