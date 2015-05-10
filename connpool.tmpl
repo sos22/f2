@@ -7,37 +7,40 @@
 
 #include "maybe.tmpl"
 
-template <typename t> class connpool::asynccallT final {
-    friend class connpool;
-private: asynccall *inner;
-private: maybe<orerror<t> > res;
-private: asynccallT() : inner(NULL), res(Nothing) { }
-public:  class token {
-        friend class asynccallT<t>;
-    private: asynccall::token inner;
-    private: explicit token(asynccall::token _inner) : inner(_inner) {}; };
-public:  maybe<token> finished() const {
-        auto r(inner->finished());
-        if (r.isjust()) return token(r.just());
-        else return Nothing; }
-public:  orerror<t> pop(token tok) {
-    assert(res.isjust());
+template <typename t>
+connpool::asynccallT<t>::asynccallT() : inner(NULL), res(Nothing) {}
 
+template <typename t> maybe<typename connpool::asynccallT<t>::token>
+connpool::asynccallT<t>::finished() const {
+    auto r(inner->finished());
+    if (r.isjust()) return token(r.just());
+    else return Nothing; }
+
+template <typename t> orerror<t>
+connpool::asynccallT<t>::pop(token tok) {
+    assert(res.isjust());
     /* Ignore result, just doing it to release the inner structure. */
     inner->pop(tok.inner);
-
     auto r(res.just());
     delete this;
     return r; }
-public:  const publisher &pub() const { return inner->pub(); }
-public:  orerror<t> abort() {
-        inner->abort();
-        auto r(res.just());
-        delete this;
-        return r; }
-public:  token finished(clientio io) const { return token(inner->finished(io));}
-public:  orerror<t> pop(clientio io) { return pop(finished(io)); }
-private: ~asynccallT() { } };
+
+template <typename t> const publisher &
+connpool::asynccallT<t>::pub() const { return inner->pub(); }
+
+template <typename t> orerror<t>
+connpool::asynccallT<t>::abort() {
+    inner->abort();
+    auto r(res.just());
+    delete this;
+    return r; }
+
+template <typename t> typename connpool::asynccallT<t>::token
+connpool::asynccallT<t>::finished(clientio io) const {
+    return token(inner->finished(io)); }
+
+template <typename t> orerror<t>
+connpool::asynccallT<t>::pop(clientio io) { return pop(finished(io)); }
 
 template <typename t> nnp<connpool::asynccallT<t> >
 connpool::_call(

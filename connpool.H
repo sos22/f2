@@ -336,4 +336,21 @@ public:  orerror<void> pop(clientio io) { return pop(finished(io)); }
     /* Use abort() or pop() */
 private: ~asynccallT(); };
 
+template <typename t> class connpool::asynccallT final {
+    friend class connpool;
+private: asynccall *inner;
+private: maybe<orerror<t> > res;
+private: asynccallT();
+public:  class token {
+        friend class asynccallT<t>;
+    private: asynccall::token inner;
+    private: explicit token(asynccall::token _inner) : inner(_inner) {}; };
+public:  maybe<token> finished() const;
+public:  orerror<t> pop(token tok);
+public:  const publisher &pub() const;
+public:  orerror<t> abort();
+public:  token finished(clientio io) const;
+public:  orerror<t> pop(clientio io);
+private: ~asynccallT() { } };
+
 #endif /* !CONNPOOL_H__ */
