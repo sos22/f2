@@ -173,12 +173,8 @@ public: stream *findstream(const streamname &sn, onfilesystemthread);
 public: void removestream(stream &, mutex_t::token, onfilesystemthread);
 public: void startliststreams(connpool &pool,
                               subscriber &sub,
-                              const maybe<streamname> &cursor,
                               mutex_t::token);
-public: orerror<void> liststreamswoken(connpool &,
-                                       subscriber &,
-                                       mutex_t::token,
-                                       onfilesystemthread ofs);
+public: orerror<void> liststreamswoken(mutex_t::token, onfilesystemthread ofs);
 
 public: ~job(); };
 
@@ -317,7 +313,6 @@ job::removestream(stream &s, mutex_t::token tok, onfilesystemthread ofs) {
 void
 job::startliststreams(connpool &pool,
                       subscriber &sub,
-                      const maybe<streamname> &cursor,
                       mutex_t::token tok) {
     assert(liststreams(tok) == NULL);
     assert(liststreamssub(tok) == Nothing);
@@ -327,11 +322,9 @@ job::startliststreams(connpool &pool,
         /* Will be cancelled if the store drops from the beacon or the
          * job drops from the store. */
         Nothing,
-        [this, cursor] (serialise1 &s, connpool::connlock) {
+        [this] (serialise1 &s, connpool::connlock) {
             s.push(proto::storage::tag::liststreams);
-            s.push(name);
-            s.push(cursor);
-            s.push(maybe<unsigned>(Nothing)); },
+            s.push(name); },
         [this] (deserialise1 &ds, connpool::connlock cl) {
             assert(liststreamsres(cl) == Nothing);
             liststreamsres(cl).mkjust(ds);
@@ -372,10 +365,7 @@ job::abortliststreamscall(mutex_t::token tok) {
 /* Called whenever a LISTSTREAMS call's state changes.  If this
  * returns an error then we'll give up on the job. */
 orerror<void>
-job::liststreamswoken(connpool &pool,
-                      subscriber &sub,
-                      mutex_t::token tok,
-                      onfilesystemthread ofs) {
+job::liststreamswoken(mutex_t::token tok, onfilesystemthread ofs) {
     auto t(endliststreamscall(tok));
     if (t.isfailure()) return t.failure();
     if (t.success() == Nothing) return Success;
@@ -388,11 +378,6 @@ job::liststreamswoken(connpool &pool,
          !it.finished();
          lost ? it.remove() : it.next()) {
         lost = false;
-        /* Ignore streams which aren't in the results range. */
-        if (result.start == Nothing ||
-            it->status(tok).name() < result.start.just()) continue;
-        if (result.end == Nothing ||
-            it->status(tok).name() >= result.end.just()) continue;
         /* Ignore streams where our existing knowledge is more up to date
          * than the new result. */
         if (it->refreshedat(ofs) >= result.when) continue;
@@ -434,11 +419,7 @@ job::liststreamswoken(connpool &pool,
                    " on " + fields::mk(sto.name) +
                    " at " + fields::mk(result.when));
             content(tok, ofs).append(result.when, *it); } }
-    /* If the server truncated the results then kick off another call
-     * to get the rest. */
-    auto next(result.end);
     liststreamsres(isc) = Nothing;
-    if (next != Nothing) startliststreams(pool, sub, next, tok);
     return Success; }
 
 job::~job() {
@@ -714,7 +695,7 @@ store::eqconnected(connpool &pool,
      * events.  Start LISTSTREAMS machines for all of the jobs to
      * catch up again. */
     for (auto j(jobs(tok).start()); !j.finished(); j.next()) {
-        j->startliststreams(pool, sub, Nothing, tok); }
+        j->startliststreams(pool, sub, tok); }
     return Success; }
 
 /* Event queue changed, either by completing the connect or by
@@ -823,10 +804,7 @@ store::listjobswoken(connpool &pool,
                    "discovered job " + fields::mk(*jn) + " on " +
                    fields::mk(name));
             jobs(tok).append(*this, result.when, *jn)
-                .startliststreams(pool,
-                                  sub,
-                                  Nothing,
-                                  tok); } }
+                .startliststreams(pool, sub, tok); } }
     /* Flush the deferred events queue. */
     while (!deferredremove(oft).empty()) {
         auto r(deferredremove(oft).pophead());
@@ -958,7 +936,7 @@ filesystem::impl::run(clientio io) {
             auto j(containerof(static_cast<subscription *>(s),
                                filesystemimpl::job,
                                liststreamssub(token).__just()));
-            auto res(j->liststreamswoken(pool, sub, token, oft));
+            auto res(j->liststreamswoken(token, oft));
             if (res.isfailure()) j->sto.dropjob(*j, token); }
         else abort();
         mux.unlock(&token);

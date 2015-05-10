@@ -55,9 +55,7 @@ public:  orerror<job> statjob(clientio,
                               const jobname &);
 public:  orerror<proto::storage::liststreamsres> liststreams(
     clientio,
-    const jobname &,
-    const maybe<streamname> &,
-    maybe<unsigned>);
+    const jobname &);
 public:  orerror<streamstatus> statstream(
     clientio,
     const jobname &,
@@ -176,20 +174,15 @@ storageclient::statjob(clientio io,
             else return res; }); }
 
 orerror<proto::storage::liststreamsres>
-storageclient::liststreams(clientio io,
-                           const jobname &job,
-                           const maybe<streamname> &start,
-                           maybe<unsigned> limit) {
+storageclient::liststreams(clientio io, const jobname &job) {
     return pool.call<proto::storage::liststreamsres>(
         io,
         sn,
         interfacetype::storage,
-        timestamp::now() + timeout,
-        [&job, limit, &start] (serialise1 &s, connpool::connlock) {
+        timeout.future(),
+        [&job] (serialise1 &s, connpool::connlock) {
             proto::storage::tag::liststreams.serialise(s);
-            job.serialise(s);
-            start.serialise(s);
-            limit.serialise(s); },
+            job.serialise(s); },
         [] (deserialise1 &ds, connpool::connlock)
             -> orerror<proto::storage::liststreamsres>{
             proto::storage::liststreamsres res(ds);
@@ -334,22 +327,11 @@ main(int argc, char *argv[]) {
                                  .fatal("statting job " + fields::mk(j))) +
                       "\n"); }
     else if (strcmp(argv[3], "LISTSTREAMS") == 0) {
-        if (argc < 5 || argc > 7) {
-            errx(1,
-                 "LISTSTREAMS takes a job name and "
-                 "optional cursor and limit arguments"); }
+        if (argc != 5) errx(1, "LISTSTREAMS takes a job name");
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
-        maybe<streamname> start(Nothing);
-        if (argc > 5) {
-            start = streamname::parser().match(argv[5])
-                .fatal("parsing stream name " +fields::mk(argv[5])); }
-        maybe<unsigned> limit(Nothing);
-        if (argc > 6) {
-            limit = parsers::intparser<unsigned>().match(argv[6])
-                .fatal("parsing limit " + fields::mk(argv[6])); }
-        auto r(conn.liststreams(clientio::CLIENTIO, job, start, limit)
+        auto r(conn.liststreams(clientio::CLIENTIO, job)
                .fatal("listing streams"));
         fields::print(fields::mk(r) + "\n"); }
     else if (strcmp(argv[3], "STATSTREAM") == 0) {

@@ -80,8 +80,6 @@ private: orerror<void> statjob(
     onconnectionthread oct) const;
 private: orerror<void> liststreams(
     const jobname &jn,
-    const maybe<streamname> &cursor,
-    const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const;

@@ -35,20 +35,12 @@ public: maybe<jobname> end;
 public: list<jobname> res; };
 class liststreamsres {
 public: liststreamsres(proto::eq::eventid,
-                       const maybe<streamname> &,
-                       const maybe<streamname> &,
                        const list<streamstatus> &);
 public: explicit liststreamsres(deserialise1 &);
 public: void serialise(serialise1 &) const;
     /* When was the snapshot taken?  It incorporates all events up to
      * and including @when. */
 public: proto::eq::eventid when;
-    /* The snapshot includes all streams with names >= start, where
-     * Nothing is -ve infinity. */
-public: maybe<streamname> start;
-    /* It includes all streams < end, where Nothing is +ve infinity.  end
-     * is always greater than start*/
-public: maybe<streamname> end;
     /* The actual snapshot itself. */
 public: list<streamstatus> res; };
 class tag : public proto::tag {
@@ -75,10 +67,7 @@ public:  static const tag read;
 public:  static const tag listjobs;
     /* Inputs: jobname.  Output: job. */
 public:  static const tag statjob;
-    /* Inputs: jobname, maybe<streamname> start, maybe<unsigned>
-     * limit.  Outputs: liststreamsres.  start in the result is always
-     * equal to start in the request.  The result list will contain at
-     * most limit entries (if limit is non-Nothing). */
+    /* Inputs: jobname, Outputs: liststreamsres. */
 public:  static const tag liststreams;
     /* Inputs: jobname, streamname.  Outputs: streamstatus. */
 public:  static const tag statstream;

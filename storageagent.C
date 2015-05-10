@@ -181,10 +181,8 @@ storageagent::_called(
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::liststreams) {
         jobname job(ds);
-        maybe<streamname> cursor(ds);
-        maybe<unsigned> limit(ds);
         if (!ds.isfailure()) {
-            auto r(liststreams(job, cursor, limit, ic, io, oct));
+            auto r(liststreams(job, ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::statstream) {
         jobname job(ds);
@@ -394,8 +392,6 @@ storageagent::statjob(
 orerror<void>
 storageagent::liststreams(
     const jobname &jn,
-    const maybe<streamname> &cursor,
-    const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const {
@@ -411,7 +407,6 @@ storageagent::liststreams(
                     "cannot parse " + fields::mk(dir + it.filename()) +
                     " as stream name");
                 continue; }
-            if (cursor != Nothing && sn.success() < cursor.just()) continue;
             auto fname(dir + it.filename());
             auto size((fname + "content").size());
             if (size.isfailure()) {
@@ -432,21 +427,10 @@ storageagent::liststreams(
             it.failure().warn("listing " + fields::mk(dir));
             return it.failure(); } }
     sort(res);
-    maybe<streamname> newcursor(Nothing);
-    if (limit != Nothing) {
-        auto it(res.start());
-        unsigned n;
-        for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
-        if (!it.finished()) newcursor = it->name();
-        while (!it.finished()) it.remove(); }
     ic->complete(
-        [&cursor, &newcursor, &res, this]
+        [&res, this]
         (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
-            s.push(proto::storage::liststreamsres(
-                       eqq.lastid(),
-                       cursor,
-                       newcursor,
-                       res)); },
+            s.push(proto::storage::liststreamsres(eqq.lastid(), res)); },
         atl,
         oct);
     return Success; }
