@@ -109,8 +109,6 @@ static testmodule __teststorageservice(
                        return res; })
                .fatal("calling new storage service"));
         /* Storage agents start empty. */
-        assert(r.start == Nothing);
-        assert(r.end == Nothing);
         assert(r.res.empty());
         /* Kill it again. */
         ss->kill();

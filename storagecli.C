@@ -47,10 +47,7 @@ public:  orerror<pair<size_t, buffer> > read(clientio,
                                              const streamname &,
                                              maybe<bytecount>,
                                              maybe<bytecount>);
-public:  orerror<proto::storage::listjobsres> listjobs(
-    clientio,
-    const maybe<jobname> &,
-    maybe<unsigned>);
+public:  orerror<proto::storage::listjobsres> listjobs(clientio);
 public:  orerror<job> statjob(clientio,
                               const jobname &);
 public:  orerror<proto::storage::liststreamsres> liststreams(
@@ -139,18 +136,14 @@ storageclient::read(clientio io,
             else return mkpair(s, b); }); }
 
 orerror<proto::storage::listjobsres>
-storageclient::listjobs(clientio io,
-                        const maybe<jobname> &start,
-                        maybe<unsigned> limit) {
+storageclient::listjobs(clientio io) {
     return pool.call<proto::storage::listjobsres>(
         io,
         sn,
         interfacetype::storage,
         timestamp::now() + timeout,
-        [limit, &start] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::listjobs.serialise(s);
-            start.serialise(s);
-            limit.serialise(s); },
+        [] (serialise1 &s, connpool::connlock) {
+            proto::storage::tag::listjobs.serialise(s); },
         [] (deserialise1 &ds, connpool::connlock)
             -> orerror<proto::storage::listjobsres>{
             proto::storage::listjobsres res(ds);
@@ -305,17 +298,8 @@ main(int argc, char *argv[]) {
                       fields::mk(r.second()).showshape().words() +
                       "\n"); }
     else if (strcmp(argv[3], "LISTJOBS") == 0) {
-        if (argc > 6) {
-            errx(1,"LISTJOBS takes optional cursor and limit arguments only"); }
-        maybe<jobname> start(Nothing);
-        if (argc > 4) {
-            start = jobname::parser().match(argv[4])
-                .fatal("parsing job name " + fields::mk(argv[4])); }
-        maybe<unsigned> limit(Nothing);
-        if (argc > 5) {
-            limit = parsers::intparser<unsigned>().match(argv[5])
-                .fatal("parsing limit " + fields::mk(argv[5])); }
-        auto r(conn.listjobs(clientio::CLIENTIO, start, limit)
+        if (argc != 4) errx(1,"LISTJOBS takes no arguments");
+        auto r(conn.listjobs(clientio::CLIENTIO)
                .fatal("listing jobs"));
         fields::print(fields::mk(r) + "\n"); }
     else if (strcmp(argv[3], "STATJOB") == 0) {

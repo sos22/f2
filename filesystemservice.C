@@ -281,7 +281,6 @@ public: orerror<void> eqwoken(connpool &,
 
 public: void startlistjobs(connpool &pool,
                            subscriber &sub,
-                           const maybe<jobname> &cursor,
                            onfilesystemthread oft,
                            inlistjobscall);
 public: orerror<void> listjobswoken(connpool &,
@@ -689,7 +688,7 @@ store::eqconnected(connpool &pool,
      * machine to regenerate them. */
     /* inlistjobscall::mk safe because we've stopped the LISTJOBS
      * call. */
-    startlistjobs(pool, sub, Nothing, oft, inlistjobscall::mk(oft));
+    startlistjobs(pool, sub, oft, inlistjobscall::mk(oft));
     
     /* If we have any jobs then we may also have missed some stream
      * events.  Start LISTSTREAMS machines for all of the jobs to
@@ -715,7 +714,6 @@ store::eqwoken(connpool &pool,
 void
 store::startlistjobs(connpool &pool,
                      subscriber &sub,
-                     const maybe<jobname> &cursor,
                      onfilesystemthread oft,
                      inlistjobscall) {
     assert(listjobs(oft) == NULL);
@@ -726,10 +724,8 @@ store::startlistjobs(connpool &pool,
         /* Infinite timeout is safe: we'll give up when it drops out
          * of the beacon client. */
         Nothing,
-        [cursor] (serialise1 &s, connpool::connlock) {
-            s.push(proto::storage::tag::listjobs);
-            s.push(cursor);
-            s.push(maybe<unsigned>(Nothing)); },
+        [] (serialise1 &s, connpool::connlock) {
+            s.push(proto::storage::tag::listjobs); },
         [this] (deserialise1 &ds, connpool::connlock cl) {
             assert(listjobsres(cl) == Nothing);
             listjobsres(cl).mkjust(ds);
@@ -767,10 +763,6 @@ store::listjobswoken(connpool &pool,
          !job.finished();
          found ? job.next() : job.remove()) {
         found = true;
-        /* Ignore jobs which aren't in the results range. */
-        if (result.start == Nothing ||
-            job->name < result.start.just()) continue;
-        if (result.end == Nothing || job->name >= result.end.just()) continue;
         /* Ignore jobs where our existing knowledge is more up to date
          * than the new result. */
         if (job->refreshedat(oft) >= result.when) continue;
@@ -811,9 +803,7 @@ store::listjobswoken(connpool &pool,
         eqremovejob(r.first(), r.second(), tok, oft); }
     /* If the server truncated the results then kick off another call
      * to get the rest. */
-    auto next(result.end);
     listjobsres(ijc) = Nothing;
-    if (next != Nothing) startlistjobs(pool, sub, next, oft, ijc);
     return Success; }
 
 /* Store destructor.  This can be called when the store is any state,

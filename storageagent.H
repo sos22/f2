@@ -68,8 +68,6 @@ private: orerror<void> read(
     acquirestxlock atl,
     onconnectionthread oct) const;
 private: orerror<void> listjobs(
-    const maybe<jobname> &cursor,
-    const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const;

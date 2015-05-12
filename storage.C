@@ -46,32 +46,22 @@ proto::storage::tag::tag(deserialise1 &ds)
         *this = createjob; } }
 
 proto::storage::listjobsres::listjobsres(proto::eq::eventid _when,
-                                         const maybe<jobname> &_start,
-                                         const maybe<jobname> &_end,
                                          const list<jobname> &_res)
     : when(_when),
-      start(_start),
-      end(_end),
       res(_res) {}
 
 proto::storage::listjobsres::listjobsres(deserialise1 &ds)
     : when(ds),
-      start(ds),
-      end(ds),
       res(ds) {}
 
 void
 proto::storage::listjobsres::serialise(serialise1 &s) const {
     s.push(when);
-    s.push(start);
-    s.push(end);
     s.push(res); }
 
 const fields::field &
 fields::mk(const proto::storage::listjobsres &a) {
     return "<listjobsres: when:" + fields::mk(a.when) +
-        " start:" + fields::mk(a.start) +
-        " end:" + fields::mk(a.end) +
         " res:" + fields::mk(a.res) +
         ">"; }
 

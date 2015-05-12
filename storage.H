@@ -16,21 +16,12 @@ class serialise1;
 namespace proto {
 namespace storage {
 class listjobsres {
-public: listjobsres(proto::eq::eventid,
-                    const maybe<jobname> &,
-                    const maybe<jobname> &,
-                    const list<jobname> &);
+public: listjobsres(proto::eq::eventid, const list<jobname> &);
 public: explicit listjobsres(deserialise1 &);
 public: void serialise(serialise1 &) const;
     /* When was the snapshot taken?  It incorporates all events up to
      * and including @when. */
 public: proto::eq::eventid when;
-    /* The snapshot includes all jobs with names >= start, where
-     * Nothing is -ve infinity. */
-public: maybe<jobname> start;
-    /* It includes all jobs < end, where Nothing is +ve infinity.  end
-     * is always greater than start*/
-public: maybe<jobname> end;
     /* The actual snapshot itself. */
 public: list<jobname> res; };
 class liststreamsres {
@@ -60,10 +51,9 @@ public:  static const tag finish;
      * maybe<unsigned long> end.  Outputs: size_t filesize,
      * buffer content. */
 public:  static const tag read;
-    /* Inputs: maybe<jobname> start, maybe<unsigned> limit.  Outputs:
-     * listjobsres.  start in the result is always equal to start in
-     * the request.  The result list will contain at most limit
-     * entries (if limit is non-Nothing). */
+    /* Inputs: None. Outputs: listjobsres.  start in the result is
+     * always equal to start in the request.  The result list will
+     * contain at most limit entries (if limit is non-Nothing). */
 public:  static const tag listjobs;
     /* Inputs: jobname.  Output: job. */
 public:  static const tag statjob;

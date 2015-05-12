@@ -169,10 +169,8 @@ storageagent::_called(
                         ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::listjobs) {
-        maybe<jobname> _start(ds);
-        maybe<unsigned> limit(ds);
         if (!ds.isfailure()) {
-            auto r(listjobs(_start, limit, ic, io, oct));
+            auto r(listjobs(ic, io, oct));
             if (r.isfailure()) ds.fail(r.failure()); } }
     else if (tag == proto::storage::tag::statjob) {
         jobname j(ds);
@@ -328,8 +326,6 @@ storageagent::read(
 
 orerror<void>
 storageagent::listjobs(
-    const maybe<jobname> &cursor,
-    const maybe<unsigned> &limit,
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const {
@@ -345,25 +341,15 @@ storageagent::listjobs(
                     fields::mk(config.poolpath + it.filename()) +
                     " as job name");
                 continue; }
-            if (cursor != Nothing && jn.success() < cursor.just()) continue;
             res.pushtail(jn.success()); }
         if (it.isfailure()) return it.failure(); }
     sort(res);
-    maybe<jobname> newcursor(Nothing);
-    if (limit != Nothing) {
-        auto it(res.start());
-        unsigned n;
-        for (n = 0; n < limit.just() && !it.finished(); n++) it.next();
-        if (!it.finished()) newcursor = *it;
-        while (!it.finished()) it.remove(); }
-    ic->complete([cursor, newcursor, r(res.steal()), this]
+    ic->complete([r(res.steal()), this]
                  (serialise1 &s,
                   mutex_t::token /* txlock */,
                   onconnectionthread) {
                      s.push(proto::storage::listjobsres(
                                 eqq.lastid(),
-                                cursor,
-                                newcursor,
                                 r)); },
                  atl,
                  oct);
