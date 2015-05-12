@@ -1,12 +1,16 @@
 #include "storageclient.H"
 
 #include "clientio.H"
+#include "connpool.H"
+#include "job.H"
 #include "nnp.H"
 #include "orerror.H"
 #include "proto2.H"
 #include "serialise.H"
 #include "storage.H"
 #include "util.H"
+
+#include "connpool.tmpl"
 
 template <typename t> typename t::resT
 popasync(clientio io, t &cl) {
@@ -24,14 +28,10 @@ class storageclient::impl {
 public: class storageclient api;
 public: connpool &cp;
 public: const agentname an;
-public: impl(connpool &, const agentname &);
-public: void destroy(); };
+public: impl(connpool &, const agentname &); };
 
 storageclient::impl::impl(connpool &_cp, const agentname &_an)
     : cp(_cp), an(_an) {}
-
-void
-storageclient::impl::destroy() { delete this; }
 
 class storageclient::impl &
 storageclient::impl() { return *containerof(this, class impl, api); }
@@ -106,5 +106,54 @@ storageclient::connect(
     const agentname &an) {
     return popasync(io, connect(cp, an)); }
 
+class storageclient::asynccreatejob::impl {
+public: storageclient::asynccreatejob api;
+public: connpool::asynccallT<proto::eq::eventid> &cl;
+public: explicit impl(class storageclient::impl &owner, const job &j)
+    : api(),
+      cl(*owner.cp.call<proto::eq::eventid>(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [j] (serialise1 &s, connpool::connlock) { s.push(j); },
+             [] (deserialise1 &ds, connpool::connlock) -> proto::eq::eventid {
+                 return proto::eq::eventid(ds); })) {} };
+
+class storageclient::asynccreatejob::impl &
+storageclient::asynccreatejob::impl() {
+    return *containerof(this, class impl, api); }
+
+const class storageclient::asynccreatejob::impl &
+storageclient::asynccreatejob::impl() const {
+    return *containerof(this, class impl, api); }
+
+maybe<storageclient::asynccreatejob::token>
+storageclient::asynccreatejob::finished() const {
+    auto r(impl().cl.finished());
+    if (r == Nothing) return Nothing;
+    else return token(r.just()); }
+
+const publisher &
+storageclient::asynccreatejob::pub() const { return impl().cl.pub(); }
+
+storageclient::asynccreatejob::resT
+storageclient::asynccreatejob::pop(storageclient::asynccreatejob::token t) {
+    resT r(impl().cl.pop(t.inner));
+    delete &impl();
+    return r; }
+
 void
-storageclient::destroy() { impl().destroy(); }
+storageclient::asynccreatejob::abort() {
+    impl().cl.abort();
+    delete &impl(); }
+
+storageclient::asynccreatejob &
+storageclient::createjob(const job &j) {
+    return (new class asynccreatejob::impl(impl(), j))->api; }
+
+storageclient::asynccreatejob::resT
+storageclient::createjob(clientio io, const job &j) {
+    return popasync(io, createjob(j)); }
+
+void
+storageclient::destroy() { delete &impl(); }

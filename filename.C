@@ -205,8 +205,10 @@ orerror<bytecount>
 filename::size() const {
     struct stat st;
     if (::stat(content.c_str(), &st) < 0) return error::from_errno();
-    assert(st.st_size >= 0);
-    return bytecount::bytes(st.st_size); }
+    else if (!S_ISREG(st.st_mode)) return error::notafile;
+    else {
+        assert(st.st_size >= 0);
+        return bytecount::bytes(st.st_size); } }
 
 orerror<buffer>
 filename::read(bytecount start, bytecount end) const {

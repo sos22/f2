@@ -130,12 +130,11 @@ storageagent::_called(
     else if (tag == proto::storage::tag::createjob) {
         job j(ds);
         if (ds.isfailure()) return ds.failure();
-        auto r(createjob(j));
+        auto r(createjob(io, j));
         if (r.isfailure()) return r.failure();
-        auto eid(eqq.queue(proto::storage::event::newjob(j.name()), io));
-        ic->complete([eid] (serialise1 &s,
-                            mutex_t::token /* txlock */,
-                            onconnectionthread) {
+        ic->complete([eid(r.success())] (serialise1 &s,
+                                         mutex_t::token /* txlock */,
+                                         onconnectionthread) {
                          s.push(eid); },
                      acquirestxlock(io),
                      oct);
@@ -204,11 +203,51 @@ storageagent::_called(
     else ds.fail(error::invalidmessage);
     return ds.status(); }
 
-orerror<void>
-storageagent::createjob(const job &t) {
+orerror<proto::eq::eventid>
+storageagent::createjob(clientio io, const job &t) {
     logmsg(loglevel::debug, "create job " + fields::mk(t));
     auto dirname(config.poolpath + t.name().asfilename());
     orerror<void> r(dirname.mkdir());
+    if (r == error::already) {
+        /* If it's a leftover from a previous operation remove it and
+         * try again. */
+        auto complete((dirname + "complete").isfile());
+        if (complete.isfailure()) goto fail;
+        else if (complete == false) {
+            r = dirname.rmtree();
+            if (r.isfailure()) goto fail;
+            r = dirname.mkdir();
+            if (r.isfailure()) goto fail; }
+        else {
+            /* Check for replays. */
+            /* Job must match */
+            auto prevjob((dirname + "job").deserialiseobj<job>());
+            if (prevjob.isfailure() || prevjob.success() != t) goto fail;
+            /* Every output must be present and empty. */
+            for (auto it(t.outputs().start()); !it.finished(); it.next()) {
+                auto fn(dirname + it->asfilename());
+                if ((dirname + it->asfilename() + "content").size() != 0_B) {
+                    goto fail; }
+                filename::diriter it2(fn);
+                if (it2.finished() || strcmp(it2.filename(), "content")) {
+                    goto fail; }
+                it2.next();
+                if (!it2.finished() || it2.isfailure()) goto fail; }
+            /* Everything present must match one of the outputs. */
+            filename::diriter it(dirname);
+            auto &parser(streamname::parser());
+            for (/**/; !it.finished(); it.next()) {
+                auto fn(it.filename());
+                if (!strcmp(fn, "job") || !strcmp(fn, "eid")) continue;
+                auto sn(parser.match(fn));
+                if (sn.isfailure() ||
+                    !t.outputs().contains(sn.success())) {
+                    goto fail; } }
+            /* Looks like a replay -> succeeds without needing to do
+             * anything. */
+            auto eid((dirname + "eid").deserialiseobj<proto::eq::eventid>());
+            if (eid.isfailure()) goto fail;
+            return eid; } }
     if (r.isfailure()) return r.failure();
     r = (dirname + "job").serialiseobj(t);
     if (r.isfailure()) goto fail;
@@ -218,9 +257,12 @@ storageagent::createjob(const job &t) {
         if (r.isfailure()) goto fail;
         r = (fn + "content").createfile();
         if (r.isfailure()) goto fail; }
-    r = (dirname + "complete").createfile();
-    if (r.isfailure()) goto fail;
-    return Success;
+    {   auto eid(eqq.queue(proto::storage::event::newjob(t.name()), io));
+        r = (dirname + "eid").serialiseobj(eid);
+        if (r.isfailure()) goto fail;
+        r = (dirname + "complete").createfile();
+        if (r.isfailure()) goto fail;
+        return eid; }
  fail:
     r.failure().warn("creating job " + t.field());
     dirname
@@ -334,6 +376,11 @@ storageagent::listjobs(
     {   filename::diriter it(config.poolpath);
         for (/**/; !it.finished(); it.next()) {
             if (strcmp(it.filename(), "queue") == 0) continue;
+            /* Ignore incomplete jobs. */
+            {   auto r((config.poolpath + it.filename() + "complete")
+                       .isfile());
+                if (r.isfailure()) return r.failure();
+                if (r == false) continue; }
             auto jn(parser.match(it.filename()));
             if (jn.isfailure()) {
                 jn.failure().warn(

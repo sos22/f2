@@ -1,6 +1,7 @@
 #ifndef STORAGEAGENT_H__
 #define STORAGEAGENT_H__
 
+#include "eq.H"
 #include "rpcservice2.H"
 #include "storageconfig.H"
 
@@ -50,7 +51,9 @@ private: orerror<void> _called(
     nnp<incompletecall>,
     onconnectionthread,
     mutex_t::token);
-private: orerror<void> createjob(const job &t);
+private: orerror<proto::eq::eventid> createjob(
+    clientio io,
+    const job &t);
 public:  orerror<void> append(
     const jobname &t,
     const streamname &sn,
