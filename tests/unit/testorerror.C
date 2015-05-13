@@ -47,4 +47,32 @@ static testmodule __testorerror(
         x = 7;
         assert(x == 7);
         x = error::notempty;
-        assert(x == error::notempty); });
+        assert(x == error::notempty); },
+    "mksuccess", [] {
+        int nrcons(0);
+        int nrdest(0);
+        class cons {
+        public: int &_nrcons;
+        public: int &_nrdest;
+        public: cons(int &__nrcons, int &__nrdest)
+            : _nrcons(__nrcons),
+              _nrdest(__nrdest) {
+            _nrcons++; }
+        public: cons(cons &_what)
+            : _nrcons(_what._nrcons),
+              _nrdest(_what._nrdest) {
+            _nrcons++; }
+        public: ~cons() { _nrdest++; }
+        public: cons() = delete;
+        public: void operator=(const cons &) = delete; };
+        orerror<cons> failed(error::unknown);
+        failed.mksuccess(nrcons, nrdest);
+        assert(failed.issuccess());
+        assert(nrcons == 1);
+        failed = error::overflowed;
+        assert(failed.isfailure());
+        assert(nrdest == 1);
+        failed.mksuccess(nrcons, nrdest);
+        failed.mksuccess(nrcons, nrdest);
+        assert(nrcons == 3);
+        assert(nrdest == 2); });

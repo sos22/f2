@@ -37,6 +37,11 @@ public:
     template <typename ... args> orerror(_Success, args &&...params)
         : errored(false),
           inner(std::forward<args>(params)...) {}
+    template <typename ... args> void mksuccess(args &&...params) {
+        if (errored) err.~error();
+        else inner.~t();
+        errored = false;
+        new (&inner) t(std::forward<args>(params)...); }
     void operator=(const orerror &o) {
         if (errored) {
             if (o.errored) err = o.err;
