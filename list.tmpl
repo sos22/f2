@@ -69,7 +69,7 @@ list<t>::list(const list<t> &o)
         pushtail(*it); } }
 
 template <typename t>
-list<t>::list(list<t> &&o)
+list<t>::list(_Steal, list<t> &o)
     : head(o.head),
       tail(o.tail) {
     o.head = NULL;

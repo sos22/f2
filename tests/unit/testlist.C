@@ -316,5 +316,13 @@ static testmodule __listtest(
         list<int> l(Immediate(), 5, 7, 1, 99, -5);
         assert(!l.issorted());
         sort(l);
-        assert(l.issorted()); }
-    );
+        assert(l.issorted()); },
+    "steal", [] {
+        class cons {
+        public: int &_nrcons;
+        public: cons(int &__nrcons) : _nrcons(__nrcons) { _nrcons++; } };
+        int nrcons(0);
+        list<cons> l((Immediate()), cons(nrcons), cons(nrcons), cons(nrcons));
+        assert(nrcons == 3);
+        list<cons> l2(Steal, l);
+        assert(nrcons == 3); } );

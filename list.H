@@ -3,6 +3,8 @@
 
 #include <functional>
 
+#include "steal.H"
+
 class deserialise1;
 class quickcheck;
 template <typename> class list;
@@ -30,7 +32,7 @@ class list {
 public:
     void operator=(const list &o);
     list(const list &o);
-    list(list &&o);
+    list(_Steal, list &o);
     list(const quickcheck &);
 
     template <typename ... args> static list mk(args...);
