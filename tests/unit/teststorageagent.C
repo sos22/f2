@@ -54,4 +54,5 @@ static testmodule __teststorageagent(
         t.client.createjob(io, j).fatal("creating job");
         auto r(t.client.listjobs(io).fatal("listing jobs").second());
         assert(r.length() == 1);
-        assert(r.idx(0) == j.name()); } );
+        assert(r.idx(0) == j.name());
+        assert(t.client.statjob(io, j.name()) == j); } );

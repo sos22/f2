@@ -12,6 +12,7 @@
 
 #include "connpool.tmpl"
 #include "list.tmpl"
+#include "orerror.tmpl"
 
 template <typename _resT, typename _implT, typename _innerTokenT> _implT &
 storageclient::asynccall<_resT, _implT, _innerTokenT>::impl() {
@@ -162,6 +163,38 @@ storageclient::listjobs() { return (new asynclistjobsimpl(impl()))->api; }
 orerror<storageclient::asynclistjobs::resT>
 storageclient::listjobs(clientio io) { return listjobs().pop(io); }
 
+class storageclient::asyncstatjobimpl {
+public: storageclient::asyncstatjob api;
+public: connpool::asynccallT<job> &cl;
+public: explicit asyncstatjobimpl(class storageclient::impl &owner,
+                                  const jobname &jn)
+    : api(),
+      cl(*owner.cp.call<job>(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [jn] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::statjob);
+                 s.push(jn); },
+             [] (deserialise1 &ds, connpool::connlock) {
+                 return job(ds); })) {} };
+
+template <> orerror<storageclient::asyncstatjob::resT>
+storageclient::asyncstatjob::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    orerror<storageclient::asyncstatjob::resT> res(error::unknown);
+    if (r.isfailure()) res = r.failure();
+    else res = r.success();
+    return res; }
+
+storageclient::asyncstatjob &
+storageclient::statjob(jobname jn) {
+    return (new asyncstatjobimpl(impl(), jn))->api; }
+
+orerror<storageclient::asyncstatjob::resT>
+storageclient::statjob(clientio io, jobname jn) { return statjob(jn).pop(io); }
+
 void
 storageclient::destroy() { delete &impl(); }
 
@@ -173,3 +206,4 @@ storageclient::destroy() { delete &impl(); }
 instantiate(asyncconnect);
 instantiate(asynccreatejob);
 instantiate(asynclistjobs);
+instantiate(asyncstatjob);

@@ -5,9 +5,9 @@
 #include "agentname.H"
 #include "connpool.H"
 #include "eq.H"
+#include "job.H"
 #include "storage.H"
 
-class job;
 class jobname;
 template <typename> class list;
 template <typename> class maybe;
@@ -68,6 +68,14 @@ public:  typedef asynccall<
     connpool::asynccallT<proto::storage::listjobsres>::token> asynclistjobs;
 public:  asynclistjobs &listjobs();
 public:  orerror<asynclistjobs::resT> listjobs(clientio);
+    
+private: class asyncstatjobimpl;
+public:  typedef asynccall<
+    job,
+    asyncstatjobimpl,
+    connpool::asynccallT<job>::token> asyncstatjob;
+public:  asyncstatjob &statjob(jobname);
+public:  orerror<asyncstatjob::resT> statjob(clientio, jobname);
     
 public:  void destroy(); };
 
