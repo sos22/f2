@@ -22,4 +22,20 @@ static testmodule __testjob(
             if (ds.isfailure()) continue;
             succ++;
             assert(!j.outputs().hasdupes());
-            assert(j.outputs().issorted()); } } );
+            assert(j.outputs().issorted()); } },
+    "serialisename", [] {
+        /* serialising and deserialising must produce something with
+         * the same name.  We've had problems in the past with it
+         * changing the hash table shape. */
+        quickcheck q;
+        for (unsigned cntr = 0; cntr < 1000; cntr++) {
+            auto val(mkrandom<job>(q));
+            buffer buf;
+            {   serialise1 s(buf);
+                val.serialise(s); }
+            {   deserialise1 ds(buf);
+                job res(ds);
+                assert(ds.status().issuccess());
+                assert(res == val);
+                assert(res.name() == val.name()); } } }
+    );

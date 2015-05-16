@@ -67,8 +67,13 @@ const fields::field &
 job::field() const {
     assert(outputs().issorted());
     auto acc(&("<job:" + library.field() + ":"+ function.field()));
+    list<string> sortinput;
     for (auto it(inputs.start()); !it.finished(); it.next()) {
-        acc = &(*acc + " -<" + it.key().field() + ":" + it.value().field()); }
+        sortinput.append((" -<" + it.key().field() + ":" + it.value().field())
+                      .c_str()); }
+    sort(sortinput);
+    for (auto it(sortinput.start()); !it.finished(); it.next()) {
+        acc = &(*acc + fields::mk(it->c_str())); }
     for (auto it(outputs().start()); !it.finished(); it.next()) {
         acc = &(*acc + " ->" + it->field()); }
     return *acc + ">"; }
