@@ -28,9 +28,22 @@ streamname::asfilename() const { return content; }
 
 streamname::streamname(deserialise1 &ds)
     : content(ds) {
-    if (!isvalid()) {
+    if (isvalid()) return;
+    else if (!ds.random()) {
         ds.fail(error::invalidmessage);
-        content = "...badstream..."; } }
+        content = "...badstream..."; }
+    else {
+        auto l = (unsigned)ds % 100 + 1;
+        auto c = (char *)malloc(l+1);
+        static const char validchars[] =
+            "1234567890qwertyuiopasdfghjklzxcvbnm"
+            "QWERTYUIOPASDFGHJKLZXCVBNM[]{};'#:@~,.<>?"
+            "!\"$%^&*()-=_+\\| ";
+        for (unsigned x = 0; x < l; x++) {
+            c[x] = validchars[(unsigned)ds % (sizeof(validchars) - 1)]; }
+        c[l] = '\0';
+        content = string::steal(c);
+        assert(isvalid()); } }
 
 void
 streamname::serialise(serialise1 &s) const { content.serialise(s); }
