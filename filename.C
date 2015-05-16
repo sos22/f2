@@ -51,7 +51,8 @@ filename::readasbuffer() const {
     orerror<buffer> res(Success);
     int fd(open(content.c_str(), O_RDONLY));
     if (fd < 0) {
-        res = error::from_errno();
+        if (errno == ENOENT) res = error::notfound;
+        else res = error::from_errno();
         return res; }
     struct stat st;
     if (fstat(fd, &st) < 0) {
