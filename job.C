@@ -37,7 +37,9 @@ job::job(deserialise1 &ds)
       function(ds),
       inputs(ds),
       _outputs(ds) {
-    if (!outputs().issorted()) {
+    if (outputs().issorted()) return;
+    if (ds.random()) sort(_outputs);
+    else {
         ds.fail(error::invalidmessage);
         _outputs.flush(); } }
 
