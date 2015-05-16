@@ -46,4 +46,12 @@ static testmodule __teststorageagent(
                        "storageagent.H",
                        "storageclient.C",
                        "storageclient.H"),
-    "connect", [] (clientio io) { teststate t((io)); } );
+    "connect", [] (clientio io) { teststate t((io)); },
+    "createjob", [] (clientio io) {
+        teststate t((io));
+        deserialise1 ds(t.q);
+        job j(ds);
+        t.client.createjob(io, j).fatal("creating job");
+        auto r(t.client.listjobs(io).fatal("listing jobs").second());
+        assert(r.length() == 1);
+        assert(r.idx(0) == j.name()); } );

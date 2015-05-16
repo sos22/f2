@@ -11,27 +11,50 @@
 #include "util.H"
 
 #include "connpool.tmpl"
+#include "list.tmpl"
 
-template <typename t> typename t::resT
-popasync(clientio io, t &cl) {
-    auto tok(cl.finished());
+template <typename _resT, typename _implT, typename _innerTokenT> _implT &
+storageclient::asynccall<_resT, _implT, _innerTokenT>::impl() {
+    return *containerof(this, _implT, api); }
+
+template <typename _resT, typename _implT, typename _innerTokenT> const _implT &
+storageclient::asynccall<_resT, _implT, _innerTokenT>::impl() const {
+    return *containerof(this, _implT, api); }
+
+template <typename _resT, typename _implT, typename _innerTokenT>
+const publisher &
+storageclient::asynccall<_resT, _implT, _innerTokenT>::pub() const {
+    return impl().cl.pub(); }
+
+template <typename _resT, typename _implT, typename _innerTokenT> orerror<_resT>
+storageclient::asynccall<_resT, _implT, _innerTokenT>::pop(clientio io) {
+    auto tok(finished());
     if (tok == Nothing) {
         subscriber ss;
-        subscription sub(ss, cl.pub());
-        tok = cl.finished();
+        subscription sub(ss, pub());
+        tok = finished();
         while (tok == Nothing) {
             ss.wait(io);
-            tok = cl.finished(); } }
-    return cl.pop(tok.just()); }
+            tok = finished(); } }
+    return pop(tok.just()); }
+
+template <typename _resT, typename _implT, typename _innerTokenT>
+maybe<typename storageclient::asynccall<_resT, _implT, _innerTokenT>::token>
+storageclient::asynccall<_resT, _implT, _innerTokenT>::finished() const {
+    auto r(impl().cl.finished());
+    if (r == Nothing) return Nothing;
+    else return token(r.just()); }
+
+template <typename _resT, typename _implT, typename _innerTokenT> void
+storageclient::asynccall<_resT, _implT, _innerTokenT>::abort() {
+    impl().cl.abort();
+    delete &impl(); }
 
 class storageclient::impl {
 public: class storageclient api;
 public: connpool &cp;
 public: const agentname an;
-public: impl(connpool &, const agentname &); };
-
-storageclient::impl::impl(connpool &_cp, const agentname &_an)
-    : cp(_cp), an(_an) {}
+public: impl(connpool &_cp, const agentname &_an) : cp(_cp), an(_an) {} };
 
 class storageclient::impl &
 storageclient::impl() { return *containerof(this, class impl, api); }
@@ -39,121 +62,114 @@ storageclient::impl() { return *containerof(this, class impl, api); }
 const class storageclient::impl &
 storageclient::impl() const { return *containerof(this, class impl, api); }
 
-class storageclient::asyncconnect::impl {
+class storageclient::asyncconnectimpl {
 public: storageclient::asyncconnect api;
 public: connpool &cp;
 public: const agentname an;
 public: connpool::asynccall &cl;
-public: impl(connpool &_cp, const agentname &_an)
+public: asyncconnectimpl(connpool &_cp, const agentname &_an)
     : cp(_cp),
       an(_an),
       cl(*cp.call(an,
                   interfacetype::storage,
                   Nothing,
                   [] (serialise1 &s, connpool::connlock) {
-                      s.push(proto::storage::tag::ping); })) {}
-public: maybe<storageclient::asyncconnect::token> finished() const {
-    auto r(cl.finished());
-    if (r == Nothing) return Nothing;
-    else return token(r.just()); }
-public: storageclient::asyncconnect::resT pop(
-    storageclient::asyncconnect::token t) {
-    auto r(cl.pop(t.inner));
+                      s.push(proto::storage::tag::ping); })) {} };
+
+template <> orerror<storageclient::asyncconnect::resT>
+storageclient::asyncconnect::pop(token t) {
+    auto &i(impl());
+    auto r(i.cl.pop(t.inner));
     if (r.isfailure()) {
         logmsg(
             loglevel::failure,
-            "failed to connect to " + an.field() + ": " + r.failure().field());
+            "failed to connect to " +i.an.field() + ": " + r.failure().field());
         delete this;
         return r.failure(); }
     else {
         logmsg(
             loglevel::debug,
-            "connected to " + an.field());
-        auto res(new class storageclient::impl(cp, an));
+            "connected to " + i.an.field());
+        auto res(new class storageclient::impl(i.cp, i.an));
         delete this;
-        return success(_nnp(res->api)); } } };
-
-class storageclient::asyncconnect::impl &
-storageclient::asyncconnect::impl() {
-    return *containerof(this, class impl, api); }
-
-const class storageclient::asyncconnect::impl &
-storageclient::asyncconnect::impl() const {
-    return *containerof(this, class impl, api); }
-
-maybe<storageclient::asyncconnect::token>
-storageclient::asyncconnect::finished() const { return impl().finished(); }
-
-const publisher &
-storageclient::asyncconnect::pub() const { return impl().cl.pub(); }
-
-storageclient::asyncconnect::resT
-storageclient::asyncconnect::pop(token t) { return impl().pop(t); }
-
-void
-storageclient::asyncconnect::abort() {
-    impl().cl.abort();
-    delete &impl(); }
+        return success(_nnp(res->api)); } }
 
 storageclient::asyncconnect &
 storageclient::connect(connpool &cp, const agentname &an) {
-    return (new class asyncconnect::impl(cp, an))->api; }
+    return (new asyncconnectimpl(cp, an))->api; }
 
-orerror<nnp<storageclient> >
-storageclient::connect(
-    clientio io,
-    connpool &cp,
-    const agentname &an) {
-    return popasync(io, connect(cp, an)); }
+orerror<storageclient::asyncconnect::resT>
+storageclient::connect(clientio io, connpool &cp, const agentname &an) {
+    return connect(cp, an).pop(io); }
 
-class storageclient::asynccreatejob::impl {
+class storageclient::asynccreatejobimpl {
 public: storageclient::asynccreatejob api;
 public: connpool::asynccallT<proto::eq::eventid> &cl;
-public: explicit impl(class storageclient::impl &owner, const job &j)
+public: explicit asynccreatejobimpl(
+    class storageclient::impl &owner,
+    const job &j)
     : api(),
       cl(*owner.cp.call<proto::eq::eventid>(
              owner.an,
              interfacetype::storage,
              Nothing,
-             [j] (serialise1 &s, connpool::connlock) { s.push(j); },
+             [j] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::createjob);
+                 s.push(j); },
              [] (deserialise1 &ds, connpool::connlock) -> proto::eq::eventid {
                  return proto::eq::eventid(ds); })) {} };
 
-class storageclient::asynccreatejob::impl &
-storageclient::asynccreatejob::impl() {
-    return *containerof(this, class impl, api); }
-
-const class storageclient::asynccreatejob::impl &
-storageclient::asynccreatejob::impl() const {
-    return *containerof(this, class impl, api); }
-
-maybe<storageclient::asynccreatejob::token>
-storageclient::asynccreatejob::finished() const {
-    auto r(impl().cl.finished());
-    if (r == Nothing) return Nothing;
-    else return token(r.just()); }
-
-const publisher &
-storageclient::asynccreatejob::pub() const { return impl().cl.pub(); }
-
-storageclient::asynccreatejob::resT
-storageclient::asynccreatejob::pop(storageclient::asynccreatejob::token t) {
-    resT r(impl().cl.pop(t.inner));
+template <> orerror<storageclient::asynccreatejob::resT>
+storageclient::asynccreatejob::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
     delete &impl();
     return r; }
 
-void
-storageclient::asynccreatejob::abort() {
-    impl().cl.abort();
-    delete &impl(); }
-
 storageclient::asynccreatejob &
 storageclient::createjob(const job &j) {
-    return (new class asynccreatejob::impl(impl(), j))->api; }
+    return (new asynccreatejobimpl(impl(), j))->api; }
 
-storageclient::asynccreatejob::resT
+orerror<storageclient::asynccreatejob::resT>
 storageclient::createjob(clientio io, const job &j) {
-    return popasync(io, createjob(j)); }
+    return createjob(j).pop(io); }
+
+class storageclient::asynclistjobsimpl {
+public: storageclient::asynclistjobs api;
+public: connpool::asynccallT<proto::storage::listjobsres> &cl;
+public: explicit asynclistjobsimpl(class storageclient::impl &owner)
+    : api(),
+      cl(*owner.cp.call<proto::storage::listjobsres>(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::listjobs); },
+             [] (deserialise1 &ds, connpool::connlock) {
+                 return proto::storage::listjobsres(ds); })) {} };
+
+template <> orerror<storageclient::asynclistjobs::resT>
+storageclient::asynclistjobs::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    orerror<storageclient::asynclistjobs::resT> res(error::unknown);
+    if (r.isfailure()) res = r.failure();
+    else res.mksuccess(r.success().when, Steal, r.success().res);
+    return res; }
+
+storageclient::asynclistjobs &
+storageclient::listjobs() { return (new asynclistjobsimpl(impl()))->api; }
+
+orerror<storageclient::asynclistjobs::resT>
+storageclient::listjobs(clientio io) { return listjobs().pop(io); }
 
 void
 storageclient::destroy() { delete &impl(); }
+
+#define instantiate(name)                                               \
+    template class                                                      \
+    storageclient::asynccall<storageclient:: name ::resT,               \
+                             storageclient:: name ::implT,              \
+                             storageclient:: name::innerTokenT>
+instantiate(asyncconnect);
+instantiate(asynccreatejob);
+instantiate(asynclistjobs);

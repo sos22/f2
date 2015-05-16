@@ -5,8 +5,10 @@
 #include "agentname.H"
 #include "connpool.H"
 #include "eq.H"
+#include "storage.H"
 
 class job;
+class jobname;
 template <typename> class list;
 template <typename> class maybe;
 template <typename> class nnp;
@@ -17,54 +19,55 @@ class storageclient {
 private: class impl;
 private: class impl &impl();
 private: const class impl &impl() const;
-    
-public:  class asyncconnect {
+
+private: template <typename _resT,
+                   typename _implT,
+                   typename _innerTokenT> class asynccall {
         friend class storageclient;
-    private: asyncconnect() {}
-    private: asyncconnect(const asyncconnect &) = delete;
-    private: void operator=(const asyncconnect &) = delete;
-    private: ~asyncconnect() {}
-    private: class impl;
-    private: class impl &impl();
-    private: const class impl &impl() const;
-    public:  typedef orerror<nnp<storageclient> > resT;
-    public:  class token {
-            friend class impl;
-        private: connpool::asynccall::token inner;
-        private: token(connpool::asynccall::token _inner) : inner(_inner) {} };
-    public:  maybe<token> finished() const;
-    public:  const publisher &pub() const;
-    public:  resT pop(token t);
-    public:  void abort(); };
-public:  static asyncconnect &connect(
+    public:    typedef _resT resT;
+    public:    typedef _implT implT;
+    public:    typedef _innerTokenT innerTokenT;
+    protected: asynccall() {}
+    private:   asynccall(const asynccall &) = delete;
+    private:   void operator=(const asynccall &) = delete;
+    protected: ~asynccall() {}
+    private:   implT &impl();
+    private:   const implT &impl() const;
+    public:    class token {
+            friend asynccall;
+        private: innerTokenT inner;
+        private: token(innerTokenT _inner) : inner(_inner) {} };
+    public:    maybe<token> finished() const;
+    public:    const publisher &pub() const;
+    public:    orerror<resT> pop(token t);
+    public:    orerror<resT> pop(clientio io);
+    public:    void abort(); };
+
+private: class asyncconnectimpl;
+public:  typedef asynccall<nnp<storageclient>,
+                           asyncconnectimpl,
+                           connpool::asynccall::token> asyncconnect;
+public:  static asyncconnect &connect(connpool &cp, const agentname &an);
+public:  static orerror<asyncconnect::resT> connect(
+    clientio io,
     connpool &cp,
     const agentname &an);
-public:  static asyncconnect::resT connect(
-    clientio,
-    connpool &,
-    const agentname &);
     
-public:  class asynccreatejob {
-        friend class storageclient;
-    private: asynccreatejob() {}
-    private: asynccreatejob(const asynccreatejob &) = delete;
-    private: void operator=(const asynccreatejob &) = delete;
-    private: ~asynccreatejob() {}
-    private: class impl;
-    private: class impl &impl();
-    private: const class impl &impl() const;
-    public:  typedef orerror<proto::eq::eventid> resT;
-    public:  class token {
-            friend class asynccreatejob;
-        private: connpool::asynccallT<proto::eq::eventid>::token inner;
-        private: token(connpool::asynccallT<proto::eq::eventid>::token _inner)
-            : inner(_inner) {} };
-    public:  maybe<token> finished() const;
-    public:  const publisher &pub() const;
-    public:  resT pop(token t);
-    public:  void abort(); };
+private: class asynccreatejobimpl;
+public:  typedef asynccall<proto::eq::eventid,
+                           asynccreatejobimpl,
+                           connpool::asynccallT<proto::eq::eventid>::token>
+             asynccreatejob;
 public:  asynccreatejob &createjob(const job &);
-public:  asynccreatejob::resT createjob(clientio, const job &);
+public:  orerror<asynccreatejob::resT> createjob(clientio, const job &);
+    
+private: class asynclistjobsimpl;
+public:  typedef asynccall<
+    pair<proto::eq::eventid, list<jobname> >,
+    asynclistjobsimpl,
+    connpool::asynccallT<proto::storage::listjobsres>::token> asynclistjobs;
+public:  asynclistjobs &listjobs();
+public:  orerror<asynclistjobs::resT> listjobs(clientio);
     
 public:  void destroy(); };
 
