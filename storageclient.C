@@ -195,6 +195,34 @@ storageclient::statjob(jobname jn) {
 orerror<storageclient::asyncstatjob::resT>
 storageclient::statjob(clientio io, jobname jn) { return statjob(jn).pop(io); }
 
+class storageclient::asyncremovejobimpl {
+public: storageclient::asyncremovejob api;
+public: connpool::asynccall &cl;
+public: explicit asyncremovejobimpl(class storageclient::impl &owner,
+                                    const jobname &jn)
+    : api(),
+      cl(*owner.cp.call(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [jn] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::removejob);
+                 s.push(jn); })) {} };
+
+template <> orerror<storageclient::asyncremovejob::resT>
+storageclient::asyncremovejob::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    return r; }
+
+storageclient::asyncremovejob &
+storageclient::removejob(jobname jn) {
+    return (new asyncremovejobimpl(impl(), jn))->api; }
+
+orerror<storageclient::asyncremovejob::resT>
+storageclient::removejob(clientio io, jobname jn) {
+    return removejob(jn).pop(io); }
+
 void
 storageclient::destroy() { delete &impl(); }
 
@@ -207,3 +235,4 @@ instantiate(asyncconnect);
 instantiate(asynccreatejob);
 instantiate(asynclistjobs);
 instantiate(asyncstatjob);
+instantiate(asyncremovejob);

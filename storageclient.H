@@ -77,6 +77,14 @@ public:  typedef asynccall<
 public:  asyncstatjob &statjob(jobname);
 public:  orerror<asyncstatjob::resT> statjob(clientio, jobname);
     
+private: class asyncremovejobimpl;
+public:  typedef asynccall<
+    void,
+    asyncremovejobimpl,
+    connpool::asynccallT<void>::token> asyncremovejob;
+public:  asyncremovejob &removejob(jobname);
+public:  orerror<asyncremovejob::resT> removejob(clientio, jobname);
+    
 public:  void destroy(); };
 
 #endif /* !STORAGECLIENT_H__ */

@@ -49,10 +49,27 @@ static testmodule __teststorageagent(
     "connect", [] (clientio io) { teststate t((io)); },
     "createjob", [] (clientio io) {
         teststate t((io));
+        assert(t.client
+               .listjobs(io)
+               .fatal("listing jobs")
+               .second()
+               .length()
+               == 0);
         deserialise1 ds(t.q);
         job j(ds);
         t.client.createjob(io, j).fatal("creating job");
-        auto r(t.client.listjobs(io).fatal("listing jobs").second());
-        assert(r.length() == 1);
-        assert(r.idx(0) == j.name());
-        assert(t.client.statjob(io, j.name()) == j); } );
+        {   auto r(t.client.listjobs(io).fatal("listing jobs").second());
+            assert(r.length() == 1);
+            assert(r.idx(0) == j.name());
+            assert(t.client.statjob(io, j.name()) == j); }
+        t.client.removejob(io, j.name())
+            .fatal("removing job");
+        {   auto r(t.client.statjob(io, j.name()));
+            assert(r == error::notfound); }
+        assert(t.client
+               .listjobs(io)
+               .fatal("listing jobs")
+               .second()
+               .length()
+               == 0);
+    } );
