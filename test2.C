@@ -9,6 +9,7 @@
 #include "logging.H"
 #include "profile.H"
 #include "spawn.H"
+#include "timedelta.H"
 
 #include "list.tmpl"
 #include "map.tmpl"
@@ -46,15 +47,15 @@ testmodule::printmodule() const {
         printf("    File:            %s\n", it->str().c_str()); } }
 
 void
-testmodule::runtest(const string &what) const {
+testmodule::runtest(const string &what, maybe<timedelta> limit) const {
     printf("%s\n",
            (fields::padright(name.field(), 20) +
             fields::padright(what.field(), 20)).c_str());
-    alarm(30);
+    if (limit != Nothing) alarm((unsigned)(limit.just() / 1_s));
     tests.get(what)
         .fatal("no such test: " + name.field() + "::" + what.field())
         ();
-    alarm(0); }
+    if (limit != Nothing) alarm(0); }
 
 static list<string>
 shuffle(_Steal s, list<string> &what) {
@@ -70,13 +71,13 @@ shuffle(_Steal s, list<string> &what) {
     return res; }
 
 void
-testmodule::runtests() const {
+testmodule::runtests(maybe<timedelta> limit) const {
     list<string> schedule;
     for (auto it(tests.start()); !it.finished(); it.next()) {
         schedule.pushtail(it.key()); }
     list<string> shuffled(shuffle(Steal, schedule));
     for (auto it(shuffled.start()); !it.finished(); it.next()) {
-        runtest(*it); } }
+        runtest(*it, limit); } }
 
 void
 testmodule::prepare() const {
@@ -110,6 +111,7 @@ main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN);
     
     bool stat = false;
+    maybe<timedelta> timeout(30_s);
     while (argc > 1) {
         if (!strcmp(argv[1], "--verbose")) {
             initlogging("tests");
@@ -123,6 +125,10 @@ main(int argc, char *argv[]) {
             stat = true;
             argv++;
             argc--; }
+        else if (!strcmp(argv[1], "--notimeouts")) {
+            timeout = Nothing;
+            argv++;
+            argc--; }
         else break; }
     if (argc == 1) listmodules();
     else if (!strcmp(argv[1], "*")) {
@@ -133,7 +139,7 @@ main(int argc, char *argv[]) {
         for (auto it(modules->start()); !it.finished(); it.next()) {
             if (argc == 3) {
                 it.value()->prepare();
-                it.value()->runtests(); }
+                it.value()->runtests(timeout); }
             else it.value()->listtests(); } }
     else {
         auto &module(*modules->get(argv[1])
@@ -143,8 +149,8 @@ main(int argc, char *argv[]) {
             else module.listtests(); }
         else if (argc == 3) {
             module.prepare();
-            if (strcmp(argv[2], "*")) module.runtest(argv[2]);
-            else module.runtests(); }
+            if (strcmp(argv[2], "*")) module.runtest(argv[2], timeout);
+            else module.runtests(timeout); }
         else errx(1, "too many arguments"); }
     stopprofiling();
     return 0; }

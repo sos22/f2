@@ -48,8 +48,8 @@ public:  template <typename ... argsT> testmodule(
     argsT &&...args);
 public:  void listtests() const;
 public:  void printmodule() const;
-public:  void runtest(const string &name) const;
-public:  void runtests() const;
+public:  void runtest(const string &name, maybe<timedelta>) const;
+public:  void runtests(maybe<timedelta>) const;
 public:  void prepare() const; };
 
 #endif /* !TEST2_H__ */
