@@ -37,9 +37,19 @@ job::job(deserialise1 &ds)
       function(ds),
       inputs(ds),
       _outputs(ds) {
-    if (outputs().issorted()) return;
-    if (ds.random()) sort(_outputs);
-    else {
+    if (ds.random()) {
+        sort(_outputs);
+        auto it(_outputs.start());
+        if (it.finished()) return;
+        auto itnext(it);
+        itnext.next();
+        while (!itnext.finished()) {
+            if (*it == *itnext) itnext.remove();
+            else {
+                it.next();
+                itnext.next(); } }
+        return; }
+    if (outputs().hasdupes() || !outputs().issorted()) {
         ds.fail(error::invalidmessage);
         _outputs.flush(); } }
 
@@ -55,6 +65,7 @@ job::operator==(const job &o) const {
 
 const fields::field &
 job::field() const {
+    assert(outputs().issorted());
     auto acc(&("<job:" + library.field() + ":"+ function.field()));
     for (auto it(inputs.start()); !it.finished(); it.next()) {
         acc = &(*acc + " -<" + it.key().field() + ":" + it.value().field()); }
@@ -91,4 +102,6 @@ job::parser() {
                                                  it->left().second()); }
                     else res.success()._outputs.append(it->right()); }
                 sort(res.success()._outputs);
+                if (res.success().outputs().hasdupes()) {
+                    res = error::noparse; }
                 return res; }); }
