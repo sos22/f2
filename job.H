@@ -4,6 +4,7 @@
 #define JOB_H__
 
 #include "filename.H"
+#include "jobname.H"
 #include "list.H"
 #include "map.H"
 #include "pair.H"
@@ -13,7 +14,6 @@
 
 class deserialise1;
 class job;
-class jobname;
 class serialise1;
 namespace fields { class field; }
 

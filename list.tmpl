@@ -24,7 +24,7 @@ list<t>::list(deserialise1 &ds)
         /* Arbitrary limit. */
         ds.fail(error::overflowed);
         return; }
-    while (len != 0) {
+    while (!ds.isfailure() && len != 0) {
         append(ds);
         len--; } }
 
