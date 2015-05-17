@@ -558,4 +558,8 @@ static testmodule __buffertest(
                     assert(b->idx(off) == content[off - cons]);
                     break; } } }
             free(content);
-            delete b; } } );
+            delete b; } },
+    "fromstring", [] {
+        buffer b("foo");
+        assert(b.avail() == 3);
+        assert(!memcmp(b.linearise(0, 3), "foo", 3)); } );

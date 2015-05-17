@@ -229,6 +229,10 @@ buffer::buffer(_Steal, buffer &o)
     o.last = o.first;
     o.mru = o.first; }
 
+buffer::buffer(const char *what)
+    : buffer() {
+    queue(what, strlen(what)); }
+
 unsigned char
 buffer::idx(size_t off) const {
     for (auto it(first); true; it = it->next) {

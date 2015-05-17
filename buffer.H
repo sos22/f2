@@ -68,6 +68,7 @@ class buffer {
     void operator=(const buffer &o) = delete;
 public: buffer(const buffer &o);
 public: buffer(_Steal, buffer &o);
+public: explicit buffer(const char *);
 public: buffer();
 public: ~buffer();
 
