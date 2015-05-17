@@ -47,7 +47,7 @@ static testmodule __teststorageagent(
                        "storageclient.C",
                        "storageclient.H"),
     "connect", [] (clientio io) { teststate t((io)); },
-    "createjob", [] (clientio io) {
+    "emptyjob", [] (clientio io) {
         teststate t((io));
         assert(t.client
                .listjobs(io)
@@ -62,10 +62,29 @@ static testmodule __teststorageagent(
             assert(r.length() == 1);
             assert(r.idx(0) == j.name());
             assert(t.client.statjob(io, j.name()) == j); }
+        {   auto r(t.client
+                   .liststreams(io, j.name())
+                   .fatal("listing streams")
+                   .second());
+            assert(r.length() == j.outputs().length());
+            for (auto it(r.start()); !it.finished(); it.next()) {
+                /* Cannot be any dupes in the list. */
+                {   auto it2(it);
+                    for (it2.next(); !it2.finished(); it2.next()) {
+                        assert(it->name() != it2->name()); } }
+                /* All returned streams must be in the job */
+                assert(j.outputs().contains(it->name()));
+                /* Returned streams must be empty */
+                assert(!it->isfinished());
+                assert(it->size() == 0_B); }
+            /* All of the job's streams must be in the list. */
+            for (auto it(j.outputs().start()); !it.finished(); it.next()) {
+                bool found = false;
+                for (auto it2(r.start()); !found && !it2.finished();it2.next()){
+                    found = *it == it2->name(); } } }
         t.client.removejob(io, j.name())
             .fatal("removing job");
-        {   auto r(t.client.statjob(io, j.name()));
-            assert(r == error::notfound); }
+        assert(t.client.statjob(io, j.name()) == error::notfound);
         assert(t.client
                .listjobs(io)
                .fatal("listing jobs")

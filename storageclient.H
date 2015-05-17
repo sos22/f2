@@ -77,6 +77,15 @@ public:  typedef asynccall<
 public:  asyncstatjob &statjob(jobname);
 public:  orerror<asyncstatjob::resT> statjob(clientio, jobname);
     
+private: class asyncliststreamsimpl;
+public:  typedef asynccall<
+    pair<proto::eq::eventid, list<streamstatus> >,
+    asyncliststreamsimpl,
+    connpool::asynccallT<proto::storage::liststreamsres>::token>
+        asyncliststreams;
+public:  asyncliststreams &liststreams(jobname);
+public:  orerror<asyncliststreams::resT> liststreams(clientio, jobname);
+    
 private: class asyncremovejobimpl;
 public:  typedef asynccall<
     void,

@@ -195,6 +195,40 @@ storageclient::statjob(jobname jn) {
 orerror<storageclient::asyncstatjob::resT>
 storageclient::statjob(clientio io, jobname jn) { return statjob(jn).pop(io); }
 
+class storageclient::asyncliststreamsimpl {
+public: storageclient::asyncliststreams api;
+public: connpool::asynccallT<proto::storage::liststreamsres> &cl;
+public: explicit asyncliststreamsimpl(
+    class storageclient::impl &owner,
+    jobname jn)
+    : api(),
+      cl(*owner.cp.call<proto::storage::liststreamsres>(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [jn] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::liststreams);
+                 s.push(jn); },
+             [] (deserialise1 &ds, connpool::connlock) {
+                 return proto::storage::liststreamsres(ds); })) {} };
+
+template <> orerror<storageclient::asyncliststreams::resT>
+storageclient::asyncliststreams::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    orerror<storageclient::asyncliststreams::resT> res(error::unknown);
+    if (r.isfailure()) res = r.failure();
+    else res.mksuccess(r.success().when, Steal, r.success().res);
+    return res; }
+
+storageclient::asyncliststreams &
+storageclient::liststreams(jobname jn) {
+    return (new asyncliststreamsimpl(impl(), jn))->api; }
+
+orerror<storageclient::asyncliststreams::resT>
+storageclient::liststreams(clientio io, jobname jn) {
+    return liststreams(jn).pop(io); }
+
 class storageclient::asyncremovejobimpl {
 public: storageclient::asyncremovejob api;
 public: connpool::asynccall &cl;
@@ -235,4 +269,5 @@ instantiate(asyncconnect);
 instantiate(asynccreatejob);
 instantiate(asynclistjobs);
 instantiate(asyncstatjob);
+instantiate(asyncliststreams);
 instantiate(asyncremovejob);
