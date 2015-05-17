@@ -15,12 +15,13 @@ class streamstatus {
     friend const fields::field &fields::mk(const streamstatus &);
 private: streamname name_;
 private: bool finished_;
-private: bytecount size;
+private: bytecount size_;
 private: streamstatus(const streamname &, bool, bytecount);
 public:  static streamstatus empty(const streamname &);
 public:  static streamstatus partial(const streamname &, bytecount);
 public:  static streamstatus finished(const streamname &, bytecount);
 public:  const streamname &name() const { return name_; }
+public:  bytecount size() const { return size_; }
 public:  bool operator<(const streamstatus &sn) const;
 public:  bool operator>(const streamstatus &sn) const;
 public:  bool isfinished() const { return finished_; }

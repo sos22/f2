@@ -7,14 +7,14 @@ const fields::field &
 fields::mk(const streamstatus &sn) {
     return "<streamstatus: name=" + sn.name_.field() +
         " finished:" + mk(sn.finished_) +
-        " size:" + sn.size.field() + ">"; }
+        " size:" + sn.size().field() + ">"; }
 
 streamstatus::streamstatus(const streamname &_streamname,
                            bool _finished,
                            bytecount _size)
     : name_(_streamname),
       finished_(_finished),
-      size(_size) {}
+      size_(_size) {}
 
 streamstatus
 streamstatus::empty(const streamname &sn) { return partial(sn, 0_B); }
@@ -38,10 +38,10 @@ streamstatus::operator >(const streamstatus &sn) const {
 streamstatus::streamstatus(deserialise1 &ds)
     : name_(ds),
       finished_(ds),
-      size(ds) {}
+      size_(ds) {}
 
 void
 streamstatus::serialise(serialise1 &s) const {
-    name_.serialise(s);
+    s.push(name_);
     s.push(finished_);
-    s.push(size); }
+    s.push(size_); }
