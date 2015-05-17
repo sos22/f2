@@ -76,7 +76,9 @@ static testmodule __teststorageagent(
                 assert(j.outputs().contains(it->name()));
                 /* Returned streams must be empty */
                 assert(!it->isfinished());
-                assert(it->size() == 0_B); }
+                assert(it->size() == 0_B);
+                /* stating it must return the same thing. */
+                assert(t.client.statstream(io, j.name(), it->name()) == *it); }
             /* All of the job's streams must be in the list. */
             for (auto it(j.outputs().start()); !it.finished(); it.next()) {
                 bool found = false;

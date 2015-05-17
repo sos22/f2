@@ -229,6 +229,39 @@ orerror<storageclient::asyncliststreams::resT>
 storageclient::liststreams(clientio io, jobname jn) {
     return liststreams(jn).pop(io); }
 
+class storageclient::asyncstatstreamimpl {
+public: storageclient::asyncstatstream api;
+public: connpool::asynccallT<streamstatus> &cl;
+public: explicit asyncstatstreamimpl(
+    class storageclient::impl &owner,
+    jobname jn,
+    const streamname &sn)
+    : api(),
+      cl(*owner.cp.call<streamstatus>(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [jn, &sn] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::statstream);
+                 s.push(jn);
+                 s.push(sn); },
+             [] (deserialise1 &ds, connpool::connlock) {
+                 return streamstatus(ds); })) {} };
+
+template <> orerror<storageclient::asyncstatstream::resT>
+storageclient::asyncstatstream::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    return r; }
+
+storageclient::asyncstatstream &
+storageclient::statstream(jobname jn, const streamname &sn) {
+    return (new asyncstatstreamimpl(impl(), jn, sn))->api; }
+
+orerror<storageclient::asyncstatstream::resT>
+storageclient::statstream(clientio io, jobname jn, const streamname &sn) {
+    return statstream(jn, sn).pop(io); }
+
 class storageclient::asyncremovejobimpl {
 public: storageclient::asyncremovejob api;
 public: connpool::asynccall &cl;
