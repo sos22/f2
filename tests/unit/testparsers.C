@@ -349,4 +349,18 @@ static testmodule __testparsers(
         assert(p.match(" 1 2 3") == error::noparse);
         assert((strmatcher("YYY") + p + strmatcher("XXX"))
                .match("YYY1 2 3XXX") ==
-               list<int>::mk(1, 2, 3)); });
+               list<int>::mk(1, 2, 3)); },
+    "callcons", [] {
+        class cons {
+        private: cons() = delete;
+        private: void operator=(const cons &) = delete;
+        public:  cons(int a1, const char *a2) {
+            assert(a1 == 5);
+            assert(!strcmp(a2, "foo")); } };
+        class p : public parser<cons> {
+        private: orerror<result> parse(const char *m) const {
+            return orerror<result>(Success, m+1, 5, "foo"); } };
+        auto &pp(*new p());
+        assert(pp.match("X").issuccess());
+        assert(pp.match("\0").isfailure());
+        assert(pp.match("XX").isfailure()); } );

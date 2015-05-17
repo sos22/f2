@@ -202,7 +202,7 @@ intparser_<typ, signd>::parse(const char *_what) const {
     if (!validdigit(what[0])) return error::noparse;
     /* Special case for zeroes. */
     while (what[0] == '0') what++;
-    if (!validdigit(what[0])) return typename parser<typ>::result(what, 0);
+    if (!validdigit(what[0])) return typename parser<typ>::result(what, (typ)0);
     /* Now parse the number. */
     /* For signed types we always parse it as a negative number and
        then flip the sign at the end, if it's positive, to avoid
