@@ -42,7 +42,7 @@ private: template <typename _resT,
     public:    orerror<resT> pop(token t);
     public:    orerror<resT> pop(clientio io);
     public:    void abort(); };
-
+    
 private: class asyncconnectimpl;
 public:  typedef asynccall<nnp<storageclient>,
                            asyncconnectimpl,
@@ -60,6 +60,57 @@ public:  typedef asynccall<proto::eq::eventid,
              asynccreatejob;
 public:  asynccreatejob &createjob(const job &);
 public:  orerror<asynccreatejob::resT> createjob(clientio, const job &);
+    
+private: class asyncappendimpl;
+public:  typedef asynccall<
+    void,
+    asyncappendimpl,
+    connpool::asynccall::token> asyncappend;
+public:  asyncappend &append(jobname,
+                             const streamname &,
+                             const buffer &,
+                             bytecount);
+public:  orerror<asyncappend::resT> append(clientio,
+                                           jobname,
+                                           const streamname &,
+                                           const buffer &,
+                                           bytecount);
+public:  asyncappend &append(jobname,
+                             const streamname &,
+                             _Steal,
+                             buffer &,
+                             bytecount);
+public:  orerror<asyncappend::resT> append(clientio,
+                                           jobname,
+                                           const streamname &,
+                                           _Steal,
+                                           buffer &,
+                                           bytecount);
+    
+private: class asyncfinishimpl;
+public:  typedef asynccall<
+    void,
+    asyncfinishimpl,
+    connpool::asynccall::token> asyncfinish;
+public:  asyncfinish &finish(jobname, const streamname &);
+public:  orerror<asyncfinish::resT> finish(clientio,
+                                           jobname,
+                                           const streamname &);
+    
+private: class asyncreadimpl;
+public:  typedef asynccall<
+    pair<bytecount, buffer>,
+    asyncreadimpl,
+    connpool::asynccallT<bytecount>::token> asyncread;
+public:  asyncread &read(jobname,
+                         const streamname &,
+                         maybe<bytecount> start = Nothing,
+                         maybe<bytecount> end = Nothing);
+public:  orerror<asyncread::resT> read(clientio,
+                                       jobname,
+                                       const streamname &,
+                                       maybe<bytecount> start = Nothing,
+                                       maybe<bytecount> end = Nothing);
     
 private: class asynclistjobsimpl;
 public:  typedef asynccall<

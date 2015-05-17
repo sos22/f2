@@ -43,7 +43,7 @@ public:  static const tag ping;
     /* Inputs: job.  Outputs: Event ID of the event which will tell
      * the world about the new job. */
 public:  static const tag createjob;
-    /* Inputs: jobname, streamname, buffer, offset.  Outputs: None */
+    /* Inputs: jobname, streamname, offset, buffer.  Outputs: None */
 public:  static const tag append;
     /* Inputs: jobname, streamname.  Outputs: None */
 public:  static const tag finish;

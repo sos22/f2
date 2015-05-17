@@ -134,6 +134,167 @@ orerror<storageclient::asynccreatejob::resT>
 storageclient::createjob(clientio io, const job &j) {
     return createjob(j).pop(io); }
 
+class storageclient::asyncappendimpl {
+public: storageclient::asyncappend api;
+public: connpool::asynccall &cl;
+public: explicit asyncappendimpl(class storageclient::impl &owner,
+                                 const jobname &jn,
+                                 const streamname &sn,
+                                 _Steal st,
+                                 buffer &b,
+                                 bytecount offset)
+    : api(),
+      cl(*owner.cp.call(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [_b = buffer(st, b), jn, offset, sn]
+             (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::append);
+                 s.push(jn);
+                 s.push(sn);
+                 s.push(offset);
+                 s.push(_b); })) {}
+public: explicit asyncappendimpl(class storageclient::impl &owner,
+                                 const jobname &jn,
+                                 const streamname &sn,
+                                 const buffer &b,
+                                 bytecount offset)
+    : api(),
+      cl(*owner.cp.call(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [b, jn, offset, sn]
+             (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::append);
+                 s.push(jn);
+                 s.push(sn);
+                 s.push(offset);
+                 s.push(b); })) {} };
+
+template <> orerror<storageclient::asyncappend::resT>
+storageclient::asyncappend::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    return r; }
+
+storageclient::asyncappend &
+storageclient::append(jobname jn,
+                      const streamname &sn,
+                      const buffer &b,
+                      bytecount offset) {
+    return (new asyncappendimpl(impl(), jn, sn, b, offset))->api; }
+
+orerror<storageclient::asyncappend::resT>
+storageclient::append(clientio io,
+                      jobname jn,
+                      const streamname &sn,
+                      const buffer &b,
+                      bytecount offset) {
+    return append(jn, sn, b, offset).pop(io); }
+
+storageclient::asyncappend &
+storageclient::append(jobname jn,
+                      const streamname &sn,
+                      _Steal s,
+                      buffer &b,
+                      bytecount offset) {
+    return (new asyncappendimpl(impl(), jn, sn, s, b, offset))->api; }
+
+orerror<storageclient::asyncappend::resT>
+storageclient::append(clientio io,
+                      jobname jn,
+                      const streamname &sn,
+                      _Steal s,
+                      buffer &b,
+                      bytecount offset) {
+    return append(jn, sn, s, b, offset).pop(io); }
+
+class storageclient::asyncfinishimpl {
+public: storageclient::asyncfinish api;
+public: connpool::asynccall &cl;
+public: explicit asyncfinishimpl(class storageclient::impl &owner,
+                                 jobname jn,
+                                 const streamname &sn)
+    : api(),
+      cl(*owner.cp.call(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [jn, sn] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::finish);
+                 s.push(jn);
+                 s.push(sn); })) {} };
+
+template <> orerror<storageclient::asyncfinish::resT>
+storageclient::asyncfinish::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    delete &impl();
+    return r; }
+
+storageclient::asyncfinish &
+storageclient::finish(jobname jn, const streamname &sn) {
+    return (new asyncfinishimpl(impl(), jn, sn))->api; }
+
+orerror<storageclient::asyncfinish::resT>
+storageclient::finish(clientio io, jobname jn, const streamname &sn) {
+    return finish(jn, sn).pop(io); }
+
+class storageclient::asyncreadimpl {
+public: storageclient::asyncread api;
+public: maybe<buffer> res;
+public: connpool::asynccallT<bytecount> &cl;
+public: explicit asyncreadimpl(class storageclient::impl &owner,
+                               jobname jn,
+                               const streamname &sn,
+                               maybe<bytecount> start,
+                               maybe<bytecount> end)
+    : api(),
+      res(Nothing),
+      cl(*owner.cp.call<bytecount>(
+             owner.an,
+             interfacetype::storage,
+             Nothing,
+             [end, jn, sn, start] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::storage::tag::read);
+                 s.push(jn);
+                 s.push(sn);
+                 s.push(start);
+                 s.push(end); },
+             [this] (deserialise1 &ds, connpool::connlock) ->orerror<bytecount>{
+                 bytecount r1(ds);
+                 res.mkjust(ds);
+                 if (ds.isfailure()) return ds.failure();
+                 else return r1; })) {} };
+
+template <> orerror<storageclient::asyncread::resT>
+storageclient::asyncread::pop(token t) {
+    auto filesz(impl().cl.pop(t.inner));
+    orerror<storageclient::asyncread::resT> res(error::unknown);
+    if (filesz.isfailure()) res = filesz.failure();
+    else {
+        assert(impl().res.isjust());
+        res.mksuccess(filesz.success(), Steal, impl().res.just()); }
+    delete &impl();
+    return res; }
+
+storageclient::asyncread &
+storageclient::read(jobname jn,
+                    const streamname &sn,
+                    maybe<bytecount> start,
+                    maybe<bytecount> end) {
+    return (new asyncreadimpl(impl(), jn, sn, start, end))->api; }
+
+orerror<storageclient::asyncread::resT>
+storageclient::read(clientio io,
+                    jobname jn,
+                    const streamname &sn,
+                    maybe<bytecount> start,
+                    maybe<bytecount> end) {
+    return read(jn, sn, start, end).pop(io); }
+
+
 class storageclient::asynclistjobsimpl {
 public: storageclient::asynclistjobs api;
 public: connpool::asynccallT<proto::storage::listjobsres> &cl;
@@ -300,6 +461,9 @@ storageclient::destroy() { delete &impl(); }
                              storageclient:: name::innerTokenT>
 instantiate(asyncconnect);
 instantiate(asynccreatejob);
+instantiate(asyncappend);
+instantiate(asyncfinish);
+instantiate(asyncread);
 instantiate(asynclistjobs);
 instantiate(asyncstatjob);
 instantiate(asyncliststreams);

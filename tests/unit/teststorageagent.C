@@ -92,5 +92,27 @@ static testmodule __teststorageagent(
                .fatal("listing jobs")
                .second()
                .length()
-               == 0);
-    } );
+               == 0); },
+    "basicjob", [] (clientio io) {
+        teststate t((io));
+        auto sn(streamname::mk("X").fatal("X"));
+        job j(filename("dummy.so"),
+              string("dummyfn"),
+              map<streamname, job::inputsrc>(),
+              list<streamname>::mk(sn));
+        auto jn(j.name());
+        t.client.createjob(io, j).fatal("creating job");
+        assert(t.client.read(io, jn, sn) == error::toosoon);
+        t.client
+            .append(io, jn, sn, buffer("foo"), 0_B)
+            .fatal("appending 1");
+        {   buffer b("bar");
+            t.client
+                .append(io, jn, sn, Steal, b, 3_B)
+                .fatal("appending 1");
+            assert(b.empty()); }
+        assert(t.client.read(io, jn, sn) == error::toosoon);
+        t.client.finish(io, jn, sn).fatal("finishing stream");
+        auto r(t.client.read(io, jn, sn).fatal("read"));
+        assert(r.first() == 6_B);
+        assert(r.second().contenteq(buffer("foobar"))); } );
