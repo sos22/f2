@@ -1,216 +1,9 @@
 #include <err.h>
-#include <stdio.h>
-#include <unistd.h>
 
-#include "buffer.H"
-#include "bytecount.H"
-#include "clientio.H"
-#include "connpool.H"
-#include "fields.H"
-#include "job.H"
-#include "jobname.H"
-#include "logging.H"
-#include "parsers.H"
-#include "peername.H"
-#include "pubsub.H"
-#include "storage.H"
-#include "streamname.H"
-#include "streamstatus.H"
+#include "storageclient.H"
 
-#include "connpool.tmpl"
-#include "list.tmpl"
-#include "maybe.tmpl"
+#include "pair.tmpl"
 #include "parsers.tmpl"
-
-class storageclient {
-private: connpool &pool;
-private: const agentname sn;
-private: timedelta timeout;
-public:  explicit storageclient(connpool &_pool,
-                                const agentname &_sn,
-                                timedelta _timeout)
-    : pool(_pool),
-      sn(_sn),
-      timeout(_timeout) {}
-public:  orerror<proto::eq::eventid> createjob(clientio,
-                                               const job &);
-public:  orerror<void> append(clientio,
-                              const jobname &,
-                              const streamname &,
-                              bytecount oldsize,
-                              const buffer &buf);
-public:  orerror<void> finish(clientio,
-                              const jobname &,
-                              const streamname &);
-public:  orerror<pair<size_t, buffer> > read(clientio,
-                                             const jobname &,
-                                             const streamname &,
-                                             maybe<bytecount>,
-                                             maybe<bytecount>);
-public:  orerror<proto::storage::listjobsres> listjobs(clientio);
-public:  orerror<job> statjob(clientio,
-                              const jobname &);
-public:  orerror<proto::storage::liststreamsres> liststreams(
-    clientio,
-    const jobname &);
-public:  orerror<streamstatus> statstream(
-    clientio,
-    const jobname &,
-    const streamname &);
-public:  orerror<void> removejob(clientio,
-                                 const jobname &);
-public:  ~storageclient(); };
-
-orerror<proto::eq::eventid>
-storageclient::createjob(clientio io,
-                         const job &j) {
-    return pool.call<proto::eq::eventid>(
-        io,
-        sn,
-        interfacetype::storage,
-        timeout.future(),
-        [&j] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::createjob.serialise(s);
-            j.serialise(s); },
-        [] (deserialise1 &ds, connpool::connlock) ->
-            orerror<proto::eq::eventid> {
-            proto::eq::eventid eid(ds);
-            if (ds.isfailure()) return ds.failure();
-            else return eid; }); }
-
-
-orerror<void>
-storageclient::append(clientio io,
-                      const jobname &jn,
-                      const streamname &stream,
-                      bytecount oldsize,
-                      const buffer &buf) {
-    return pool.call(
-        io,
-        sn,
-        interfacetype::storage,
-        timestamp::now() + timeout,
-        [&buf, &jn, oldsize, &stream] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::append.serialise(s);
-            jn.serialise(s);
-            stream.serialise(s);
-            oldsize.serialise(s);
-            buf.serialise(s); }); }
-
-orerror<void>
-storageclient::finish(clientio io,
-                      const jobname &jn,
-                      const streamname &stream) {
-    return pool.call(
-        io,
-        sn,
-        interfacetype::storage,
-        timestamp::now() + timeout,
-        [&jn, &stream] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::finish.serialise(s);
-            jn.serialise(s);
-            stream.serialise(s); }); }
-
-orerror<pair<size_t, buffer> >
-storageclient::read(clientio io,
-                    const jobname &jn,
-                    const streamname &stream,
-                    maybe<bytecount> start,
-                    maybe<bytecount> end) {
-    return pool.call<pair<size_t, buffer> >(
-        io,
-        sn,
-        interfacetype::storage,
-        timestamp::now() + timeout,
-        [end, &jn, &stream, start] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::read.serialise(s);
-            jn.serialise(s);
-            stream.serialise(s);
-            start.serialise(s);
-            end.serialise(s); },
-        [] (deserialise1 &ds, connpool::connlock)
-            -> orerror<pair<size_t, buffer> >{
-            size_t s(ds);
-            buffer b(ds);
-            if (ds.isfailure()) return ds.failure();
-            else return mkpair(s, b); }); }
-
-orerror<proto::storage::listjobsres>
-storageclient::listjobs(clientio io) {
-    return pool.call<proto::storage::listjobsres>(
-        io,
-        sn,
-        interfacetype::storage,
-        timestamp::now() + timeout,
-        [] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::listjobs.serialise(s); },
-        [] (deserialise1 &ds, connpool::connlock)
-            -> orerror<proto::storage::listjobsres>{
-            proto::storage::listjobsres res(ds);
-            if (ds.isfailure()) return ds.failure();
-            else return res; }); }
-
-orerror<job>
-storageclient::statjob(clientio io,
-                       const jobname &jn) {
-    return pool.call<job>(
-        io,
-        sn,
-        interfacetype::storage,
-        timeout.future(),
-        [&jn] (serialise1 &s, connpool::connlock) {
-            s.push(proto::storage::tag::statjob);
-            s.push(jn); },
-        [] (deserialise1 &ds, connpool::connlock) -> orerror<job>{
-            job res(ds);
-            if (ds.isfailure()) return ds.failure();
-            else return res; }); }
-
-orerror<proto::storage::liststreamsres>
-storageclient::liststreams(clientio io, const jobname &job) {
-    return pool.call<proto::storage::liststreamsres>(
-        io,
-        sn,
-        interfacetype::storage,
-        timeout.future(),
-        [&job] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::liststreams.serialise(s);
-            job.serialise(s); },
-        [] (deserialise1 &ds, connpool::connlock)
-            -> orerror<proto::storage::liststreamsres>{
-            proto::storage::liststreamsres res(ds);
-            if (ds.isfailure()) return ds.failure();
-            else return res; }); }
-
-orerror<streamstatus>
-storageclient::statstream(clientio io,
-                          const jobname &jn,
-                          const streamname &stream) {
-    return pool.call<streamstatus>(
-        io,
-        sn,
-        interfacetype::storage,
-        timeout.future(),
-        [&jn, &stream] (serialise1 &s, connpool::connlock) {
-            s.push(proto::storage::tag::statstream);
-            s.push(jn);
-            s.push(stream); },
-        [] (deserialise1 &ds, connpool::connlock) {
-            return streamstatus(ds); }); }
-
-orerror<void>
-storageclient::removejob(clientio io,
-                         const jobname &jn) {
-    return pool.call(
-        io,
-        sn,
-        interfacetype::storage,
-        timeout.future(),
-        [&jn] (serialise1 &s, connpool::connlock) {
-            proto::storage::tag::removejob.serialise(s);
-            jn.serialise(s); }); }
-
-storageclient::~storageclient() { }
 
 int
 main(int argc, char *argv[]) {
@@ -225,15 +18,10 @@ main(int argc, char *argv[]) {
               .match(argv[2])
               .fatal("parsing agent name " + fields::mk(argv[2])));
     auto pool(connpool::build(cluster).fatal("building conn pool"));
-    storageclient conn(*pool, peer, timedelta::seconds(10));
-    if (!strcmp(argv[3], "STALL")) {
-        if (argc != 4) errx(1, "STALL takes no additional arguments");
-        /* Just hang around for a bit so that we can see if PING is
-         * working. */
-        sleep(10); }
-    else if (!strcmp(argv[3], "CREATEJOB")) {
-        if (argc != 5) {
-            errx(1, "CREATEJOB needs a job name"); }
+    auto &conn(*storageclient::connect(clientio::CLIENTIO, pool, peer)
+               .fatal("connecting to storage agent"));
+    if (!strcmp(argv[3], "CREATEJOB")) {
+        if (argc != 5) errx(1, "CREATEJOB needs a job name");
         auto job(job::parser()
                  .match(argv[4])
                  .fatal("parsing job " + fields::mk(argv[4])));
@@ -257,11 +45,10 @@ main(int argc, char *argv[]) {
                      .fatal("parsing byte count " + fields::mk(argv[6])));
         buffer buf;
         buf.queue(argv[7], strlen(argv[7]));
-        conn.append(clientio::CLIENTIO, job, stream, oldsize, buf)
+        conn.append(clientio::CLIENTIO, job, stream, Steal, buf, oldsize)
             .fatal(fields::mk("appending to stream")); }
     else if (!strcmp(argv[3], "FINISH")) {
-        if (argc != 6) {
-            errx(1, "FINISH needs a job and a stream name"); }
+        if (argc != 6) errx(1, "FINISH needs a job and a stream name");
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
@@ -293,7 +80,7 @@ main(int argc, char *argv[]) {
                 .fatal("parsing end offset " + fields::mk(argv[7])); }
         auto r(conn.read(clientio::CLIENTIO, job, stream, start, end)
                .fatal("reading stream"));
-        fields::print("size " + fields::mk(r.first()) + "\n");;
+        fields::print("size " + r.first().field() + "\n");;
         fields::print("content " +
                       fields::mk(r.second()).showshape().words() +
                       "\n"); }
@@ -333,6 +120,7 @@ main(int argc, char *argv[]) {
                        .fatal(fields::mk("statting stream"))) +
             "\n"); }
     else if (strcmp(argv[3], "REMOVEJOB") == 0) {
+        if (argc != 5) errx(1, "REMOVEJOB takes a jobname argument");
         auto job(jobname::parser()
                  .match(argv[4])
                  .fatal("parsing job name " + fields::mk(argv[4])));
