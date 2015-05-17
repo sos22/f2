@@ -463,7 +463,10 @@ storageagent::liststreams(
         if (it.isfailure()) {
             it.failure().warn("listing " + fields::mk(dir));
             return it.failure(); } }
-    sort(res);
+    sort<streamstatus>(
+        res,
+        [] (const streamstatus &a, const streamstatus &b) -> bool {
+            return a.name() > b.name(); });
     ic->complete(
         [&res, this]
         (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {

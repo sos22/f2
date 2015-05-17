@@ -27,14 +27,6 @@ streamstatus
 streamstatus::finished(const streamname &sn, bytecount sz) {
     return streamstatus(sn, true, sz); }
 
-bool
-streamstatus::operator <(const streamstatus &sn) const {
-    return name_ < sn.name_; }
-
-bool
-streamstatus::operator >(const streamstatus &sn) const {
-    return name_ > sn.name_; }
-
 streamstatus::streamstatus(deserialise1 &ds)
     : name_(ds),
       finished_(ds),
