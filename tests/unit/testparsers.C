@@ -359,8 +359,9 @@ static testmodule __testparsers(
             assert(!strcmp(a2, "foo")); } };
         class p : public parser<cons> {
         private: orerror<result> parse(const char *m) const {
-            return orerror<result>(Success, m+1, 5, "foo"); } };
+            if (strcmp(m, "X")) return error::noparse;
+            else return orerror<result>(Success, m+1, 5, "foo"); } };
         auto &pp(*new p());
         assert(pp.match("X").issuccess());
-        assert(pp.match("\0").isfailure());
+        assert(pp.match("").isfailure());
         assert(pp.match("XX").isfailure()); } );
