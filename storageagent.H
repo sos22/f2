@@ -35,7 +35,7 @@ private: storageagent(const constoken &,
                       eqserver &eqs,
                       eventqueue<proto::storage::event> &eqq);
 private: orerror<void> initialise(clientio) final;
-public:  void destroy(clientio io);
+private: void destroying(clientio io);
     /* Use destroy() instead */
 private: ~storageagent();
 private: orerror<void> called(

@@ -93,9 +93,7 @@ storageagent::initialise(clientio) {
     else return Success; }
 
 void
-storageagent::destroy(clientio io) {
-    eqq.destroy(io);
-    delete this; }
+storageagent::destroying(clientio io) { eqq.destroy(io); }
 
 storageagent::~storageagent() { eqs.destroy(); }
 
