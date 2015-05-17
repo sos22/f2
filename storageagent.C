@@ -429,18 +429,22 @@ storageagent::liststreams(
     acquirestxlock atl,
     onconnectionthread oct) const {
     auto dir(config.poolpath + jn.asfilename());
-    const parser<streamname> &parser(streamname::parser());
+    auto &parser(streamname::filenameparser());
     list<streamstatus> res;
     {   filename::diriter it(dir);
         for (/**/; !it.finished(); it.next()) {
-            if (strcmp(it.filename(), "job") == 0) continue;
-            auto sn(parser.match(it.filename()));
+            auto fn(it.filename());
+            if (strcmp(fn, "job") == 0 ||
+                strcmp(fn, "eid") == 0 ||
+                strcmp(fn, "complete") == 0) {
+                continue; }
+            auto sn(parser.match(fn));
             if (sn.isfailure()) {
                 sn.failure().warn(
                     "cannot parse " + fields::mk(dir + it.filename()) +
                     " as stream name");
                 continue; }
-            auto fname(dir + it.filename());
+            auto fname(dir + fn);
             auto size((fname + "content").size());
             if (size.isfailure()) {
                 size.failure().warn("sizing " + fields::mk(fname + "content"));
