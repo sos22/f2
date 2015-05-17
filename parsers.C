@@ -62,8 +62,8 @@ private: orerror<result> parse(const char*) const; };
 orerror<optmatch::result>
 optmatch::parse(const char *what) const {
     auto r(underlying.parse(what));
-    if (r.isfailure()) return result(Nothing, what);
-    else return result(maybe<void>::just, r.success()); }
+    if (r.isfailure()) return result(what, Nothing);
+    else return result(r.success(), maybe<void>::just); }
 const parser<maybe<void> > &
 parser<void>::operator~() const {
     return *new optmatch(*this); }
@@ -148,7 +148,7 @@ strparser_::parse(const char *what) const {
                     abort(); }
             } else {
                 res[i++] = what[cursor++]; } }
-        return result(res, what + cursor);
+        return result(what + cursor, res);
     } else {
         unsigned len;
         for (len = 0;
@@ -162,7 +162,7 @@ strparser_::parse(const char *what) const {
         auto res((char *)tmpheap::_alloc(len + 1));
         memcpy(res, what, len);
         res[len] = 0;
-        return result(res, what + len); } }
+        return result(what + len, res); } }
 static const strparser_ strparser_;
 const parser<const char *>&parsers::strparser(strparser_);
 
@@ -202,7 +202,7 @@ intparser_<typ, signd>::parse(const char *_what) const {
     if (!validdigit(what[0])) return error::noparse;
     /* Special case for zeroes. */
     while (what[0] == '0') what++;
-    if (!validdigit(what[0])) return typename parser<typ>::result(0, what);
+    if (!validdigit(what[0])) return typename parser<typ>::result(what, 0);
     /* Now parse the number. */
     /* For signed types we always parse it as a negative number and
        then flip the sign at the end, if it's positive, to avoid
@@ -233,7 +233,7 @@ intparser_<typ, signd>::parse(const char *_what) const {
     if (signd && !negative) {
         if ((typ)acc == (typ)-acc) return error::overflowed;
         acc = (typ)-acc; }
-    return typename parser<typ>::result(acc, what); }
+    return typename parser<typ>::result(what, acc); }
 
 namespace parsers {
 template <>
@@ -268,7 +268,7 @@ _longdoubleparser::parse(const char *start) const {
     long double r;
     int rr = sscanf(start, "%Lf%n", &r, &n);
     if (rr <= 0) return error::noparse;
-    else return result(r, start + n); }
+    else return result(start + n, r); }
 
 static _longdoubleparser __longdoubleparser;
 const parser<long double> &parsers::longdoubleparser((__longdoubleparser));

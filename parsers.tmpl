@@ -7,25 +7,26 @@
 #include "quickcheck.H"
 
 template <typename rval>
-parser<rval>::result::result(const rval &a, const char *b)
+parser<rval>::result::result(const char *b, const rval &a)
     : res(a), left(b) {}
 
 template <typename newtype, typename oldtype>
 class _maperrparser : public parser<newtype> {
+private: typedef typename parser<newtype>::result result;
 private: const parser<oldtype> &underlying;
 private: std::function<orerror<newtype> (const orerror<oldtype> &)> mapper;
-private: orerror<typename parser<newtype>::result> parse(
-    const char *what) const {
+private: orerror<result> parse(const char *what) const {
+    orerror<result> res(error::unknown);
     auto r1(underlying.parse(what));
     if (r1.isfailure()) {
         auto r2(mapper(r1.failure()));
-        if (r2.isfailure()) return r2.failure();
-        else return typename parser<newtype>::result(r2.success(), what); }
+        if (r2.isfailure()) res = r2.failure();
+        else res.mksuccess(what, r2.success()); }
     else {
         auto r2(mapper(r1.success().res));
-        if (r2.isfailure()) return r2.failure();
-        else return typename parser<newtype>::result(r2.success(),
-                                                     r1.success().left); } }
+        if (r2.isfailure()) res = r2.failure();
+        else res.mksuccess(r1.success().left, r2.success()); }
+    return res; }
 public:  _maperrparser(const parser<oldtype> &_underlying,
                        const std::function<
                           orerror<newtype> (const orerror<oldtype> &)> &_mapper)
@@ -70,17 +71,17 @@ parser<r>::match(const string &what) const {
 
 template <typename a, typename b>
 class concatparser : public parser<pair<a, b> > {
+private: typedef typename parser<pair<a, b> >::result result;
 private: const parser<a> &_a;
 private: const parser<b> &_b;
-private: orerror<typename parser<pair<a, b> >::result> parse(
-    const char *what) const {
+private: orerror<result> parse(const char *what) const {
     auto r1(_a.parse(what));
     if (r1.isfailure()) return r1.failure();
     auto r2(_b.parse(r1.success().left));
     if (r2.isfailure()) return r2.failure();
-    else return typename parser<pair<a, b> >::result(
-        pair<a, b>(r1.success().res, r2.success().res),
-        r2.success().left); }
+    else return result(
+        r2.success().left,
+        pair<a, b>(r1.success().res, r2.success().res)); }
 public:  concatparser(
     const parser<a> &__a,
     const parser<b> &__b)
@@ -93,21 +94,19 @@ parser<rval>::operator+(const parser<other> &o) const {
     return *new concatparser<rval,other>(*this, o); }
 
 template <typename t> class parsethenmatch : public parser<t> {
+private: typedef typename parser<t>::result result;
 private: const parser<t> &_parse;
 private: const parser<void> &_match;
 public:  parsethenmatch(const parser<t> &__parse,
                         const parser<void> &__match)
     : _parse(__parse),
       _match(__match) {}
-private: orerror<typename parser<t>::result> parse(
-    const char *what) const {
+private: orerror<result> parse(const char *what) const {
     auto r1(_parse.parse(what));
     if (r1.isfailure()) return r1.failure();
     auto r2(_match.parse(r1.success().left));
     if (r2.isfailure()) return r2.failure();
-    else return typename parser<t>::result(
-        r1.success().res,
-        r2.success()); } };
+    else return result(r2.success(), r1.success().res); } };
 template <typename rval>
 const parser<rval> &
 parser<rval>::operator+(const parser<void> &o) const {
@@ -122,14 +121,13 @@ private: orerror<result> parse(
     const char *what) const {
     auto r1(_a.parse(what));
     if (r1.issuccess()) {
-        return result(either<a, b>::left(r1.success().res),
-                      r1.success().left); }
+        return result(r1.success().left,
+                      either<a, b>::left(r1.success().res)); }
     auto r2(_b.parse(what));
     if (r2.issuccess()) {
-        return result(either<a, b>::right(r2.success().res),
-                      r2.success().left);
-    } else {
-        return r2.failure(); } }
+        return result(r2.success().left,
+                      either<a, b>::right(r2.success().res)); }
+    else return r2.failure(); }
 public:  alternateparser(
     const parser<a> &__a,
     const parser<b> &__b)
@@ -151,9 +149,9 @@ public: orerror<typename optionparser<t>::result> parse(
 template <typename t> orerror<typename optionparser<t>::result>
 optionparser<t>::parse(const char *what) const {
     auto r(underlying.parse(what));
-    if (r.isfailure()) return typename optionparser<t>::result(Nothing, what);
-    else return typename optionparser<t>::result(r.success().res,
-                                                 r.success().left); }
+    if (r.isfailure()) return typename optionparser<t>::result(what, Nothing);
+    else return typename optionparser<t>::result(r.success().left,
+                                                 r.success().res); }
 template <typename t> const parser<maybe<t> > &
 parser<t>::operator ~() const {
     return *new optionparser<t>(*this); }
@@ -169,12 +167,12 @@ private: orerror<typename parser<maybe<t> >::result> parse(
     const char *what) const {
     auto r1(_parse.parse(what));
     if (r1.issuccess()) {
-        return typename parser<maybe<t> >::result(r1.success().res,
-                                                  r1.success().left); }
+        return typename parser<maybe<t> >::result(r1.success().left,
+                                                  r1.success().res); }
     auto r2(_match.parse(what));
     if (r2.issuccess()) {
-        return typename parser<maybe<t> >::result(Nothing,
-                                                  r2.success());
+        return typename parser<maybe<t> >::result(r2.success(),
+                                                  Nothing);
     } else {
         return r2.failure(); } } };
 template <typename t>
@@ -193,7 +191,7 @@ public:  mapvoidparser(const parser<void> &_underlying,
 private: orerror<typename parser<t>::result> parse(const char *str) const {
     auto r(underlying.parse(str));
     if (r.isfailure()) return r.failure();
-    else return typename parser<t>::result(what(), r.success()); } };
+    else return typename parser<t>::result(r.success(), what()); } };
 template <typename t> const parser<t> &
 parser<void>::map(const std::function<t ()> &what) const {
     return *new mapvoidparser<t>(*this, what); }
@@ -228,13 +226,13 @@ private: orerror<typename parser<maybe<t> >::result> parse(
     const char *what) const {
     auto r1(_match.parse(what));
     if (r1.issuccess()) {
-        return typename parser<maybe<t> >::result(Nothing, r1.success()); }
+        return typename parser<maybe<t> >::result(r1.success(), Nothing); }
     auto r2(_parse.parse(what));
     if (r2.isfailure()) {
         return r2.failure();
     } else {
-        return typename parser<maybe<t> >::result(r2.success().res,
-                                                  r2.success().left); } } };
+        return typename parser<maybe<t> >::result(r2.success().left,
+                                                  r2.success().res); } } };
 template <typename t>
 const parser<maybe<t> > &
 parser<void>::operator|(const parser<t> &what) const {
@@ -249,7 +247,7 @@ public:  orerror<typename parser<t>::result> parse(const char *)const;
 };
 template <typename t> orerror<typename parser<t>::result>
 nulparser_<t>::parse(const char *what) const {
-    return typename parser<t>::result(val, what); }
+    return typename parser<t>::result(what, val); }
 template <typename t> const parser<t> &
 nulparser(const t &what) {
     return *new nulparser_<t>(what); }
@@ -268,7 +266,7 @@ strmatcher_<t>::parse(
     const char *buf) const {
     size_t l(strlen(what));
     if (strncmp(buf, what, l) == 0) {
-        return typename parser<t>::result(val, buf + l);
+        return typename parser<t>::result(buf + l, val);
     } else {
         return error::noparse; } }
 template <typename t> const parser<t> &
@@ -316,7 +314,7 @@ public: _sepby(const parser<a> &_elem, const parser<void> &_sep)
       sep(_sep) {}
 public: orerror<result> parse(const char *const what) const final {
         auto cursor(what);
-        orerror<result> res(Success, list<a>::mk(), cursor);
+        orerror<result> res(Success, cursor, list<a>::mk());
         while (true) {
             auto inner(elem.parse(cursor));
             if (inner == error::noparse) break;

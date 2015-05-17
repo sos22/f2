@@ -311,7 +311,7 @@ _ip6litparser::parse(const char *what) const {
     buf[end - what - 1] = '\0';
     struct in6_addr res;
     if (inet_pton(AF_INET6, buf, &res) != 1) return error::noparse;
-    else return result(res, end + 1); }
+    else return result(end + 1, res); }
 
 const parser<peername> &
 parsers::_peername() {

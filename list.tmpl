@@ -577,8 +577,8 @@ listparser<t>::parse(const char *what) const {
     auto cursor = what;
     if (cursor[0] != '{') return error::noparse;
     cursor++;
-    if (cursor[0] == '}') return result(list<t>(), cursor+1);
-    orerror<result> res(Success, list<t>(), what);
+    if (cursor[0] == '}') return result(cursor + 1, list<t>());
+    orerror<result> res(Success, what, list<t>());
     while (true) {
         auto subres(inner.parse(cursor));
         if (subres.isfailure()) return subres.failure();

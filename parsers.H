@@ -24,7 +24,7 @@ class parser : public tmpheap::base {
 public: class result {
     public: rval res;
     public: const char *left;
-    public: result(const rval &a, const char *b); };
+    public: result(const char *b, const rval &a); };
     /* Parse a string, returning either the result of the parse or an
      * error. */
 public: virtual orerror<result> parse(const char *) const = 0;

@@ -50,8 +50,8 @@ walltimeparser::parse(const char *start) const {
     long nanoseconds = 0;
     for (int i = 0; i < 9; i++) {
         nanoseconds = nanoseconds * 10 + suffix[i] - '0'; }
-    return result(walltime((long)timegm(&res_tm) * 1000000000 + nanoseconds),
-                  suffix + 9); }
+    return result(suffix + 9,
+                  walltime((long)timegm(&res_tm) * 1000000000 + nanoseconds)); }
 
 const parser<walltime> &
 parsers::_walltime() { return *new walltimeparser(); }
