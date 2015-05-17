@@ -56,10 +56,8 @@ static testmodule __testfilename(
             for (filename::diriter it(foo); !it.finished(); it.next()) {
                 r.pushtail(string(it.filename())); }
             sort(r);
-            assert(r.length() == 3);
-            assert(r.idx(0) == ".");
-            assert(r.idx(1) == "..");
-            assert(r.idx(2) == "bar"); }
+            assert(r.length() == 1);
+            assert(r.idx(0) == "bar"); }
         assert(foo.rmdir() == error::notempty);
         assert((foo + "bar").unlink().issuccess());
         assert(foo.rmdir().issuccess()); },
@@ -140,17 +138,18 @@ static testmodule __testfilename(
                    error::from_errno(ETXTBSY)); }
         {   filename f("foo");
             f.mkdir().fatal("mkdir foo");
+            (f + "bar").createfile().fatal("create bar");
             filename::diriter it(f);
             assert(!it.isfailure());
-            tests::eventwaiter<struct dirent **> w(
-                diriterevt, [] (struct dirent **d) {
-                    errno = ETXTBSY;
-                    *d = NULL; });
-            assert(!it.isfailure());
-            it.next();
-            assert(it.isfailure());
-            assert(it.failure() == error::from_errno(ETXTBSY));
-            f.rmdir().fatal("removing foo"); } },
+            {   tests::eventwaiter<struct dirent **> w(
+                    diriterevt, [] (struct dirent **d) {
+                        errno = ETXTBSY;
+                        *d = NULL; });
+                assert(!it.isfailure());
+                it.next();
+                assert(it.isfailure());
+                assert(it.failure() == error::from_errno(ETXTBSY)); }
+            f.rmtree().fatal("removing foo"); } },
 #endif
     "str", [] { assert((filename("foo") + "bar").str() == string("foo/bar")); },
     "iterbad", [] {

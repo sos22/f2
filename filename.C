@@ -266,6 +266,7 @@ filename::diriter::finished() const {
 
 void
 filename::diriter::next() {
+    assert(!finished());
     int e(errno);
     errno = 0;
     auto de(::readdir(dir.success()));
