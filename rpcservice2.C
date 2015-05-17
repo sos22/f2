@@ -238,7 +238,8 @@ rpcservice2::destroy(clientio io) {
 void
 rpcservice2::destroying(clientio) {}
 
-rpcservice2::~rpcservice2() {}
+rpcservice2::~rpcservice2() {
+    assert(root->shutdown.ready()); }
 
 tests::hookpoint<void>
 rpcservice2::clientdisconnected([] { } );
