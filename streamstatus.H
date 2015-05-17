@@ -23,6 +23,9 @@ public:  static streamstatus finished(const streamname &, bytecount);
 public:  const streamname &name() const { return name_; }
 public:  bytecount size() const { return size_; }
 public:  bool isfinished() const { return finished_; }
+public:  bool operator==(const streamstatus &) const;
+public:  bool operator!=(const streamstatus &o) const {
+    return !(*this == o); }
 public:  explicit streamstatus(deserialise1 &);
 public:  void serialise(serialise1 &) const; };
 
