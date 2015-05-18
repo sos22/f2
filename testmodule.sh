@@ -61,6 +61,12 @@ eval $(awk "/^File / { filename=\$2; } /Taken at least once:/ { print filename \
                 takenbranches=0
                 while read name perc tot
                 do
+                    # Branch coverage numbers tend to be nonsense for
+                    # template files.  Ignore them.
+                    if [ "$name" != "${name%.tmpl}" ]
+                    then
+                        continue
+                    fi
                     if ! grep -q "$name" $filelist
                     then
                         continue
@@ -88,7 +94,12 @@ eval $(awk "/^File / { filename=\$2; } /Lines executed:/ { print filename \" \" 
 
 echo nrbranches=$nrbranches takenbranches=$takenbranches nrlines=$nrlines execlines=$execlines
 linecov=$(echo "scale=4; ${execlines} / $nrlines" | bc)
-branchcov=$(echo "scale=4; ${takenbranches} / $nrbranches" | bc)
+if [ $nrbranches -ne 0 ]
+then
+    branchcov=$(echo "scale=4; ${takenbranches} / $nrbranches" | bc)
+else
+    branchcov=100.0
+fi
 
 # Build the final report.
 echo module=${module} branchcoverage=${branchcov} linecoverage=${linecov} > ${outfile}
