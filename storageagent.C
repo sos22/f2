@@ -389,7 +389,7 @@ storageagent::listjobs(
             res.pushtail(jn.success()); }
         if (it.isfailure()) return it.failure(); }
     sort(res);
-    ic->complete([r(res.steal()), this]
+    ic->complete([r = decltype(res)(Steal, res), this]
                  (serialise1 &s,
                   mutex_t::token /* txlock */,
                   onconnectionthread) {

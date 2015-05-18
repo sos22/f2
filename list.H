@@ -45,8 +45,6 @@ public:
     explicit list(deserialise1 &);
     void serialise(serialise1 &) const;
 
-    list steal();
-
     class iter {
         friend class list;
         list *owner;

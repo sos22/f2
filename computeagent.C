@@ -237,7 +237,7 @@ computeservice::called(clientio io,
         auto eid(eqq(tok).lastid());
         mux.unlock(&tok);
         ic->complete(
-            [eid, result = res.steal()]
+            [eid, result = decltype(res)(Steal, res)]
             (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
                 s.push(eid);
                 s.push(result); },

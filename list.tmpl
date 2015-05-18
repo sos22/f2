@@ -98,15 +98,6 @@ list<t>::operator=(const list &o) {
             append(it2->value);
             it2 = it2->next; } } }
 
-template <typename t> list<t>
-list<t>::steal() {
-    list res;
-    res.head = head;
-    res.tail = tail;
-    head = NULL;
-    tail = NULL;
-    return res; }
-
 template <typename t>
 list<t>::~list() {
     flush();
