@@ -55,7 +55,7 @@ gcov --no-output -o ${t} -s ${base} -b -c $(find ${t} -type f -name '*.gcda') > 
 cd - > /dev/null
 
 ./test2-c --stat "$1" | sed 's/^[[:space:]]*File:[[:space:]]*\(.*\)$/\1/p;d' > $filelist
-eval $(awk "/^File / { filename=\$2; } /Taken at least once:/ { print filename \" \" \$4 \" \" \$6; }" < ${t2}/gcov_output |
+eval $(awk "/^File / { filename=\$2; } /Taken at least once:/ { print filename \" \" \$4 \" \" \$6; filename=eof; }" < ${t2}/gcov_output |
               sed "s/'\([a-zA-Z0-9./]*\)' once:\([0-9.]*\)% \([0-9]*\)/\1 \2 \3/p;d" |
               ( nrbranches=0
                 takenbranches=0
@@ -76,7 +76,7 @@ eval $(awk "/^File / { filename=\$2; } /Taken at least once:/ { print filename \
                     takenbranches=$(echo "$takenbranches + $tot * $perc" | bc)
                 done
                 echo nrbranches=${nrbranches} takenbranches=${takenbranches} ) )
-eval $(awk "/^File / { filename=\$2; } /Lines executed:/ { print filename \" \" \$2 \" \" \$4; }" < ${t2}/gcov_output |
+eval $(awk "/^File / { filename=\$2; } /Lines executed:/ { print filename \" \" \$2 \" \" \$4; filename=eof; }" < ${t2}/gcov_output |
               sed "s/'\([a-zA-Z0-9./]*\)' executed:\([0-9.]*\)% \([0-9]*\)/\1 \2 \3/p;d" |
               ( nrlines=0
                 execlines=0
