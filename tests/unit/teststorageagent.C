@@ -47,6 +47,8 @@ static testmodule __teststorageagent(
                        "storageagent.H",
                        "storageclient.C",
                        "storageclient.H"),
+    testmodule::LineCoverage(80_pc),
+    testmodule::BranchCoverage(45_pc),
     "connect", [] (clientio io) { teststate t((io)); },
     "emptyjob", [] (clientio io) {
         teststate t((io));

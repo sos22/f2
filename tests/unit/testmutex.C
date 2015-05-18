@@ -10,7 +10,7 @@
 static testmodule __testmutex(
     "mutex",
     list<filename>::mk("mutex.C", "mutex.H", "mutex.tmpl"),
-    testmodule::BranchCoverage(40_pc),
+    testmodule::BranchCoverage(45_pc),
     testmodule::LineCoverage(80_pc),
     "basic", [] () {
         /* Spawn a bunch of threads and confirm that only one can

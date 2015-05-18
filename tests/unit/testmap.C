@@ -25,7 +25,7 @@ static testmodule __testmap(
     "map",
     list<filename>::mk("map.C", "map.H", "map.tmpl"),
     testmodule::LineCoverage(90_pc),
-    testmodule::BranchCoverage(25_pc),
+    testmodule::BranchCoverage(60_pc),
     "basics", [] {
         testmap<int, string> m;
         assert(m.get(5) == Nothing);

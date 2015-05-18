@@ -7,8 +7,8 @@
 static const testmodule __teststreamname(
     "streamname",
     list<filename>::mk("streamname.C", "streamname.H"),
-    testmodule::BranchCoverage(50_pc),
-    testmodule::LineCoverage(40_pc),
+    testmodule::BranchCoverage(52_pc),
+    testmodule::LineCoverage(80_pc),
     "quickcheck", [] {
         /* Quickcheck should generate a valid name reasonably
          * quickly. */

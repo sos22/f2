@@ -9,6 +9,6 @@ static testmodule __teststring(
     "string",
     list<filename>::mk("string.C", "string.H"),
     testmodule::LineCoverage(25_pc),
-    testmodule::BranchCoverage(15_pc),
+    testmodule::BranchCoverage(17_pc),
     "empty", [] { assert(!strcmp(fields::mk(string("")).c_str(), "\"\"")); },
     "parser", [] { parsers::roundtrip(string::parser()); });

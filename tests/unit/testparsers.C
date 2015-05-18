@@ -10,7 +10,7 @@ static testmodule __testparsers(
     "parsers",
     list<filename>::mk("parsers.C", "parsers.H", "parsers.tmpl"),
     testmodule::LineCoverage(99_pc),
-    testmodule::BranchCoverage(35_pc),
+    testmodule::BranchCoverage(70_pc),
     "strmatcher", [] {
         const char *e = "";
         const char *A = "A";

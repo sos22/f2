@@ -40,7 +40,7 @@ static testmodule __testserialise(
     "serialise",
     list<filename>::mk("serialise.C", "serialise.H", "serialise.tmpl"),
     testmodule::LineCoverage(80_pc),
-    testmodule::BranchCoverage(10_pc),
+    testmodule::BranchCoverage(55_pc),
     "genrandom", [] {
         quickcheck q;
         deserialise1 ds(q);
