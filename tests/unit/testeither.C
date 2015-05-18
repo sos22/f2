@@ -23,8 +23,6 @@ public: copy(const copy &o) : counter(o.counter + 1) {} };
 static testmodule __testeither(
     "either",
     list<filename>::mk("either.H", "either.tmpl"),
-    testmodule::BranchCoverage(25_pc),
-    testmodule::LineCoverage(100_pc),
     "left", [] {
         auto x(either<int, int>(Left(), 7));
         assert(x.isleft());

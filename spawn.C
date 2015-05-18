@@ -12,6 +12,7 @@
 #include "test.H"
 #include "timedelta.H"
 
+#include "either.tmpl"
 #include "list.tmpl"
 
 namespace spawn {

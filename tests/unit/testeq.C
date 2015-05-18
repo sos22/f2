@@ -3,6 +3,7 @@
 #include "rpcservice2.H"
 #include "test2.H"
 
+#include "either.tmpl"
 #include "rpcservice2.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"

@@ -8,6 +8,7 @@
 #include "test2.H"
 
 #include "connpool.tmpl"
+#include "either.tmpl"
 #include "maybe.tmpl"
 #include "test2.tmpl"
 

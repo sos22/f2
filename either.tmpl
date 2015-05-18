@@ -4,6 +4,18 @@
 #include "serialise.H"
 
 template <typename a, typename b>
+either<a,b>::either(quickcheck &q)
+    : isleft_(q) {
+    if (isleft_) new (&_left) a(q);
+    else new (&_right) a(q); }
+
+template <typename a, typename b>
+either<a,b>::either(const either &o)
+    : isleft_(o.isleft_) {
+    if (isleft()) new (&_left) a(o.left());
+    else new (&_right) b(o.right()); }
+
+template <typename a, typename b>
 either<a,b>::either(deserialise1 &ds)
     : isleft_(ds) {
     if (isleft_) new (&_left) a(ds);
@@ -14,5 +26,94 @@ either<a,b>::serialise(serialise1 &s) const {
     s.push(isleft_);
     if (isleft_) s.push(_left);
     else s.push(_right); }
+
+template <typename a, typename b> template <typename ... args>
+either<a, b>::either(Left, args && ...params)
+    : isleft_(true) {
+    new (&_left) a(std::forward<args>(params)...); }
+
+template <typename a, typename b> template <typename ... args>
+either<a, b>::either(Right, args && ...params)
+    : isleft_(false) {
+    new (&_right) b(std::forward<args>(params)...); }
+
+template <typename a, typename b> bool
+either<a, b>::isleft() const { return isleft_; }
+
+template <typename a, typename b> bool
+either<a, b>::isright() const { return !isleft_; }
+
+template <typename a, typename b> const a &
+either<a, b>::left() const {
+    assert(isleft());
+    return _left; }
+
+template <typename a, typename b> a &
+either<a, b>::left() {
+    assert(isleft());
+    return _left; }
+
+template <typename a, typename b> const b &
+either<a, b>::right() const {
+    assert(isright());
+    return _right; }
+
+template <typename a, typename b> b &
+either<a, b>::right() {
+    assert(isright());
+    return _right; }
+
+template <typename a, typename b> void
+either<a,b>::operator =(const either &o) {
+    if (isleft_) {
+        if (o.isleft_) _left = o._left;
+        else {
+            _left.~a();
+            new (&_right) b(o._right);
+            isleft_ = false; } }
+    else {
+        if (o.isleft_) {
+            _right.~b();
+            new (&_left) a(o._left);
+            isleft_ = true; }
+        else _right = o._right; } }
+
+template <typename a, typename b> template <typename ... args> void
+either<a,b>::mkleft(args &&...params) {
+    if (isleft_) _left.~a();
+    else _right.~b();
+    isleft_ = true;
+    new (&_left) a(std::forward<args>(params)...); }
+
+template <typename a, typename b> template <typename ... args> void
+either<a,b>::mkright(args &&...params) {
+    if (isleft_) _left.~a();
+    else _right.~b();
+    isleft_ = false;
+    new (&_right) b(std::forward<args>(params)...); }
+
+template <typename a, typename b> bool
+either<a, b>::operator==(const either &o) const {
+    if (isleft_ != o.isleft_) return false;
+    if (isleft_) return _left == o._left;
+    else return _right == o._right; }
+
+template <typename a, typename b> bool
+either<a, b>::operator!=(const either &o) const {
+    if (isleft_ != o.isleft_) return true;
+    if (isleft_) return _left != o._left;
+    else return _right != o._right; }
+
+template <typename a, typename b>
+either<a,b>::~either() {
+    if (isleft_) _left.~a();
+    else _right.~b(); }
+
+
+template <typename b, typename a> either<a, b>
+left(const a &what) { return either<a, b>(Left(), what); }
+
+template <typename a, typename b> either<a, b>
+right(const b &what) { return either<a, b>(Right(), what); }
 
 #endif /* !EITHER_TMPL__ */

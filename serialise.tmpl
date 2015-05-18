@@ -6,6 +6,8 @@
 #include "serialise.H"
 #include "version.H"
 
+#include "either.tmpl"
+
 template <typename t> t
 deserialise1::poprange(t min, t max) {
     if (src.isright()) {

@@ -15,6 +15,7 @@
 #include "spawn.H"
 #include "util.H"
 
+#include "either.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "rpcservice2.tmpl"

@@ -3,6 +3,8 @@
 
 #include "serialise.H"
 
+#include "either.tmpl"
+
 template <typename t> void
 orerror<t>::operator=(const t &w) {
     if (errored) {

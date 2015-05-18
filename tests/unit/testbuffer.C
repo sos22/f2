@@ -7,6 +7,7 @@
 #include "test2.H"
 #include "timedelta.H"
 
+#include "either.tmpl"
 #include "spark.tmpl"
 #include "test2.tmpl"
 #include "timedelta.tmpl"

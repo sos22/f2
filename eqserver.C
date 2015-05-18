@@ -7,6 +7,7 @@
 #include "logging.H"
 #include "util.H"
 
+#include "either.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"

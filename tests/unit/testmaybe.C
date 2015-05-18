@@ -1,6 +1,7 @@
 #include "maybe.H"
 #include "test2.H"
 
+#include "either.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"

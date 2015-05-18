@@ -18,6 +18,7 @@
 #include "waitbox.H"
 
 #include "connpool.tmpl"
+#include "either.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
 #include "test.tmpl"

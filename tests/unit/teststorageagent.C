@@ -8,6 +8,7 @@
 #include "storageclient.H"
 #include "test2.H"
 
+#include "either.tmpl"
 #include "list.tmpl"
 #include "test2.tmpl"
 

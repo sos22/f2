@@ -3,6 +3,7 @@
 #include "error.H"
 #include "serialise.H"
 
+#include "either.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "serialise.tmpl"

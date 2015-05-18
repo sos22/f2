@@ -13,6 +13,7 @@
 #include "timedelta.H"
 #include "util.H"
 
+#include "either.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
 #include "test.tmpl"
