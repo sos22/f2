@@ -7,6 +7,7 @@
 #include "test2.H"
 
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
 
@@ -16,8 +17,8 @@
 static testmodule __testfilename(
     "filename",
     list<filename>::mk("filename.C", "filename.H"),
-    testmodule::LineCoverage(75_pc),
-    testmodule::BranchCoverage(50_pc),
+    testmodule::LineCoverage(80_pc),
+    testmodule::BranchCoverage(55_pc),
     "parser", [] { parsers::roundtrip<filename>(); },
     "basics", [] {
         filename foo("foo");
@@ -184,4 +185,35 @@ static testmodule __testfilename(
         for (auto it(created.start()); !it.finished(); it.next()) {
             auto e(it->rmdir());
             if (e == error::from_errno(ENOTDIR)) e = it->unlink();
-            e.fatal("removing " + it->field()); } });
+            e.fatal("removing " + it->field()); } },
+    "readasbuffer", [] {
+        assert(filename("doesnotexist").readasbuffer() == error::notfound);
+        filename eperm("eperm");
+        eperm.createfile().fatal("creating eperm");
+        if (::chmod(eperm.str().c_str(), 0) < 0) {
+            error::from_errno().fatal("chmod"); }
+        auto r(filename(eperm).readasbuffer());
+        assert(r == error::from_errno(EACCES));
+        eperm.unlink().fatal("removing eperm"); },
+    "createfile", [] {
+        quickcheck q;
+        filename fn(q);
+        buffer b(q);
+        fn.createfile(b).fatal("createfile " + fn.field());
+        assert(fn.readasbuffer()
+               .fatal("readasbuffer")
+               .contenteq(b));
+        fn.unlink().fatal("removing " + fn.field()); },
+    "replace", [] {
+        filename foo("foo");
+        foo.createfile(buffer("bar")).fatal("initial create");
+        foo.replace(buffer("bazz")).fatal("replacing");
+        assert(foo.readasstring() == "bazz");
+        foo.unlink().fatal("removefile");
+        foo.mkdir().fatal("mkdir");
+        assert(foo.replace(buffer("boom")) ==
+               error::from_errno(EISDIR));
+        foo.rmtree().fatal("rmtree"); },
+    "serialise", [] {
+        quickcheck q;
+        serialise<filename>(q); } );
