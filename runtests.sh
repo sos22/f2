@@ -25,7 +25,7 @@ function coverage() {
     printf "1 %-20s coverage\n" $1 >> ${summary}
 }
 function fail() {
-    printf "1 %-20s fail\n" $1 >> ${summary}
+    printf "0 %-20s fail\n" $1 >> ${summary}
 }
 
 summary=${outdir}/summary1
