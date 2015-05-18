@@ -952,4 +952,28 @@ static testmodule __testconnpool(
                        ds.success()->fail(error::toolate);
                        return error::toosoon; }) == error::underflowed);
         pool->destroy();
+        srv->destroy(io); },
+    "timeout", [] (clientio io) {
+        quickcheck q;
+        clustername cn(q);
+        agentname sn(q);
+        auto srv(rpcservice2::listen<echoservice>(
+                     io,
+                     cn,
+                     sn,
+                     peername::all(peername::port::any))
+                 .fatal("starting echo service"));
+        auto pool(connpool::build(cn).fatal("building pool"));
+        assert(pool->call(
+                   io,
+                   sn,
+                   interfacetype::test,
+                   (-100_ms).future(),
+                   [] (serialise1 &s, connpool::connlock) {
+                       s.push((unsigned)-1); },
+                   [] (orerror<nnp<deserialise1> > ds, connpool::connlock) {
+                       assert(ds == error::timeout);
+                       return error::toosoon; }) ==
+               error::toosoon);
+        pool->destroy();
         srv->destroy(io); });
