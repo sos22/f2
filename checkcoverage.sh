@@ -17,9 +17,10 @@ eval $(<${t} sed 's/^[[:space:]]*Line coverage:[[:space:]]* \([0-9.]*\)%/targlin
 eval $(<${t} sed 's/^[[:space:]]*Branch coverage:[[:space:]]*\([0-9.]*\)%/targbranch=\1/p;d')
 rm -f ${t}
 
-r=$(echo "${targbranch}*0.999 <= ${branchcoverage:-0} && ${targline}*.999 <= ${linecoverage:-0}" | bc)
+r1=$(echo "${targline}*.999 <= ${linecoverage:-0} && ${targline} >= ${linecoverage:-0}*.85" | bc)
+r2=$(echo "${targbranch}*0.999 <= ${branchcoverage:-0} && ${targbranch} >= ${branchcoverage:-0}*.85" | bc)
 
-if [ $r -eq 1 ]
+if [ $r1 -eq 1 ] && [ $r2 -eq 1 ]
 then
     exit 0
 else
