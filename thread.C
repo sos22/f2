@@ -87,16 +87,14 @@ thread::join(clientio io) {
 thread::~thread() { free((void *)name); }
 
 const fields::field &
-fields::mk(const thread &thr) {
-    const field *acc(&fields::mk("<thread:"));
-    auto tid(thr.tid_.poll());
-    if (tid.isjust()) {
-        acc = &(*acc + fields::mk(tid.just())); }
-    else {
-        acc = &(*acc + fields::mk("{no tid yet}")); }
-    acc = &(*acc + " " + fields::mk(thr.name));
-    if (loadacquire(thr.dead)) acc = &(*acc + " dead");
-    if (!thr.started) acc = &(*acc + " unstarted");
+thread::field() const {
+    const fields::field *acc(&fields::mk("<thread:"));
+    auto tid(tid_.poll());
+    if (tid.isjust()) acc = &(*acc + fields::mk(tid.just()));
+    else acc = &(*acc + fields::mk("{no tid yet}"));
+    acc = &(*acc + " " + fields::mk(name));
+    if (loadacquire(dead)) acc = &(*acc + " dead");
+    if (!started) acc = &(*acc + " unstarted");
     return *acc + ">"; }
 
 const char *

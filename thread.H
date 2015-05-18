@@ -8,15 +8,8 @@
 #include "tid.H"
 #include "waitbox.H"
 
-namespace fields {
-class field;
-}
-
+namespace fields { class field; }
 class thread;
-
-namespace fields {
-const field &mk(const thread &);
-}
 
 /* Threads are initially creted in a paused state, allowing some
    initialisation work before the thread's run() method is called. */
@@ -41,7 +34,6 @@ public:  t *unwrap() const {
 
 class thread {
     template <typename t> friend class pausedthread;
-    friend const fields::field &fields::mk(const thread &);
 private:   pthread_t thr;
 private:   bool started;
 private:   waitbox<tid> tid_;
@@ -114,6 +106,7 @@ public:     void join(clientio);
      * classes. */
 protected: virtual ~thread();
 
+public:    const fields::field &field() const;
     /* Get the name of the current thread, as passed into the spawn
      * name.  The returned pointer remains valid for at least as long
      * as the thread is running. */

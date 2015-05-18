@@ -247,11 +247,9 @@ strfield::strfield(const char *what, bool _escape)
       escape_(_escape) {
     strcpy(content, what); }
 const strfield &
-strfield::n(const char *what) {
-    return *new strfield(what, false); }
+strfield::n(const char *what) { return *new strfield(what, false); }
 const strfield &
-strfield::escape() const {
-    return *new strfield(content, true); }
+strfield::escape() const { return *new strfield(content, true); }
 void
 strfield::fmt(fieldbuf &buf) const {
     if (!escape_) {
@@ -289,10 +287,9 @@ strfield::fmt(fieldbuf &buf) const {
     buf.push("\""); }
 
 const strfield &
-mk(const char *what)
-{
-    return strfield::n(what);
-}
+mk(char *what) { return strfield::n(what); }
+const strfield &
+mk(const char *what) { return strfield::n(what); }
 const field &
 operator+(const char *what, const field &a)
 {
@@ -502,6 +499,11 @@ intfield::fmt(fieldbuf &out) const
     assert(nr_digits == 0);
     out.push(buf);
 }
+
+const field &
+mk(bool b) {
+    if (b) return mk("TRUE");
+    else return mk("FALSE"); }
 
 doublefield::doublefield(long double _val)
     : field(), val_(_val)

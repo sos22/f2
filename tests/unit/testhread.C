@@ -5,6 +5,8 @@
 #include "test2.tmpl"
 #include "thread.tmpl"
 
+#include "fieldfinal.H"
+
 static testmodule __testthread(
     "thread",
     list<filename>::mk("thread.C", "thread.tmpl", "thread.H"),

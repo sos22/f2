@@ -11,6 +11,8 @@
 
 namespace fields {
 
+class field;
+
 class fieldbuf {
     friend void flush();
     struct fragment : tmpheap::base {
@@ -65,6 +67,7 @@ public:  static const strfield &n(const char *);
 public:  const strfield &escape() const final;
 public:  void fmt(fieldbuf &) const;
 };
+const strfield &mk(char *);
 const strfield &mk(const char *);
 const field &operator+(const char *, const field &);
 const field &operator+(const field &, const char *);
@@ -102,6 +105,10 @@ const intfield &mk(long);
 const intfield &mk(unsigned long);
 static inline const intfield &mk(int x) { return mk((long)x); }
 static inline const intfield &mk(unsigned x) { return mk((unsigned long)x); }
+static inline const intfield &mk(unsigned short x) {
+    return mk((unsigned long)x); }
+
+const field &mk(bool);
 
 class doublefield : public field {
     long double val_;
@@ -115,7 +122,8 @@ const doublefield &mk_double(long double);
 
 void print(const field &f);
 
-template <typename t> const field &mk(const ::maybe<t> &m);
+template <typename t> const field &mk(const t &);
+template <typename t> const field &mk(const maybe<t> &);
 
 };
 

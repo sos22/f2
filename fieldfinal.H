@@ -44,6 +44,8 @@ mk(const list<t> &what) {
         first = false;
         acc = &(*acc + mk(*it)); }
     return *acc + "}"; }
+template <typename t> const field &
+mk(const t &what) { return what.field(); }
 };
 
 #endif /* !FIELDFINAL_H__ */
