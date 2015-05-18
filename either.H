@@ -35,23 +35,12 @@ public:  either(const either &o)
     else new (&_right) b(o.right()); }
 public:  either(deserialise1 &ds);
 public:  void serialise(serialise1 &s) const;
-public:  static either left(const a &what) {
-    either<a, b> res;
-    res.isleft_ = true;
-    new (&res._left) a(what);
-    return res; }
-public:  either(const b &);
 public:  template <typename ... args> either(Left, args &&...params)
     : isleft_(true) {
     new (&_left) a(std::forward<args>(params)...); }
 public:  template <typename ... args> either(Right, args &&...params)
     : isleft_(false) {
     new (&_right) b(std::forward<args>(params)...); }
-public:  static either right(const b &what) {
-    either<a, b> res;
-    res.isleft_ = false;
-    new (&res._right) b(what);
-    return res; }
 public:  bool isleft() const { return isleft_; }
 public:  bool isright() const { return !isleft_; }
 public:  const a &left() const {
@@ -103,9 +92,9 @@ public:  ~either() {
 };
 
 template <typename r, typename a> either <a, r> left(const a &what) {
-    return either<a, r>::left(what); }
+    return either<a, r>(Left(), what); }
 
 template <typename l, typename a> either <l, a> right(const a &what) {
-    return either<l, a>::right(what); }
+    return either<l, a>(Right(), what); }
 
 #endif /* !EITHER_H__ */

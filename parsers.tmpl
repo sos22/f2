@@ -122,11 +122,11 @@ private: orerror<result> parse(
     auto r1(_a.parse(what));
     if (r1.issuccess()) {
         return result(r1.success().left,
-                      either<a, b>::left(r1.success().res)); }
+                      either<a, b>(Left(), r1.success().res)); }
     auto r2(_b.parse(what));
     if (r2.issuccess()) {
         return result(r2.success().left,
-                      either<a, b>::right(r2.success().res)); }
+                      either<a, b>(Right(), r2.success().res)); }
     else return r2.failure(); }
 public:  alternateparser(
     const parser<a> &__a,

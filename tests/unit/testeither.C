@@ -26,11 +26,11 @@ static testmodule __testeither(
     testmodule::BranchCoverage(25_pc),
     testmodule::LineCoverage(100_pc),
     "left", [] {
-        auto x(either<int, int>::left(7));
+        auto x(either<int, int>(Left(), 7));
         assert(x.isleft());
         assert(x.left() == 7); },
     "right", [] {
-        auto x(either<int, int>::right(93));
+        auto x(either<int, int>(Right(), 93));
         assert(x.isright());
         assert(x.right() == 93); },
     "cons", [] {
@@ -41,17 +41,17 @@ static testmodule __testeither(
             assert(x.isright());
             assert(x.right() == 97); } },
     "copyleft", [] {
-        auto x(either<copy, int>::left(copy()));
-        either<copy, int> y(x);
+        either<copy, int> x((Left()), copy());
+        either<copy, int> y((x));
         assert(y.left().counter == x.left().counter + 1); },
     "copyright", [] {
-        auto x(either<int, copy>::right(copy()));
-        either<int, copy> y(x);
+        either<int, copy> x((Right()), copy());
+        either<int, copy> y((x));
         assert(y.right().counter == x.right().counter + 1); },
     "leftlife", [] {
         bool cons = false;
         bool dest = false;
-        {   auto x(either<tracklife, int>::left(tracklife(cons, dest)));
+        {   auto x(either<tracklife, int>(Left(), tracklife(cons, dest)));
             assert(cons);
             dest = false;
             assert(x.isleft());
@@ -64,7 +64,7 @@ static testmodule __testeither(
     "rightlife", [] {
         bool cons = false;
         bool dest = false;
-        {   auto x(either<int, tracklife>::right(tracklife(cons, dest)));
+        {   either<int, tracklife> x((Right()), tracklife(cons, dest));
             assert(cons);
             dest = false;
             assert(x.isright());
@@ -95,20 +95,20 @@ static testmodule __testeither(
         assert(zerol != 0);
         assert(zeror != 0); },
     "=", [] {
-        auto x(either<int, int>::left(5));
+        auto x(either<int, int>(Left(), 5));
         assert(x.left() == 5);
-        x = either<int, int>::left(6);
+        x = either<int, int>(Left(), 6);
         assert(x.left() == 6);
-        x = either<int, int>::right(7);
+        x = either<int, int>(Right(), 7);
         assert(x.right() == 7);
-        x = either<int, int>::right(8);
+        x = either<int, int>(Right(), 8);
         assert(x.right() == 8);
-        x = either<int, int>::left(9);
+        x = either<int, int>(Left(), 9);
         assert(x.left() == 9); },
     "mkleft", [] {
         bool cons = false;
         bool dest = false;
-        auto x(either<int, tracklife>::left(5));
+        auto x(either<int, tracklife>(Left(), 5));
         assert(!cons);
         assert(!dest);
         assert(x.left() == 5);

@@ -221,11 +221,13 @@ process::signal(signalnr snr) {
         assert(sendres == sizeof(msg) || sendres.isfailure());
         assert(msg.tag == message::msgchildstopped);
         if (WIFEXITED(msg.childstopped.status)) {
-            res = either<shutdowncode, signalnr>::left(
+            res = either<shutdowncode, signalnr>(
+                Left(),
                 shutdowncode(WEXITSTATUS(msg.childstopped.status))); }
         else {
             assert(WIFSIGNALED(msg.childstopped.status));
-            res = either<shutdowncode, signalnr>::right(
+            res = either<shutdowncode, signalnr>(
+                Right(),
                 signalnr(WTERMSIG(msg.childstopped.status))); } }
     mux.unlock(&t); }
 
@@ -253,10 +255,12 @@ process::pause() {
            sizeof(msg));
     assert(msg.tag == message::msgchildstopped);
     if (WIFEXITED(msg.childstopped.status)) {
-        res = either<shutdowncode, signalnr>::left(
+        res = either<shutdowncode, signalnr>(
+            Left(),
             shutdowncode(WEXITSTATUS(msg.childstopped.status))); }
     else if (WIFSIGNALED(msg.childstopped.status)) {
-        res = either<shutdowncode, signalnr>::right(
+        res = either<shutdowncode, signalnr>(
+            Right(),
             signalnr(WTERMSIG(msg.childstopped.status))); }
     else {
         assert(WIFSTOPPED(msg.childstopped.status));
@@ -293,11 +297,13 @@ process::hasdied() const {
         assert(r == sizeof(msg));
         assert(msg.tag == message::msgchildstopped);
         if (WIFEXITED(msg.childstopped.status)) {
-            res = either<shutdowncode, signalnr>::left(
+            res = either<shutdowncode, signalnr>(
+                Left(),
                 shutdowncode(WEXITSTATUS(msg.childstopped.status))); }
         else {
             assert(WIFSIGNALED(msg.childstopped.status));
-            res = either<shutdowncode, signalnr>::right(
+            res = either<shutdowncode, signalnr>(
+                Right(),
                 signalnr(WTERMSIG(msg.childstopped.status))); }
         mux.unlock(&t);
         return token(); }
