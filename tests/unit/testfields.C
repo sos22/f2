@@ -3,6 +3,7 @@
 #include "test2.H"
 
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 #include "spark.tmpl"
 #include "test2.tmpl"
 

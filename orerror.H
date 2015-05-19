@@ -106,6 +106,7 @@ public:
     bool operator!=(const t &e) const { return !(*this == e); }
 
     void serialise(serialise1 &s) const;
+    const fields::field &field() const;
 };
 
 template <typename t> bool

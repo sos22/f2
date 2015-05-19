@@ -20,6 +20,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 #include "rpcservice2.tmpl"
 

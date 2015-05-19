@@ -16,6 +16,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "orerror.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 #include "waitbox.tmpl"

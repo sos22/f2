@@ -19,4 +19,9 @@ orerror<t>::serialise(serialise1 &s) const {
     if (errored) s.push(err);
     else s.push(inner); }
 
+template <typename t> const fields::field &
+orerror<t>::field() const {
+    if (isfailure()) return "<failed:" + failure().field() + ">";
+    else return "<" + fields::mk(success()) + ">"; }
+
 #endif /* !ORERROR_TMPL__ */

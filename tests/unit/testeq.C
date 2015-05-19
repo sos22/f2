@@ -4,6 +4,7 @@
 #include "test2.H"
 
 #include "either.tmpl"
+#include "orerror.tmpl"
 #include "rpcservice2.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"

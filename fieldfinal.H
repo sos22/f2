@@ -12,14 +12,6 @@ class field;
 class strfield;
 const strfield &mk(const char *);
 template <typename t> const field &
-mk(const orerror<t> &m)
-{
-    if (m.isfailure())
-        return "<failed:" + mk(m.failure()) + ">";
-    else
-        return "<" + mk(m.success()) + ">";
-}
-template <typename t> const field &
 mk(const t *const &what)
 {
     if (!what)
