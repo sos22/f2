@@ -2,6 +2,7 @@
 #include "spark.H"
 #include "test2.H"
 
+#include "maybe.tmpl"
 #include "spark.tmpl"
 #include "test2.tmpl"
 

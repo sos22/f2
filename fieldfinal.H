@@ -12,14 +12,6 @@ class field;
 class strfield;
 const strfield &mk(const char *);
 template <typename t> const field &
-mk(const maybe<t> &m)
-{
-    if (m.isnothing())
-        return mk("Nothing");
-    else
-        return "<" + mk(m.just()) + ">";
-}
-template <typename t> const field &
 mk(const orerror<t> &m)
 {
     if (m.isfailure())

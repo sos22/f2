@@ -123,7 +123,6 @@ const doublefield &mk_double(long double);
 void print(const field &f);
 
 template <typename t> const field &mk(const t &);
-template <typename t> const field &mk(const maybe<t> &);
 
 };
 

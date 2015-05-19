@@ -13,7 +13,7 @@ maybe<t>::maybe(quickcheck &o)
 template <typename t> const fields::field &
 maybe<t>::field() const {
     if (isnothing()) return fields::mk("Nothing");
-    else return "<" + just().field() + ">"; }
+    else return "<" + fields::mk(just()) + ">"; }
 
 template <typename t> template <typename ... args> void
 maybe<t>::mkjust(args &&...params) {
