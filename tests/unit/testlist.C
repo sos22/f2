@@ -8,6 +8,8 @@
 #include "spark.tmpl"
 #include "test2.tmpl"
 
+#include "fieldfinal.H"
+
 static testmodule __listtest(
     "list",
     list<filename>::mk("list.H", "list.tmpl"),

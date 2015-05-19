@@ -6,6 +6,7 @@
 #include "steal.H"
 
 class deserialise1;
+namespace fields { class field; }
 class quickcheck;
 template <typename> class list;
 template <typename> class nnp;
@@ -155,6 +156,8 @@ public:
         std::function<other_t (const t&)> what) const;
 
     bool operator==(const list &o) const;
+
+    const fields::field &field() const;
 
     /* A scheme for allocating a list entry before hooking it into the
      * list.  Occasionally useful to make the synchronisation work out

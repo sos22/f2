@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "error.H"
+#include "fields.H"
 #include "parsers.H"
 #include "serialise.H"
 
@@ -500,6 +501,16 @@ list<t>::operator==(const list<t> &o) const {
         if (!(*c1 == *c2)) return false;
         c1.next();
         c2.next(); } }
+
+template <typename t> const fields::field &
+list<t>::field() const {
+    const fields::field *acc = &fields::mk("{");
+    bool first = true;
+    for (auto it(start()); !it.finished(); it.next()) {
+        if (!first) acc = &(*acc + " ");
+        first = false;
+        acc = &(*acc + fields::mk(*it)); }
+    return *acc + "}"; }
 
 template <typename t, typename ... args> list<t>
 mklist(const t &first, args &&...rest) {

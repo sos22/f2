@@ -20,15 +20,6 @@ mk(const t *const &what)
         return "[" + fields::mk(*what) + "]";
 }
 template <typename t> const field &
-mk(const list<t> &what) {
-    const field *acc = &mk("{");
-    bool first = true;
-    for (auto it(what.start()); !it.finished(); it.next()) {
-        if (!first) acc = &(*acc + " ");
-        first = false;
-        acc = &(*acc + mk(*it)); }
-    return *acc + "}"; }
-template <typename t> const field &
 mk(const t &what) { return what.field(); }
 };
 

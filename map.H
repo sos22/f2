@@ -19,9 +19,7 @@ template <typename> class maybe;
 template <typename> class parser;
 class quickcheck;
 
-namespace fields {
-class field;
-template <typename t> const field &mk(const list<t> &); }
+namespace fields { class field; }
 
 namespace tests { void _map(); }
 
