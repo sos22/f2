@@ -18,7 +18,6 @@
 
 #define EVENT geneventqueue::event
 #define QUEUE geneventqueue::impl
-#define SUBSCRIPTION QUEUE::sub
 #define SERVER eqserver::impl
 
 /* Lock ordering:
@@ -600,7 +599,7 @@ SERVER::get(clientio io,
         if (it->id != subid) continue;
         if (eid < it->next) {
             /* In principle, we don't actually need to do this check,
-             * because the clietn will never ask for something which
+             * because the client will never ask for something which
              * it's trimmed.  Doesn't hurt to have a debug check,
              * though. */
             logmsg(loglevel::debug,

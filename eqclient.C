@@ -296,15 +296,16 @@ CLIENT::startgetter(onqueuethread oqt) {
 nnp<connpool::asynccall>
 CLIENT::startwaiter(onqueuethread oqt) {
     geneqclient::startingwaiter();
+    auto c(cursor(oqt));
     return pool.call(
         agent,
         interfacetype::eq,
         config.wait.future(),
-        [this, oqt] (serialise1 &s, connpool::connlock) {
+        [this, c] (serialise1 &s, connpool::connlock) {
             proto::eq::tag::wait.serialise(s);
             queuename.serialise(s);
             subid.serialise(s);
-            cursor(oqt).serialise(s); }); }
+            c.serialise(s); }); }
 
 void
 CLIENT::addeventtoqueue(proto::eq::eventid evt,
