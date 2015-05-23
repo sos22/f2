@@ -186,6 +186,17 @@ public: orerror<void> called(
             ic->fail(error::toosoon, acquirestxlock(clientio::CLIENTIO)); });
     return Success; } };
 
+class failinitservice : public rpcservice2 {
+public: explicit failinitservice(const constoken &t)
+    : rpcservice2(t, interfacetype::test) {}
+public: orerror<void> initialise(clientio) { return error::toolate; }
+public: orerror<void> called(clientio,
+                             deserialise1 &,
+                             interfacetype,
+                             nnp<rpcservice2::incompletecall>,
+                             rpcservice2::onconnectionthread) {
+    abort(); } };
+
 static testmodule __testconnpool(
     "connpool",
     list<filename>::mk("connpool.C",
@@ -976,4 +987,14 @@ static testmodule __testconnpool(
                        return error::toosoon; }) ==
                error::toosoon);
         pool->destroy();
-        srv->destroy(io); });
+        srv->destroy(io); },
+    "initialisefail", [] (clientio io) {
+        quickcheck q;
+        clustername cn(q);
+        agentname sn(q);
+        assert(rpcservice2::listen<failinitservice>(
+                   io,
+                   cn,
+                   sn,
+                   peername::all(peername::port::any))
+               == error::toolate); } );

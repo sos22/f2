@@ -47,10 +47,7 @@ public:  template <typename t> class deserialiserT {
     public:  deserialiserT(
         const std::function<orerror<t> (
                               orerror<nnp<deserialise1> >,
-                              connlock) > &_inner)
-        : inner([_inner]
-                (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock cl) {
-                    return _inner(ds, cl); }) {}
+                              connlock) > &_inner);
     public:  deserialiserT(
         const std::function<orerror<t> (
                               asynccallT<t> &,

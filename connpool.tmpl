@@ -8,6 +8,14 @@
 #include "maybe.tmpl"
 
 template <typename t>
+connpool::deserialiserT<t>::deserialiserT(const std::function<orerror<t> (
+                                              orerror<nnp<deserialise1> >,
+                                              connlock) > &_inner)
+    : inner([_inner]
+            (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock cl) {
+                return _inner(ds, cl); }) {}
+
+template <typename t>
 connpool::asynccallT<t>::asynccallT() : inner(NULL), res(Nothing) {}
 
 template <typename t> maybe<typename connpool::asynccallT<t>::token>
