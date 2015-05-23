@@ -13,6 +13,7 @@
 static testmodule __beacontests(
     "beacon",
     list<filename>::mk("beacon.C",
+                       "beacon.H",
                        "beaconclient.C",
                        "beaconclient.H",
                        "beaconserver.C",
