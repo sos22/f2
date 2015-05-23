@@ -2,12 +2,11 @@
 #include "spark.H"
 #include "test2.H"
 
+#include "fields.tmpl"
 #include "maybe.tmpl"
 #include "orerror.tmpl"
 #include "spark.tmpl"
 #include "test2.tmpl"
-
-#include "fieldfinal.H"
 
 using namespace fields;
 
@@ -30,7 +29,7 @@ static testmodule __testfields(
     "fields",
     /* Ideally, tmpheap would have its own unit test, but it's covered
      * pretty thoroughly by this one, so this'll do for now. */
-    list<filename>::mk("fields.C", "fields.H", "fieldfinal.H", "tmpheap.C"),
+    list<filename>::mk("fields.C", "fields.H", "fields.tmpl", "tmpheap.C"),
     testmodule::BranchCoverage(70_pc),
     "helloworld", [] { simpletest(mk("Hello world"), "Hello world"); },
     "trunc", [] { simpletest(trunc(mk("Hello world"), 3), "Hel"); },

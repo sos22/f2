@@ -8,13 +8,12 @@
 #include "util.H"
 
 #include "either.tmpl"
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
-
-#include "fieldfinal.H"
 
 #define EVENT geneventqueue::event
 #define QUEUE geneventqueue::impl

@@ -16,12 +16,11 @@
 #include "version.H"
 #include "waitbox.H"
 
+#include "fields.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
-
-#include "fieldfinal.H"
 
 mktupledef(beaconserverconfig);
 

@@ -1,0 +1,14 @@
+#ifndef FIELDS_TMPL__
+#define FIELDS_TMPL__
+
+#include "fields.H"
+
+namespace fields {
+template <typename t> const field &
+mk(const t *const &what) {
+    if (!what) return mk("NULL");
+    else return "[" + mk(*what) + "]"; }
+template <typename t> const field &
+mk(const t &what) { return what.field(); } }
+
+#endif /* !FIELDS_TMPL__ */

@@ -13,11 +13,10 @@
 #include "job.H"
 #include "jobname.H"
 
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
-
-#include "fieldfinal.H"
 
 int
 main(int argc, char *argv[]) {

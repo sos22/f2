@@ -5,8 +5,6 @@
 #include "parsers.tmpl"
 #include "test2.tmpl"
 
-#include "fieldfinal.H"
-
 static testmodule __testpair(
     "pair",
     list<filename>::mk("pair.H", "pair.tmpl"),

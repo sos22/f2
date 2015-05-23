@@ -7,8 +7,6 @@
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 
-#include "fieldfinal.H"
-
 int
 main(int argc, char *argv[]) {
     initpubsub();

@@ -15,8 +15,6 @@
 #include "list.tmpl"
 #include "map.tmpl"
 
-#include "fieldfinal.H"
-
 static map<string, nnp<testmodule> > *
 modules;
 

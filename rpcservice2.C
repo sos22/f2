@@ -14,14 +14,13 @@
 #include "util.H"
 
 #include "either.tmpl"
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
 #include "orerror.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 #include "waitbox.tmpl"
-
-#include "fieldfinal.H"
 
 class rpcservice2::rootthread final : public thread {
 public: rpcservice2 &owner;

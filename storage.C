@@ -4,11 +4,10 @@
 #include "serialise.H"
 
 #include "either.tmpl"
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "serialise.tmpl"
-
-#include "fieldfinal.H"
 
 const proto::storage::tag
 proto::storage::tag::ping(89);

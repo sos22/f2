@@ -2,6 +2,7 @@
 
 #include "storageclient.H"
 
+#include "list.tmpl"
 #include "pair.tmpl"
 #include "parsers.tmpl"
 

@@ -7,13 +7,12 @@
 #include "serialise.H"
 #include "streamname.H"
 
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "map.tmpl"
 #include "pair.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
-
-#include "fieldfinal.H"
 
 job::job(const filename &_library,
          const string &_function,

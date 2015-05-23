@@ -7,13 +7,12 @@
 #include "tuple.H"
 #include "version.H"
 
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
 #include "parsers.tmpl"
 #include "thread.tmpl"
-
-#include "fieldfinal.H"
 
 beaconclientconfig::beaconclientconfig(
     const clustername &__cluster,

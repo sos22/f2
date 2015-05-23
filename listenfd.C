@@ -12,9 +12,8 @@
 #include "quickcheck.H"
 #include "socket.H"
 
+#include "fields.tmpl"
 #include "maybe.tmpl"
-
-#include "fieldfinal.H"
 
 orerror<socket_t>
 listenfd::accept(clientio) const

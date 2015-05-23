@@ -2,10 +2,9 @@
 #include "thread.H"
 #include "timedelta.H"
 
+#include "fields.tmpl"
 #include "test2.tmpl"
 #include "thread.tmpl"
-
-#include "fieldfinal.H"
 
 static testmodule __testthread(
     "thread",

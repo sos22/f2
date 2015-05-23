@@ -11,6 +11,8 @@
 #include "timedelta.H"
 #include "timestamp.H"
 
+#include "fields.tmpl"
+
 void
 fd_t::close(void) const
 {

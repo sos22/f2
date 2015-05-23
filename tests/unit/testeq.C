@@ -4,12 +4,11 @@
 #include "test2.H"
 
 #include "either.tmpl"
+#include "fields.tmpl"
 #include "orerror.tmpl"
 #include "rpcservice2.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
-
-#include "fieldfinal.H"
 
 class eqtestserver : public rpcservice2 {
 public: eqserver &eqs;

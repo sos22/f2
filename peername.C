@@ -23,8 +23,6 @@
 #include "serialise.tmpl"
 #include "spark.tmpl"
 
-#include "fieldfinal.H"
-
 const peername::port
 peername::port::any(0);
 

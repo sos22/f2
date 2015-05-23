@@ -9,9 +9,8 @@
 #include "tmpheap.H"
 #include "util.H"
 
+#include "fields.tmpl"
 #include "list.tmpl"
-
-#include "fieldfinal.H"
 
 namespace fields {
 

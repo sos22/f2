@@ -11,12 +11,11 @@
 #include "streamname.H"
 #include "streamstatus.H"
 
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "pair.tmpl"
 #include "parsers.tmpl"
-
-#include "fieldfinal.H"
 
 int
 main(int argc, char *argv[]) {

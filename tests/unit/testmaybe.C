@@ -7,8 +7,6 @@
 #include "serialise.tmpl"
 #include "test2.tmpl"
 
-#include "fieldfinal.H"
-
 class nodestruct { public: ~nodestruct() { abort(); } };
 
 class countcopies {

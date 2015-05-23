@@ -3,12 +3,11 @@
 #include "timedelta.H"
 #include "util.H"
 
+#include "fields.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "spark.tmpl"
 #include "test2.tmpl"
-
-#include "fieldfinal.H"
 
 static testmodule __listtest(
     "list",
