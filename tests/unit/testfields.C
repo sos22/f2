@@ -30,12 +30,19 @@ static testmodule __testfields(
     /* Ideally, tmpheap would have its own unit test, but it's covered
      * pretty thoroughly by this one, so this'll do for now. */
     list<filename>::mk("fields.C", "fields.H", "fields.tmpl", "tmpheap.C"),
-    testmodule::BranchCoverage(70_pc),
+    testmodule::BranchCoverage(80_pc),
     "helloworld", [] { simpletest(mk("Hello world"), "Hello world"); },
     "trunc", [] { simpletest(trunc(mk("Hello world"), 3), "Hel"); },
     "padleft", [] { simpletest(padleft(trunc(mk("Hello"), 3), 5), "  Hel");},
     "padright", [] { simpletest(padright(mk("Hel"), 5), "Hel  "); },
     "padcenter", [] { simpletest(padcenter(mk("Hel"), 5), " Hel "); },
+    "bool", [] {
+        simpletest(mk(true), "TRUE");
+        simpletest(mk(false), "FALSE"); },
+    "short", [] {
+        simpletest(mk((unsigned short)0), "0");
+        simpletest(mk((unsigned short)1), "1");
+        simpletest(mk((unsigned short)0xfffe).base(16), "{16}f,ffe"); },
     "arrowpad1", [] {
         simpletest(padcenter(mk("Hel"), 10, mk("-->"), mk("<--")),
                    "-->Hel<--<"); },
