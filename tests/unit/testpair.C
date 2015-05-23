@@ -1,6 +1,7 @@
 #include "pair.H"
 #include "test2.H"
 
+#include "serialise.tmpl"
 #include "pair.tmpl"
 #include "parsers.tmpl"
 #include "test2.tmpl"
@@ -13,6 +14,10 @@ static testmodule __testpair(
     "parser", [] {
         parsers::roundtrip<pair<int, int> >();
         parsers::roundtrip<pair<string, string> >(); },
+    "serialise", [] {
+        quickcheck q;
+        serialise<pair<int, int> >(q);
+        serialise<pair<int, string> >(q); },
     "steal", [] {
         class cons {
         public: int &nrsteals;
