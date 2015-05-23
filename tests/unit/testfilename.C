@@ -16,7 +16,7 @@
  * check that the current behaviour is actually desirable. */
 static testmodule __testfilename(
     "filename",
-    list<filename>::mk("filename.C", "filename.H"),
+    list<filename>::mk("filename.C", "filename.H", "filename.tmpl"),
     testmodule::LineCoverage(80_pc),
     testmodule::BranchCoverage(55_pc),
     "parser", [] { parsers::roundtrip<filename>(); },
