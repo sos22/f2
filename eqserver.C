@@ -419,9 +419,9 @@ QUEUE::trim(mutex_t::token tok) {
     if (trimto.just() <= lastdropped(tok)) return;
     /* Apply the trim. */
     for (auto it(events(tok).start());
-         !it.finished() && it->id.just() <= trimto.just();
-         it.remove()) { }
-    lastdropped(tok) = trimto.just(); }
+         !it.finished() && it->id.just() < trimto.just();
+         it.remove()) {
+        lastdropped(tok) = trimto.just(); } }
 
 /* ------------------------------- eqserver API ---------------------------- */
 SERVER &
