@@ -10,6 +10,7 @@
 
 #include "either.tmpl"
 #include "list.tmpl"
+#include "pair.tmpl"
 #include "test2.tmpl"
 
 class teststate {

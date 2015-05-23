@@ -21,6 +21,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "pair.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 

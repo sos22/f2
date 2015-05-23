@@ -13,6 +13,7 @@
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "orerror.tmpl"
+#include "pair.tmpl"
 
 template <typename _resT, typename _implT, typename _innerTokenT> _implT &
 storageclient::asynccall<_resT, _implT, _innerTokenT>::impl() {

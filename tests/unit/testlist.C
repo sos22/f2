@@ -4,6 +4,7 @@
 #include "util.H"
 
 #include "fields.tmpl"
+#include "pair.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "spark.tmpl"

@@ -9,8 +9,7 @@
 static testmodule __testpair(
     "pair",
     list<filename>::mk("pair.H", "pair.tmpl"),
-    testmodule::LineCoverage(50_pc),
-    testmodule::BranchCoverage(40_pc),
+    testmodule::LineCoverage(65_pc),
     "parser", [] {
         parsers::roundtrip<pair<int, int> >();
         parsers::roundtrip<pair<string, string> >(); },

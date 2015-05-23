@@ -11,6 +11,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
+#include "pair.tmpl"
 #include "parsers.tmpl"
 #include "thread.tmpl"
 

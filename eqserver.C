@@ -12,6 +12,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
+#include "pair.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 

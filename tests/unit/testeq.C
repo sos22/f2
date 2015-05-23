@@ -6,6 +6,7 @@
 #include "either.tmpl"
 #include "fields.tmpl"
 #include "orerror.tmpl"
+#include "pair.tmpl"
 #include "rpcservice2.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"

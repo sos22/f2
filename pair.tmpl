@@ -4,7 +4,70 @@
 #include "fields.tmpl"
 
 template <typename a, typename b>
+pair<a, b>::pair(const a &_fst, const b &_snd) : fst(_fst), snd(_snd) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(_Steal s, a &_fst, const b &_snd) : fst(s, _fst), snd(_snd) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(const a &_fst, _Steal s, b &_snd) : fst(_fst), snd(s, _snd) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(_Steal s1, a &_fst, _Steal s2, b &_snd)
+    : fst(s1, _fst),
+      snd(s2, _snd) {
+}
+
+template <typename a, typename b>
+pair<a, b>::pair(const pair &o) : fst(o.fst), snd(o.snd) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(_Steal s, pair &o) : fst(s, o.fst), snd(o.snd) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(pair &o, _Steal s) : fst(o.fst), snd(s, o.snd) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(_Steal s1, pair &o, _Steal s2)
+    : fst(s1, o.fst),
+      snd(s2, o.snd) {
+}
+
+template <typename a, typename b>
 pair<a, b>::pair(const quickcheck &q) : fst(q), snd(q) {}
+
+template <typename a, typename b>
+pair<a, b>::pair(deserialise1 &ds) : fst(ds), snd(ds) {}
+
+template <typename a, typename b> void
+pair<a, b>::serialise(serialise1 &s) const {
+    s.push(fst);
+    s.push(snd); }
+
+template <typename a, typename b> void
+pair<a, b>::operator=(const pair<a, b> &o) {
+    fst = o.fst;
+    snd = o.snd; }
+
+template <typename a, typename b> a &
+pair<a, b>::first() { return fst; }
+
+template <typename a, typename b> const a &
+pair<a, b>::first() const { return fst; }
+
+template <typename a, typename b> b &
+pair<a, b>::second() { return snd; }
+
+template <typename a, typename b> const b &
+pair<a, b>::second() const { return snd; }
+
+template <typename a, typename b> bool
+pair<a, b>::operator==(const pair &o) const {
+    return fst == o.fst && snd == o.snd; }
+
+template <typename a, typename b> bool
+pair<a, b>::operator!=(const pair &o) const {
+    return fst != o.fst || snd != o.snd; }
 
 template <typename a, typename b> const fields::field &
 pair<a, b>::field() const {
@@ -13,5 +76,8 @@ pair<a, b>::field() const {
 template <typename a, typename b> const ::parser<pair<a, b> > &
 pair<a, b>::parser(const ::parser<a> &_a, const ::parser<b> &_b) {
     return "<" + _a + ";" + _b + ">"; }
+
+template <typename a, typename b> pair<a,b>
+mkpair(const a &_a, const b &_b) { return pair<a,b>(_a, _b); }
 
 #endif /* !PAIR_TMPL__ */
