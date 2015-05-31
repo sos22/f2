@@ -21,8 +21,7 @@ timestamp
 timedelta::operator+(timestamp ts) const { return ts + *this; }
 
 const fields::field &
-fields::mk(const timedelta &td) {
-    return "<timedelta:" + fields::mk(td.v) + "ns>"; }
+timedelta::field() const { return "<timedelta:" + fields::mk(v) + "ns>"; }
 
 const parser<timedelta> &
 parsers::_timedelta() {

@@ -4,6 +4,7 @@
 #include <functional>
 
 class deserialise1;
+namespace fields { class field; }
 class quickcheck;
 class serialise1;
 class timedelta;
@@ -11,13 +12,7 @@ class timestamp;
 
 template <typename> struct timeres;
 
-namespace fields {
-class field;
-const field &mk(const timedelta &);
-}
-
 class timedelta {
-    friend const fields::field &fields::mk(const timedelta &);
     friend class timestamp;
     long v;
     explicit timedelta(long _v) : v(_v) {}
@@ -58,6 +53,7 @@ public:
     template <typename t> static timeres<t> time(std::function<t ()>);
     static timedelta time(std::function<void ()>);
 
+    const fields::field &field() const;
     void serialise(serialise1 &) const;
 };
 
