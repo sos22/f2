@@ -282,7 +282,8 @@ geneventqueue::queuectxt::finish(geneventqueue &q,
     auto &e(qi.events(token).pushtail(*inner));
     if (qi.events(token).length() > qi.config.queuelimit) {
         logmsg(loglevel::verbose,
-               "drop event: queue " + q.name.field() + " overflowed");
+               "drop event " + qi.events(token).peekhead().id.field() +
+               ": queue " + q.name.field() + " overflowed");
         assert(qi.lastdropped(token) < qi.events(token).peekhead().id.just());
         qi.lastdropped(token) = qi.events(token).peekhead().id.just();
         qi.events(token).drophead();
@@ -403,6 +404,8 @@ QUEUE::trim(mutex_t::token tok) {
         /* Lost the last subscriber -> no need to keep any events
          * around at all. */
         events(tok).flush();
+        logmsg(loglevel::verbose,
+               "lost last subscriber: drop to " + usedto(tok).field());
         lastdropped(tok) = usedto(tok);
         /* Leave a gap in the sequence number space, to flush out bad
          * caching bugs on the client. */
@@ -421,7 +424,9 @@ QUEUE::trim(mutex_t::token tok) {
     for (auto it(events(tok).start());
          !it.finished() && it->id.just() < trimto.just();
          it.remove()) {
-        lastdropped(tok) = trimto.just(); } }
+        logmsg(loglevel::info,
+               "trim to " + it->id.just().field());
+        lastdropped(tok) = it->id.just(); } }
 
 /* ------------------------------- eqserver API ---------------------------- */
 SERVER &
