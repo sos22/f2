@@ -26,12 +26,14 @@
 const peername::port
 peername::port::any(0);
 
-peernameport::peernameport(deserialise1 &ds)
-    : p(ds) {}
+peernameport::peernameport(deserialise1 &ds) : p(ds) { }
 
 void
-peernameport::serialise(serialise1 &s) const {
-    s.push(p); }
+peernameport::serialise(serialise1 &s) const { s.push(p); }
+
+const fields::field &
+peernameport::field() const { return "<port:" + fields::mk(p) + ">"; }
+
 
 peername::peername(const quickcheck &q) {
     switch (random() % 2) {
@@ -184,10 +186,6 @@ fields::mk(const peername &p) {
         abort();
     }
 }
-
-const fields::field &
-fields::mk(const peername::port &p) {
-    return "<port:" + mk(p.p) + ">"; }
 
 peername::port::peernameport(const quickcheck &q) {
     do {

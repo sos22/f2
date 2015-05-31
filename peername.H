@@ -20,13 +20,14 @@ struct sockaddr;
 class peernameport {
     friend class peername;
     friend class udpsocket;
-public:
-    unsigned short p; /* host byte order */
-    peernameport(const quickcheck &q);
+private: unsigned short p; /* host byte order */
+public:  peernameport(const quickcheck &q);
 public:  explicit peernameport(unsigned short _p) : p(_p) {}
 public:  explicit peernameport(deserialise1 &);
 public:  void serialise(serialise1 &) const;
-    bool operator==(const peernameport &o) const { return p == o.p; }
+public:  bool operator==(const peernameport &o) const { return p == o.p; }
+public:  bool operator!=(const peernameport &o) const { return p != o.p; }
+public:  const fields::field &field() const;
     /* Special port which can be used to get the OS to allocate an
        arbitrary port for you. */
     const static peernameport any;
@@ -89,7 +90,6 @@ public: const fields::field &field() const;
 namespace fields {
 class field;
 const field &mk(const peername &p);
-const field &mk(const peername::port &p);
 };
 
 template <typename> class parser;
