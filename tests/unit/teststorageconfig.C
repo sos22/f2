@@ -8,4 +8,4 @@ static testmodule __teststorageconfig(
     "storageconfig",
     list<filename>::mk("storageconfig.C", "storageconfig.H"),
     testmodule::BranchCoverage(50_pc),
-    "parsers", [] { parsers::roundtrip(parsers::__storageconfig()); });
+    "parsers", [] { parsers::roundtrip(storageconfig::parser()); });

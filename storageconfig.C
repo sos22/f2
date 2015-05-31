@@ -4,10 +4,25 @@
 
 #include "parsers.tmpl"
 
-mktupledef(storageconfig)
+storageconfig::storageconfig(const filename &f, const beaconserverconfig &c)
+    : poolpath(f), beacon(c) {}
+
+storageconfig::storageconfig(const quickcheck &q) : poolpath(q), beacon(q) {}
+
+bool
+storageconfig::operator==(const storageconfig &o) const {
+    return poolpath == o.poolpath && beacon == o.beacon; }
+
+const fields::field &
+storageconfig::field() const {
+    return
+        "<storageconfig:"
+        " poolpath:" + poolpath.field() +
+        " beacon:" + beacon.field() +
+        ">"; }
 
 const parser<storageconfig> &
-parsers::__storageconfig() {
+storageconfig::parser() {
     return ("<storageconfig:" +
             ~(" poolpath:" + filename::parser()) +
             " beacon:" + beaconserverconfig::parser() +

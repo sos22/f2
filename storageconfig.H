@@ -3,19 +3,18 @@
 
 #include "beaconserver.H"
 #include "filename.H"
-#include "agentname.H"
-#include "tuple.H"
-
-#define _storageconfig(ctxt, iter0, iter1)                    \
-    iter0(ctxt, 1, mand, ref, filename, poolpath)             \
-    iter1(ctxt, 2, mand, ref, beaconserverconfig, beacon)
-class storageconfig {
-    mktuplefields(storageconfig, public); };
-mktupleext(storageconfig);
 
 template <typename> class parser;
-namespace parsers {
-const parser<storageconfig> &__storageconfig();
-}
+
+class storageconfig {
+public: const filename poolpath;
+public: const beaconserverconfig beacon;
+public: storageconfig(const filename &, const beaconserverconfig &);
+public: storageconfig(const quickcheck &);
+public: bool operator==(const storageconfig &o) const;
+public: bool operator!=(const storageconfig &o) const {
+    return !(*this == o); }
+public: const fields::field &field() const;
+public: static const ::parser<storageconfig> &parser(); };
 
 #endif /* !STORAGECONFIG_H__ */
