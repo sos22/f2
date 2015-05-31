@@ -8,20 +8,20 @@
 #include "maybe.H"
 #include "agentname.H"
 #include "timedelta.H"
-#include "tuple.H"
 #include "version.H"
 
 /* Fields which a user might want to change which relate to the beacon
  * protocol. */
-#define _beaconconfig(ctxt, iter0, iter1)                               \
-    /* What UDP port do we use for requests? */                         \
-    iter0(ctxt, 1, mand, value, peernameport, reqport)                  \
-    /* What UDP port do we use for responses? */                        \
-    iter1(ctxt, 2, mand, value, peernameport, respport)
 class beaconconfig {
-    mktuplefields(beaconconfig, public);
+public: const peernameport reqport;
+public: const peernameport respport;
+public: beaconconfig(const peernameport &reqport, const peernameport &respport);
+public: beaconconfig(const quickcheck &);
+public: bool operator==(const beaconconfig &) const;
+public: bool operator!=(const beaconconfig &o) const {return !(*this == o); }
+public: const fields::field &field() const;
+public: static const ::parser<beaconconfig> &parser();
 public: static beaconconfig dflt; };
-mktupleext(beaconconfig);
 
 /* Beacon interface.  Every server in the system is expected to send
  * periodic BEACON::resp messages to a broadcast (or in future

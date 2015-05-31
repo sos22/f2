@@ -10,10 +10,27 @@
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 
-mktupledef(beaconconfig);
+beaconconfig::beaconconfig(const peernameport &_reqport,
+                           const peernameport &_respport)
+    : reqport(_reqport),
+      respport(_respport) {}
+
+beaconconfig::beaconconfig(const quickcheck &q) : reqport(q), respport(q) {}
+
+bool
+beaconconfig::operator==(const beaconconfig &o) const {
+    return reqport == o.reqport && respport == o.respport; }
+
+const fields::field &
+beaconconfig::field() const {
+    return
+        "<beaconconfig:"
+        " reqport:" + reqport.field() +
+        " respport:" + respport.field() +
+        ">"; }
 
 const parser<beaconconfig> &
-parsers::__beaconconfig() {
+beaconconfig::parser() {
     return ("<beaconconfig:"
             " reqport:" + parsers::_peernameport() +
             " respport:" + parsers::_peernameport() +

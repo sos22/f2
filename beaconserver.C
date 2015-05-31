@@ -35,7 +35,7 @@ beaconserverconfig::dflt(const clustername &_cluster,
 const parser<beaconserverconfig> &
 parsers::__beaconserverconfig() {
     return ("<beaconserverconfig:" +
-            ~(" proto:" + parsers::__beaconconfig()) +
+            ~(" proto:" + beaconconfig::parser()) +
             " cluster:" + parsers::__clustername() +
             " name:" + parsers::_agentname() +
             ~(" cachetime:" + parsers::_timedelta()) +

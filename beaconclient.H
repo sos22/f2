@@ -15,7 +15,6 @@
 #include "thread.H"
 #include "timedelta.H"
 #include "timestamp.H"
-#include "tuple.H"
 #include "udpsocket.H"
 #include "util.H"
 #include "walltime.H"

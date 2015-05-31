@@ -4,7 +4,6 @@
 #include "buffer.H"
 #include "logging.H"
 #include "quickcheck.H"
-#include "tuple.H"
 #include "version.H"
 
 #include "fields.tmpl"
@@ -65,7 +64,7 @@ parsers::__beaconclientconfig() {
             " cluster:" + __clustername() +
             ~(" type:" + _maybe(interfacetype::parser())) +
             ~(" name:" + _maybe(_agentname())) +
-            ~(" proto:" + __beaconconfig()) +
+            ~(" proto:" + beaconconfig::parser()) +
             ~(" queryinterval:" + _timedelta()) +
             ~(" broadcastinterval:" + _timedelta()) +
             ">")
