@@ -93,7 +93,12 @@ eval $(awk "/^File / { filename=\$2; } /Lines executed:/ { print filename \" \" 
                 echo nrlines=${nrlines} execlines=${execlines} ) )
 
 echo nrbranches=$nrbranches takenbranches=$takenbranches nrlines=$nrlines execlines=$execlines
-linecov=$(echo "scale=4; ${execlines} / $nrlines" | bc)
+if [ $nrlines -ne 0 ]
+then
+    linecov=$(echo "scale=4; ${execlines} / $nrlines" | bc)
+else
+    linecov=100.0
+fi
 if [ $nrbranches -ne 0 ]
 then
     branchcov=$(echo "scale=4; ${takenbranches} / $nrbranches" | bc)

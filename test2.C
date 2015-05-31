@@ -15,14 +15,34 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "map.tmpl"
+#include "test2.tmpl"
 
 static map<string, nnp<testmodule> > *
 modules;
 
+static testmodule __testmeta(
+    "meta",
+    list<filename>::mk(),
+    "nodupes", [] {
+        /* No file should be tested by multiple modules. */
+        map<filename, string> covered;
+        for (auto it(modules->start()); !it.finished(); it.next()) {
+            for (auto it2(it.value()->files().start());
+                 !it2.finished();
+                 it2.next()) {
+                auto g(covered.get(*it2));
+                if (g != Nothing) {
+                    logmsg(loglevel::error,
+                           it2->field() + " is covered by " +
+                           it.value()->name().field() + " and " +
+                           g.just().field());
+                    abort(); }
+                else covered.set(*it2, it.value()->name()); } } });
+
 void
 testmodule::applyinit() {
     if (modules == NULL) modules = new map<string, nnp<testmodule> >();
-    modules->set(name, _nnp(*this)); }
+    modules->set(name(), _nnp(*this)); }
 
 static void
 listmodules(void) {
@@ -33,27 +53,27 @@ void
 testmodule::listtests() const {
     for (auto it(tests.start()); !it.finished(); it.next()) {
         printf("%s\n",
-               (fields::padright(fields::mk(name), 20) +
+               (fields::padright(fields::mk(name()), 20) +
                 fields::padright(it.key().field(), 20)).c_str()); } }
 
 void
 testmodule::printmodule() const {
-    printf("Module: %s\n", fields::padright(name.field(), 20).c_str());
+    printf("Module: %s\n", fields::padright(name().field(), 20).c_str());
     printf("    Line coverage:   %s\n",
            fields::padright(linecoverage.p.field(), 10).c_str());
     printf("    Branch coverage: %s\n",
            fields::padright(branchcoverage.p.field(), 10).c_str());
-    for (auto it(files.start()); !it.finished(); it.next()) {
+    for (auto it(files().start()); !it.finished(); it.next()) {
         printf("    File:            %s\n", it->str().c_str()); } }
 
 void
 testmodule::runtest(const string &what, maybe<timedelta> limit) const {
     printf("%s\n",
-           (fields::padright(name.field(), 20) +
+           (fields::padright(name().field(), 20) +
             fields::padright(what.field(), 20)).c_str());
     if (limit != Nothing) alarm((unsigned)(limit.just() / 1_s));
     tests.get(what)
-        .fatal("no such test: " + name.field() + "::" + what.field())
+        .fatal("no such test: " + name().field() + "::" + what.field())
         ();
     if (limit != Nothing) alarm(0); }
 

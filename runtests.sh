@@ -52,16 +52,6 @@ summary=${outdir}/summary1
 coveredfiles=${outdir}/coveredfiles
 ./test2-c | grep File: | sed 's/ *File: *//' | sort > ${coveredfiles}
 
-# No file should be tested by more than one module
-dupecoverage=pass
-if < ${coveredfiles} uniq -c | grep -vq '^ *1 '
-then
-    echo 'Some files present in multiple test modules:'
-    < ${coveredfiles} uniq -c | grep -v '^ *1 ' | sort -n
-    dupecoverage=fail
-fi
-${dupecoverage} dupecoverage
-
 # Every test covered by a test module should actually exist
 testmissing=pass
 for coveredfile in `cat ${coveredfiles}`

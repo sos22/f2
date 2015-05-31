@@ -20,8 +20,10 @@ public:  class BranchCoverage {
 public:  class Dependency {
     public: filename fn;
     public: explicit Dependency(const filename &_fn) : fn(_fn) {} };
-private: string name;
-private: list<filename> files;
+private: string _name;
+public:  const string &name() const { return _name; }
+private: list<filename> _files;
+public:  const list<filename> &files() const { return _files; }
 private: list<filename> dependencies;
 private: LineCoverage linecoverage;
 private: BranchCoverage branchcoverage;

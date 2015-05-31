@@ -48,11 +48,11 @@ testmodule::applyinit(
 
 template <typename ... argsT>
 testmodule::testmodule(
-    const string &_name,
-    const list<filename> &_files,
+    const string &__name,
+    const list<filename> &__files,
     argsT &&...args)
-    : name(_name),
-      files(_files),
+    : _name(__name),
+      _files(__files),
       linecoverage(100_pc),
       branchcoverage(100_pc) {
     applyinit(std::forward<argsT>(args)...); }
