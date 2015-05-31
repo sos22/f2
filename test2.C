@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "filename.H"
+#include "fuzzsched.H"
 #include "logging.H"
 #include "profile.H"
 #include "spawn.H"
@@ -126,6 +127,10 @@ main(int argc, char *argv[]) {
             argc--; }
         else if (!strcmp(argv[1], "--notimeouts")) {
             timeout = Nothing;
+            argv++;
+            argc--; }
+        else if (!strcmp(argv[1], "--fuzzsched")) {
+            __do_fuzzsched = true;
             argv++;
             argc--; }
         else break; }

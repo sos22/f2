@@ -1,5 +1,7 @@
 #include "mutex.H"
 
+#include "fuzzsched.H"
+
 #include "maybe.tmpl"
 
 mutex_t::mutex_t() : heldby(Nothing) { pthread_mutex_init(&mux, NULL); }
@@ -8,6 +10,7 @@ mutex_t::~mutex_t() { pthread_mutex_destroy(&mux); }
 
 mutex_t::token
 mutex_t::lock() {
+    fuzzsched();
     pthread_mutex_lock(&mux);
     heldby.mkjust(tid::me());
     return token(); }
@@ -20,7 +23,8 @@ mutex_t::unlock(token *tok) {
     tok->formux(*this);
     tok->release();
     heldby = Nothing;
-    pthread_mutex_unlock(&mux); }
+    pthread_mutex_unlock(&mux);
+    fuzzsched(); }
 
 void
 mutex_t::locked(const std::function<void (mutex_t::token)> &f) {

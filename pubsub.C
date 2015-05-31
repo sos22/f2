@@ -5,6 +5,7 @@
 
 #include "buffer.H"
 #include "fields.H"
+#include "fuzzsched.H"
 #include "logging.H"
 #include "pair.H"
 #include "socket.H"
@@ -294,12 +295,14 @@ subscriber::wait(clientio io, maybe<timestamp> deadline) {
             if (r->notified) {
                 r->notified = false;
                 mux.unlock(&token);
+                fuzzsched();
                 return r; } }
         while (!notified) {
             auto r(cond.wait(io, &token, deadline));
             token = r.token;
             if (r.timedout) {
                 mux.unlock(&token);
+                fuzzsched();
                 return NULL; } } } }
 
 subscriptionbase *
