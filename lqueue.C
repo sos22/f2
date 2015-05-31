@@ -4,6 +4,7 @@
 #include "list.H"
 #include "logging.H"
 
+#include "fields.tmpl"
 #include "list.tmpl"
 
 template bool list<genevtdest*>::empty_unsafe() const;

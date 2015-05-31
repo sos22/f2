@@ -9,6 +9,7 @@
 
 #include "connpool.tmpl"
 #include "either.tmpl"
+#include "fields.tmpl"
 #include "maybe.tmpl"
 #include "test2.tmpl"
 

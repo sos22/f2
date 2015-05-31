@@ -2,6 +2,7 @@
 #include "test2.H"
 #include "timedelta.H"
 
+#include "fields.tmpl"
 #include "map.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"

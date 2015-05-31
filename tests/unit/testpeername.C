@@ -3,6 +3,7 @@
 #include "peername.H"
 #include "test2.H"
 
+#include "fields.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "test2.tmpl"
