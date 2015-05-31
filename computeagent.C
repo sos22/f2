@@ -18,6 +18,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "pair.tmpl"
 #include "rpcservice2.tmpl"
 #include "thread.tmpl"
 

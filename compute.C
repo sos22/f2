@@ -8,6 +8,7 @@
 #include "either.tmpl"
 #include "maybe.tmpl"
 #include "orerror.tmpl"
+#include "pair.tmpl"
 
 const proto::compute::tag
 proto::compute::tag::start(11);
