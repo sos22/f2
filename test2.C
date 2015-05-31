@@ -57,7 +57,28 @@ static testmodule __testmeta(
                            it2->field() + " which does not exist: " +
                            r.field());
                     failed = true; } } }
-        assert(!failed); } );
+        assert(!failed); },
+    "testeverything", [] {
+        /* Every file must be covered by a test. */
+        map<filename, bool> covered;
+        for (auto it(modules->start()); !it.finished(); it.next()) {
+            for (auto it2(it.value()->files().start());
+                 !it2.finished();
+                 it2.next()) {
+                covered.set(*it2, true); } }
+        bool failed = false;
+        for (filename::diriter it(filename(".")); !it.finished(); it.next()) {
+            auto extension(strrchr(it.filename(), '.'));
+            if (extension == NULL ||
+                (strcmp(extension, ".C") &&
+                 strcmp(extension, ".H") &&
+                 strcmp(extension, ".tmpl"))) {
+                continue; }
+            if (covered.get(filename(it.filename())) == Nothing) {
+                logmsg(loglevel::error,
+                       "no test for " + filename(it.filename()).field());
+                failed = true; } }
+        assert(!failed); });
 
 void
 testmodule::applyinit() {

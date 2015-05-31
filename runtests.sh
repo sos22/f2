@@ -48,26 +48,9 @@ summary=${outdir}/summary1
         fi
     done
 
-# And some checks that the list of covered files is reasonable.
-coveredfiles=${outdir}/coveredfiles
-./test2-c | grep File: | sed 's/ *File: *//' | sort > ${coveredfiles}
+sort -n ${summary} | sed 's/^[012] //' > ${outdir}/summary
 
-# Every source file should be covered by a test module
-allcovered=pass
-for x in *.C *.H *.tmpl
-do
-    if ! grep -q $x $coveredfiles
-    then
-        echo "No test for $x"
-        allcovered=coverage
-    fi
-done
-${allcovered} allcovered
-
-sort -n ${summary} |
-    sed 's/^[012] //' > ${outdir}/summary
-
-rm ${outdir}/summary1
+rm ${summary}
 
 trap "" EXIT
 
