@@ -227,7 +227,7 @@ static testmodule __beacontests(
         s2->destroy(io);
         s3->destroy(io); },
     "clientconfig", [] { parsers::roundtrip(parsers::__beaconclientconfig()); },
-    "serverconfig", [] { parsers::roundtrip(parsers::__beaconserverconfig()); },
+    "serverconfig", [] { parsers::roundtrip(beaconserverconfig::parser()); },
     "badconfig", [] {
         beaconclientconfig dflt(clustername::mk("foo").fatal("bad"));
         assert(beaconclientconfig::mk(

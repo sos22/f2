@@ -10,7 +10,7 @@ const parser<storageconfig> &
 parsers::__storageconfig() {
     return ("<storageconfig:" +
             ~(" poolpath:" + filename::parser()) +
-            " beacon:" + __beaconserverconfig() +
+            " beacon:" + beaconserverconfig::parser() +
             ">")
         .map<storageconfig>(
             []

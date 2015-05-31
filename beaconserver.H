@@ -13,27 +13,27 @@
 #include "agentname.H"
 #include "timedelta.H"
 #include "thread.H"
-#include "tuple.H"
 #include "udpsocket.H"
 
 class clientio;
 
-#define _beaconserverconfig(ctxt, iter0, iter1)                         \
-    iter0(ctxt, 1, mand, ref, ::beaconconfig, proto)                    \
-    /* What cluster are we broadcasting our beacon messages into? */    \
-    iter0(ctxt, 2, mand, ref, clustername, cluster)                     \
-    /* Who are we advertising? */                                       \
-    iter0(ctxt, 3, mand, ref, agentname, name)                          \
-    /* How long may clients cache our responses for?  Note that this */ \
-    /* will be measured from the point they receive the response, and */ \
-    /* not the point at which we send it i.e. the actual liveness time */ \
-    /* is this plus one network delay. */                               \
-    iter1(ctxt, 4, mand, value, timedelta, cachetime)
 class beaconserverconfig {
-    mktuplefields(beaconserverconfig, public);
+public: const beaconconfig proto;
+public: const clustername cluster;
+public: const agentname name;
+public: const timedelta cachetime;
+public: beaconserverconfig(const beaconconfig &_proto,
+                           const clustername &_cluster,
+                           const agentname &_name,
+                           timedelta _cachetime);
+public: beaconserverconfig(const quickcheck &);
+public: bool operator==(const beaconserverconfig &o) const;
+public: bool operator!=(const beaconserverconfig &o) const {
+    return !(*this == o); }
+public: static const ::parser<beaconserverconfig> &parser();
+public: const fields::field &field() const;
 public: static beaconserverconfig dflt(const clustername &,
                                        const agentname &); };
-mktupleext(beaconserverconfig);
 
 class beaconserver : private thread {
     friend class thread;

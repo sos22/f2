@@ -22,18 +22,30 @@
 #include "test.tmpl"
 #include "thread.tmpl"
 
-mktupledef(beaconserverconfig);
+beaconserverconfig::beaconserverconfig(const beaconconfig &_proto,
+                                       const clustername &_cluster,
+                                       const agentname &_name,
+                                       timedelta _cachetime)
+    : proto(_proto),
+      cluster(_cluster),
+      name(_name),
+      cachetime(_cachetime) {}
 
-beaconserverconfig
-beaconserverconfig::dflt(const clustername &_cluster,
-                         const agentname &_agent) {
-    return beaconserverconfig(beaconconfig::dflt,
-                              _cluster,
-                              _agent,
-                              timedelta::seconds(60)); }
+beaconserverconfig::beaconserverconfig(const quickcheck &q)
+    : proto(q),
+      cluster(q),
+      name(q),
+      cachetime(q) {}
+
+bool
+beaconserverconfig::operator==(const beaconserverconfig &o) const {
+    return proto == o.proto &&
+        cluster == o.cluster &&
+        name == o.name &&
+        cachetime == o.cachetime; }
 
 const parser<beaconserverconfig> &
-parsers::__beaconserverconfig() {
+beaconserverconfig::parser() {
     return ("<beaconserverconfig:" +
             ~(" proto:" + beaconconfig::parser()) +
             " cluster:" + parsers::__clustername() +
@@ -51,6 +63,24 @@ parsers::__beaconserverconfig() {
                 w.first().first().second(),
                 w.first().second(),
                 w.second().dflt(timedelta::seconds(60))); }); }
+
+const fields::field &
+beaconserverconfig::field() const {
+    return
+        "<beaconserverconfig:"
+        " proto:" + proto.field() +
+        " cluster:" + cluster.field() +
+        " name:" + name.field() +
+        " cachetime:" + cachetime.field() +
+        ">"; }
+
+beaconserverconfig
+beaconserverconfig::dflt(const clustername &_cluster,
+                         const agentname &_agent) {
+    return beaconserverconfig(beaconconfig::dflt,
+                              _cluster,
+                              _agent,
+                              timedelta::seconds(60)); }
 
 orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
