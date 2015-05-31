@@ -38,8 +38,8 @@ clustername::mk(const string &o) {
     else return clustername(o); }
 
 const fields::field &
-fields::mk(const clustername &o) {
-    return "<clustername:" + mk(o.value).escape() + ">"; }
+clustername::field() const {
+    return "<clustername:" + value.field().escape() + ">"; }
 
 const parser<clustername> &
 parsers::__clustername() {
