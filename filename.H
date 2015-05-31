@@ -156,7 +156,8 @@ public:  const string &str() const { return content; }
 public:  const fields::field &field() const;
     
 public:  void serialise(serialise1 &) const;
-public:  static const ::parser<filename> &parser(); };
+public:  static const ::parser<filename> &parser();
+public:  unsigned long hash() const; };
 
 struct dirent;
 namespace tests { template <typename> class event; }

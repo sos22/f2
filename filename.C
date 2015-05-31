@@ -366,6 +366,9 @@ filename::parser() {
     return ("<filename:" + string::parser() + ">")
         .map<filename>([] (const string &x) { return filename(x); }); }
 
+unsigned long
+filename::hash() const { return content.hash(); }
+
 const fields::field &
 filename::field() const { return fields::mk(*this); }
 
