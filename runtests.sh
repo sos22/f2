@@ -52,18 +52,6 @@ summary=${outdir}/summary1
 coveredfiles=${outdir}/coveredfiles
 ./test2-c | grep File: | sed 's/ *File: *//' | sort > ${coveredfiles}
 
-# Every test covered by a test module should actually exist
-testmissing=pass
-for coveredfile in `cat ${coveredfiles}`
-do
-    if ! [ -e $coveredfile ]
-    then
-        echo $coveredfile has a test module but does not exist?
-        testmissing=fail
-    fi
-done
-$testmissing testmissing
-
 # Every source file should be covered by a test module
 allcovered=pass
 for x in *.C *.H *.tmpl

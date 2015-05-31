@@ -15,6 +15,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "map.tmpl"
+#include "orerror.tmpl"
 #include "test2.tmpl"
 
 static map<string, nnp<testmodule> > *
@@ -28,6 +29,7 @@ static testmodule __testmeta(
     "nodupes", [] {
         /* No file should be tested by multiple modules. */
         map<filename, string> covered;
+        bool failed = false;
         for (auto it(modules->start()); !it.finished(); it.next()) {
             for (auto it2(it.value()->files().start());
                  !it2.finished();
@@ -38,8 +40,24 @@ static testmodule __testmeta(
                            it2->field() + " is covered by " +
                            it.value()->name().field() + " and " +
                            g.just().field());
-                    abort(); }
-                else covered.set(*it2, it.value()->name()); } } });
+                    failed = true; }
+                else covered.set(*it2, it.value()->name()); } }
+        assert(!failed); },
+    "nomissing", [] {
+        /* Every file covered must actually exist. */
+        bool failed = false;
+        for (auto it(modules->start()); !it.finished(); it.next()) {
+            for (auto it2(it.value()->files().start());
+                 !it2.finished();
+                 it2.next()) {
+                auto r(it2->isfile());
+                if (r != true) {
+                    logmsg(loglevel::error,
+                           it.value()->name().field() + " tests " +
+                           it2->field() + " which does not exist: " +
+                           r.field());
+                    failed = true; } } }
+        assert(!failed); } );
 
 void
 testmodule::applyinit() {
