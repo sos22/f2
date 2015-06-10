@@ -2,13 +2,13 @@
 
 . shutil
 
-BINS="computeclient                   \
+BINS="computeclient                  \
     computefmt                       \
     computeservice                   \
     computespy                       \
     coordinatorclient                \
     coordinatorservice               \
-    filesystemclient                 \
+    filesystemcli                    \
     filesystemservice                \
     storagecli                       \
     storageservice                   \

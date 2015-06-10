@@ -22,7 +22,7 @@ computestate
 config
 coordinatorclient
 coordinatorservice
-filesystemclient
+filesystemcli
 filesystemservice
 /master
 spawnservice
