@@ -7,8 +7,10 @@
 
 class slowservice : public rpcservice2 {
 public: list<spark<void> > outstanding;
+public: unsigned nrabandoned;
 public: slowservice(const rpcservice2::constoken &t)
-    : rpcservice2(t, interfacetype::test) {}
+    : rpcservice2(t, interfacetype::test),
+      nrabandoned(0) {}
 public: orerror<void> called(
     clientio,
     deserialise1 &ds,
@@ -19,11 +21,12 @@ public: orerror<void> called(
     unsigned key(ds);
     if (ds.isfailure()) return ds.failure();
     auto deadline(timestamp::now() + delay);
-    outstanding.append([deadline, key, ic] {
+    outstanding.append([this, deadline, key, ic] {
             {   subscriber sub;
                 subscription ss(sub, ic->abandoned().pub());
                 while (deadline.infuture() && !ic->abandoned().ready()) {
                     sub.wait(clientio::CLIENTIO, deadline); } }
+            if (ic->abandoned().ready()) nrabandoned++;
             ic->complete(
                 [key] (serialise1 &s, mutex_t::token) { s.push(key); },
                 acquirestxlock(clientio::CLIENTIO)); });

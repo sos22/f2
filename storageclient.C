@@ -10,47 +10,11 @@
 #include "storage.H"
 #include "util.H"
 
+#include "asynccall.tmpl"
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"
-
-template <typename _resT, typename _implT, typename _innerTokenT> _implT &
-storageclient::asynccall<_resT, _implT, _innerTokenT>::impl() {
-    return *containerof(this, _implT, api); }
-
-template <typename _resT, typename _implT, typename _innerTokenT> const _implT &
-storageclient::asynccall<_resT, _implT, _innerTokenT>::impl() const {
-    return *containerof(this, _implT, api); }
-
-template <typename _resT, typename _implT, typename _innerTokenT>
-const publisher &
-storageclient::asynccall<_resT, _implT, _innerTokenT>::pub() const {
-    return impl().cl.pub(); }
-
-template <typename _resT, typename _implT, typename _innerTokenT> orerror<_resT>
-storageclient::asynccall<_resT, _implT, _innerTokenT>::pop(clientio io) {
-    auto tok(finished());
-    if (tok == Nothing) {
-        subscriber ss;
-        subscription sub(ss, pub());
-        tok = finished();
-        while (tok == Nothing) {
-            ss.wait(io);
-            tok = finished(); } }
-    return pop(tok.just()); }
-
-template <typename _resT, typename _implT, typename _innerTokenT>
-maybe<typename storageclient::asynccall<_resT, _implT, _innerTokenT>::token>
-storageclient::asynccall<_resT, _implT, _innerTokenT>::finished() const {
-    auto r(impl().cl.finished());
-    if (r == Nothing) return Nothing;
-    else return token(r.just()); }
-
-template <typename _resT, typename _implT, typename _innerTokenT> void
-storageclient::asynccall<_resT, _implT, _innerTokenT>::abort() {
-    impl().cl.abort();
-    delete &impl(); }
 
 class storageclient::impl {
 public: class storageclient api;
@@ -456,16 +420,13 @@ void
 storageclient::destroy() { delete &impl(); }
 
 #define instantiate(name)                                               \
-    template class                                                      \
-    storageclient::asynccall<storageclient:: name ::resT,               \
-                             storageclient:: name ::implT,              \
-                             storageclient:: name::innerTokenT>
-instantiate(asyncconnect);
-instantiate(asynccreatejob);
-instantiate(asyncappend);
-instantiate(asyncfinish);
-instantiate(asyncread);
-instantiate(asynclistjobs);
-instantiate(asyncstatjob);
-instantiate(asyncliststreams);
-instantiate(asyncremovejob);
+    template class asynccall<storageclient:: async ## name ## descr>
+instantiate(connect);
+instantiate(createjob);
+instantiate(append);
+instantiate(finish);
+instantiate(read);
+instantiate(listjobs);
+instantiate(statjob);
+instantiate(liststreams);
+instantiate(removejob);

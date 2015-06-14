@@ -1,0 +1,40 @@
+#ifndef ASYNCCALL_TMPL__
+#define ASYNCCALL_TMPL__
+
+#include "util.H"
+
+#include "connpool.tmpl"
+
+template <typename _spec> typename _spec::_implT &
+asynccall<_spec>::impl() { return *containerof(this, implT, api); }
+
+template <typename _spec> const typename _spec::_implT &
+asynccall<_spec>::impl() const { return *containerof(this, implT, api); }
+
+template <typename _spec> const publisher &
+asynccall<_spec>::pub() const { return impl().cl.pub(); }
+
+template <typename _spec> orerror<typename _spec::_resT>
+asynccall<_spec>::pop(clientio io) {
+    auto tok(finished());
+    if (tok == Nothing) {
+        subscriber ss;
+        subscription sub(ss, pub());
+        tok = finished();
+        while (tok == Nothing) {
+            ss.wait(io);
+            tok = finished(); } }
+    return pop(tok.just()); }
+
+template <typename _spec> maybe<typename asynccall<_spec>::token>
+asynccall<_spec>::finished() const {
+    auto r(impl().cl.finished());
+    if (r == Nothing) return Nothing;
+    else return token(r.just()); }
+
+template <typename _spec> void
+asynccall<_spec>::abort() {
+    impl().cl.abort();
+    delete &impl(); }
+
+#endif /* !ASYNCCALL_TMPL__ */

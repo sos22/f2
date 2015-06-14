@@ -3,6 +3,7 @@
 #define STORAGECLIENT_H__
 
 #include "agentname.H"
+#include "asynccall.H"
 #include "connpool.H"
 #include "eq.H"
 #include "job.H"
@@ -20,33 +21,14 @@ private: class impl;
 private: class impl &impl();
 private: const class impl &impl() const;
 
-private: template <typename _resT,
-                   typename _implT,
-                   typename _innerTokenT> class asynccall {
-        friend class storageclient;
-    private: typedef _resT resT;
-    private: typedef _implT implT;
-    private: typedef _innerTokenT innerTokenT;
-    private: asynccall() {}
-    private: asynccall(const asynccall &) = delete;
-    private: void operator=(const asynccall &) = delete;
-    private: ~asynccall() {}
-    private: implT &impl();
-    private: const implT &impl() const;
-    public:  class token {
-            friend asynccall;
-        private: innerTokenT inner;
-        private: token(innerTokenT _inner) : inner(_inner) {} };
-    public:  maybe<token> finished() const;
-    public:  const publisher &pub() const;
-    public:  orerror<resT> pop(token t);
-    public:  orerror<resT> pop(clientio io);
-    public:  void abort(); };
-    
 private: class asyncconnectimpl;
-public:  typedef asynccall<nnp<storageclient>,
-                           asyncconnectimpl,
-                           connpool::asynccall::token> asyncconnect;
+private: struct asyncconnectdescr {
+    typedef nnp<storageclient> _resT;
+    typedef storageclient _friend;
+    typedef asyncconnectimpl _implT;
+    typedef connpool::asynccall::token _innerTokenT; };
+public:  typedef asynccall<asyncconnectdescr> asyncconnect;
+    friend asyncconnect;
 public:  static asyncconnect &connect(connpool &cp, const agentname &an);
 public:  static orerror<asyncconnect::resT> connect(
     clientio io,
@@ -54,18 +36,24 @@ public:  static orerror<asyncconnect::resT> connect(
     const agentname &an);
     
 private: class asynccreatejobimpl;
-public:  typedef asynccall<proto::eq::eventid,
-                           asynccreatejobimpl,
-                           connpool::asynccallT<proto::eq::eventid>::token>
-             asynccreatejob;
+private: struct asynccreatejobdescr {
+    typedef proto::eq::eventid _resT;
+    typedef storageclient _friend;
+    typedef asynccreatejobimpl _implT;
+    typedef connpool::asynccallT<proto::eq::eventid>::token _innerTokenT; };
+public:  typedef asynccall<asynccreatejobdescr> asynccreatejob;
+    friend asynccreatejob;
 public:  asynccreatejob &createjob(const job &);
 public:  orerror<asynccreatejob::resT> createjob(clientio, const job &);
     
 private: class asyncappendimpl;
-public:  typedef asynccall<
-    void,
-    asyncappendimpl,
-    connpool::asynccall::token> asyncappend;
+private: struct asyncappenddescr {
+    typedef void _resT;
+    typedef storageclient _friend;
+    typedef asyncappendimpl _implT;
+    typedef connpool::asynccall::token _innerTokenT; };
+public:  typedef asynccall<asyncappenddescr> asyncappend;
+    friend asyncappend;
 public:  asyncappend &append(jobname,
                              const streamname &,
                              const buffer &,
@@ -88,20 +76,26 @@ public:  orerror<asyncappend::resT> append(clientio,
                                            bytecount);
     
 private: class asyncfinishimpl;
-public:  typedef asynccall<
-    void,
-    asyncfinishimpl,
-    connpool::asynccall::token> asyncfinish;
+private: struct asyncfinishdescr {
+    typedef void _resT;
+    typedef storageclient _friend;
+    typedef asyncfinishimpl _implT;
+    typedef connpool::asynccall::token _innerTokenT; };
+public:  typedef asynccall<asyncfinishdescr> asyncfinish;
+    friend asyncfinish;
 public:  asyncfinish &finish(jobname, const streamname &);
 public:  orerror<asyncfinish::resT> finish(clientio,
                                            jobname,
                                            const streamname &);
     
 private: class asyncreadimpl;
-public:  typedef asynccall<
-    pair<bytecount, buffer>,
-    asyncreadimpl,
-    connpool::asynccallT<bytecount>::token> asyncread;
+private: struct asyncreaddescr {
+    typedef pair<bytecount, buffer> _resT;
+    typedef storageclient _friend;
+    typedef asyncreadimpl _implT;
+    typedef connpool::asynccallT<bytecount>::token _innerTokenT; };
+public:  typedef asynccall<asyncreaddescr> asyncread;
+    friend asyncread;
 public:  asyncread &read(jobname,
                          const streamname &,
                          maybe<bytecount> start = Nothing,
@@ -113,48 +107,62 @@ public:  orerror<asyncread::resT> read(clientio,
                                        maybe<bytecount> end = Nothing);
     
 private: class asynclistjobsimpl;
-public:  typedef asynccall<
-    pair<proto::eq::eventid, list<jobname> >,
-    asynclistjobsimpl,
-    connpool::asynccallT<proto::storage::listjobsres>::token> asynclistjobs;
+private: struct asynclistjobsdescr {
+    typedef pair<proto::eq::eventid, list<jobname> > _resT;
+    typedef storageclient _friend;
+    typedef asynclistjobsimpl _implT;
+    typedef connpool::asynccallT<proto::storage::listjobsres>::token
+        _innerTokenT; };
+public:  typedef asynccall<asynclistjobsdescr> asynclistjobs;
+    friend asynclistjobs;
 public:  asynclistjobs &listjobs();
 public:  orerror<asynclistjobs::resT> listjobs(clientio);
     
 private: class asyncstatjobimpl;
-public:  typedef asynccall<
-    job,
-    asyncstatjobimpl,
-    connpool::asynccallT<job>::token> asyncstatjob;
+private: struct asyncstatjobdescr {
+    typedef job _resT;
+    typedef storageclient _friend;
+    typedef asyncstatjobimpl _implT;
+    typedef connpool::asynccallT<job>::token _innerTokenT; };
+public:  typedef asynccall<asyncstatjobdescr> asyncstatjob;
+    friend asyncstatjob;
 public:  asyncstatjob &statjob(jobname);
 public:  orerror<asyncstatjob::resT> statjob(clientio, jobname);
     
 private: class asyncliststreamsimpl;
-public:  typedef asynccall<
-    pair<proto::eq::eventid, list<streamstatus> >,
-    asyncliststreamsimpl,
-    connpool::asynccallT<proto::storage::liststreamsres>::token>
-        asyncliststreams;
+private: struct asyncliststreamsdescr {
+    typedef pair<proto::eq::eventid, list<streamstatus> > _resT;
+    typedef storageclient _friend;
+    typedef asyncliststreamsimpl _implT;
+    typedef connpool::asynccallT<proto::storage::liststreamsres>::token
+        _innerTokenT; };
+public:  typedef asynccall<asyncliststreamsdescr> asyncliststreams;
+    friend asyncliststreams;
 public:  asyncliststreams &liststreams(jobname);
 public:  orerror<asyncliststreams::resT> liststreams(clientio, jobname);
     
 private: class asyncstatstreamimpl;
-public:  typedef asynccall<
-    streamstatus,
-    asyncstatstreamimpl,
-    connpool::asynccallT<streamstatus>::token> asyncstatstream;
-public:  asyncstatstream &statstream(
-    jobname,
-    const streamname &);
+private: struct asyncstatstreamdescr {
+    typedef streamstatus _resT;
+    typedef storageclient _friend;
+    typedef asyncstatstreamimpl _implT;
+    typedef connpool::asynccallT<streamstatus>::token _innerTokenT; };
+public:  typedef asynccall<asyncstatstreamdescr> asyncstatstream;
+    friend asyncstatstream;
+public:  asyncstatstream &statstream(jobname, const streamname &);
 public:  orerror<asyncstatstream::resT> statstream(
     clientio,
     jobname,
     const streamname &);
     
 private: class asyncremovejobimpl;
-public:  typedef asynccall<
-    void,
-    asyncremovejobimpl,
-    connpool::asynccallT<void>::token> asyncremovejob;
+private: struct asyncremovejobdescr {
+    typedef void _resT;
+    typedef storageclient _friend;
+    typedef asyncremovejobimpl _implT;
+    typedef connpool::asynccall::token _innerTokenT; };
+public:  typedef asynccall<asyncremovejobdescr> asyncremovejob;
+    friend asyncremovejob;
 public:  asyncremovejob &removejob(jobname);
 public:  orerror<asyncremovejob::resT> removejob(clientio, jobname);
     
