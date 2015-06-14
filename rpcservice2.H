@@ -233,6 +233,20 @@ public:    class incompletecall {
         /* Use complete() or fail() instead. */
     private: ~incompletecall(); };
 
+    /* Support for pausing an RPC service. pause() stops any further
+     * connections from being accepted and stops any more calls from
+     * being made on the existing connections, and waits for any
+     * existing calls to complete, and then returns a token
+     * representing the fact that we're paused. unpause() takes that
+     * token and unpauses the service. The pause is invisible to
+     * clients (except for calls running really slowly). */
+public:  class pausetoken {
+        friend class rpcservice2;
+    private: pausetoken() {}
+    private: void operator=(const pausetoken &) = delete; };
+public:  pausetoken pause(clientio);
+public:  void unpause(pausetoken);
+
     /* Destroy an RPC service, waiting for any extant calls to
      * called() to return and for any extant incomplete call
      * structures to be complete()d or fail()d.  Any outstanding

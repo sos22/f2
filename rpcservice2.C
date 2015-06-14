@@ -29,6 +29,19 @@ public: waitbox<void> shutdown;
 public: waitbox<orerror<void> > initialisedone;
 public: list<interfacetype> type; /* const once initialised */
 public: beaconserver *beacon;
+    /* The pause machine. All fields are protected by the pause
+     * lock. We only do paused true->false edges if pausecount is
+     * zero. */
+public: mutex_t pauselock; /* Leaf lock */
+    /* How many threads want us paused? */
+public: unsigned _pausecount;
+public: unsigned &pausecount(mutex_t::token) { return _pausecount; }
+    /* Are we currently paused? */
+public: bool _paused;
+public: bool &paused(mutex_t::token) { return _paused; }
+    /* Notified if pausecount goes 0->+ve or paused goes
+     * false->true. */
+public: publisher pausepub;
 public: rootthread(const constoken &token,
                    rpcservice2 &_owner,
                    listenfd _fd,
@@ -39,10 +52,16 @@ public: rootthread(const constoken &token,
       shutdown(),
       initialisedone(),
       type(_type),
-      beacon(NULL) {
+      beacon(NULL),
+      pauselock(),
+      _pausecount(0),
+      _paused(false),
+      pausepub() {
     assert(!type.contains(interfacetype::meta));
     type.pushtail(interfacetype::meta); }
-public: void run(clientio) final; };
+public: void run(clientio) final;
+public: rpcservice2::pausetoken pause(clientio);
+public: void unpause(rpcservice2::pausetoken); };
 
 class rpcservice2::connworker final : public thread {
     /* Acquired from the const quotaavail() method */
@@ -62,7 +81,14 @@ public: const list<nnp<incompletecall> > &
 public: rootthread &owner;
 public: socket_t const fd;
 public: publisher completedcall;
-
+     /* Leaf lock, nests inside tx lock, acquired from const
+      * quotavail() */
+public: mutable mutex_t pauselock;
+public: bool _wantpause;
+public: bool &wantpause(mutex_t::token) { return _wantpause; }
+public: bool _paused;
+public: bool &paused(mutex_t::token) { return _paused; }
+public: publisher pausepub;
 public: connworker(
     const constoken &token,
     rootthread &_owner,
@@ -73,7 +99,11 @@ public: connworker(
       _outstandingcalls(),
       owner(_owner),
       fd(_fd),
-      completedcall() {}
+      completedcall(),
+      pauselock(),
+      _wantpause(false),
+      _paused(false),
+      pausepub() {}
 
 public: void run(clientio) final;
 
@@ -227,6 +257,12 @@ rpcservice2::incompletecall::fail(
 
 rpcservice2::incompletecall::~incompletecall() {}
 
+rpcservice2::pausetoken
+rpcservice2::pause(clientio io) { return root->pause(io); }
+
+void
+rpcservice2::unpause(pausetoken t) { root->unpause(t); }
+
 void
 rpcservice2::destroy(clientio io) {
     /* Starting a root shutdown will start shutdowns on all of the
@@ -257,11 +293,62 @@ rpcservice2::rootthread::run(clientio io) {
 
     subscriber sub;
     subscription ss(sub, shutdown.pub());
+    subscription ps(sub, pausepub);
     list<subscription> workers;
     iosubscription ios(sub, fd.poll());
     while (!shutdown.ready()) {
+        assert(!_paused); /* No lock: this thread is the only one that
+                           * changes it. */
         auto s(sub.wait(io));
         if (s == &ss) continue;
+        else if (s == &ps) {
+            if (!pauselock.locked<bool>([this] (mutex_t::token t) {
+                        return pausecount(t) != 0; })) {
+                continue; }
+            /* Time to pause.  Tell all of our conn threads to
+             * pause. */
+            for (auto it(workers.start()); !it.finished(); it.next()) {
+                auto w(static_cast<connworker *>(it->data));
+                /* Note that it might already be paused, if the root
+                 * goes pause->unpause->pause very quickly and the
+                 * connection takes a long time to notice the unpause.
+                 * That's fine. */
+                w->pauselock.locked([w] (mutex_t::token t) {
+                        assert(!w->wantpause(t));
+                        w->wantpause(t) = true; });
+                w->pausepub.publish(); }
+            /* Wait for them to actually do it. */
+            for (auto it(workers.start()); !it.finished(); it.next()) {
+                auto w(static_cast<connworker *>(it->data));
+                subscriber tmpsub;
+                subscription tmpss(tmpsub, w->pausepub);
+                while (!w->pauselock.locked<bool>([w] (mutex_t::token t) {
+                            assert(w->wantpause(t));
+                            return w->paused(t); })) {
+                    tmpsub.wait(io); } }
+            /* We are paused. */
+            pauselock.locked([this] (mutex_t::token t) { paused(t) = true; });
+            pausepub.publish();
+            /* Wait to be told to unpause. */
+            {   subscriber tmpsub;
+                subscription tmpss(tmpsub, pausepub);
+                auto t(pauselock.lock());
+                while (pausecount(t) != 0) {
+                    pauselock.unlock(&t);
+                    tmpsub.wait(io);
+                    t = pauselock.lock(); }
+                paused(t) = false;
+                pauselock.unlock(&t); }
+            /* Unpause all connections. */
+            for (auto it(workers.start()); !it.finished(); it.next()) {
+                auto w(static_cast<connworker *>(it->data));
+                w->pauselock.locked([w] (mutex_t::token t) {
+                        assert(w->paused(t));
+                        assert(w->wantpause(t));
+                        w->wantpause(t) = false; });
+                w->pausepub.publish(); }
+            /* No wait for the connection unpause to actually
+             * happen. */ }
         else if (s == &ios) {
             /* We have a new client. */
             auto newfd(fd.accept());
@@ -303,6 +390,32 @@ rpcservice2::rootthread::run(clientio io) {
     fd.close();
     owner.destroying(io); }
 
+rpcservice2::pausetoken
+rpcservice2::rootthread::pause(clientio io) {
+    auto t(pauselock.lock());
+    pausecount(t)++;
+    if (pausecount(t) == 1) pausepub.publish();
+    if (!paused(t)) {
+        subscriber sub;
+        subscription ss(sub, pausepub);
+        while (!paused(t)) {
+            pauselock.unlock(&t);
+            sub.wait(io);
+            t = pauselock.lock();
+        }
+    }
+    pauselock.unlock(&t);
+    return rpcservice2::pausetoken(); }
+
+void
+rpcservice2::rootthread::unpause(pausetoken) {
+    if (pauselock.locked<bool>([this] (mutex_t::token t) {
+                assert(paused(t));
+                assert(pausecount(t) > 0);
+                pausecount(t)--;
+                return pausecount(t) == 0; })) {
+        pausepub.publish(); } }
+
 void
 rpcservice2::connworker::run(clientio io) {
     /* Only used for log messages. */
@@ -326,6 +439,7 @@ rpcservice2::connworker::run(clientio io) {
 
     subscription ss(sub, owner.shutdown.pub());
     subscription completedsub(sub, completedcall);
+    subscription pausesub(sub, pausepub);
 
     buffer rxbuffer;
 
@@ -344,6 +458,8 @@ rpcservice2::connworker::run(clientio io) {
      * rxbuffer without doing a further receive. */
     bool tryrecv = false;
     while (!failed && !owner.shutdown.ready()) {
+        /* no lock, we're the only thread which changes it */
+        assert(!_paused);
         /* The obvious races here are all handled by re-checking
          * everything when completedsub gets notified. */
         subscriptionbase *s;
@@ -365,14 +481,33 @@ rpcservice2::connworker::run(clientio io) {
         if (s == &completedsub) {
             tryrecv = quotaavail(atl);
             continue; }
+        if (s == &pausesub) {
+            if (!pauselock.locked<bool>([this] (mutex_t::token t) {
+                        return wantpause(t); })) {
+                continue; }
+            if (!txlock(atl).locked<bool>([this] (mutex_t::token t) {
+                        return outstandingcalls(t).empty(); })) {
+                continue; }
+            auto t(pauselock.lock());
+            assert(wantpause(t));
+            paused(t) = true;
+            pausepub.publish();
+            subscriber tmpsub;
+            subscription tmpps(tmpsub, pausepub);
+            while (wantpause(t)) {
+                pauselock.unlock(&t);
+                tmpsub.wait(io);
+                t = pauselock.lock(); }
+            paused(t) = false;
+            pauselock.unlock(&t);
+            continue; }
         if (s == &insub || s == &errsub) {
             if (s == &insub) {
                 assert(insubarmed);
                 insubarmed = false; }
-            else {
-                /* Use a quick RX check to pick up any errors and to
-                 * filter out spurious wake-ups. */
-                errsub.rearm(); }
+            else errsub.rearm();
+            /* Use a quick RX check to pick up any errors and to
+             * filter out spurious wake-ups. */
             {   auto res(rxbuffer.receivefast(fd));
                 if (res == error::wouldblock) continue;
                 if (res.isfailure()) {
@@ -383,10 +518,10 @@ rpcservice2::connworker::run(clientio io) {
         if (tryrecv) {
             while (true) {
                 if (!quotaavail(atl)) {
-                    /* Calls might complete while after we've dropped
-                     * the lock, but that's okay because it'll notify
-                     * the completed publisher and we'll pick it up
-                     * next time around. */
+                    /* Calls might complete after we've dropped the
+                     * lock, but that's okay because it'll notify the
+                     * completed publisher and we'll pick it up next
+                     * time around. */
                     tryrecv = false;
                     break; }
 
@@ -508,6 +643,11 @@ rpcservice2::connworker::complete(
             auto oldnroutstanding(outstandingcalls(txtoken).length());
             outstandingcalls(txtoken).drop(*call);
 
+            if (outstandingcalls(txtoken).empty() &&
+                pauselock.locked<bool>([this] (mutex_t::token t) {
+                        return wantpause(t); })) {
+                pausepub.publish(); }
+
             /* Try a fast synchronous send rather than waking the
              * worker thread.  No point if there was stuff in the
              * buffer before we started: whoever put it there was
@@ -558,7 +698,12 @@ rpcservice2::connworker::complete(
              * soon as we return, and it's not worth the loss of
              * batching to transmit early when we've already paid the
              * scheduling costs. */
-            outstandingcalls(txtoken).drop(call); });
+            outstandingcalls(txtoken).drop(call);
+            if (outstandingcalls(txtoken).empty() &&
+                pauselock.locked<bool>([this] (mutex_t::token t) {
+                        assert(!paused(t));
+                        return wantpause(t); })) {
+                pausepub.publish(); } });
     delete &*call; }
 
 /* Process a single incoming message off of the queue.  The caller
@@ -685,5 +830,7 @@ rpcservice2::connworker::quotaavail(acquirestxlock atl) const {
 bool
 rpcservice2::connworker::quotaavail(mutex_t::token tok) const {
     auto &config(owner.owner.config);
-    return outstandingcalls(tok).length() < config.maxoutstandingcalls &&
-           txbuffer(tok).avail() < config.txbufferlimit; }
+    return !pauselock.locked<bool>([this] (mutex_t::token t) {
+            return wantpause(t); }) &&
+        outstandingcalls(tok).length() < config.maxoutstandingcalls &&
+        txbuffer(tok).avail() < config.txbufferlimit; }

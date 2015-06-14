@@ -97,6 +97,32 @@ public: orerror<void> called(
                 acquirestxlock(clientio::CLIENTIO)); });
     return Success; } };
 
+class raceservice : public rpcservice2 {
+public: list<spark<void> > outstanding;
+public: bool paused;
+public: unsigned nrpostpause;
+public: raceservice(const rpcservice2::constoken &t)
+    : rpcservice2(t, interfacetype::test),
+      paused(false),
+      nrpostpause(0) {}
+public: orerror<void> called(
+    clientio,
+    deserialise1 &ds,
+    interfacetype,
+    nnp<incompletecall> ic,
+    onconnectionthread) final {
+    timedelta delay(ds);
+    if (ds.isfailure()) return ds.failure();
+    auto deadline(delay.future());
+    outstanding.append([this, deadline, ic] {
+            deadline.sleep(clientio::CLIENTIO);
+            assert(!paused);
+            ic->complete(
+                [] (serialise1 &, mutex_t::token) { },
+                acquirestxlock(clientio::CLIENTIO));
+            if (paused) nrpostpause++; });
+    return Success; } };
+
 class largerespservice : public rpcservice2 {
 public: string largestring;
 public: largerespservice(const constoken &t)
@@ -987,6 +1013,56 @@ static testmodule __testconnpool(
                        return error::toosoon; }) ==
                error::toosoon);
         pool->destroy();
+        srv->destroy(io); },
+    "pauseservice", [] (clientio io) {
+        quickcheck q;
+        clustername cn(q);
+        agentname sn(q);
+        auto srv(rpcservice2::listen<raceservice>(
+                     io,
+                     cn,
+                     sn,
+                     peername::all(peername::port::any))
+                 .fatal("starting slow service"));
+        bool stopclient(false);
+        unsigned nrcalls(0);
+        spark<void> client([&cn, &sn, &stopclient, &nrcalls] {
+                auto pool(connpool::build(cn).fatal("building pool"));
+                list<nnp<connpool::asynccall> > outstanding;
+                auto startnext([&] {
+                        outstanding.append(
+                            pool->call(sn,
+                                       interfacetype::test,
+                                       Nothing,
+                                       [] (serialise1 &s, connpool::connlock) {
+                                           s.push(1_ms); })); });
+                for (unsigned x = 0; x < 10; x++) startnext();
+                while (!outstanding.empty()) {
+                    auto c(outstanding.pophead());
+                    assert(c->pop(clientio::CLIENTIO).issuccess());
+                    nrcalls++;
+                    if (!stopclient) startnext(); }
+                pool->destroy(); });
+        (100_ms).future().sleep(io);
+        assert(nrcalls > 10);
+        auto start(timestamp::now());
+        auto pt(srv->pause(io));
+        srv->paused = true;
+        auto end(timestamp::now());
+        assert((end - start) < 100_ms);
+        assert(srv->nrpostpause == 0);
+        auto prepause(nrcalls);
+        (100_ms).future().sleep(io);
+        srv->paused = false;
+        start  = timestamp::now();
+        srv->unpause(pt);
+        end = timestamp::now();
+        assert(end - start < 100_ms);
+        (100_ms).future().sleep(io);
+        assert(nrcalls - prepause > 10);
+        /* We're done.  Shut it all down. */
+        stopclient = true;
+        client.get();
         srv->destroy(io); },
     "initialisefail", [] (clientio io) {
         quickcheck q;
