@@ -24,24 +24,24 @@ private: template <typename _resT,
                    typename _implT,
                    typename _innerTokenT> class asynccall {
         friend class storageclient;
-    public:    typedef _resT resT;
-    public:    typedef _implT implT;
-    public:    typedef _innerTokenT innerTokenT;
-    protected: asynccall() {}
-    private:   asynccall(const asynccall &) = delete;
-    private:   void operator=(const asynccall &) = delete;
-    protected: ~asynccall() {}
-    private:   implT &impl();
-    private:   const implT &impl() const;
-    public:    class token {
+    private: typedef _resT resT;
+    private: typedef _implT implT;
+    private: typedef _innerTokenT innerTokenT;
+    private: asynccall() {}
+    private: asynccall(const asynccall &) = delete;
+    private: void operator=(const asynccall &) = delete;
+    private: ~asynccall() {}
+    private: implT &impl();
+    private: const implT &impl() const;
+    public:  class token {
             friend asynccall;
         private: innerTokenT inner;
         private: token(innerTokenT _inner) : inner(_inner) {} };
-    public:    maybe<token> finished() const;
-    public:    const publisher &pub() const;
-    public:    orerror<resT> pop(token t);
-    public:    orerror<resT> pop(clientio io);
-    public:    void abort(); };
+    public:  maybe<token> finished() const;
+    public:  const publisher &pub() const;
+    public:  orerror<resT> pop(token t);
+    public:  orerror<resT> pop(clientio io);
+    public:  void abort(); };
     
 private: class asyncconnectimpl;
 public:  typedef asynccall<nnp<storageclient>,
