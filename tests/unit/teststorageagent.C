@@ -119,4 +119,31 @@ static testmodule __teststorageagent(
         t.client.finish(io, jn, sn).fatal("finishing stream");
         auto r(t.client.read(io, jn, sn).fatal("read"));
         assert(r.first() == 6_B);
-        assert(r.second().contenteq(buffer("foobar"))); } );
+        assert(r.second().contenteq(buffer("foobar"))); },
+    "asyncstatjob", [] (clientio io) {
+        teststate t((io));
+        auto sn(streamname::mk("X").fatal("X"));
+        job j(filename("dummy.so"),
+              string("dummyfn"),
+              map<streamname, job::inputsrc>(),
+              list<streamname>::mk(sn));
+        auto jn(j.name());
+        t.client.createjob(io, j).fatal("creating job");
+        auto pt(t.agent.pause(io));
+        auto start(timestamp::now());
+        auto &statjob(t.client.statjob(jn));
+        auto end(timestamp::now());
+        assert(end - start < 10_ms);
+        assert(statjob.finished() == Nothing);
+        start = end;
+        end = timestamp::now();
+        assert(end - start < 10_ms);
+        (50_ms).future().sleep(io);
+        assert(statjob.finished() == Nothing);
+        t.agent.unpause(pt);
+        start = timestamp::now();
+        auto res(statjob.pop(io));
+        end = timestamp::now();
+        assert(end - start < 10_ms);
+        assert(res.issuccess());
+        assert(res.success() == j); } );
