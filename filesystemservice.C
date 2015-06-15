@@ -50,7 +50,7 @@ class filesystem {
 private: class impl;
 private: const impl &implementation() const;
 private: impl &implementation();
-public:  static filesystem &build(connpool &, beaconclient &);
+public:  static filesystem &build(connpool &);
 public:  list<agentname> findjob(const jobname &jn) const;
 public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
@@ -836,7 +836,6 @@ using namespace filesystemimpl;
 class filesystem::impl : public thread {
 public:  filesystem api;
 private: connpool &pool;
-private: beaconclient &bc;
 private: waitbox<void> shutdown;
 
     /* Protects pretty much all of our interesting fields. */
@@ -860,12 +859,9 @@ public:  publisher barrierspub;
 public:  list<pendingbarrier> _barriers;
 public:  list<pendingbarrier> &barriers(mutex_t::token) { return _barriers; }
 
-public:  explicit impl(const thread::constoken &token,
-                       connpool &_pool,
-                       beaconclient &_bc)
+public:  explicit impl(const thread::constoken &token, connpool &_pool)
     : thread(token),
       pool(_pool),
-      bc(_bc),
       shutdown(),
       mux(),
       _stores(),
@@ -897,7 +893,7 @@ filesystem::impl::run(clientio io) {
     onfilesystemthread oft;
     
     subscriber sub;
-    subscription bcsub(sub, bc.changed());
+    subscription bcsub(sub, pool.beaconclient().changed());
     subscription sssub(sub, shutdown.pub());
     subscription barriersub(sub, barrierspub);
     
@@ -981,7 +977,9 @@ filesystem::impl::beaconwoken(subscriber &sub, mutex_t::token tok) {
     list<list<store>::iter> lost;
     for (auto it(stores(tok).start()); !it.finished(); it.next()) {
         lost.pushtail(it); }
-    for (auto it(bc.start(interfacetype::storage)); !it.finished(); it.next()) {
+    for (auto it(pool.beaconclient().start(interfacetype::storage));
+         !it.finished();
+         it.next()) {
         bool found = false;
         for (auto it2(lost.start()); !it2.finished(); it2.next()) {
             if (it.name() == (*it2)->name) {
@@ -1122,8 +1120,8 @@ filesystem::implementation() {
 /* Construct a new filesystem which will keep track of all stores
  * known to the beacon client. */
 filesystem &
-filesystem::build(connpool &_pool, beaconclient &_bc) {
-    return thread::start<filesystem::impl>(fields::mk("filesystem"), _pool, _bc)
+filesystem::build(connpool &_pool) {
+    return thread::start<filesystem::impl>(fields::mk("filesystem"), _pool)
         ->api; }
 
 list<agentname>
@@ -1237,11 +1235,9 @@ main(int argc, char *argv[]) {
     auto name(parsers::_agentname()
               .match(argv[2])
               .fatal("parsing agent name " + fields::mk(argv[2])));
-    auto bc(beaconclient::build(cluster)
-            .fatal("creating beacon client"));
     auto pool(connpool::build(cluster)
               .fatal("creating connection pool"));
-    auto &fs(filesystem::build(pool, *bc));
+    auto &fs(filesystem::build(pool));
     
     auto service(rpcservice2::listen<filesystemservice>(
                      clientio::CLIENTIO,

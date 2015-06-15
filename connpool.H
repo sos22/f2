@@ -84,6 +84,7 @@ private: void operator=(const connpool &) = delete;
 
 private: class impl;
 private: impl &implementation();
+private: const impl &implementation() const;
 
 public:  class config {
         /* Beacon configuration. */
@@ -123,8 +124,7 @@ public:  class config {
      * the same time. */
 public:  class connlock {
         friend connpool;
-    private: connlock() {}
-    };
+    private: connlock() {} };
 
     /* Basic call interface.  Attempt to connect to a given remote
      * host and perform an RPC.
@@ -269,6 +269,10 @@ public:  template <typename t> orerror<t> call(
     /* Construct a new connpool. */
 public:  static orerror<nnp<connpool> > build(const config &);
 public:  static orerror<nnp<connpool> > build(const clustername &cn);
+
+    /* Get the conn pool's beacon client.  The beacon client remains
+     * valid for as long as the conn pool is alive. */
+public:  const ::beaconclient &beaconclient() const;
 
     /* Tear down a connpool.  Any outstanding calls will fail with
      * error::disconnected.  Note that this is quick (it has no

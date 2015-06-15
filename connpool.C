@@ -49,7 +49,7 @@ public: connpool api;
 public: waitbox<void> shutdown;
 
     /* Beacon client to use for agentname -> peername lookups. */
-public: nnp<beaconclient> beacon;
+public: ::beaconclient &beacon;
 
 public: mutex_t mux;
 
@@ -63,7 +63,7 @@ public: list<nnp<conn> > &connections(mutex_t::token) { return _connections; }
      * with a NULL data. */
 public: subscriber sub;
 
-public: explicit impl(const constoken &t, const config &, nnp<beaconclient>);
+public: explicit impl(const constoken &t, const config &, nnp< ::beaconclient>);
 public: ~impl();
 
 public: void run(clientio);
@@ -302,6 +302,9 @@ connpool::config::operator==(const config &o) const {
 POOL &
 connpool::implementation() { return *containerof(this, impl, api); }
 
+const POOL &
+connpool::implementation() const { return *containerof(this, impl, api); }
+
 nnp<connpool::asynccall>
 connpool::_call(const agentname &sn,
                interfacetype type,
@@ -331,6 +334,9 @@ connpool::build(const config &cfg) {
 
 orerror<nnp<connpool> >
 connpool::build(const clustername &cn) { return build(config::dflt(cn)); }
+
+const beaconclient &
+connpool::beaconclient() const { return implementation().beacon; }
 
 void
 connpool::destroy() {
@@ -372,7 +378,7 @@ connpool::asynccall::~asynccall() {}
 /* ----------------------- connpool implementation --------------------- */
 POOL::impl(const constoken &t,
            const config &_cfg,
-           nnp<beaconclient> _beacon)
+           nnp< ::beaconclient> _beacon)
     : thread(t),
       cfg(_cfg),
       api(),
@@ -382,7 +388,7 @@ POOL::impl(const constoken &t,
       _connections(),
       sub() {}
 
-POOL::~impl() { beacon->destroy(); }
+POOL::~impl() { beacon.destroy(); }
 
 void
 POOL::run(clientio io) {
@@ -738,11 +744,11 @@ CONN::connectphase(
     proto::sequencenr &nextseqnr) {
     /* Not started connecting yet -> find out where we're connecting
      * to. */
-    auto _beaconres(pool.beacon->poll(agent));
+    auto _beaconres(pool.beacon.poll(agent));
     if (_beaconres == Nothing) {
         /* Beacon doesn't know where we need to connect to yet -> wait
          * until it does. */
-        subscription beaconsub(sub, pool.beacon->changed());
+        subscription beaconsub(sub, pool.beacon.changed());
         logmsg(loglevel::debug, "waiting for beacon");
         sub.wait(io, checktimeouts(calls, cl, idledat, false, NULL));
         return Nothing; }
@@ -753,7 +759,7 @@ CONN::connectphase(
         debounceconnect.just().second().infuture()) {
         /* Tried to connect recently -> wait a bit before retrying on
          * the same peer. */
-        subscription beaconsub(sub, pool.beacon->changed());
+        subscription beaconsub(sub, pool.beacon.changed());
         auto deadline(checktimeouts(calls, cl, idledat, false, NULL));
         if (deadline == Nothing ||
             deadline.just().after(debounceconnect.just().second()))
