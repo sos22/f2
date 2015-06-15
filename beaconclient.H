@@ -131,14 +131,14 @@ public:  class result {
     /* Query the client's current knowledge of a particular agent,
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */
-public:  maybe<result> poll(const agentname &);
+public:  maybe<result> poll(const agentname &) const;
     /* Convenience function: query for a agentname, waiting as long as
      * necessary to get a result.  This is only really useful from
      * command line tools: if the remote machine has crashed, it'll
      * wait forever for it to come back, which is only really sensible
      * in a context where the user will control-C you if you're taking
      * an unreasonable amount of time. */
-public:  result query(clientio, const agentname &);
+public:  result query(clientio, const agentname &) const;
     /* Iterator for enumerating all of the entries in the cache.  If
      * given, the actortype restricts the enumeration to only return
      * entries of a particular type.  Otherwise, all entries are
@@ -172,14 +172,14 @@ public:  class iterator {
     private: list<entry> content;
         /* Never Nothing except for a brief interval in the constructor */
     private: maybe<list<entry>::const_iter> it;
-    private: iterator(beaconclient *, maybe<interfacetype>);
+    private: iterator(const beaconclient &, maybe<interfacetype>);
     public:  const agentname &name() const;
     public:  const list<interfacetype> &type() const;
     public:  const peername &peer() const;
     public:  bool finished() const;
     public:  void next();
     public:  ~iterator(); };
-public:  iterator start(maybe<interfacetype> = Nothing);
+public:  iterator start(maybe<interfacetype> = Nothing) const;
 
     /* Notified whenever the set of entries reported by the iterator
      * increases and whenever any result from poll() goes from Nothing

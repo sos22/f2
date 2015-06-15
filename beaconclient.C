@@ -388,7 +388,7 @@ beaconclient::result::result(const peername &_name,
       type(_type) {}
 
 maybe<beaconclient::result>
-beaconclient::poll(const agentname &sn) {
+beaconclient::poll(const agentname &sn) const {
     return cachelock.locked<maybe<result> >(
         [this, &sn]
         (mutex_t::token) -> maybe<result> {
@@ -397,7 +397,7 @@ beaconclient::poll(const agentname &sn) {
             return Nothing; }); }
 
 beaconclient::result
-beaconclient::query(clientio io, const agentname &sn) {
+beaconclient::query(clientio io, const agentname &sn) const {
     subscriber sub;
     subscription ss(sub, changed());
     while (true) {
@@ -412,14 +412,14 @@ beaconclient::iterator::entry::entry(const agentname &_name,
       type(_type),
       peer(_peer) {}
 
-beaconclient::iterator::iterator(beaconclient *what,
+beaconclient::iterator::iterator(const beaconclient &what,
                                  maybe<interfacetype> _type)
     : content(),
       it(Nothing) {
-    what->cachelock.locked([this, _type, what] (mutex_t::token) {
-        for (auto e(what->cache.start()); !e.finished(); e.next()) {
-            if (_type == Nothing || e->type.contains(_type.just())) {
-                content.append(e->name, e->type, e->server); } } } );
+    what.cachelock.locked([this, _type, &what] (mutex_t::token) {
+            for (auto e(what.cache.start()); !e.finished(); e.next()) {
+                if (_type == Nothing || e->type.contains(_type.just())) {
+                    content.append(e->name, e->type, e->server); } } } );
     it.mkjust(const_cast<const list<entry> *>(&content)->start()); }
 
 const agentname &
@@ -440,13 +440,13 @@ beaconclient::iterator::next() { it.just().next(); }
 beaconclient::iterator::~iterator() { content.flush(); }
 
 beaconclient::iterator
-beaconclient::start(maybe<interfacetype> type) {
+beaconclient::start(maybe<interfacetype> type) const {
     if (type != Nothing && config.type() != Nothing && config.type() != type) {
         logmsg(loglevel::error,
                "request for peers of type " + fields::mk(type) +
                " on a client which only tracks those of type " +
                fields::mk(config.type())); }
-    return iterator(this, type); }
+    return iterator(*this, type); }
 
 const publisher &
 beaconclient::changed() const { return _changed; }
