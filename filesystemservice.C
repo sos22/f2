@@ -164,7 +164,7 @@ public: const agentname name;
 public: either<pair<nnp<eqclient<proto::storage::event> >, proto::eq::eventid>,
                nnp<eqclient<proto::storage::event>::asyncconnect> > _eventqueue;
 public: decltype(_eventqueue) &eventqueue(onfilesystemthread) {
-    return _eventqueue;}
+    return _eventqueue; }
 
     /* Connects the filesystem thread subscriber to the eqclient, if
      * we're ready to take events from it, or the asyncconnect, if
@@ -857,7 +857,8 @@ public:  void newjob(const agentname &, const jobname &, proto::eq::eventid);
 public:  void storagebarrier(
     const agentname &,
     proto::eq::eventid,
-    const std::function<void (clientio)> &); };
+    const std::function<void (clientio)> &);
+public:  void destroy(clientio); };
 
 void
 filesystem::run(clientio io) {
@@ -1080,6 +1081,11 @@ filesystem::storagebarrier(
     mux.locked([&] (mutex_t::token tok) { barriers(tok).append(an, eid, cb); });
     barrierspub.publish(); }
 
+void
+filesystem::destroy(clientio io) {
+    shutdown.set();
+    join(io); }
+
 /* Construct a new filesystem which will keep track of all stores
  * known to the beacon client. */
 filesystem &
@@ -1087,16 +1093,17 @@ filesystem::build(connpool &_pool) {
     return *thread::start<filesystem>(fields::mk("filesystem"), _pool); }
 
 class filesystemservice : public rpcservice2 {
-public: filesystem &fs;
-public: filesystemservice(const constoken &token,
-                          filesystem &_fs)
+public:  filesystem &fs;
+public:  filesystemservice(const constoken &token,
+                          connpool &_cp)
     : rpcservice2(token, interfacetype::filesystem),
-      fs(_fs) {}
-public: orerror<void> called(clientio,
+      fs(filesystem::build(_cp)) {}
+public:  orerror<void> called(clientio,
                              deserialise1 &,
                              interfacetype,
                              nnp<incompletecall>,
-                             onconnectionthread); };
+                             onconnectionthread);
+private: void destroying(clientio); };
 
 orerror<void>
 filesystemservice::called(clientio io,
@@ -1159,6 +1166,9 @@ filesystemservice::called(clientio io,
         /* Tag deserialiser shouldn't let us get here. */
         abort(); } }
 
+void
+filesystemservice::destroying(clientio io) { fs.destroy(io); }
+
 int
 main(int argc, char *argv[]) {
     initlogging("filesystem");
@@ -1174,14 +1184,13 @@ main(int argc, char *argv[]) {
               .fatal("parsing agent name " + fields::mk(argv[2])));
     auto pool(connpool::build(cluster)
               .fatal("creating connection pool"));
-    auto &fs(filesystem::build(pool));
     
     auto service(rpcservice2::listen<filesystemservice>(
                      clientio::CLIENTIO,
                      cluster,
                      name,
                      peername::all(peername::port::any),
-                     fs)
+                     pool)
                  .fatal("listening on filesystem interface"));
     
     while (true) timedelta::hours(1).future().sleep(clientio::CLIENTIO);
