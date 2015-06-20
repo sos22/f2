@@ -44,35 +44,6 @@
 #include "rpcservice2.tmpl"
 #include "thread.tmpl"
 
-class filesystem {
-    /* Cannot have any member fields because the destructor will never
-     * be invoked. */
-private: class impl;
-private: const impl &implementation() const;
-private: impl &implementation();
-public:  static filesystem &build(connpool &);
-public:  list<agentname> findjob(const jobname &jn) const;
-public:  list<pair<agentname, streamstatus> > findstream(
-    const jobname &jn,
-    const streamname &sn) const;
-public:  maybe<agentname> nominateagent(const maybe<jobname> &) const;
-
-    /* Tell the filesystem that something has created a new job. It
-     * should pick it up eventually anyway; the only reason to call
-     * this is to encourage it to pick up the creation quickly.  In
-     * particular, callers can safely assume that by the time this
-     * returns the cache will have been updated to reflect the new
-     * job. */
-public:  void newjob(const agentname &, const jobname &, proto::eq::eventid);
-
-    /* The implementation of the filesystemservice storagebarrier
-     * call.  Little bit of a hack; will become less so once we can
-     * merge filesystem and filesystemservice. */
-public:  void storagebarrier(
-    const agentname &,
-    proto::eq::eventid,
-    const std::function<void (clientio)> &); };
-
 namespace filesystemimpl {
 
 /* The different types of subscription we use are distinguished by
@@ -833,8 +804,7 @@ public: pendingbarrier(
 } /* End of namespace filesystemimpl */
 
 using namespace filesystemimpl;
-class filesystem::impl : public thread {
-public:  filesystem api;
+class filesystem : public thread {
 private: connpool &pool;
 private: waitbox<void> shutdown;
 
@@ -859,7 +829,7 @@ public:  publisher barrierspub;
 public:  list<pendingbarrier> _barriers;
 public:  list<pendingbarrier> &barriers(mutex_t::token) { return _barriers; }
 
-public:  explicit impl(const thread::constoken &token, connpool &_pool)
+public:  explicit filesystem(const thread::constoken &token, connpool &_pool)
     : thread(token),
       pool(_pool),
       shutdown(),
@@ -868,6 +838,7 @@ public:  explicit impl(const thread::constoken &token, connpool &_pool)
       _nominateidx(0),
       barrierspub(),
       _barriers() {}
+public:  static filesystem &build(connpool &);
 
 public:  void run(clientio);
 
@@ -889,7 +860,7 @@ public:  void storagebarrier(
     const std::function<void (clientio)> &); };
 
 void
-filesystem::impl::run(clientio io) {
+filesystem::run(clientio io) {
     onfilesystemthread oft;
     
     subscriber sub;
@@ -932,7 +903,7 @@ filesystem::impl::run(clientio io) {
     mux.locked([this] (mutex_t::token tok) { stores(tok).flush(); }); }
 
 void
-filesystem::impl::barrierswoken(clientio io, onfilesystemthread oft) {
+filesystem::barrierswoken(clientio io, onfilesystemthread oft) {
     list<pendingbarrier> done;
     /* Scan the barrer list for anything which is complete while we
        hold the lock. */
@@ -972,7 +943,7 @@ filesystem::impl::barrierswoken(clientio io, onfilesystemthread oft) {
  * that the beacon content has changed.  Compare the beacon results to
  * the cache and update the cache as appropriate. */
 void
-filesystem::impl::beaconwoken(subscriber &sub, mutex_t::token tok) {
+filesystem::beaconwoken(subscriber &sub, mutex_t::token tok) {
     logmsg(loglevel::debug, "scan for new storage agents");
     list<list<store>::iter> lost;
     for (auto it(stores(tok).start()); !it.finished(); it.next()) {
@@ -1005,21 +976,21 @@ filesystem::impl::beaconwoken(subscriber &sub, mutex_t::token tok) {
 /* Remove a store from the stores list and release it out.  Only used
  * from error paths, so the O(n) cost doesn't really matter. */
 void
-filesystem::impl::dropstore(store &s, mutex_t::token tok) {
+filesystem::dropstore(store &s, mutex_t::token tok) {
     for (auto it(stores(tok).start()); true; it.next()) {
         if (&s == &*it) {
             it.remove();
             return; } } }
 
 store *
-filesystem::impl::findstore(const agentname &an, mutex_t::token tok) {
+filesystem::findstore(const agentname &an, mutex_t::token tok) {
     for (auto it(stores(tok).start()); !it.finished(); it.next()) {
         if (it->name == an) return &*it; }
     return NULL; }
 
 /* Find all of the agents which know anything about a particular job. */
 list<agentname>
-filesystem::impl::findjob(const jobname &jn) const {
+filesystem::findjob(const jobname &jn) const {
     list<agentname> res;
     auto tok(mux.lock());
     for (auto sto(stores(tok).start()); !sto.finished(); sto.next()) {
@@ -1034,7 +1005,7 @@ filesystem::impl::findjob(const jobname &jn) const {
 
 /* Find all of our copies of a particular stream. */
 list<pair<agentname, streamstatus> >
-filesystem::impl::findstream(const jobname &jn, const streamname &sn) const {
+filesystem::findstream(const jobname &jn, const streamname &sn) const {
     list<pair<agentname, streamstatus> > res;
     auto token(mux.lock());
     for (auto sto(stores(token).start()); !sto.finished(); sto.next()) {
@@ -1051,7 +1022,7 @@ filesystem::impl::findstream(const jobname &jn, const streamname &sn) const {
     return res; }
 
 maybe<agentname>
-filesystem::impl::nominateagent(const maybe<jobname> &jn) const {
+filesystem::nominateagent(const maybe<jobname> &jn) const {
     auto tok(mux.lock());
     if (stores(tok).empty()) {
         mux.unlock(&tok);
@@ -1076,9 +1047,9 @@ filesystem::impl::nominateagent(const maybe<jobname> &jn) const {
         idx--; } }
 
 void
-filesystem::impl::newjob(const agentname &sn,
-                         const jobname &jn,
-                         proto::eq::eventid eid) {
+filesystem::newjob(const agentname &sn,
+                   const jobname &jn,
+                   proto::eq::eventid eid) {
     auto tok(mux.lock());
     store *sto = NULL;
     for (auto it(stores(tok).start());
@@ -1102,52 +1073,18 @@ filesystem::impl::newjob(const agentname &sn,
     return; }
 
 void
-filesystem::impl::storagebarrier(
+filesystem::storagebarrier(
     const agentname &an,
     proto::eq::eventid eid,
     const std::function<void (clientio)> &cb) {
     mux.locked([&] (mutex_t::token tok) { barriers(tok).append(an, eid, cb); });
     barrierspub.publish(); }
 
-const filesystem::impl &
-filesystem::implementation() const {
-    return *containerof(this, const filesystem::impl, api); }
-
-filesystem::impl &
-filesystem::implementation() {
-    return *containerof(this, filesystem::impl, api); }
-
 /* Construct a new filesystem which will keep track of all stores
  * known to the beacon client. */
 filesystem &
 filesystem::build(connpool &_pool) {
-    return thread::start<filesystem::impl>(fields::mk("filesystem"), _pool)
-        ->api; }
-
-list<agentname>
-filesystem::findjob(const jobname &jn) const {
-    return implementation().findjob(jn); }
-
-list<pair<agentname, streamstatus> >
-filesystem::findstream(const jobname &jn, const streamname &sn) const {
-    return implementation().findstream(jn, sn); }
-
-maybe<agentname>
-filesystem::nominateagent(const maybe<jobname> &jn) const {
-    return implementation().nominateagent(jn); }
-
-void
-filesystem::newjob(const agentname &sn,
-                   const jobname &jn,
-                   proto::eq::eventid eid) {
-    implementation().newjob(sn, jn, eid); }
-
-void
-filesystem::storagebarrier(
-    const agentname &an,
-    proto::eq::eventid eid,
-    const std::function<void (clientio)> &cb) {
-    implementation().storagebarrier(an, eid, cb); }
+    return *thread::start<filesystem>(fields::mk("filesystem"), _pool); }
 
 class filesystemservice : public rpcservice2 {
 public: filesystem &fs;
