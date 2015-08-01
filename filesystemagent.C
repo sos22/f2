@@ -1084,7 +1084,12 @@ filesystemservice::called(clientio io,
                           onconnectionthread oct) {
     assert(t == interfacetype::filesystem);
     proto::filesystem::tag tag(ds);
-    if (tag == proto::filesystem::tag::findjob) {
+    if (tag == proto::filesystem::tag::ping) {
+        ic->complete([] (serialise1 &, mutex_t::token, onconnectionthread) { },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
+    else if (tag == proto::filesystem::tag::findjob) {
         jobname jn(ds);
         if (ds.isfailure()) return ds.failure();
         list<agentname> res(fs.findjob(jn));
