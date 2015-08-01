@@ -26,6 +26,7 @@ function bits() {
     _ fd
     _ fields
     _ filename
+    _ filesystemagent
     _ filesystemproto
     _ fuzzsched
     _ interfacetype
