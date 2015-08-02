@@ -13,7 +13,7 @@ void
 jobname::serialise(serialise1 &s) const { d.serialise(s); }
 
 const fields::field &
-fields::mk(const jobname &jn) { return "<jobname:" + mk(jn.d) + ">"; }
+jobname::field() const { return "<jobname:" + d.field() + ">"; }
 
 string
 jobname::asfilename() const { return d.denseprintable(); }
