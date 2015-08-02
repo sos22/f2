@@ -3,6 +3,7 @@
 
 #include <functional>
 
+#include "empty.H"
 #include "steal.H"
 
 class deserialise1;
@@ -74,7 +75,7 @@ public:
         const t *operator->() const;
     };
 
-    list();
+    list(Empty = ::empty);
     ~list();
 
     /* Iterators: forwards and backwards, const and non-const. */

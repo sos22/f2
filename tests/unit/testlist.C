@@ -45,9 +45,9 @@ static testmodule __listtest(
         auto l(mklist(1,2,3));
         assert(l == list<int>::mk(1,2,3)); },
     "sort", [] {
-        list<int> empty;
-        sort(empty);
-        assert(empty.empty());
+        {   list<int> emptylist;
+            sort(emptylist);
+            assert(emptylist.empty()); }
         auto one(mklist(5));
         sort(one);
         assert(one == mklist(5));

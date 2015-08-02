@@ -8,6 +8,7 @@
 #ifndef MAP_H__
 #define MAP_H__
 
+#include "empty.H"
 #include "list.H"
 #include "pair.H"
 #include "parsers.H"
@@ -64,7 +65,7 @@ public:  void serialise(serialise1 &s) const;
     /* Construct a random map. */
 public:  map(quickcheck &);
     /* Construct an empty map. */
-public:  map() : nrbuckets(0), nritems(0), buckets(NULL) {}
+public:  map(Empty = empty) : nrbuckets(0), nritems(0), buckets(NULL) {}
     /* Construct a map from an immediate list of items. */
 public:  template <typename ... args> map(const _key &k,
                                           const _value &v,

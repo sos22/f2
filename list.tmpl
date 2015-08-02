@@ -57,10 +57,7 @@ template <typename t> struct list<t>::member {
 };
 
 template <typename t>
-list<t>::list()
-    : head(NULL), tail(NULL)
-{
-}
+list<t>::list(Empty) : head(NULL), tail(NULL) {}
 
 template <typename t>
 list<t>::list(const list<t> &o)
