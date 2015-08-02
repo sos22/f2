@@ -8,13 +8,9 @@ template <typename> class parser;
 class serialise1;
 class string;
 
-namespace fields {
-class field;
-const field &mk(const digest &d);
-}
+namespace fields { class field; }
 
 class digest {
-    friend const fields::field &fields::mk(const digest &d);
     unsigned long val;
 private: explicit digest(unsigned long _val) : val(_val) {}
 public:  explicit digest(const fields::field &);
@@ -33,6 +29,11 @@ public:  static const ::parser<digest> &parser();
     /* A representation of the digest which is reasonably dense and
        composed entirely of ASCII characters. */
 public:  string denseprintable() const;
-};
+    
+public:  const fields::field &field() const; };
+
+namespace fields {
+static inline const field &
+mk(digest d) { return d.field(); } }
 
 #endif /* !DIGEST_H__ */

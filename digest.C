@@ -24,7 +24,7 @@ digest::digest(const fields::field &what)
         acc = acc * 73 + (unsigned char)str[x];
     val = acc;
     logmsg(loglevel::verbose,
-           "digest " + what + " -> " + fields::mk(val));
+           "digest " + what + " -> " + fields::mk(*this));
 }
 
 digest::digest(deserialise1 &ds) : val(ds) {}
@@ -39,10 +39,8 @@ digest::denseprintable() const {
     return f.c_str(); }
 
 const fields::field &
-fields::mk(const digest &d)
-{
-    return "<digest:" + mk(d.val).base(16).uppercase() + ">";
-}
+digest::field() const {
+    return "<digest:" + fields::mk(val).base(16).uppercase() + ">"; }
 
 const ::parser<digest> &
 digest::parser() {
