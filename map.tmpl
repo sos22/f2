@@ -5,6 +5,8 @@
 #include "map.H"
 #include "parsers.H"
 
+#include "pair.tmpl"
+
 template <typename t> unsigned long
 default_hashfn(const t &x) { return x.hash(); }
 
