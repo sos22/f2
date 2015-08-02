@@ -103,13 +103,13 @@ function ar() {
     local target=$1
     shift
     cat <<EOF
-$target: $*
+$target: $* $mkfile
 	ar cqs \$@.tmp $* && mv \$@.tmp \$@
-${target/%.a/-c.a}: ${@/%.o/-c.o}
+${target/%.a/-c.a}: ${@/%.o/-c.o} $mkfile
 	ar cqs \$@.tmp ${@/%.o/-c.o} && mv \$@.tmp \$@
-${target/%.a/-t.a}: ${@/%.o/-t.o}
+${target/%.a/-t.a}: ${@/%.o/-t.o} $mkfile
 	ar cqs \$@.tmp ${@/%.o/-t.o} && mv \$@.tmp \$@
-${target/%.a/-p.a}: ${@/%.o/-p.o}
+${target/%.a/-p.a}: ${@/%.o/-p.o} $mkfile
 	ar cqs \$@.tmp ${@/%.o/-p.o} && mv \$@.tmp \$@
 clean::
 	rm -f $target ${target/%.a/-c.a} ${target/%.a/-t.a} ${target/%.a/-p.a}
