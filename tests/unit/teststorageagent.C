@@ -43,11 +43,13 @@ public: ~teststate() {
 
 static testmodule __teststorageagent(
     "storageagent",
-    list<filename>::mk("storageagent.C",
+    list<filename>::mk("storage.C",
+                       "storage.H",
+                       "storageagent.C",
                        "storageagent.H",
                        "storageclient.C",
                        "storageclient.H"),
-    testmodule::LineCoverage(80_pc),
+    testmodule::LineCoverage(79_pc),
     testmodule::BranchCoverage(45_pc),
     "connect", [] (clientio io) { teststate t((io)); },
     "emptyjob", [] (clientio io) {
