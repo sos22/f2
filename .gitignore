@@ -14,7 +14,7 @@
 *-p
 *.log
 cli
-computeclient
+computecli
 computefmt
 computeservice
 computespy

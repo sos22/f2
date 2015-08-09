@@ -2,7 +2,7 @@
 
 . shutil
 
-BINS="computeclient                  \
+BINS="computecli                     \
     computefmt                       \
     computeservice                   \
     computespy                       \
