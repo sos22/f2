@@ -99,7 +99,8 @@ public:  orerror<void> called(clientio,
 private: orerror<pair<proto::eq::eventid, proto::compute::tasktag> > start(
     const job &,
     mutex_t::token /* mux */,
-    acquirestxlock); };
+    acquirestxlock);
+private: void destroying(clientio); };
 
 void
 runningjob::run(clientio io) {
@@ -229,19 +230,21 @@ computeservice::called(clientio io,
         return Success; }
     else if (t == proto::compute::tag::enumerate) {
         if (ds.isfailure()) return ds.failure();
-        list<proto::compute::jobstatus> res;
         auto tok(mux.lock());
+        pair<proto::eq::eventid, list<proto::compute::jobstatus> > res(
+            eqq(tok).lastid(),
+            ::empty);
         for (auto it(runningjobs(tok).start()); !it.finished(); it.next()) {
-            res.append(proto::compute::jobstatus::running((*it)->j.name(),
-                                                          (*it)->tag)); }
+            res.second().append(
+                proto::compute::jobstatus::running((*it)->j.name(),
+                                                   (*it)->tag)); }
         for (auto it(finishedjobs(tok).start()); !it.finished(); it.next()) {
-            res.append(*it); }
-        auto eid(eqq(tok).lastid());
+            res.second().append(*it); }
         mux.unlock(&tok);
+        logmsg(loglevel::debug, "enumerate says " + res.field());
         ic->complete(
-            [eid, result = decltype(res)(Steal, res)]
+            [result = decltype(res)(res, Steal)]
             (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {
-                s.push(eid);
                 s.push(result); },
             acquirestxlock(io),
             oct);
@@ -289,7 +292,14 @@ computeservice::start(
             tag,
             thr.sub));
     auto eid(eqq(tok).queue(proto::compute::event::start(j.name(), tag), atl));
-    return mkpair(eid, tag); } }
+    return mkpair(eid, tag); }
+
+void
+computeservice::destroying(clientio io) {
+    shutdown.set();
+    thr.join(io);
+    eqs.destroy();
+    _eqq.destroy(io); } }
 
 orerror<void>
 computeagent::format(const filename &f) {
@@ -304,3 +314,7 @@ computeagent::build(clientio io,
     auto r(__computeagent::computeservice::build(io, cn, fs, an, f));
     if (r.isfailure()) return r.failure();
     else return _nnp(*(computeagent *)&*r.success()); }
+
+void
+computeagent::destroy(clientio io) {
+    ((__computeagent::computeservice *)this)->destroy(io); }

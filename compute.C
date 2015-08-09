@@ -25,6 +25,13 @@ proto::compute::tag::tag(deserialise1 &ds)
         ds.fail(error::invalidmessage);
         *this = start; } }
 
+const fields::field &
+proto::compute::tag::field() const {
+    if (*this == start) return fields::mk("start");
+    else if (*this == enumerate) return fields::mk("enumerate");
+    else if (*this == drop) return fields::mk("drop");
+    else return fields::mk("unknown tag"); }
+
 proto::compute::tasktag::tasktag(unsigned long _v) : v(_v) {}
 
 proto::compute::tasktag::tasktag(deserialise1 &ds) : v(ds) {}
@@ -97,10 +104,23 @@ proto::compute::event::event(deserialise1 &ds) : content(ds) {}
 proto::compute::event
 proto::compute::event::start(const jobname &jn, const tasktag &tag) {
     return contentT(Just(), Left(), Left(), mkpair(jn, tag)); }
+maybe<pair<jobname, proto::compute::tasktag> >
+proto::compute::event::start() const {
+    if (content == Nothing ||
+        content.just().isright() ||
+        content.just().left().isright()) return Nothing;
+    else return content.just().left().left(); }
 
 proto::compute::event
 proto::compute::event::finish(const jobstatus &js) {
     return contentT(Just(), Left(), Right(), js); }
+maybe<pair<jobname, pair<orerror<jobresult>, proto::compute::tasktag> > >
+proto::compute::event::finish() const {
+    if (content == Nothing ||
+        content.just().isright() ||
+        content.just().left().isleft()) return Nothing;
+    auto &js(content.just().left().right());
+    return mkpair(js.name, mkpair(js.result.just(), js.tag)); }
 
 proto::compute::event
 proto::compute::event::removed(const jobstatus &js) {

@@ -12,6 +12,7 @@ public:  explicit jobresult(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  static jobresult success();
 public:  static jobresult failure();
+public:  bool issuccess() const { return succeeded; }
 public:  const fields::field &field() const; };
 
 #endif /* !JOBRESULT_H__ */

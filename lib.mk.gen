@@ -15,6 +15,7 @@ function bits() {
     _ clustername
     _ compute
     _ computeagent
+    _ computeclient
     _ cond
     _ connpool
     _ coordinator

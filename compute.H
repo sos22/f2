@@ -42,7 +42,8 @@ public:  static const tag enumerate;
      * Drop the results of a completed job from the job table.  Only
      * valid once the job has completed.
      */
-public:  static const tag drop; };
+public:  static const tag drop;
+public:  const fields::field &field() const; };
 
 /* Unique identifier for a particular incarnation of a job.  Only
  * really useful for debugging; all of the interesting APIs are
@@ -86,7 +87,10 @@ private: event(const contentT &);
 public:  void serialise(serialise1 &) const;
 public:  explicit event(deserialise1 &);
 public:  static event start(const jobname &jn, const tasktag &tag);
+public:  maybe<pair<jobname, tasktag> > start() const;
 public:  static event finish(const jobstatus &);
+public:  maybe<pair<jobname, pair<orerror<jobresult>, tasktag > > >
+             finish() const;
 public:  static event removed(const jobstatus &);
 public:  static event flushed();
 public:  const fields::field &field() const; }; } }

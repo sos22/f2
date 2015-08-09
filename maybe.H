@@ -201,6 +201,7 @@ public:  void operator=(const maybe &o) {
 public:   bool isnothing() const { return r; }
 public:   bool operator!() const { return isnothing(); }
 public:   bool isjust() const { return !r; }
+public:   void mkjust() { r = false; }
 public:   bool operator==(const _Nothing) const {
     return isnothing(); }
 public:   bool operator!=(const _Nothing) const {

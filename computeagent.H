@@ -14,6 +14,7 @@ public: static orerror<nnp<computeagent> > build(clientio,
                                                  const clustername &,
                                                  const agentname &,
                                                  const agentname &,
-                                                 const filename &); };
+                                                 const filename &);
+public: void destroy(clientio); };
 
 #endif /* !COMPUTEAGENT_H__ */

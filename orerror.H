@@ -134,6 +134,7 @@ public:  void operator=(const orerror<void> &e) {
     content = e.content; }
 public:  bool issuccess() const { return content.isnothing(); }
 public:  bool isfailure() const { return content.isjust(); }
+public:  void mksuccess() { content = Nothing; }
 public:  error failure() const { return content.just(); }
 public:  void fatal(const fields::field &f) const {
     if (isfailure()) failure().fatal(f); }
