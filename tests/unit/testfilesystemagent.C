@@ -48,16 +48,12 @@ static testmodule __testfilesystemagent(
               "function",
               empty,
               empty);
-        auto &fsclient(
-            *filesystemclient::connect(io, cp, fsagentname)
-            .fatal("connecting to filesystem agent"));
+        auto &fsclient(filesystemclient::connect(cp, fsagentname));
         assert(fsclient
                .findjob(io, j.name())
                .fatal("querying non-existent job")
                .empty());
-        auto &storageclient(
-            *storageclient::connect(io, cp, storagename)
-            .fatal("connecting storage client"));
+        auto &storageclient(storageclient::connect(cp, storagename));
         auto evt(storageclient.createjob(io, j).fatal("creating job"));
         fsclient.storagebarrier(io, storagename, evt).fatal("storage barrier");
         auto agentlist(fsclient

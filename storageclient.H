@@ -20,20 +20,8 @@ class storageclient {
 private: class impl;
 private: class impl &impl();
 private: const class impl &impl() const;
-
-private: class asyncconnectimpl;
-private: struct asyncconnectdescr {
-    typedef nnp<storageclient> _resT;
-    typedef storageclient _friend;
-    typedef asyncconnectimpl _implT;
-    typedef connpool::asynccall::token _innerTokenT; };
-public:  typedef asynccall<asyncconnectdescr> asyncconnect;
-    friend asyncconnect;
-public:  static asyncconnect &connect(connpool &cp, const agentname &an);
-public:  static orerror<asyncconnect::resT> connect(
-    clientio io,
-    connpool &cp,
-    const agentname &an);
+    
+public:  static storageclient &connect(connpool &cp, const agentname &an);
     
 private: class asynccreatejobimpl;
 private: struct asynccreatejobdescr {

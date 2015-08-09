@@ -18,42 +18,9 @@ filesystemclient::impl() { return *containerof(this, class impl, api); }
 const class filesystemclient::impl &
 filesystemclient::impl() const { return *containerof(this, class impl, api); }
 
-class filesystemclient::asyncconnectimpl {
-public: filesystemclient::asyncconnect api;
-public: connpool &cp;
-public: const agentname an;
-public: connpool::asynccall &cl;
-public: asyncconnectimpl(connpool &_cp, const agentname &_an)
-    : cp(_cp),
-      an(_an),
-      cl(*cp.call(an,
-                  interfacetype::filesystem,
-                  Nothing,
-                  [] (serialise1 &s, connpool::connlock) {
-                      s.push(proto::filesystem::tag::ping); })) {} };
-template <> orerror<filesystemclient::asyncconnect::resT>
-filesystemclient::asyncconnect::pop(token t) {
-    auto &i(impl());
-    auto r(i.cl.pop(t.inner));
-    if (r.isfailure()) {
-        logmsg(
-            loglevel::failure,
-            "failed to connect to " +i.an.field() + ": " + r.failure().field());
-        delete this;
-        return r.failure(); }
-    else {
-        logmsg(
-            loglevel::debug,
-            "connected to " + i.an.field());
-        auto res(new class filesystemclient::impl(i.cp, i.an));
-        delete this;
-        return success(_nnp(res->api)); } }
-filesystemclient::asyncconnect &
+filesystemclient &
 filesystemclient::connect(connpool &cp, const agentname &an) {
-    return (new asyncconnectimpl(cp, an))->api; }
-orerror<filesystemclient::asyncconnect::resT>
-filesystemclient::connect(clientio io, connpool &cp, const agentname &an) {
-    return connect(cp, an).pop(io); }
+    return (new class impl(cp, an))->api; }
 
 class filesystemclient::asyncfindjobimpl {
 public: filesystemclient::asyncfindjob api;

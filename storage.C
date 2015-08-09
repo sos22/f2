@@ -10,8 +10,6 @@
 #include "serialise.tmpl"
 
 const proto::storage::tag
-proto::storage::tag::ping(89);
-const proto::storage::tag
 proto::storage::tag::createjob(90);
 const proto::storage::tag
 proto::storage::tag::append(92);
@@ -32,8 +30,7 @@ proto::storage::tag::removejob(100);
 
 proto::storage::tag::tag(deserialise1 &ds)
     : proto::tag(ds) {
-    if (*this != ping &&
-        *this != createjob &&
+    if (*this != createjob &&
         *this != append &&
         *this != finish &&
         *this != read &&

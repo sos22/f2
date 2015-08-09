@@ -19,8 +19,7 @@ main(int argc, char *argv[]) {
               .match(argv[2])
               .fatal("parsing agent name " + fields::mk(argv[2])));
     auto pool(connpool::build(cluster).fatal("building conn pool"));
-    auto &conn(*storageclient::connect(clientio::CLIENTIO, pool, peer)
-               .fatal("connecting to storage agent"));
+    auto &conn(storageclient::connect(pool, peer));
     if (!strcmp(argv[3], "CREATEJOB")) {
         if (argc != 5) errx(1, "CREATEJOB needs a job name");
         auto job(job::parser()

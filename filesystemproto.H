@@ -9,10 +9,6 @@ class tag : public proto::tag {
 private: explicit tag(unsigned char c) : proto::tag(c) {}
 public:  explicit tag(deserialise1 &);
     
-    /* Inputs: none
-     * Outputs: none
-     */
-public:  static const tag ping;
     /* Inputs: jobname
      * Outputs: list<agentname>
      */

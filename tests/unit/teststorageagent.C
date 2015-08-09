@@ -33,8 +33,7 @@ public: teststate(clientio io)
       agent(storageagent::build(io, config)
             .fatal("starting storage agent")),
       cp(connpool::build(cn).fatal("building conn pool")),
-      client(storageclient::connect(io, cp, an)
-             .fatal("connecting to agent")) {
+      client(storageclient::connect(cp, an)) {
     fmtres.fatal("formatting storage area"); }
 public: ~teststate() {
     agent.destroy(clientio::CLIENTIO);
