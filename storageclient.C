@@ -382,14 +382,3 @@ storageclient::removejob(clientio io, jobname jn) {
 
 void
 storageclient::destroy() { delete &impl(); }
-
-#define instantiate(name)                                               \
-    template class asynccall<storageclient:: async ## name ## descr>
-instantiate(createjob);
-instantiate(append);
-instantiate(finish);
-instantiate(read);
-instantiate(listjobs);
-instantiate(statjob);
-instantiate(liststreams);
-instantiate(removejob);
