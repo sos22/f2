@@ -2,9 +2,11 @@
 
 #include <dlfcn.h>
 
+#include "connpool.H"
 #include "compute.H"
 #include "either.H"
 #include "eqserver.H"
+#include "filesystemclient.H"
 #include "job.H"
 #include "jobapi.H"
 #include "jobapiimpl.H"
@@ -57,7 +59,8 @@ private: class maintenancethread : public thread {
           owner(_owner),
           sub() {}
     private: void run(clientio); };
-private: const agentname fs;
+private: connpool &cp;
+private: filesystemclient &fs;
 private: mutex_t mux;
 private: eqserver &eqs;
 public:  waitbox<void> shutdown;
@@ -72,11 +75,13 @@ private: list<proto::compute::jobstatus> &finishedjobs(mutex_t::token) {
 private: maintenancethread &thr;
 private: subscriber sub;
 public:  explicit computeservice(const constoken &token,
+                                 connpool &_cp,
                                  const agentname &_fs,
                                  eqserver &_eqs,
                                  eventqueue<proto::compute::event> &__eqq)
     : rpcservice2(token, mklist(interfacetype::compute, interfacetype::eq)),
-      fs(_fs),
+      cp(_cp),
+      fs(filesystemclient::connect(cp, _fs)),
       mux(),
       eqs(_eqs),
       shutdown(),
@@ -187,10 +192,13 @@ computeservice::build(clientio io,
                       const agentname &fs,
                       const agentname &sn,
                       const filename &statefile) {
+    auto cp(connpool::build(cn));
+    if (cp.isfailure()) return cp.failure();
     auto &eqs(*eqserver::build());
     auto eqq(eqs.openqueue(proto::eq::names::compute, statefile));
     if (eqq.isfailure()) {
         eqs.destroy();
+        cp.success()->destroy();
         return eqq.failure(); }
     /* Start the queue with a flushed event, because all jobs have now
      * been lost. */
@@ -201,6 +209,7 @@ computeservice::build(clientio io,
         cn,
         sn,
         peername::all(peername::port::any),
+        *cp.success(),
         fs,
         eqs,
         *eqq.success()); }
@@ -299,7 +308,9 @@ computeservice::destroying(clientio io) {
     shutdown.set();
     thr.join(io);
     eqs.destroy();
-    _eqq.destroy(io); } }
+    _eqq.destroy(io);
+    fs.destroy();
+    cp.destroy(); } }
 
 orerror<void>
 computeagent::format(const filename &f) {
@@ -313,7 +324,7 @@ computeagent::build(clientio io,
                     const filename &f) {
     auto r(__computeagent::computeservice::build(io, cn, fs, an, f));
     if (r.isfailure()) return r.failure();
-    else return _nnp(*(computeagent *)&*r.success()); }
+    return _nnp(*(computeagent *)&*r.success()); }
 
 void
 computeagent::destroy(clientio io) {
