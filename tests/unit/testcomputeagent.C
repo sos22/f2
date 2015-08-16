@@ -25,8 +25,9 @@ static testmodule __testcomputeagent(
                        "jobresult.C",
                        "jobresult.H",
                        "testjob.C"),
-    testmodule::LineCoverage(70_pc),
+    testmodule::LineCoverage(75_pc),
     testmodule::BranchCoverage(45_pc),
+    testmodule::Dependency("testjob.so"),
     "basics", [] (clientio io) {
         quickcheck q;
         clustername cluster(q);
@@ -100,4 +101,42 @@ static testmodule __testcomputeagent(
                .empty());
         cc.destroy();
         computeagent.destroy(io);
-        });
+        computedir.rmtree().fatal("removing compute tree"); },
+    "shutdown", [] (clientio io) {
+        quickcheck q;
+        clustername cluster(q);
+        agentname fsagentname("fsagent");
+        agentname computeagentname("computeagent");
+        filename computedir(q);
+        computeagent::format(computedir)
+            .fatal("formatting compute state dir");
+        auto &cp(*connpool::build(cluster)
+                 .fatal("building connpool"));
+        auto &computeagent(*computeagent::build(io,
+                                                cluster,
+                                                fsagentname,
+                                                computeagentname,
+                                                computedir)
+                           .fatal("starting compute agent"));
+        auto &cc(computeclient::connect(cp, computeagentname));
+        job j(
+            filename("./testjob.so"),
+            "waitforever",
+            empty,
+            empty);
+        auto startres(cc.start(io, j).fatal("starting job"));
+        (1_s).future().sleep(io);
+        /* Job should still be running */
+        {   auto l(cc
+                   .enumerate(io)
+                   .fatal("getting extended job list")
+                   .second());
+            assert(l.length() == 1);
+            assert(l.idx(0).name == j.name());
+            assert(l.idx(0).result == Nothing); }
+        /* Should be able to shut the agent down reasonably
+         * promptly. */
+        assert(timedelta::time([&] { computeagent.destroy(io); }) < 1_s);
+        cc.destroy();
+        cp.destroy();
+        computedir.rmtree().fatal("remove compute dir "+computedir.field()); });
