@@ -2,15 +2,21 @@
 
 set -e
 
-if [ $# -ne 2 ]
-then
-    echo "Need two arguments: the test module, and the file to place the output in"
-    exit 1
-fi
+make -j8 test2-c
 
 : ${TMPDIR:=/tmp}
-module=${1}
-outfile=${2}
+if [ $# -eq 1 ]
+then
+    outfile=${1}
+    module=`basename $outfile`
+elif [ $# -eq 2 ]
+then
+    module=${1}
+    outfile=${2}
+else
+    echo "Need either arguments (the test module and the output file) or just one (the output file)"
+    exit 1
+fi
 base=$(pwd)
 t=$(mktemp -d ${TMPDIR}/testcov.XXXXXX)
 t2=$(mktemp -d ${TMPDIR}/testcov.report.XXXXXX)
@@ -54,7 +60,7 @@ cd ${t2}
 gcov --no-output -o ${t} -s ${base} -b -c $(find ${t} -type f -name '*.gcda') > gcov_output 2>/dev/null
 cd - > /dev/null
 
-./test2-c --stat "$1" | sed 's/^[[:space:]]*File:[[:space:]]*\(.*\)$/\1/p;d' > $filelist
+./test2-c --stat "$module" | sed 's/^[[:space:]]*File:[[:space:]]*\(.*\)$/\1/p;d' > $filelist
 eval $(awk "/^File / { filename=\$2; } /Taken at least once:/ { print filename \" \" \$4 \" \" \$6; filename=eof; }" < ${t2}/gcov_output |
               sed "s/'\([a-zA-Z0-9./]*\)' once:\([0-9.]*\)% \([0-9]*\)/\1 \2 \3/p;d" |
               ( nrbranches=0
