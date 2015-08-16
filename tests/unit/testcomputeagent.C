@@ -9,6 +9,38 @@
 #include "either.tmpl"
 #include "test2.tmpl"
 
+class computetest {
+public:  quickcheck q;
+public:  const clustername cluster;
+public:  const agentname fsagentname;
+public:  const agentname computeagentname;
+public:  const filename computedir;
+private: const orerror<void> computeformatres;
+public:  connpool &cp;
+public:  ::computeagent *computeagent;
+public:  computeclient &cc;
+public:  explicit computetest(clientio io)
+    : q(),
+      cluster(q),
+      fsagentname("fsagent"),
+      computeagentname("computeagent"),
+      computedir(q),
+      computeformatres(::computeagent::format(computedir)),
+      cp(*connpool::build(cluster).fatal("building connpool")),
+      computeagent(computeagent::build(io,
+                                       cluster,
+                                       fsagentname,
+                                       computeagentname,
+                                       computedir)
+                   .fatal("starting compute agent")),
+      cc(computeclient::connect(cp, computeagentname)) {
+    computeformatres.fatal("formatting compute agent dir"); }
+public:  ~computetest() {
+    cc.destroy();
+    if (computeagent != NULL) computeagent->destroy(clientio::CLIENTIO);
+    cp.destroy();
+    computedir.rmtree().fatal("removing compute dir"); } };
+
 static testmodule __testcomputeagent(
     "computeagent",
     list<filename>::mk("compute.C",
@@ -29,25 +61,10 @@ static testmodule __testcomputeagent(
     testmodule::BranchCoverage(45_pc),
     testmodule::Dependency("testjob.so"),
     "basics", [] (clientio io) {
-        quickcheck q;
-        clustername cluster(q);
-        /* Always need an fs agent name to start the compute agent,
-         * but if no job touches the filesystem don't actually need an
-         * fs agent to go with it. */
-        agentname fsagentname("fsagent");
-        agentname computeagentname("computeagent");
-        filename computedir(q);
-        computeagent::format(computedir)
-            .fatal("formatting compute state dir");
-        auto &cp(*connpool::build(cluster)
-                 .fatal("building connpool"));
-        auto &computeagent(*computeagent::build(io,
-                                                cluster,
-                                                fsagentname,
-                                                computeagentname,
-                                                computedir)
-                           .fatal("starting compute agent"));
-        auto &cc(computeclient::connect(cp, computeagentname));
+        computetest t(io);
+        auto &cc(t.cc);
+        auto &cp(t.cp);
+        auto &computeagentname(t.computeagentname);
         assert(cc
                .enumerate(io)
                .fatal("getting initial empty job list")
@@ -63,7 +80,6 @@ static testmodule __testcomputeagent(
             .fatal("connecting to compute event queue")
             .first());
         assert(eqc.pop() == Nothing);
-        deserialise1 ds(q);
         job j(
             filename("./testjob.so"),
             "testfunction",
@@ -98,36 +114,19 @@ static testmodule __testcomputeagent(
                .enumerate(io)
                .fatal("getting final empty job list")
                .second()
-               .empty());
-        cc.destroy();
-        computeagent.destroy(io);
-        computedir.rmtree().fatal("removing compute tree"); },
+               .empty()); },
     "shutdown", [] (clientio io) {
-        quickcheck q;
-        clustername cluster(q);
-        agentname fsagentname("fsagent");
-        agentname computeagentname("computeagent");
-        filename computedir(q);
-        computeagent::format(computedir)
-            .fatal("formatting compute state dir");
-        auto &cp(*connpool::build(cluster)
-                 .fatal("building connpool"));
-        auto &computeagent(*computeagent::build(io,
-                                                cluster,
-                                                fsagentname,
-                                                computeagentname,
-                                                computedir)
-                           .fatal("starting compute agent"));
-        auto &cc(computeclient::connect(cp, computeagentname));
+        computetest t(io);
         job j(
             filename("./testjob.so"),
             "waitforever",
             empty,
             empty);
-        auto startres(cc.start(io, j).fatal("starting job"));
+        auto startres(t.cc.start(io, j).fatal("starting job"));
         (1_s).future().sleep(io);
         /* Job should still be running */
-        {   auto l(cc
+        {   auto l(t
+                   .cc
                    .enumerate(io)
                    .fatal("getting extended job list")
                    .second());
@@ -136,7 +135,5 @@ static testmodule __testcomputeagent(
             assert(l.idx(0).result == Nothing); }
         /* Should be able to shut the agent down reasonably
          * promptly. */
-        assert(timedelta::time([&] { computeagent.destroy(io); }) < 1_s);
-        cc.destroy();
-        cp.destroy();
-        computedir.rmtree().fatal("remove compute dir "+computedir.field()); });
+        assert(timedelta::time([&] { t.computeagent->destroy(io); }) < 1_s);
+        t.computeagent = NULL; });
