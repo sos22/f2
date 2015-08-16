@@ -142,6 +142,7 @@ testmodule::runtests(maybe<timedelta> limit) const {
 
 void
 testmodule::prepare() const {
+    filename("tmp").mkdir();
     if (dependencies.empty()) return;
     initpubsub();
     spawn::program p("/usr/bin/make");
