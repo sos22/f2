@@ -2,8 +2,9 @@
 #define JOBAPIIMPL_H__
 
 class jobapi;
+template <typename> class waitbox;
 
-jobapi &newjobapi();
+jobapi &newjobapi(waitbox<void> &);
 void deletejobapi(jobapi &);
 
 #endif /* !JOBAPIIMPL_H__ */

@@ -37,17 +37,21 @@ public: const proto::compute::tasktag tag;
 public: maybe<subscription> subsc;
     /* Set by the thread as it shutds down. */
 public: maybe<orerror<jobresult> > result;
+    /* Set by the maintenance thread when it wants us to shut down. */
+public: waitbox<void> &shutdown;
 public: explicit runningjob(const constoken &token,
                             computeservice &_owner,
                             const job &_j,
                             proto::compute::tasktag _tag,
+                            waitbox<void> &_shutdown,
                             subscriber &sub)
     : thread(token),
       owner(_owner),
       j(_j),
       tag(_tag),
       subsc(Just(), sub, pub()),
-      result(Nothing) {}
+      result(Nothing),
+      shutdown(_shutdown) {}
 public: void run(clientio); };
 
 class computeservice : public rpcservice2 {
@@ -140,7 +144,7 @@ runningjob::run(clientio io) {
         result.mkjust(error::dlopen); }
     else {
         auto fn((jobfunction *)f);
-        auto &api(newjobapi());
+        auto &api(newjobapi(shutdown));
         result.mkjust(fn(api, io));
         deletejobapi(api); }
     if (lib != NULL) ::dlclose(lib);
@@ -299,6 +303,7 @@ computeservice::start(
             *this,
             j,
             tag,
+            shutdown,
             thr.sub));
     auto eid(eqq(tok).queue(proto::compute::event::start(j.name(), tag), atl));
     return mkpair(eid, tag); }
