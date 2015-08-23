@@ -21,6 +21,9 @@ maybe<t>::mkjust(args &&...params) {
     _isnothing = false;
     ::new (&content) t(std::forward<args>(params)...); }
 
+template <typename t> t
+maybe<t>::just(_Steal s) { return t(s, just()); }
+
 template <typename t> void
 maybe<t>::serialise(serialise1 &s) const {
     s.push(_isnothing);

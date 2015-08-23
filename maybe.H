@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "error.H"
+#include "steal.H"
 
 class deserialise1;
 class quickcheck;
@@ -124,6 +125,7 @@ public:
     t &just() {
         assert(isjust());
         return content; }
+    t just(_Steal);
     /* Default value.  x.dflt(y) is y if x is Nothing and x.just()
      * otherwise. */
     const t &dflt(const t &what) const {
