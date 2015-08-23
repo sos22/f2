@@ -22,6 +22,9 @@ public:  const publisher &pub() { return pub_; }
 public:  void set(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
 public:  const t &get(clientio) const;
+    /* Wait for the waitbox to be set and return its contents using a
+     * steal constructor. */
+public:  t get(_Steal, clientio);
     /* Return the contents of the waitbox if it's been set and Nothing
      * otherwise. */
 public:  maybe<t> poll() const;
