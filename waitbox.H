@@ -16,7 +16,7 @@ private: mutable mutex_t mux; /* mutable because we need to acquire it
 private: maybe<t> content;
 private: publisher pub_;
 public:  waitbox() : mux(), content(Nothing) {};
-public:  const publisher &pub() { return pub_; }
+public:  const publisher &pub() const { return pub_; }
 
     /* Set the waitbox.  Must be called at most once. */
 public:  void set(const t &what);
