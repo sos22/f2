@@ -43,6 +43,7 @@ public:  const publisher &pub() const { return pub_; }
 public:  void set();
 public:  void get(clientio) const;
 public:  maybe<void> get(clientio, timestamp) const;
+public:  maybe<void> poll() const;
 public:  bool ready() const; };
 
 #endif

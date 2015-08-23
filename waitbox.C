@@ -31,4 +31,7 @@ waitbox<void>::ready() const {
     mux.unlock(&token);
     return res; }
 
-template class waitbox<bool>;
+maybe<void>
+waitbox<void>::poll() const {
+    if (ready()) return maybe<void>::just;
+    else return Nothing; }
