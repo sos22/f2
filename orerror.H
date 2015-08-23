@@ -7,6 +7,7 @@
 
 #include "error.H"
 #include "maybe.H"
+#include "steal.H"
 
 class serialise1;
 class deserialise1;
@@ -34,6 +35,7 @@ public:
         else new (&inner) t(o.inner); }
     orerror(t &&v) : errored(false) { new (&inner) t(std::move(v)); }
     orerror(const error &_err) : errored(true), err(_err) { }
+    orerror(_Steal, orerror &);
     template <typename ... args> orerror(_Success, args &&...params)
         : errored(false),
           inner(std::forward<args>(params)...) {}

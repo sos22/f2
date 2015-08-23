@@ -5,6 +5,15 @@
 
 #include "either.tmpl"
 
+template <typename t>
+orerror<t>::orerror(_Steal s, orerror &o) {
+    if (o.errored) {
+        errored = true;
+        new (&err) error(o.err); }
+    else {
+        errored = false;
+        new (&inner) t(s, o.inner); } }
+
 template <typename t> void
 orerror<t>::operator=(const t &w) {
     if (errored) {
