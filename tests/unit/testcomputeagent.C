@@ -136,4 +136,22 @@ static testmodule __testcomputeagent(
         /* Should be able to shut the agent down reasonably
          * promptly. */
         assert(timedelta::time([&] { t.computeagent->destroy(io); }) < 1_s);
-        t.computeagent = NULL; });
+        t.computeagent = NULL; },
+    "waitforjob", [] (clientio io) {
+        computetest t(io);
+        job j(
+            filename("./testjob.so"),
+            "waitonesecond",
+            empty,
+            empty);
+        assert(t.cc.waitjob(io, j.name()) == error::toosoon);
+        auto startres(t.cc.start(io, j).fatal("starting job"));
+        auto taken(timedelta::time([&] {
+                    assert(t.cc.waitjob(io, j.name())
+                           .fatal("waitjob")
+                           .fatal("waitjob inner")
+                           .issuccess()); }));
+        assert(taken > 900_ms);
+        assert(taken < 1100_ms);
+        t.cc.drop(io, j.name()).fatal("dropjob");
+        assert(t.cc.waitjob(io, j.name()) == error::toosoon); } );
