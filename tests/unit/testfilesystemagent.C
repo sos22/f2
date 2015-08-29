@@ -13,6 +13,30 @@
 
 #include "test2.tmpl"
 
+class teststorage {
+public:  const filename dir;
+private: const orerror<void> fmtres;
+public:  const agentname an;
+public:  ::storageagent &storageagent;
+public:  ::storageclient &storageclient;
+public: teststorage(
+    clientio io,
+    quickcheck &q,
+    const clustername &cluster,
+    const agentname &_an,
+    connpool &cp)
+    : dir(q),
+      fmtres(::storageagent::format(dir)),
+      an(_an),
+      storageagent(*::storageagent::build(io, cluster, an, dir)
+                   .fatal("starting storage agent")),
+      storageclient(::storageclient::connect(cp, an)) {
+    fmtres.fatal("formatting storage pool"); }
+public: ~teststorage() {
+    storageclient.destroy();
+    storageagent.destroy(clientio::CLIENTIO);
+    dir.rmtree().fatal("rmtree storage area " + dir.field()); } };
+
 static testmodule __testfilesystemagent(
     "filesystemagent",
     list<filename>::mk("filesystemagent.C",
@@ -33,17 +57,9 @@ static testmodule __testfilesystemagent(
                           fsagentname,
                           peername::all(peername::port::any))
                       .fatal("starting filesystem agent"));
-        filename storagedir(q);
-        storageagent::format(storagedir).fatal("formatting storage pool");
-        agentname storagename("storageagent");
-        auto &storageagent(
-            *storageagent::build(
-                io,
-                cluster,
-                storagename,
-                storagedir)
-            .fatal("building storageagent"));
         auto &cp(*connpool::build(cluster).fatal("building connpool"));
+        teststorage sa1(io, q, cluster, agentname("storageagent"), cp);
+        teststorage sa2(io, q, cluster, agentname("storageagent2"), cp);
         job j(filename("library"),
               "function",
               empty,
@@ -53,16 +69,22 @@ static testmodule __testfilesystemagent(
                .findjob(io, j.name())
                .fatal("querying non-existent job")
                .empty());
-        auto &storageclient(storageclient::connect(cp, storagename));
-        auto evt(storageclient.createjob(io, j).fatal("creating job"));
-        fsclient.storagebarrier(io, storagename, evt).fatal("storage barrier");
+        auto evt(sa1.storageclient.createjob(io, j).fatal("creating job"));
+        fsclient.storagebarrier(io, sa1.an, evt).fatal("storage barrier");
         auto agentlist(fsclient
                        .findjob(io, j.name())
                        .fatal("querying filesystem"));
         assert(agentlist.length() == 1);
-        assert(agentlist.idx(0) == storagename);
+        assert(agentlist.idx(0) == sa1.an);
+        auto evt2(sa2.storageclient.createjob(io, j).fatal("creating job2"));
+        fsclient.storagebarrier(io, sa2.an, evt2).fatal("storage barrier2");
+        agentlist = fsclient
+            .findjob(io, j.name())
+            .fatal("re-querying filesystem");
+        assert(agentlist.length() == 2);
+        assert(agentlist.idx(0) == sa1.an || agentlist.idx(1) == sa1.an);
+        assert(agentlist.idx(0) == sa2.an || agentlist.idx(1) == sa2.an);
+        assert(agentlist.idx(0) != agentlist.idx(1));
         fsclient.destroy();
-        storageclient.destroy();
         fsagent.destroy(io);
-        storageagent.destroy(io);
         cp.destroy(); });
