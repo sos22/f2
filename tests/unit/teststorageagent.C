@@ -19,7 +19,6 @@ public: filename pool;
 public: orerror<void> fmtres;
 public: clustername cn;
 public: agentname an;
-public: storageconfig config;
 public: storageagent &agent;
 public: connpool &cp;
 public: storageclient &client;
@@ -29,8 +28,7 @@ public: teststate(clientio io)
       fmtres(storageagent::format(pool)),
       cn(q),
       an(q),
-      config(pool, beaconserverconfig::dflt(cn, an)),
-      agent(storageagent::build(io, config)
+      agent(storageagent::build(io, cn, an, pool)
             .fatal("starting storage agent")),
       cp(connpool::build(cn).fatal("building conn pool")),
       client(storageclient::connect(cp, an)) {

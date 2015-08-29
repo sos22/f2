@@ -59,6 +59,14 @@ storageagent::build(clientio io, const storageconfig &config) {
         *eqs,
         *eqq.success()); }
 
+orerror<nnp<storageagent> >
+storageagent::build(clientio io,
+                    const clustername &cluster,
+                    const agentname &an,
+                    const filename &pool) {
+    return build(io, storageconfig(pool,
+                                   beaconserverconfig::dflt(cluster, an))); }
+
 storageagent::storageagent(const constoken &token,
                            const storageconfig &_config,
                            eqserver &_eqs,

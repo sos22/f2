@@ -39,9 +39,9 @@ static testmodule __testfilesystemagent(
         auto &storageagent(
             *storageagent::build(
                 io,
-                storageconfig(
-                    storagedir,
-                    beaconserverconfig::dflt(cluster, storagename)))
+                cluster,
+                storagename,
+                storagedir)
             .fatal("building storageagent"));
         auto &cp(*connpool::build(cluster).fatal("building connpool"));
         job j(filename("library"),

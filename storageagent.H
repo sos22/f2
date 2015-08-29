@@ -30,6 +30,10 @@ private: eventqueue<proto::storage::event> &eqq;
 public:  static orerror<void> format(const filename &fn);
 public:  static orerror<nnp<storageagent> > build(clientio,
                                                   const storageconfig &config);
+public:  static orerror<nnp<storageagent> > build(clientio,
+                                                  const clustername &,
+                                                  const agentname &,
+                                                  const filename &);
 private: storageagent(const constoken &,
                       const storageconfig &config,
                       eqserver &eqs,
