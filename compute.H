@@ -22,9 +22,8 @@ public:  explicit tag(deserialise1 &);
     /* Inputs: job.
      * Outputs: proto::eq::eventid, tasktag.
      *
-     * Starts a new task running on the slave.  The input peername is
-     * a storage slave which holds the job.  The returned tasktag is a
-     * unique identifier for this incarnation of the job.
+     * Starts a new task running on the slave.  The returned tasktag
+     * is a unique identifier for this incarnation of the job.
      */
 public:  static const tag start;
     /* Inputs: None
