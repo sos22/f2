@@ -234,8 +234,8 @@ static testmodule __testconnpool(
                    (orerror<nnp<deserialise1> > e, connpool::connlock)
                    -> orerror<void> {
                        assert(e == error::timeout);
-                       return error::ratelimit; })
-               == error::ratelimit);
+                       return error::dlopen; })
+               == error::dlopen);
         auto end(timestamp::now());
         assert(end > start + timedelta::milliseconds(10));
         assert(end < start + timedelta::milliseconds(110));
@@ -249,12 +249,12 @@ static testmodule __testconnpool(
                    (orerror<nnp<deserialise1> > e, connpool::connlock)
                    -> orerror<void> {
                        assert(e == error::aborted);
-                       return error::ratelimit; }));
+                       return error::dlopen; }));
         end = timestamp::now();
         /* Starting the call should be very cheap. */
         assert(end < start + timedelta::milliseconds(10));
         start = end;
-        assert(c->abort() == error::ratelimit);
+        assert(c->abort() == error::dlopen);
         end = timestamp::now();
         /* Aborting can be a little more expensive, but not
          * much. */
@@ -268,13 +268,13 @@ static testmodule __testconnpool(
             (orerror<nnp<deserialise1> > e, connpool::connlock)
             -> orerror<void> {
                 assert(e == error::disconnected);
-                return error::ratelimit; });
+                return error::dlopen; });
         start = timestamp::now();
         pool->destroy();
         end = timestamp::now();
         assert(end - start < timedelta::milliseconds(50));
         start = end;
-        assert(c->pop(io) == error::ratelimit);
+        assert(c->pop(io) == error::dlopen);
         end = timestamp::now();
         assert(end - start < timedelta::milliseconds(10)); },
     "echo", [] (clientio io) {

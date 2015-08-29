@@ -286,10 +286,10 @@ static testmodule __testparsers(
                 .map<double>([] (int x) { return x * 5 + .3; })
                 .match("7")
                 .success() == 35.3);
-        assert( errparser<int>(error::ratelimit)
+        assert( errparser<int>(error::dlopen)
                 .map<const char *>([] (int) { return "Huh?"; })
                 .match("7")
-                .failure() == error::ratelimit); },
+                .failure() == error::dlopen); },
     "maperr", [] {
         assert(intparser<unsigned>()
                ._maperr<double>(

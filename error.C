@@ -24,42 +24,38 @@ const error error::unknown(0);
 const error error::disconnected(-1);
 const error error::overflowed(-2);
 const error error::underflowed(-3);
-const error error::missingparameter(-4);
-const error error::invalidmessage(-5);
-const error error::unrecognisedmessage(-6);
-const error error::noparse(-7);
-const error error::timeout(-8);
-const error error::truncated(-9);
-const error error::unimplemented(-10);
-const error error::badversion(-11);
-const error error::authenticationfailed(-12);
-const error error::ratelimit(-13);
-const error error::invalidparameter(-14);
-const error error::already(-15);
-const error error::notfound(-16);
-const error error::notafile(-17);
-const error error::toolate(-18);
-const error error::toosoon(-19);
-const error error::pastend(-20);
-const error error::nothing(-21);
-const error error::notempty(-22);
-const error error::wouldblock(-23);
-const error error::shutdown(-24);
-const error error::range(-25);
-const error error::badinterface(-26);
-const error error::aborted(-27);
-const error error::badqueue(-28);
-const error error::eventsdropped(-29);
-const error error::badsubscription(-30);
-const error error::notadir(-31);
-const error error::eqstatemismatch(-32);
-const error error::nostorageagents(-33);
-const error error::signalled(-34);
-const error error::dlopen(-35);
-const error error::duplicate(-36);
+const error error::invalidmessage(-4);
+const error error::unrecognisedmessage(-5);
+const error error::noparse(-6);
+const error error::timeout(-7);
+const error error::truncated(-8);
+const error error::badversion(-9);
+const error error::invalidparameter(-10);
+const error error::already(-11);
+const error error::notfound(-12);
+const error error::notafile(-13);
+const error error::toolate(-14);
+const error error::toosoon(-15);
+const error error::pastend(-16);
+const error error::nothing(-17);
+const error error::notempty(-18);
+const error error::wouldblock(-19);
+const error error::shutdown(-20);
+const error error::range(-21);
+const error error::badinterface(-22);
+const error error::aborted(-23);
+const error error::badqueue(-24);
+const error error::eventsdropped(-25);
+const error error::badsubscription(-26);
+const error error::notadir(-27);
+const error error::eqstatemismatch(-28);
+const error error::nostorageagents(-29);
+const error error::signalled(-30);
+const error error::dlopen(-31);
+const error error::duplicate(-32);
 /* When adding a new error, make sure you update lasterror and
  * errorfield::fmt() */
-const int __error_private::lasterror = 36;
+const int __error_private::lasterror = 32;
 
 class errorfield : public fields::field {
     error content;
@@ -78,8 +74,6 @@ public:
             buf.push("overflowed");
         } else if (content == error::underflowed) {
             buf.push("underflowed");
-        } else if (content == error::missingparameter) {
-            buf.push("missingparameter");
         } else if (content == error::invalidmessage) {
             buf.push("invalidmessage");
         } else if (content == error::unrecognisedmessage) {
@@ -90,14 +84,8 @@ public:
             buf.push("timeout");
         } else if (content == error::truncated) {
             buf.push("truncated");
-        } else if (content == error::unimplemented) {
-            buf.push("unimplemented");
         } else if (content == error::badversion) {
             buf.push("badversion");
-        } else if (content == error::authenticationfailed) {
-            buf.push("authenticationfailed");
-        } else if (content == error::ratelimit) {
-            buf.push("ratelimit");
         } else if (content == error::invalidparameter) {
             buf.push("invalidparameter");
         } else if (content == error::already) {

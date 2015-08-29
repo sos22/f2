@@ -57,17 +57,12 @@ public:
     static const error underflowed; /* read buffer does not contain
                                        enough data to complete
                                        request */
-    static const error missingparameter; /* RPC request missing
-                                          * mandatory parameter */
     static const error invalidmessage; /* RPC message is malformed. */
     static const error unrecognisedmessage; /* RPC message tag unrecognised */
     static const error noparse; /* Cannot parse user-provided argument */
     static const error timeout; /* Timed out performing some operation */
     static const error truncated; /* Message too big for underlying transport */
-    static const error unimplemented; /* Not implemented yet */
     static const error badversion; /* Unrecognised protocol version requested */
-    static const error authenticationfailed; /* Authentication failure */
-    static const error ratelimit; /* Blocked by rate limiter */
     static const error invalidparameter; /* RPC message parameter is bad */
     static const error already; /* Operation already completed */
     static const error notfound; /* File or dictionary key not found */
@@ -75,6 +70,7 @@ public:
     static const error toolate; /* Operation arrived too late to be processed */
     static const error toosoon; /* Operation arrived too soon to be processed */
     static const error pastend; /* Offset is past end of file */
+    static const error signalled; /* Child killed by signal. */
     static const error nothing; /* maybe<> was Nothing when it should
                                  * have been just() */
     static const error notempty; /* Container not empty */
@@ -91,7 +87,6 @@ public:
     static const error notadir; /* Expected directory; got something else */
     static const error eqstatemismatch; /* Event queue state not as expected. */
     static const error nostorageagents; /* No storage slaves available. */
-    static const error signalled; /* Child killed by signal. */
     static const error dlopen; /* Error loading job library. */
     static const error duplicate; /* Duplicate key in map. */
 };
