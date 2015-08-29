@@ -4,6 +4,11 @@
 #include "clientio.H"
 #include "computeagent.H"
 #include "computeclient.H"
+#include "filesystemagent.H"
+#include "filesystemclient.H"
+#include "rpcservice2.H"
+#include "storageagent.H"
+#include "storageclient.H"
 #include "test2.H"
 
 #include "either.tmpl"
@@ -14,30 +19,64 @@ public:  quickcheck q;
 public:  const clustername cluster;
 public:  const agentname fsagentname;
 public:  const agentname computeagentname;
+public:  const agentname storageagentname;
 public:  const filename computedir;
 private: const orerror<void> computeformatres;
+public:  const filename storagedir;
+private: const orerror<void> storageformatres;
 public:  connpool &cp;
+public:  ::storageagent &storageagent;
+public:  rpcservice2 &filesystemagent;
 public:  ::computeagent *computeagent;
+public:  storageclient &sc;
+public:  filesystemclient &fsc;
 public:  computeclient &cc;
 public:  explicit computetest(clientio io)
     : q(),
       cluster(q),
       fsagentname("fsagent"),
       computeagentname("computeagent"),
+      storageagentname("storageagent"),
       computedir(q),
       computeformatres(::computeagent::format(computedir)),
+      storagedir(q),
+      storageformatres(::storageagent::format(storagedir)),
       cp(*connpool::build(cluster).fatal("building connpool")),
+      storageagent(*::storageagent::build(
+                       io,
+                       cluster,
+                       storageagentname,
+                       storagedir)
+                   .fatal("starting storage agent")),
+      filesystemagent(*::filesystemagent(
+                          io,
+                          cluster,
+                          fsagentname,
+                          peername::all(peername::port::any))
+                      .fatal("starting filesystem agent")),
       computeagent(computeagent::build(io,
                                        cluster,
                                        fsagentname,
                                        computeagentname,
                                        computedir)
                    .fatal("starting compute agent")),
+      sc(storageclient::connect(cp, storageagentname)),
+      fsc(filesystemclient::connect(cp, fsagentname)),
       cc(computeclient::connect(cp, computeagentname)) {
     computeformatres.fatal("formatting compute agent dir"); }
+    /* Create a job on the storage agent and wait for the filesystem
+     * to pick it up. */
+public:  void createjob(clientio io, const job &j) {
+    auto createevt(sc.createjob(io, j).fatal("creating job"));
+    fsc.storagebarrier(io, storageagentname, createevt)
+        .fatal("awaiting job creation"); }
 public:  ~computetest() {
     cc.destroy();
+    fsc.destroy();
+    sc.destroy();
     if (computeagent != NULL) computeagent->destroy(clientio::CLIENTIO);
+    filesystemagent.destroy(clientio::CLIENTIO);
+    storageagent.destroy(clientio::CLIENTIO);
     cp.destroy();
     computedir.rmtree().fatal("removing compute dir"); } };
 
@@ -85,6 +124,7 @@ static testmodule __testcomputeagent(
             "testfunction",
             empty,
             empty);
+        t.createjob(io, j);
         auto startres(cc.start(io, j).fatal("starting job"));
         logmsg(loglevel::debug, "startres " + startres.field());
         auto startev(eqc.popid(io).fatal("getting first event"));
@@ -107,14 +147,15 @@ static testmodule __testcomputeagent(
             assert(finishev
                    .second()
                    .first()
-                   .success()
+                   .fatal("job result")
                    .issuccess()); }
         cc.drop(io, j.name()).fatal("dropping job");
         assert(cc
                .enumerate(io)
                .fatal("getting final empty job list")
                .second()
-               .empty()); },
+               .empty());
+        eqc.destroy(); },
     "shutdown", [] (clientio io) {
         computetest t(io);
         job j(
@@ -122,6 +163,7 @@ static testmodule __testcomputeagent(
             "waitforever",
             empty,
             empty);
+        t.createjob(io, j);
         auto startres(t.cc.start(io, j).fatal("starting job"));
         (1_s).future().sleep(io);
         /* Job should still be running */
@@ -144,6 +186,7 @@ static testmodule __testcomputeagent(
             "waitonesecond",
             empty,
             empty);
+        t.createjob(io, j);
         assert(t.cc.waitjob(io, j.name()) == error::toosoon);
         auto startres(t.cc.start(io, j).fatal("starting job"));
         auto taken(timedelta::time([&] {

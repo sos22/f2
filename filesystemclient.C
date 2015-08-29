@@ -85,3 +85,5 @@ filesystemclient::storagebarrier(clientio io,
 
 void
 filesystemclient::destroy() { delete &impl(); }
+
+template void asynccall<filesystemclient::asyncfindjobdescr>::abort();

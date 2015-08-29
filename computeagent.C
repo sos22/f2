@@ -20,6 +20,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 #include "pair.tmpl"
 #include "rpcservice2.tmpl"
 #include "thread.tmpl"
@@ -64,7 +65,7 @@ private: class maintenancethread : public thread {
           sub() {}
     private: void run(clientio); };
 private: connpool &cp;
-private: filesystemclient &fs;
+public:  filesystemclient &fs;
 private: mutex_t mux;
 private: eqserver &eqs;
 public:  waitbox<void> shutdown;
@@ -113,6 +114,28 @@ private: void destroying(clientio); };
 
 void
 runningjob::run(clientio io) {
+    logmsg(loglevel::debug,
+           "trying to find owner of " + j.field());
+    auto &findstorageagent(owner.fs.findjob(j.name()));
+    {   subscriber sub;
+        subscription s1(sub, shutdown.pub());
+        subscription s2(sub, findstorageagent.pub());
+        while (shutdown.poll() == Nothing &&
+               findstorageagent.finished() == Nothing) { } }
+    if (shutdown.poll() != Nothing) {
+        findstorageagent.abort();
+        result.mkjust(error::aborted);
+        return; }
+    auto qstorageagent(findstorageagent.pop(
+                           findstorageagent.finished().just()));
+    logmsg(loglevel::debug,
+           "owner of " + j.field() + " -> " + qstorageagent.field());
+    if (qstorageagent.isfailure()) {
+        result.mkjust(qstorageagent.failure());
+        return; }
+    if (qstorageagent.success().length() == 0) {
+        result.mkjust(error::toosoon);
+        return; }
     void *f;
     void *v;
     void *lib(::dlopen(j.library.str().c_str(), RTLD_NOW|RTLD_LOCAL));
