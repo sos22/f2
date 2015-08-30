@@ -3,6 +3,8 @@
 
 #include "waitbox.H"
 
+#include "maybe.tmpl"
+
 template <typename t> bool
 waitbox<t>::ready() const {
     auto token(mux.lock());

@@ -138,6 +138,7 @@ static testmodule __testmaybe(
         assert(c.isjust());
         assert(c.just().val1 == 71);
         assert(c.just().val2 == s); },
+    "mkjust2", [] { assert(mkjust<int>(5) == 5); },
     "field", [] {
         assert(!strcmp(maybe<string>(Nothing).field().c_str(),
                        "Nothing"));

@@ -54,9 +54,7 @@ class maybe {
 public:
     explicit maybe(deserialise1 &);
     explicit maybe(quickcheck &);
-    maybe(const maybe &o)
-        : _isnothing(o._isnothing) {
-        if (!_isnothing) new (&content) t(o.just()); }
+    maybe(const maybe &o);
     /* Move constructor for moves from other maybe<t>s.  Note that
      * this leaves @o as a just<t>, rather than converting it to
      * Nothing, and does a move on the inner t. */
