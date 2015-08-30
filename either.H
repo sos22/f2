@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "quickcheck.H"
+#include "void.H"
 
 class deserialise1;
 class serialise1;
@@ -44,8 +45,6 @@ public:  bool operator==(const either &o) const;
 public:  bool operator!=(const either &o) const;
 public:  ~either(); };
 
-/* Work around C++'s odd void handling. */
-class Void {};
 template <typename a> class either<void, a> : public either<Void, a> {
 public: using either<Void, a>::either;
 };
