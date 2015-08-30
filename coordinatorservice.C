@@ -10,6 +10,7 @@
 #include "serialise.H"
 #include "storage.H"
 
+#include "connpool.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"

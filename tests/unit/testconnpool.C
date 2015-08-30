@@ -1,6 +1,7 @@
 /* This also acts as a test for rpcservice2. */
 #include "connpool.H"
 #include "rpcservice2.H"
+#include "socket.H"
 #include "spark.H"
 #include "test.H"
 #include "test2.H"
@@ -1054,4 +1055,40 @@ static testmodule __testconnpool(
                    cn,
                    sn,
                    peername::all(peername::port::any))
-               == error::toolate); } );
+               == error::toolate); },
+    "connbad", [] (clientio io) {
+        /* Connect to something which isn't an rpcservice */
+        auto l(socket_t::listen(peername::all(peernameport::any))
+               .fatal("listening"));
+        waitbox<void> done;
+        spark<void> s(
+            [l, &done] {
+                subscriber sub;
+                iosubscription ss1(sub, l.poll());
+                subscription ss2(sub, done.pub());
+                while (true) {
+                    auto ss(sub.wait(clientio::CLIENTIO));
+                    if (ss == &ss1) {
+                        l.accept(clientio::CLIENTIO).fatal("accept").close(); }
+                    else {
+                        assert(ss == &ss2);
+                        return; } } });
+        quickcheck q;
+        clustername cn(q);
+        agentname an(q);
+        auto &bs(*beaconserver::build(
+                     beaconserverconfig::dflt(cn, an),
+                     empty,
+                     l.localname().getport())
+                 .fatal("starting beacon"));
+        auto &cp(*connpool::build(cn).fatal("connpool"));
+        assert(cp.call(io,
+                       an,
+                       interfacetype::test,
+                       (1_s).future(),
+                       [] (serialise1 &, connpool::connlock) {})
+               == error::timeout);
+        done.set();
+        cp.destroy();
+        bs.destroy(io);
+        l.close(); } );

@@ -308,13 +308,4 @@ public:  token finished(clientio io) const;
 public:  orerror<t> pop(clientio io);
 private: ~asynccallT() { } };
 
-template <typename t, typename u> nnp<connpool::asynccallT<t> >
-connpool::call(
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialiser> &s,
-    const u &ds) {
-    return _call(sn, type, deadline, s, deserialiserT<t>(ds)); }
-
 #endif /* !CONNPOOL_H__ */
