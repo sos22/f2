@@ -44,6 +44,14 @@ public:  bool operator==(const either &o) const;
 public:  bool operator!=(const either &o) const;
 public:  ~either(); };
 
+/* Work around C++'s odd void handling. */
+class Void {};
+template <typename a> class either<void, a> : public either<Void, a> {
+public: using either<Void, a>::either;
+};
+template <typename a> class either<a, void> : public either<a, Void> {
+public: using either<a, Void>::either; };
+
 template <typename r, typename a> either <a, r> left(const a &what);
 
 template <typename l, typename a> either <l, a> right(const a &what);

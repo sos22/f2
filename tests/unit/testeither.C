@@ -184,4 +184,26 @@ static testmodule __testeither(
         assert(w.right() == 92); },
     "serialise", [] {
         quickcheck q;
-        serialise<either<int, bool> >(q); });
+        serialise<either<int, bool> >(q); },
+    "leftvoid", [] {
+        {   either<void, int> e((Left()));
+            assert(e.isleft());
+            e.mkright(5);
+            assert(e.isright());
+            assert(e.right() == 5); }
+        {   either<void, int> e(Right(), 7);
+            assert(e.right() == 7); }
+        assert((either<void, int>(Left()).isleft()));
+        assert((either<void, int>(Right(), 6).isright()));
+        assert((either<void, int>(Right(), 6).right() == 6)); },
+    "rightvoid", [] {
+        {   either<int, void> e((Right()));
+            assert(e.isright());
+            e.mkleft(5);
+            assert(e.isleft());
+            assert(e.left() == 5); }
+        {   either<int, void> e(Left(), 7);
+            assert(e.left() == 7); }
+        assert((either<int, void>(Right()).isright()));
+        assert((either<int, void>(Left(), 6).isleft()));
+        assert((either<int, void>(Left(), 6).left() == 6)); });
