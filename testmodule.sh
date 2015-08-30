@@ -2,7 +2,7 @@
 
 set -e
 
-make -j8 test2-c
+make -j8 test2-c spawnservice-c
 
 : ${TMPDIR:=/tmp}
 if [ $# -eq 1 ]

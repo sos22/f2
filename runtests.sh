@@ -9,6 +9,8 @@ outdir=$1
 mkdir ${outdir}
 trap "rm -rf ${outdir}" EXIT
 
+make -j8 test2-c
+
 # summary1 has one line for every individual test.  The first field of
 # the line is a sort key and the rest is the message itself.
 
