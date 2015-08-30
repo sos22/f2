@@ -86,4 +86,8 @@ filesystemclient::storagebarrier(clientio io,
 void
 filesystemclient::destroy() { delete &impl(); }
 
+template const publisher &
+    asynccall<filesystemclient::asyncfindjobdescr>::pub() const;
+template maybe<asynccall<filesystemclient::asyncfindjobdescr>::token>
+    asynccall<filesystemclient::asyncfindjobdescr>::finished() const;
 template void asynccall<filesystemclient::asyncfindjobdescr>::abort();

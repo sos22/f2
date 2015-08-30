@@ -41,4 +41,10 @@ public:  orerror<asyncstoragebarrier::resT> storagebarrier(clientio,
     
 public:  void destroy(); };
 
+extern template const publisher &
+    asynccall<filesystemclient::asyncfindjobdescr>::pub() const;
+extern template maybe<asynccall<filesystemclient::asyncfindjobdescr>::token>
+    asynccall<filesystemclient::asyncfindjobdescr>::finished() const;
+extern template void asynccall<filesystemclient::asyncfindjobdescr>::abort();
+
 #endif /* !FILESYSTEMCLIENT_H__ */
