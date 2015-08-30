@@ -4,6 +4,7 @@
 #define EQ_H__
 
 #include "proto2.H"
+#include "quickcheck.H"
 
 class deserialise1;
 template <typename> class parser;
@@ -61,6 +62,7 @@ public:  bool operator==(subscriptionid o) const { return v == o.v; } };
 class eventid {
 private: unsigned long v;
 private: explicit eventid(unsigned long _v) : v(_v) {}
+public:  explicit eventid(quickcheck &q) : v(q) {}
 public:  explicit eventid(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  void operator++(int) { v++; }

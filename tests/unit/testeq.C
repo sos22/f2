@@ -7,6 +7,7 @@
 #include "fields.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"
+#include "parsers.tmpl"
 #include "rpcservice2.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
@@ -49,6 +50,17 @@ public: orerror<void> called(clientio io,
     if (!connstarted.ready()) connstarted.set();
     connresume.get(io);
     return eqs.called(io, ds, ic, oct); } };
+
+class dummyservice : public rpcservice2 {
+public: dummyservice(const constoken &tok)
+    : rpcservice2(tok, interfacetype::eq) {}
+public: orerror<void> called(clientio,
+                             deserialise1 &,
+                             interfacetype t,
+                             nnp<incompletecall>,
+                             onconnectionthread) {
+    assert(t == interfacetype::eq);
+    return error::dlopen; } };
 
 static void
 eqtestcase(clientio io,
@@ -101,8 +113,8 @@ static testmodule __testeq(
                        "eqclient.H",
                        "eqserver.C",
                        "eqserver.H"),
-    testmodule::BranchCoverage(75_pc),
-    testmodule::LineCoverage(94_pc),
+    testmodule::BranchCoverage(68_pc),
+    testmodule::LineCoverage(95_pc),
     "basic", [] (clientio io) {
         eqtestcase(
             io,
@@ -765,4 +777,27 @@ static testmodule __testeq(
             sn,
             proto::eq::names::testunsigned)
             ->abort();
-        pool->destroy(); });
+        pool->destroy(); },
+    "eidparser", [] {
+        parsers::roundtrip(proto::eq::eventid::_parser()); },
+    "badconnect", [] (clientio io) {
+        quickcheck q;
+        agentname an(q);
+        clustername cn(q);
+        auto &dummy(*rpcservice2::listen<dummyservice>(
+                        io,
+                        cn,
+                        an,
+                        peername::all(peername::port::any))
+                    .fatal("starting dummy service"));
+        auto &pool(*connpool::build(cn)
+                   .fatal("starting conn pool"));
+        assert(eqclient<unsigned>::connect(
+                   io,
+                   pool,
+                   an,
+                   proto::eq::names::testunsigned,
+                   timestamp::now() + timedelta::seconds(2))
+               == error::dlopen);
+        pool.destroy();
+        dummy.destroy(io); });
