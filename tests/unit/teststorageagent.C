@@ -11,6 +11,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "pair.tmpl"
+#include "serialise.tmpl"
 #include "test2.tmpl"
 
 class teststate {
@@ -49,6 +50,9 @@ static testmodule __teststorageagent(
                        "storageclient.H"),
     testmodule::LineCoverage(79_pc),
     testmodule::BranchCoverage(45_pc),
+    "serialiseevent", [] {
+        quickcheck q;
+        serialise<proto::storage::event>(q); },
     "connect", [] (clientio io) { teststate t((io)); },
     "emptyjob", [] (clientio io) {
         teststate t((io));
@@ -145,4 +149,10 @@ static testmodule __teststorageagent(
         end = timestamp::now();
         assert(end - start < 10_ms);
         assert(res.issuccess());
-        assert(res.success() == j); } );
+        assert(res.success() == j); },
+    "formatempty", [] {
+        quickcheck q;
+        filename f(q);
+        f.mkdir().fatal("make " + f.field());
+        storageagent::format(f).fatal("format " + f.field());
+        f.rmtree().fatal("rmtree " + f.field()); });

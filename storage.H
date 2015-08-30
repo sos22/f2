@@ -85,9 +85,7 @@ public:  static event finishstream(
     const streamname &,
     const streamstatus &);
 public:  const fields::field &field() const;
-};
-}
-}
+public:  bool operator==(const event &) const; }; } }
 
 namespace fields {
 const field &mk(const proto::storage::listjobsres &r);

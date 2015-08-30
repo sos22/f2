@@ -168,3 +168,10 @@ proto::storage::event::field() const {
     return *base + fields::mk(job) +
         "::" + fields::mk(stream) +
         "->" + fields::mk(status); }
+
+bool
+proto::storage::event::operator==(const event &o) const {
+    return typ == o.typ &&
+        job == o.job &&
+        stream == o.stream &&
+        status == o.status; }
