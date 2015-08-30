@@ -214,6 +214,12 @@ static testmodule __testfilename(
         assert(foo.replace(buffer("boom")) ==
                error::from_errno(EISDIR));
         foo.rmtree().fatal("rmtree"); },
+    "isdir", [] {
+        filename f("somedir");
+        assert(f.isdir() == false);
+        f.mkdir().fatal("mkdir " + f.field());
+        assert(f.isdir() == true);
+        f.rmdir().fatal("rmdir " + f.field()); },
     "serialise", [] {
         quickcheck q;
         serialise<filename>(q); } );
