@@ -11,7 +11,9 @@
 template <typename t> t
 deserialise1::poprange(t min, t max) {
     if (src.isright()) {
-        return min + ((t)*src.right() % (max - min + 1)); }
+        t r(*src.right());
+        if (r >= 0) return min + (r % (max - min + 1));
+        else return min - (r % (max - min + 1)); }
     else {
         t res(*this);
         if (res < min || res > max) {
