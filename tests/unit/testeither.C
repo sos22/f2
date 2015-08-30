@@ -103,6 +103,27 @@ static testmodule __testeither(
         assert(x.right() == 8);
         x = either<int, int>(Left(), 9);
         assert(x.left() == 9); },
+    "=dest", [] {
+        /* Something with a non-trivial destructor, to make sure that
+         * works. This is only likely to fail under Valgrind. */
+        {   either<string, int> e1(Left(), "hello");
+            either<string, int> e2(Right(), 5);
+            e1 = e2;
+            assert(e1.isright());
+            assert(e1.right() == 5);
+            e1.mkleft("foo");
+            e2 = e1;
+            assert(e2.isleft());
+            assert(e2.left() == "foo"); }
+        {   either<int, string> e1(Right(), "hello");
+            either<int, string> e2(Left(), 5);
+            e1 = e2;
+            assert(e1.isleft());
+            assert(e1.left() == 5);
+            e1.mkright("foo");
+            e2 = e1;
+            assert(e2.isright());
+            assert(e2.right() == "foo"); } },
     "mkleft", [] {
         bool cons = false;
         bool dest = false;
