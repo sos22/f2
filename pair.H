@@ -2,7 +2,6 @@
 #define PAIR_H__
 
 #include "serialise.H"
-#include "steal.H"
 
 namespace fields { class field; }
 template <typename> class parser;

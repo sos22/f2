@@ -4,7 +4,6 @@
 #ifndef STREAMNAME_H__
 #define STREAMNAME_H__
 
-#include "steal.H"
 #include "string.H"
 
 class deserialise1;

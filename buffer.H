@@ -7,7 +7,6 @@
 #include "fields.H"
 #include "list.H"
 #include "maybe.H"
-#include "steal.H"
 #include "timestamp.H"
 
 class clientio;

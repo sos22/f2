@@ -1,8 +1,6 @@
 #ifndef JOBRESULT_H__
 #define JOBRESULT_H__
 
-#include "steal.H"
-
 class deserialise1;
 namespace fields { class field; }
 class serialise1;

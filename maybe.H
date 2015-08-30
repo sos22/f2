@@ -21,7 +21,6 @@
 #include <string.h>
 
 #include "error.H"
-#include "steal.H"
 
 class deserialise1;
 class quickcheck;

@@ -7,7 +7,6 @@
 
 #include "error.H"
 #include "maybe.H"
-#include "steal.H"
 
 class serialise1;
 class deserialise1;

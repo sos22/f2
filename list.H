@@ -4,7 +4,6 @@
 #include <functional>
 
 #include "empty.H"
-#include "steal.H"
 
 class deserialise1;
 namespace fields { class field; }

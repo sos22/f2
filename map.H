@@ -12,7 +12,6 @@
 #include "list.H"
 #include "pair.H"
 #include "parsers.H"
-#include "steal.H"
 
 class deserialise1;
 class serialise1;
