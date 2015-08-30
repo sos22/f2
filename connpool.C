@@ -72,7 +72,7 @@ public: void run(clientio);
 public: nnp<connpool::asynccall> call(const agentname &sn,
                                       interfacetype type,
                                       maybe<timestamp> deadline,
-                                      const std::function<serialise> &s,
+                                      const std::function<serialiser> &s,
                                       const deserialiser &ds); };
 
 class CONN : public thread {
@@ -190,7 +190,7 @@ public: void delayconnect(
      * under the mux. */
 public: nnp<CALL> call(maybe<timestamp>,
                        interfacetype type,
-                       const std::function<serialise> &,
+                       const std::function<serialiser> &,
                        const deserialiser &,
                        mutex_t::token);
 
@@ -214,7 +214,7 @@ public: CONN &conn;
 
 public: const maybe<timestamp> deadline;
 public: const interfacetype type;
-public: const std::function<serialise> serialiser;
+public: const std::function<connpool::serialiser> serialiser;
 public: const deserialiser deserialise;
 
     /* Notified when the call completes. */
@@ -240,7 +240,7 @@ public: maybe<proto::sequencenr> &seqnr(connlock) { return _seqnr; }
 public: impl(CONN &_conn,
              maybe<timestamp> _deadline,
              interfacetype _type,
-             const std::function<serialise> &_serialiser,
+             const std::function<connpool::serialiser> &_serialiser,
              const deserialiser &_deserialise);
 
     /* Implementations of the public API. */
@@ -305,24 +305,14 @@ connpool::implementation() { return *containerof(this, impl, api); }
 const POOL &
 connpool::implementation() const { return *containerof(this, impl, api); }
 
-nnp<connpool::asynccall>
+template <> nnp<connpool::asynccallT<void> >
 connpool::_call(const agentname &sn,
-               interfacetype type,
-               maybe<timestamp> deadline,
-               const std::function<serialise> &s,
-               const deserialiser &ds) {
+                interfacetype type,
+                maybe<timestamp> deadline,
+                const std::function<connpool::serialiser> &s,
+                const deserialiserT<void> &ds) {
     return implementation().call(sn, type, deadline, s, ds); }
 
-
-orerror<void>
-connpool::_call(
-    clientio io,
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const deserialiser &ds) {
-    return _call(sn, type, deadline, s, ds)->pop(io); }
 
 orerror<nnp<connpool> >
 connpool::build(const config &cfg) {
@@ -434,7 +424,7 @@ nnp<connpool::asynccall>
 POOL::call(const agentname &sn,
            interfacetype type,
            maybe<timestamp> deadline,
-           const std::function<serialise> &s,
+           const std::function<connpool::serialiser> &s,
            const deserialiser &ds) {
     assert(!shutdown.ready());
     auto token(mux.lock());
@@ -1002,7 +992,7 @@ CONN::delayconnect(maybe<pair<peername, timestamp> > &debounceconnect,
 nnp<CALL>
 CONN::call(maybe<timestamp> deadline,
            interfacetype type,
-           const std::function<serialise> &s,
+           const std::function<connpool::serialiser> &s,
            const deserialiser &ds,
            mutex_t::token token) {
     assert(!dying(token));
@@ -1079,7 +1069,7 @@ CONN::run(clientio io) {
 CALL::impl(CONN &_conn,
            maybe<timestamp> _deadline,
            interfacetype _type,
-           const std::function<serialise> &_serialiser,
+           const std::function<connpool::serialiser> &_serialiser,
            const deserialiser &_deserialise)
     : api(),
       conn(_conn),

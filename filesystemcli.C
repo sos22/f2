@@ -11,6 +11,7 @@
 #include "streamname.H"
 #include "streamstatus.H"
 
+#include "connpool.tmpl"
 #include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
@@ -40,16 +41,17 @@ main(int argc, char *argv[]) {
         (proto::filesystem::tag tag,
          const std::function<void (serialise1 &)> &serialise,
          const std::function<void (deserialise1 &)> &deserialise) {
-            pool->call(clientio::CLIENTIO,
-                       sn,
-                       interfacetype::filesystem,
-                       Nothing,
-                       [&serialise, tag] (serialise1 &s, connpool::connlock) {
-                           s.push(tag);
-                           serialise(s); },
-                       [&deserialise] (deserialise1 &ds, connpool::connlock) {
-                           deserialise(ds);
-                           return ds.status(); })
+            pool->call<void>(
+                clientio::CLIENTIO,
+                sn,
+                interfacetype::filesystem,
+                Nothing,
+                [&serialise, tag] (serialise1 &s, connpool::connlock) {
+                    s.push(tag);
+                    serialise(s); },
+                [&deserialise] (deserialise1 &ds, connpool::connlock) {
+                    deserialise(ds);
+                    return ds.status(); })
                 .fatal("making call against filesystem agent"); });
     
     if (!strcmp(argv[3], "FINDJOB")) {

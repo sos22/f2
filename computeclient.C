@@ -32,7 +32,7 @@ public: connpool::asynccall &cl;
 public: enumerateimpl(class computeclient::impl &owner)
     : api(),
       res(Nothing),
-      cl(*owner.cp.call(
+      cl(*owner.cp.call<void>(
              owner.an,
              interfacetype::compute,
              Nothing,
@@ -61,7 +61,7 @@ public: connpool::asynccall &cl;
 public: startimpl(class computeclient::impl &owner, const job &j)
     : api(),
       res(Nothing),
-      cl(*owner.cp.call(
+      cl(*owner.cp.call<void>(
              owner.an,
              interfacetype::compute,
              Nothing,

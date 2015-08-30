@@ -126,7 +126,7 @@ coordinatorservice::_jobcreator::machine::machine(
     : ic(_ic),
       icsub(Just(), sub, ic.abandoned().pub(), &subscription_ic),
       eid(Nothing),
-      call(pool.call(
+      call(pool.call<void>(
                _fs,
                interfacetype::filesystem,
                /* Will be cancelled if our client's call gets
@@ -180,7 +180,7 @@ coordinatorservice::_jobcreator::callevt(machine &m, acquirestxlock atl) {
     else if (m.eid == Nothing) {
         /* Have an agent but not an EID -> time to acquire the EID
          * from the agent. */
-        m.call = owner.pool.call(
+        m.call = owner.pool.call<void>(
             m.agent.just().just(),
             interfacetype::storage,
             Nothing,
@@ -195,7 +195,7 @@ coordinatorservice::_jobcreator::callevt(machine &m, acquirestxlock atl) {
     else if (!m.synchronised) {
         /* We've got a storage agent and an EID -> need to synchronise
          * with the filesystem. */
-        m.call = owner.pool.call(
+        m.call = owner.pool.call<void>(
             owner.fs,
             interfacetype::filesystem,
             Nothing,

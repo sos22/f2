@@ -4,6 +4,7 @@
 #include "coordinator.H"
 #include "job.H"
 
+#include "connpool.tmpl"
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 
@@ -30,19 +31,19 @@ main(int argc, char *argv[]) {
                .match(argv[4])
                .fatal("parsing " + fields::mk(argv[4]) +
                       " as a job descriptor"));
-        maybe<agentname> res(Nothing);
-        pool->call(clientio::CLIENTIO,
-                   sn,
-                   interfacetype::coordinator,
-                   Nothing,
-                   [&j] (serialise1 &s, connpool::connlock) {
-                       s.push(proto::coordinator::tag::createjob);
-                       s.push(j); },
-                   [&res] (deserialise1 &ds, connpool::connlock) {
-                       res.mkjust(ds);
-                       return ds.status(); })
-            .fatal("making CREATEJOB call");
-        fields::print("result " + fields::mk(res.just()) + "\n"); }
+        auto res(
+            pool->call<agentname>(
+                clientio::CLIENTIO,
+                sn,
+                interfacetype::coordinator,
+                Nothing,
+                [&j] (serialise1 &s, connpool::connlock) {
+                    s.push(proto::coordinator::tag::createjob);
+                    s.push(j); },
+                [] (deserialise1 &ds, connpool::connlock) {
+                    return agentname(ds); })
+            .fatal("making CREATEJOB call"));
+        fields::print("result " + fields::mk(res) + "\n"); }
     else {
         errx(1, "unknown mode %s", argv[3]); }
     pool->destroy();

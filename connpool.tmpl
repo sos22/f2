@@ -7,13 +7,15 @@
 
 #include "maybe.tmpl"
 
-template <typename t>
-connpool::deserialiserT<t>::deserialiserT(const std::function<orerror<t> (
-                                              orerror<nnp<deserialise1> >,
-                                              connlock) > &_inner)
-    : inner([_inner]
-            (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock cl) {
-                return _inner(ds, cl); }) {}
+template <typename t, typename u> orerror<t>
+connpool::call(clientio io,
+               const agentname &sn,
+               interfacetype type,
+               maybe<timestamp> deadline,
+               const std::function<serialiser> &s,
+               const u &ds) {
+    return _call(io, sn, type, deadline, s, deserialiserT<t>(ds)); }
+
 
 template <typename t>
 connpool::asynccallT<t>::asynccallT() : inner(NULL), res(Nothing) {}
@@ -55,21 +57,23 @@ connpool::_call(
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
+    const std::function<serialiser> &s,
     const deserialiserT<t> &ds) {
     auto res(new asynccallT<t>());
-    res->inner = call(
+    res->inner = _call<void>(
         sn,
         type,
         deadline,
         s,
-        [ds, res]
-        (asynccall &, orerror<nnp<deserialise1> > ds2, connlock cl)
-            -> orerror<void> {
-            /* Careful: res->inner might not have been set yet. */
-            res->res.mkjust(ds.inner(*res, ds2, cl));
-            if (res->res.just().isfailure()) return res->res.just().failure();
-            else return Success; });
+        deserialiserT<void>(
+            [ds, res]
+            (asynccall &, orerror<nnp<deserialise1> > ds2, connlock cl)
+                -> orerror<void> {
+                /* Careful: res->inner might not have been set yet. */
+                res->res.mkjust(ds.inner(*res, ds2, cl));
+                if (res->res.just().isfailure()) {
+                    return res->res.just().failure(); }
+                else return Success; }));
     return _nnp(*res); }
 
 template <typename t> orerror<t>
@@ -78,7 +82,7 @@ connpool::_call(
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
+    const std::function<serialiser> &s,
     const deserialiserT<t> &ds) {
     return _call<t>(sn, type, deadline, s, ds)->pop(io); }
 

@@ -31,7 +31,7 @@ public: asyncfindjobimpl(class filesystemclient::impl &owner,
                          const jobname &jn)
     : api(),
       res(Nothing),
-      cl(*owner.cp.call(
+      cl(*owner.cp.call<void>(
              owner.an,
              interfacetype::filesystem,
              Nothing,

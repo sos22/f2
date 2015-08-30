@@ -26,7 +26,9 @@ class connpool {
 public:  class connlock;
 public:  template <typename> class asynccallT;
 public:  typedef asynccallT<void> asynccall;
-public:  typedef void serialise(serialise1 &, connlock);
+public:  template <typename> class deserialiserT;
+public:  typedef deserialiserT<void> deserialiser;
+public:  typedef void serialiser(serialise1 &, connlock);
     /* deserialise methods are called once we get a response from the
      * other side (or when we give up waiting).  They receive a
      * reference to the call structure.  Be careful with that: the
@@ -45,38 +47,30 @@ public:  template <typename t> class deserialiserT {
             connlock)> inner;
     public:  deserialiserT(const decltype(inner) &_inner) : inner(_inner) {}
     public:  deserialiserT(
-        const std::function<orerror<t> (
-                              orerror<nnp<deserialise1> >,
-                              connlock) > &_inner);
+        const std::function<
+            orerror<t> (orerror<nnp<deserialise1> > e, connlock) > &f)
+        : inner([f] (asynccallT<t> &,
+                     orerror<nnp<deserialise1> > ds,
+                     connlock cl) -> orerror<t> {
+                    return f(ds, cl); }) {}
     public:  deserialiserT(
-        const std::function<orerror<t> (
-                              asynccallT<t> &,
-                              deserialise1 &,
-                              connlock)> &_inner)
-        :inner([_inner]
-               (asynccallT<t> &ac, orerror<nnp<deserialise1> > ds, connlock cl)
-                   -> orerror<t> {
-                   if (ds.isfailure()) return ds.failure();
-                   else return _inner(ac, ds.success(), cl); }) {}
-    public:  deserialiserT(
-        const std::function<orerror<t> (
-                              deserialise1 &,
-                              connlock)> &_inner)
-        :inner([_inner]
-               (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock cl)
-                   -> orerror<t> {
-                   if (ds.isfailure()) return ds.failure();
-                   else return _inner(ds.success(), cl); }) {}
+        const std::function<orerror<t> (deserialise1 &, connlock)> &f)
+        : inner([f] (asynccallT<t> &,
+                     orerror<nnp<deserialise1> > ds,
+                     connlock cl) -> orerror<t> {
+                    if (ds.isfailure()) return ds.failure();
+                    else return f(ds.success(), cl); }) {}
+
     public:  deserialiserT()
-        : inner([] (asynccallT<t> &, orerror<nnp<deserialise1> > ds, connlock)
-                   -> orerror<t> {
-                   if (ds.isfailure()) return ds.failure();
-                   else return Success; }) {}
+        : inner([] (asynccallT<t> &,
+                    orerror<nnp<deserialise1> > ds,
+                    connlock) -> orerror<t> {
+                    if (ds.isfailure()) return ds.failure();
+                    else return Success; }) {}
     public:  orerror<t> operator()(asynccallT<t> &ac,
                                    orerror<nnp<deserialise1> > ds,
                                    connlock cl) const {
         return inner(ac, ds, cl); } };
-public:  typedef deserialiserT<void> deserialiser;
 
 private: connpool(const connpool &) = delete;
 private: connpool() {};
@@ -176,95 +170,49 @@ public:  class connlock {
      * machine to hang forever as well, which is almost certainly not
      * what you want.
      */
-public:  nnp<asynccall> _call(const agentname &sn,
-                              interfacetype type,
-                              maybe<timestamp> deadline,
-                              const std::function<serialise> &s,
-                              const deserialiser &ds = deserialiser());
-    /* Wrappers to help type inference along a bit. */
-public:  template <typename t> nnp<asynccall> call(
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const t &x) {
-        return _call(sn, type, deadline, s, deserialiser(x)); }
-public:  nnp<asynccall> call(
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s) {
-        return _call(sn, type, deadline, s, deserialiser()); }
-
-    /* Convenience wrapper around the async call interface: start a
-     * call, wait for it to complete, and then return the result. */
-public:  orerror<void> _call(
-    clientio io,
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const deserialiser &ds = deserialiser());
-public:  template <typename t> orerror<void> call(
-    clientio io,
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const t &x) {
-        return _call(io, sn, type, deadline, s, deserialiser(x)); }
-public:  orerror<void> call(
-    clientio io,
-    const agentname &sn,
-    interfacetype type,
-    maybe<timestamp> deadline,
-    const std::function<serialise> &s) {
-        return _call(io, sn, type, deadline, s, deserialiser()); }
-
-    /* More convenient variant of the call interface for use when the
-     * deserialise method needs to return a value.  Most of the
-     * details of these are in connpool.tmpl. */
 public:  template <typename t> nnp<asynccallT<t> > _call(
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const deserialiserT<t> & = deserialiserT<t>());
+    const std::function<serialiser> &s,
+    const deserialiserT<t> &ds);
+    /* Wrapper to help type inference along a little bit. */
 public:  template <typename t, typename u> nnp<asynccallT<t> > call(
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const u &x) {
-    return _call<t>(sn, type, deadline, s, deserialiserT<t>(x)); }
-public:  template <typename t> nnp<asynccallT<t> > call(
+    const std::function<serialiser> &s,
+    const u &ds);
+public:  nnp<asynccallT<void> > call(
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s) {
-    return _call<t>(sn, type, deadline, s, deserialiserT<t>()); }
+    const std::function<serialiser> &s) {
+    return call<void>(sn, type, deadline, s, deserialiserT<void>()); }
+
+    /* Helper for calling call() and then immediately waiting for the
+     * result. */
 public:  template <typename t> orerror<t> _call(
     clientio io,
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const deserialiserT<t> & = deserialiserT<t>());
+    const std::function<serialiser> &s,
+    const deserialiserT<t> &ds);
 public:  template <typename t, typename u> orerror<t> call(
     clientio io,
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s,
-    const u &x) {
-    return _call<t>(io, sn, type, deadline, s, deserialiserT<t>(x)); }
-public:  template <typename t> orerror<t> call(
+    const std::function<serialiser> &s,
+    const u &ds);
+public:  orerror<void> call(
     clientio io,
     const agentname &sn,
     interfacetype type,
     maybe<timestamp> deadline,
-    const std::function<serialise> &s) {
-    return _call<t>(io, sn, type, deadline, s, deserialiserT<t>()); }
+    const std::function<serialiser> &s) {
+    return _call<void>(io, sn, type, deadline, s, deserialiserT<void>()); }
 
     /* Construct a new connpool. */
 public:  static orerror<nnp<connpool> > build(const config &);
@@ -290,6 +238,12 @@ private: ~connpool();
 public:  static tests::hookpoint<void> reapedconnthread;
 };
 
+template <> nnp<connpool::asynccallT<void> > connpool::_call(
+    const agentname &sn,
+    interfacetype type,
+    maybe<timestamp> deadline,
+    const std::function<serialiser> &s,
+    const deserialiserT<void> &ds);
 
 /* Cookie type representing an outstanding call.  Allocated by the
  * call() method. */
@@ -353,5 +307,14 @@ public:  orerror<t> abort();
 public:  token finished(clientio io) const;
 public:  orerror<t> pop(clientio io);
 private: ~asynccallT() { } };
+
+template <typename t, typename u> nnp<connpool::asynccallT<t> >
+connpool::call(
+    const agentname &sn,
+    interfacetype type,
+    maybe<timestamp> deadline,
+    const std::function<serialiser> &s,
+    const u &ds) {
+    return _call(sn, type, deadline, s, deserialiserT<t>(ds)); }
 
 #endif /* !CONNPOOL_H__ */

@@ -222,7 +222,7 @@ static testmodule __testconnpool(
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         assert(timestamp::now() < start + timedelta::milliseconds(100));
         start = timestamp::now();
-        assert(pool->call(
+        assert(pool->call<void>(
                    io,
                    agentname("nonesuch"),
                    interfacetype::test,
@@ -241,7 +241,7 @@ static testmodule __testconnpool(
         assert(end > start + timedelta::milliseconds(10));
         assert(end < start + timedelta::milliseconds(110));
         start = timestamp::now();
-        auto c(pool->call(
+        auto c(pool->call<void>(
                    agentname("nonesuch"),
                    interfacetype::test,
                    timestamp::now() + timedelta::hours(10),
@@ -260,7 +260,7 @@ static testmodule __testconnpool(
         /* Aborting can be a little more expensive, but not
          * much. */
         assert(end < start + timedelta::milliseconds(50));
-        c = pool->call(
+        c = pool->call<void>(
             agentname("nonesuch"),
             interfacetype::test,
             timestamp::now() + timedelta::hours(10),
@@ -289,7 +289,7 @@ static testmodule __testconnpool(
                      peername::all(peername::port::any))
                  .fatal("starting echo service"));
         auto pool(connpool::build(cn).fatal("starting conn pool"));
-        pool->call(
+        pool->call<void>(
             io,
             sn,
             interfacetype::test,
@@ -364,7 +364,7 @@ static testmodule __testconnpool(
                      abandoned)
                  .fatal("starting abandon service"));
         auto pool(connpool::build(cn).fatal("building connpool"));
-        auto call(pool->call(
+        auto call(pool->call<void>(
                       sn,
                       interfacetype::test,
                       timestamp::now() + timedelta::hours(1),
@@ -393,7 +393,7 @@ static testmodule __testconnpool(
                      abandoned)
                  .fatal("starting abandon service"));
         auto pool(connpool::build(cn).fatal("building connpool"));
-        assert(pool->call(
+        assert(pool->call<void>(
                    io,
                    sn,
                    interfacetype::test,
@@ -422,7 +422,7 @@ static testmodule __testconnpool(
         maybe<timestamp> completed1(Nothing);
         maybe<timestamp> completed2(Nothing);
         list<nnp<connpool::asynccall> > completed;
-        auto call1(pool->call(
+        auto call1(pool->call<void>(
                        sn,
                        interfacetype::test,
                        timestamp::now() + timedelta::hours(1),
@@ -441,7 +441,7 @@ static testmodule __testconnpool(
                            completed1 = timestamp::now();
                            completed.pushtail(ac);
                            return Success; } ) );
-        auto call2(pool->call(
+        auto call2(pool->call<void>(
                        sn,
                        interfacetype::test,
                        timestamp::now() + timedelta::hours(1),
@@ -481,7 +481,7 @@ static testmodule __testconnpool(
                      peername::all(peername::port::any))
                  .fatal("starting slow service"));
         auto pool(connpool::build(cn).fatal("building connpool"));
-        auto call(pool->call(
+        auto call(pool->call<void>(
                       sn,
                       interfacetype::test,
                       timestamp::now() + timedelta::hours(1),
@@ -566,7 +566,7 @@ static testmodule __testconnpool(
                == 9);
         auto pool2(connpool::build(cn).fatal("building pool2"));
         /* Force pool2 to connect as well. */
-        assert(pool2->call(
+        assert(pool2->call<void>(
                    io,
                    sn,
                    interfacetype::test,
@@ -607,7 +607,7 @@ static testmodule __testconnpool(
         list<nnp<connpool::asynccall> > outstanding;
         for (unsigned x = 0; x < 10; x++) {
             outstanding.pushtail(
-                pool->call(
+                pool->call<void>(
                     sn,
                     interfacetype::test,
                     timestamp::now() + timedelta::hours(1),
@@ -643,7 +643,7 @@ static testmodule __testconnpool(
         list<nnp<connpool::asynccall> > outstanding;
         for (unsigned x = 0; x < 10; x++) {
             outstanding.pushtail(
-                pool->call(
+                pool->call<void>(
                     sn,
                     interfacetype::test,
                     timestamp::now() + timedelta::hours(1),
@@ -703,7 +703,7 @@ static testmodule __testconnpool(
         auto pool(connpool::build(config).fatal("building connpool"));
         maybe<timestamp> finished(Nothing);
         auto start(timestamp::now());
-        pool->call(
+        pool->call<void>(
             io,
             sn,
             interfacetype::test,
@@ -745,7 +745,7 @@ static testmodule __testconnpool(
                      callaborted)
                  .fatal("starting abort service"));
         auto pool(connpool::build(cn).fatal("building pool"));
-        auto b(pool->call(
+        auto b(pool->call<void>(
                    sn,
                    interfacetype::test,
                    timedelta::hours(1).future(),
@@ -934,7 +934,7 @@ static testmodule __testconnpool(
                      peername::all(peername::port::any))
                  .fatal("starting echo service"));
         auto pool(connpool::build(cn).fatal("building pool"));
-        assert(pool->call(
+        assert(pool->call<void>(
                    io,
                    sn,
                    interfacetype::test,
@@ -958,7 +958,7 @@ static testmodule __testconnpool(
                      peername::all(peername::port::any))
                  .fatal("starting echo service"));
         auto pool(connpool::build(cn).fatal("building pool"));
-        assert(pool->call(
+        assert(pool->call<void>(
                    io,
                    sn,
                    interfacetype::test,
@@ -982,7 +982,7 @@ static testmodule __testconnpool(
                      peername::all(peername::port::any))
                  .fatal("starting echo service"));
         auto pool(connpool::build(cn).fatal("building pool"));
-        assert(pool->call(
+        assert(pool->call<void>(
                    io,
                    sn,
                    interfacetype::test,

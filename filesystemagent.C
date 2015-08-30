@@ -258,7 +258,7 @@ job::startliststreams(connpool &pool,
                       mutex_t::token tok) {
     assert(liststreams(tok) == NULL);
     assert(liststreamssub(tok) == Nothing);
-    liststreams(tok) = pool.call(
+    liststreams(tok) = pool.call<void>(
         sto.name,
         interfacetype::storage,
         /* Will be cancelled if the store drops from the beacon or the
@@ -661,7 +661,7 @@ store::startlistjobs(connpool &pool,
                      inlistjobscall) {
     assert(listjobs(oft) == NULL);
     assert(listjobssub(oft) == Nothing);
-    listjobs(oft) = pool.call(
+    listjobs(oft) = pool.call<void>(
         name,
         interfacetype::storage,
         /* Infinite timeout is safe: we'll give up when it drops out
