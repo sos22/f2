@@ -5,6 +5,7 @@
 #include "serialise.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
 
 const proto::meta::tag
 proto::meta::tag::hello(1);

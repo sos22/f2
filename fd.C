@@ -12,6 +12,7 @@
 #include "timestamp.H"
 
 #include "fields.tmpl"
+#include "orerror.tmpl"
 
 void
 fd_t::close(void) const

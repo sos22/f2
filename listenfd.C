@@ -14,6 +14,7 @@
 
 #include "fields.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 
 orerror<socket_t>
 listenfd::accept(clientio) const

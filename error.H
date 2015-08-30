@@ -10,7 +10,6 @@ const field &mk(error); }
 class deserialise1;
 class serialise1;
 template <typename t> class orerror;
-template <> class orerror<void>;
 class quickcheck;
 
 /* Wrapper around errno.  Must be POD. */

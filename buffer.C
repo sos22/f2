@@ -9,6 +9,8 @@
 #include "serialise.H"
 #include "util.H"
 
+#include "orerror.tmpl"
+
 #define DEFAULT_BUF_SIZE 16384u
 #define SMALL_SYSCALL 4096u
 

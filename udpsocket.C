@@ -13,6 +13,7 @@
 #include "peername.H"
 #include "timedelta.H"
 
+#include "orerror.tmpl"
 #include "test.tmpl"
 
 tests::hookpoint<orerror<udpsocket>, udpsocket >

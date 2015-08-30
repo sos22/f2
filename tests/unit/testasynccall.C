@@ -6,6 +6,7 @@
 #include "tests/lib/testservices.H"
 
 #include "asynccall.tmpl"
+#include "orerror.tmpl"
 #include "test2.tmpl"
 
 #include "tests/lib/testservices.tmpl"

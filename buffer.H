@@ -12,7 +12,6 @@
 class clientio;
 class deserialise1;
 class fd_t;
-template <typename> class orerror;
 class serialise1;
 class subscriber;
 class subscriptionbase;

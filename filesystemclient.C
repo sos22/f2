@@ -7,6 +7,7 @@
 #include "asynccall.tmpl"
 #include "connpool.tmpl"
 #include "list.tmpl"
+#include "orerror.tmpl"
 
 class filesystemclient::impl {
 public: class filesystemclient api;

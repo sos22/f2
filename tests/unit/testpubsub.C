@@ -5,6 +5,7 @@
 #include "test2.H"
 #include "timedelta.H"
 
+#include "orerror.tmpl"
 #include "pair.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"

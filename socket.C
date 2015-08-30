@@ -9,6 +9,8 @@
 #include "listenfd.H"
 #include "peername.H"
 
+#include "orerror.tmpl"
+
 orerror<peername>
 socket_t::peer() const {
     unsigned char addr[4096];

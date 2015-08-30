@@ -13,7 +13,6 @@ class bytecount;
 class deserialise1;
 class fd_t;
 class filename;
-template <typename> class orerror;
 template <typename> class parser;
 class serialise1;
 

@@ -10,6 +10,7 @@
 #include "connpool.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"
