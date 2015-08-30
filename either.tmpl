@@ -16,6 +16,12 @@ either<a,b>::either(const either &o)
     else new (&_right) b(o.right()); }
 
 template <typename a, typename b>
+either<a,b>::either(_Steal s, either &o)
+    : isleft_(o.isleft_) {
+    if (isleft()) new (&_left) a(s, o.left());
+    else new (&_right) b(s, o.right()); }
+
+template <typename a, typename b>
 either<a,b>::either(deserialise1 &ds)
     : isleft_(ds) {
     if (isleft_) new (&_left) a(ds);

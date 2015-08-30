@@ -22,6 +22,7 @@ class error {
 public:
     error(deserialise1 &);
     error() : e(unknown.e) {}
+    error(_Steal, error o) : e(o.e) {}
     static error __test_mkerr(int _e) { return error(_e); }
 
     bool operator==(const error &o) const { return e == o.e; }

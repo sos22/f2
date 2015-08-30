@@ -28,6 +28,7 @@ private: union {
 private: either() {};
 public:  either(quickcheck &q);
 public:  either(const either &o);
+public:  either(_Steal, either &o);
 public:  either(deserialise1 &ds);
 public:  void serialise(serialise1 &s) const;
 public:  template <typename ... args> either(Left, args &&...params);
