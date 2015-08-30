@@ -23,6 +23,7 @@ public:  static streamstatus finished(const streamname &, bytecount);
 public:  const streamname &name() const { return name_; }
 public:  bytecount size() const { return size_; }
 public:  bool isfinished() const { return finished_; }
+public:  bool isempty() const { return !finished_ && size_ == 0_B; }
 public:  bool operator==(const streamstatus &) const;
 public:  bool operator!=(const streamstatus &o) const {
     return !(*this == o); }

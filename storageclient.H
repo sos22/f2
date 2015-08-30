@@ -20,6 +20,9 @@ class storageclient {
 private: class impl;
 private: class impl &impl();
 private: const class impl &impl() const;
+private: storageclient() {}
+private: storageclient(const storageclient &) = delete;
+private: void operator=(const storageclient &) = delete;
     
 public:  static storageclient &connect(connpool &cp, const agentname &an);
     

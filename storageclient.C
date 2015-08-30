@@ -382,3 +382,5 @@ storageclient::removejob(clientio io, jobname jn) {
 
 void
 storageclient::destroy() { delete &impl(); }
+
+template void asynccall<storageclient::asyncfinishdescr>::abort();

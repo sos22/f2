@@ -97,7 +97,7 @@ static testmodule __testcomputeagent(
                        "jobresult.H",
                        "testjob.C"),
     testmodule::LineCoverage(75_pc),
-    testmodule::BranchCoverage(45_pc),
+    testmodule::BranchCoverage(50_pc),
     testmodule::Dependency("testjob.so"),
     "basics", [] (clientio io) {
         computetest t(io);
@@ -197,4 +197,27 @@ static testmodule __testcomputeagent(
         assert(taken > 900_ms);
         assert(taken < 1100_ms);
         t.cc.drop(io, j.name()).fatal("dropjob");
-        assert(t.cc.waitjob(io, j.name()) == error::toosoon); } );
+        assert(t.cc.waitjob(io, j.name()) == error::toosoon); },
+    "finishstreams", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("outstream").fatal("mkstreamname"));
+        job j(
+            filename("./testjob.so"),
+            "testfunction",
+            empty,
+            list<streamname>::mk(ss));
+        agentname storageagentname("storageagent");
+        filename storagedir(t.q);
+        storageagent::format(storagedir).fatal("format storage agent");
+        t.createjob(io, j);
+        assert(t.sc.statstream(io, j.name(), ss)
+               .fatal("statstream")
+               .isempty());
+        auto startres(t.cc.start(io, j).fatal("starting job"));
+        assert(t.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        assert(t.sc.statstream(io, j.name(), ss)
+               .fatal("statstream2")
+               .isfinished()); });

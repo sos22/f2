@@ -15,6 +15,7 @@
 #include "nnp.H"
 #include "rpcservice2.H"
 #include "spawn.H"
+#include "storageclient.H"
 #include "util.H"
 
 #include "either.tmpl"
@@ -64,7 +65,7 @@ private: class maintenancethread : public thread {
           owner(_owner),
           sub() {}
     private: void run(clientio); };
-private: connpool &cp;
+public:  connpool &cp;
 public:  filesystemclient &fs;
 private: mutex_t mux;
 private: eqserver &eqs;
@@ -136,6 +137,8 @@ runningjob::run(clientio io) {
     if (qstorageagent.success().length() == 0) {
         result.mkjust(error::toosoon);
         return; }
+    auto &sc(storageclient::connect(
+                 owner.cp, qstorageagent.success().pophead()));
     void *f;
     void *v;
     void *lib(::dlopen(j.library.str().c_str(), RTLD_NOW|RTLD_LOCAL));
@@ -168,8 +171,19 @@ runningjob::run(clientio io) {
     else {
         auto fn((jobfunction *)f);
         auto &api(newjobapi(shutdown));
-        result.mkjust(fn(api, io));
-        deletejobapi(api); }
+        auto res(fn(api, io));
+        deletejobapi(api);
+        if (res.issuccess()) {
+            list<nnp<storageclient::asyncfinish> > pending;
+            for (auto it(j.outputs().start()); !it.finished(); it.next()) {
+                pending.append(sc.finish(j.name(), *it)); }
+            orerror<void> failure(Success);
+            while (failure == Success && !pending.empty()) {
+                failure = pending.pophead()->pop(io); }
+            while (!pending.empty()) pending.pophead()->abort();
+            if (failure == Success) result.mkjust(res.success());
+            else result.mkjust(failure.failure()); }
+        else result.mkjust(res.failure()); }
     if (lib != NULL) ::dlclose(lib);
     free(fname); }
 
