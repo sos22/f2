@@ -206,4 +206,17 @@ static testmodule __testeither(
             assert(e.left() == 7); }
         assert((either<int, void>(Right()).isright()));
         assert((either<int, void>(Left(), 6).isleft()));
-        assert((either<int, void>(Left(), 6).left() == 6)); });
+        assert((either<int, void>(Left(), 6).left() == 6)); },
+    "steal", [] {
+        {   either<string, string> a(Left(), "hello");
+            either<string, string> b(Steal, a);
+            assert(b.isleft());
+            assert(b.left() == "hello");
+            assert(a.isleft());
+            assert(a.left() == ""); }
+        {   either<string, string> a(Right(), "hello");
+            either<string, string> b(Steal, a);
+            assert(b.isright());
+            assert(b.right() == "hello");
+            assert(a.isright());
+            assert(a.right() == ""); } } );
