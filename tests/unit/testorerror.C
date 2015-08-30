@@ -8,8 +8,8 @@ static testmodule __testorerror(
     "orerror",
     list<filename>::mk("orerror.H", "orerror.tmpl"),
     /* A test with lousy coverage is still better than no test at all... */
-    testmodule::LineCoverage(31_pc),
-    testmodule::BranchCoverage(0.6_pc),
+    testmodule::LineCoverage(39_pc),
+    testmodule::BranchCoverage(0.8_pc),
     "constructsucc", [] {
         class cons {
         public: const int x;
@@ -48,6 +48,13 @@ static testmodule __testorerror(
         assert(x == 7);
         x = error::notempty;
         assert(x == error::notempty); },
+    "==", [] {
+        assert(orerror<int>(Success, 5) == orerror<int>(Success, 5));
+        assert(orerror<int>(Success, 5) != orerror<int>(Success, 6));
+        assert(orerror<int>(Success, 5) != orerror<int>(error::dlopen));
+        assert(orerror<int>(error::dlopen) != orerror<int>(Success, 7));
+        assert(orerror<int>(error::dlopen) != orerror<int>(error::notempty));
+        assert(orerror<int>(error::dlopen) == orerror<int>(error::dlopen)); },
     "mksuccess", [] {
         int nrcons(0);
         int nrdest(0);
