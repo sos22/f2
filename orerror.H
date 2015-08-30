@@ -104,8 +104,6 @@ public:
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     bool operator==(const t &e) const { return !errored && inner == e; }
 #pragma GCC diagnostic pop
-    bool operator!=(const error &e) const { return !(*this == e); }
-    bool operator!=(const t &e) const { return !(*this == e); }
 
     void serialise(serialise1 &s) const;
     const fields::field &field() const;
@@ -115,10 +113,6 @@ template <typename t> bool
 operator==(error a, const orerror<t> &b) { return b == a; }
 template <typename t> bool
 operator==(const t &a, const orerror<t> &b) { return b == a; }
-template <typename t> bool
-operator!=(error a, const orerror<t> &b) { return b != a; }
-template <typename t> bool
-operator!=(const t &a, const orerror<t> &b) { return b != a; }
 
 /* Special case for things which just return an error indication.
    This gives a slightly nicer API than maybe<error> (or at least a
