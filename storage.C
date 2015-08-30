@@ -42,6 +42,21 @@ proto::storage::tag::tag(deserialise1 &ds)
         ds.fail(error::invalidmessage);
         *this = createjob; } }
 
+const fields::field &
+proto::storage::tag::field() const {
+#define X(n) if (*this == n) return fields::mk(#n)
+    X(createjob);
+    X(append);
+    X(finish);
+    X(read);
+    X(listjobs);
+    X(statjob);
+    X(liststreams);
+    X(statstream);
+    X(removejob);
+#undef X
+    return fields::mk("<bad tag>"); }
+
 proto::storage::listjobsres::listjobsres(proto::eq::eventid _when,
                                          const list<jobname> &_res)
     : when(_when),

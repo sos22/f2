@@ -37,6 +37,7 @@ public: list<streamstatus> res; };
 class tag : public proto::tag {
 private: explicit tag(unsigned char x) : proto::tag(x) {}
 public:  explicit tag(deserialise1 &ds);
+public:  const fields::field &field() const;
     /* Inputs: job.  Outputs: Event ID of the event which will tell
      * the world about the new job. */
 public:  static const tag createjob;
