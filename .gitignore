@@ -25,6 +25,7 @@ coordinatorservice
 filesystemcli
 filesystemservice
 /master
+runjob
 spawnservice
 storagecli
 storageservice
