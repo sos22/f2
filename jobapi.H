@@ -29,10 +29,6 @@ private: jobapi();
 private: jobapi(const jobapi &) = delete;
 private: void operator=(const jobapi &) = delete;
 private: ~jobapi();
-    /* A waitbox which becomes set if the results of the job are no
-     * longer interesting (usually because the compute agent is
-     * shutting down). */
-public:  virtual waitbox<void> &shutdown();
     /* A wrapper for an output stream, exposing all of the operations
      * which a job can perform against it. */
 public:  class outputstream {

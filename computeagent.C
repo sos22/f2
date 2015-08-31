@@ -170,7 +170,7 @@ runningjob::run(clientio io) {
         result.mkjust(error::dlopen); }
     else {
         auto fn((jobfunction *)f);
-        auto &api(newjobapi(shutdown));
+        auto &api(newjobapi());
         auto res(fn(api, io));
         deletejobapi(api);
         if (res.issuccess()) {

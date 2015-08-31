@@ -13,9 +13,8 @@ testfunction(jobapi &, clientio) {
 
 jobfunction waitforever;
 jobresult
-waitforever(jobapi &api, clientio io) {
-    api.shutdown().get(io);
-    return jobresult::success(); }
+waitforever(jobapi &, clientio io) {
+    while (true) (100_s).future().sleep(io); }
 
 jobfunction waitonesecond;
 jobresult

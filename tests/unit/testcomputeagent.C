@@ -156,29 +156,6 @@ static testmodule __testcomputeagent(
                .second()
                .empty());
         eqc.destroy(); },
-    "shutdown", [] (clientio io) {
-        computetest t(io);
-        job j(
-            filename("./testjob.so"),
-            "waitforever",
-            empty,
-            empty);
-        t.createjob(io, j);
-        auto startres(t.cc.start(io, j).fatal("starting job"));
-        (1_s).future().sleep(io);
-        /* Job should still be running */
-        {   auto l(t
-                   .cc
-                   .enumerate(io)
-                   .fatal("getting extended job list")
-                   .second());
-            assert(l.length() == 1);
-            assert(l.idx(0).name == j.name());
-            assert(l.idx(0).result == Nothing); }
-        /* Should be able to shut the agent down reasonably
-         * promptly. */
-        assert(timedelta::time([&] { t.computeagent->destroy(io); }) < 1_s);
-        t.computeagent = NULL; },
     "waitforjob", [] (clientio io) {
         computetest t(io);
         job j(

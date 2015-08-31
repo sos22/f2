@@ -4,7 +4,7 @@
 class jobapi;
 template <typename> class waitbox;
 
-jobapi &newjobapi(waitbox<void> &);
+jobapi &newjobapi();
 void deletejobapi(jobapi &);
 
 #endif /* !JOBAPIIMPL_H__ */
