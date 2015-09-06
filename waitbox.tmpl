@@ -38,7 +38,7 @@ waitbox<t>::set(const t &v) {
     assert(!ready());
     auto token(mux.lock());
     content = v;
-    mux.unlock(&token);
-    pub_.publish(); }
+    pub_.publish();
+    mux.unlock(&token); }
 
 #endif /* !WAITBOX_TMPL__ */
