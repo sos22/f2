@@ -1,6 +1,7 @@
 #include "thread.H"
 
 #include <sys/prctl.h>
+#include <signal.h>
 
 #include "error.H"
 #include "fields.H"
@@ -49,6 +50,11 @@ thread::pthreadstart(void *_this) {
     storerelease(&thr->dead, true);
     thr->_pub.publish();
     return NULL; }
+
+orerror<void>
+thread::kill(int signal) {
+    if (::pthread_kill(thr, signal) < 0) return error::from_errno();
+    else return Success; }
 
 maybe<thread::deathtoken>
 thread::hasdied() const {

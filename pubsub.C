@@ -1,6 +1,7 @@
 #include "pubsub.H"
 
 #include <sys/poll.h>
+#include <signal.h>
 #include <unistd.h>
 
 #include "buffer.H"
@@ -21,31 +22,30 @@ class iopollingthread : public thread {
 private: mutex_t mux;
 private: bool shutdown;
 private: list<iosubscription *> what;
-private: fd_t readcontrolfd;
-private: fd_t writecontrolfd;
 private: iopollingthread(constoken);
 private: void run(clientio);
 public:  void start();
 public:  void attach(iosubscription &);
 public:  void detach(iosubscription &);
-public:  void stop(clientio);
-};
+public:  void stop(clientio); };
 
-/* Not sure why llvm seems to think that there's code associated with
- * this, but it does, and there doesn't really seem to be any way of
- * running it, so COVERAGESKIP it. */
-#ifndef COVERAGESKIP
-static iopollingthread *pollthread;
-#endif
+/* pubsub IO polling is done by a global singleton thread. */
+static iopollingthread *
+pollthread;
+
+/* We use SIGUSR1 to wake up the polling thread from ppoll(). Handler
+ * doesn't need to do anything; it's just there to wake us up from the
+ * ppoll().  */
+static void
+sigusr1handler(int) {}
 
 void
-iopollingthread::run(clientio io) {
+iopollingthread::run(clientio) {
     unsigned nralloced = 8;
     struct pollfd *pfds = (struct pollfd *)calloc(nralloced, sizeof(*pfds));
     auto token(mux.lock());
     while (!shutdown) {
-        pfds[0] = readcontrolfd.poll(POLLIN);
-        unsigned nr = 1;
+        unsigned nr = 0;
         for (auto it(what.start()); !it.finished(); it.next()) {
             if (nr == nralloced) {
                 nralloced += 8;
@@ -53,11 +53,18 @@ iopollingthread::run(clientio io) {
                                                 sizeof(*pfds) * nralloced); }
             pfds[nr++] = (*it)->pfd; }
         mux.unlock(&token);
-        int r(::poll(pfds, nr, -1));
-        token = mux.lock();
-        if (!COVERAGE && r < 0) {
+        int r;
+        {   sigset_t sigs;
+            if (::sigprocmask(0, NULL, &sigs) < 0) {
+                error::from_errno().fatal("getting sigmask"); }
+            assert(::sigismember(&sigs, SIGUSR1));
+            ::sigdelset(&sigs, SIGUSR1);
+            r = ::ppoll(pfds, nr, NULL, &sigs); }
+        if (r < 0 && errno != EINTR) {
             error::from_errno().fatal(
                 "poll()ing for IO with " + fields::mk(nr) + " fds"); }
+        if (r < 0) r = 0;
+        token = mux.lock();
         unsigned i = 0;
         while (r) {
             assert(i < nr);
@@ -65,15 +72,6 @@ iopollingthread::run(clientio io) {
                 i++;
                 continue; }
             r--;
-            if (i == 0) {
-                /* Control FD is handled as part of the general loop
-                 * processing, so just clear the message. */
-                char b;
-                auto readres(readcontrolfd.read(io, &b, 1));
-                if (!COVERAGE && readres.isfailure()) {
-                    readres.failure().fatal("reading poller control FD"); }
-                i++;
-                continue; }
             /* XXX this is not exactly efficient */
             bool found = false;
             for (auto it(what.start()); !it.finished(); it.next()) {
@@ -102,33 +100,17 @@ iopollingthread::iopollingthread(constoken tok)
     : thread(tok),
       mux(),
       shutdown(false),
-      what(),
-      readcontrolfd(),
-      writecontrolfd() {
-    assert(!shutdown);
-    auto pr(fd_t::pipe());
-    if (!COVERAGE && pr.isfailure()) {
-        pr.failure().fatal("creating polling thread control pipe"); }
-    readcontrolfd = pr.success().read;
-    writecontrolfd = pr.success().write; }
+      what() { }
 
 void
 iopollingthread::attach(iosubscription &sub) {
     auto token(mux.lock());
     assert(!sub.registered);
-    if (!COVERAGE) {
-        for (auto it(what.start()); !it.finished(); it.next()) {
-            assert(*it != &sub); } }
+    for (auto it(what.start()); !it.finished(); it.next()) assert(*it != &sub);
     sub.registered = true;
     what.pushtail(&sub);
     mux.unlock(&token);
-    /* This could in theory block, if the polling thread has fallen
-       massively far behind, but it shouldn't do so very often, and if
-       we're that far behind then a bit of backpressure is probably a
-       good thing. */
-    auto r(writecontrolfd.write(clientio::CLIENTIO, "Y", 1));
-    if (!COVERAGE && r.isfailure()) {
-        r.failure().fatal("waking up poller thread for new FD"); } }
+    pollthread->kill(SIGUSR1).fatal("waking up poller thread for new FD"); }
 
 void
 iopollingthread::detach(iosubscription &sub) {
@@ -145,27 +127,14 @@ iopollingthread::detach(iosubscription &sub) {
                 break; } }
         assert(found);
         mux.unlock(&token); }
-    /* Surprise!  If you have a poll() which is listening on FDs A and
-     * B and you close B at about the same time as A becomes readable
-     * the kernel wil occasionally completely fail to wake you up.
-     * Not waking up for B being closed is pretty reasonable, but not
-     * waking up for A becoming readable seems like a bug (although
-     * it's not one I've been able to reproduce in a small, controlled
-     * test case).  In either case, waking the iopoll thread here
-     * seems to fix things. */
-    auto r(writecontrolfd.write(clientio::CLIENTIO, "Z", 1));
-    if (!COVERAGE && r.isfailure()) {
-        r.failure().fatal("waking up poller thread for lost FD"); } }
+    pollthread->kill(SIGUSR1).fatal("waking up poller thread for new FD"); }
 
 void
 iopollingthread::stop(clientio io) {
-    auto token(mux.lock());
-    assert(!shutdown);
-    shutdown = true;
-    auto r(writecontrolfd.write(io, "X", 1));
-    mux.unlock(&token);
-    if (!COVERAGE && r.isfailure()) {
-        r.failure().fatal("writing to poller control FD for shutdown"); }
+    mux.locked([this] {
+            assert(!shutdown);
+            shutdown = true; });
+    pollthread->kill(SIGUSR1).fatal("waking up poller thread for shutdown");
     join(io); }
 
 publisher::publisher()
@@ -241,6 +210,7 @@ iosubscription::iosubscription(
     : subscriptionbase(_sub),
       pfd(_pfd),
       registered(false) {
+    assert(pollthread != NULL);
     rearm(); }
 
 void
@@ -320,10 +290,26 @@ subscriber::~subscriber() {
 
 void
 initpubsub() {
-    pollthread = thread::spawn<iopollingthread>(fields::mk("iopoll")).go(); }
+    auto ss(::signal(SIGUSR1, sigusr1handler));
+    if (ss == SIG_ERR) error::from_errno().fatal("installing sigusr1 handler");
+    if (ss != SIG_DFL) error::toolate.fatal("conflicting SIGUSR1 handlers");
+    /* Block SIGUSR1 now so that it's blocked in the new thread from
+     * the very beginning, to avoid silly races. */
+    sigset_t oldsi;
+    sigset_t blockset;
+    ::sigemptyset(&blockset);
+    ::sigaddset(&blockset, SIGUSR1);
+    if (::sigprocmask(SIG_BLOCK, &blockset, &oldsi) < 0) {
+        error::from_errno().fatal("blocking SIGUSR1"); }
+    pollthread = thread::start<iopollingthread>(fields::mk("iopoll"));
+    if (::sigprocmask(SIG_SETMASK, &oldsi, NULL) < 0) {
+        error::from_errno().fatal("unblocking SIGUSR1"); } }
 
 void
 deinitpubsub(clientio io) {
-    pollthread->stop(io); }
+    pollthread->stop(io);
+    auto ss(::signal(SIGUSR1, SIG_DFL));
+    if (ss == SIG_ERR) error::from_errno().fatal("restoring sigusr1 handler");
+    if (ss != sigusr1handler) error::toolate.fatal("SIGUSR1 handler changed"); }
 
 tests::event<void> tests::iosubdetachrace;

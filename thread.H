@@ -81,6 +81,8 @@ private:   static void *pthreadstart(void *);
      * structure remains valid after this returns until somebody calls
      * join(). */
 private:   virtual void run(clientio) = 0;
+    /* Send the thread a signal, like pthread_kill() */
+public:     orerror<void> kill(int);
     /* A deathtoken is proof that a particular thread has exitted and
      * can be presented to join() in lieu of a clientio token, because
      * once the thread has died join() is guaranteed to be quick. */

@@ -18,6 +18,7 @@ static const auto _io(clientio::CLIENTIO);
 static testmodule __testpubsub(
     "pubsub",
     list<filename>::mk("pubsub.C", "pubsub.H"),
+    testmodule::LineCoverage(97_pc),
     testmodule::BranchCoverage(70_pc),
     /* None of these take clientio tokens, because if clientio tests
      * start the pubsub thread from the harness, and that's something
