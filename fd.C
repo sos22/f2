@@ -194,3 +194,8 @@ fields::mk(const fd_t::status_t &o) {
         fd_tstatus_params(doparam)
 #undef doparam
         ">"; }
+
+template <> const fields::field &
+__piperes<fd_t>::field() const {
+    return "<pipe: read:" + fields::mk(read) + " write:"
+        + fields::mk(write) + ">"; }

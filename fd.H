@@ -9,6 +9,7 @@
 
 struct pollfd;
 class buffer;
+namespace fields { class field; }
 
 namespace spawn {
 class process;
@@ -20,6 +21,7 @@ struct __piperes {
     __fd_t read;
     __fd_t write;
     void close() { read.close(); write.close(); }
+    const fields::field &field() const;
 };
 
 class fd_t;
