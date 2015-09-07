@@ -89,10 +89,11 @@ subscription::~subscription() {
 orerror<process *>
 process::spawn(const program &p) {
     unsigned nrargs(p.args.length());
-    const char *args[nrargs + 3];
+    const char *args[nrargs + 5];
     int i(0);
     filename path(PREFIX "/spawnservice" EXESUFFIX);
     args[i++] = path.str().c_str();
+    i += 2; /* Leave a gap for the control FDs */
     args[i++] = p.exec.str().c_str();
     for (auto it(p.args.start()); !it.finished(); it.next()) {
         args[i++] = it->c_str(); }
@@ -122,22 +123,12 @@ process::spawn(const program &p) {
         /* We are the child.  Set up FDs. */
         fromchild.success().read.close();
         tochild.success().write.close();
-        int incoming(tochild.success().read.fd);
-        int outgoing(fromchild.success().write.fd);
-        if (incoming != REQFD) {
-            if (outgoing == REQFD) {
-                auto t = ::dup(outgoing);
-                if (t < 0) error::from_errno().fatal("dup");
-                assert(t != REQFD);
-                close(outgoing);
-                outgoing = t; }
-            if (::dup2(incoming, REQFD) < 0) {
-                error::from_errno().fatal("dup2 incoming"); }
-            close(incoming); }
-        if (outgoing != RESPFD) {
-            if (::dup2(outgoing, RESPFD) < 0) {
-                error::from_errno().fatal("dup2 outgoing"); }
-            close(outgoing); }
+        char tochildstr[16];
+        sprintf(tochildstr, "%d", tochild.success().read.fd);
+        char fromchildstr[16];
+        sprintf(fromchildstr, "%d", fromchild.success().write.fd);
+        args[2] = tochildstr;
+        args[1] = fromchildstr;
         /* Do the exec */
         assert(execv(args[0], (char **)args) < 0);
         error::from_errno().fatal("execve");

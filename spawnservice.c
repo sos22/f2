@@ -21,6 +21,12 @@
 
 #include "spawnservice.h"
 
+static int
+reqfd;
+
+static int
+respfd;
+
 /* We use the self pipe trick to select() on signals.  This is the
  * write end. */
 static int
@@ -45,21 +51,21 @@ execfailed(void) {
     struct message msg;
     msg.tag = msgexecfailed;
     msg.execfailed.err = errno;
-    (void)write(RESPFD, &msg, sizeof(msg));
+    (void)write(respfd, &msg, sizeof(msg));
     _exit(1); }
 
 static bool
 execsucceeded(void) {
     struct message msg;
     msg.tag = msgexecgood;
-    return write(RESPFD, &msg, sizeof(msg)) == sizeof(msg); }
+    return write(respfd, &msg, sizeof(msg)) == sizeof(msg); }
 
 static void
 childstopped(int status) {
     struct message msg;
     msg.tag = msgchildstopped;
     msg.childstopped.status = status;
-    if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) _exit(1); }
+    if (write(respfd, &msg, sizeof(msg)) != sizeof(msg)) _exit(1); }
 
 static void
 childdied(int status) {
@@ -80,7 +86,10 @@ main(int argc, char *argv[]) {
     ssize_t r;
     bool paused;
 
-    assert(argc >= 2);
+    assert(argc >= 4);
+
+    respfd = atoi(argv[1]);
+    reqfd = atoi(argv[2]);
 
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
@@ -98,18 +107,22 @@ main(int argc, char *argv[]) {
     if (child == 0) {
         /* We are the child. */
         close(p[0]);
-        close(RESPFD);
-        close(REQFD);
+        close(respfd);
+        close(reqfd);
         /* Don't outlive our parent. */
         prctl(PR_SET_PDEATHSIG, SIGKILL);
-        execv(argv[1], argv + 1);
+        execv(argv[3], argv + 3);
         write(p[1], &errno, sizeof(errno));
         _exit(1); }
     /* We are the parent. */
     close(p[1]);
-    /* stdio should only be used from child now. */
-    for (i = 0; i <= 2; i++) {
-        if (i != selfpiperead && i != selfpipewrite && i != p[0]) {
+    /* Close the FDs we don't need. */
+    for (i = 0; i <= 1000; i++) {
+        if (i != selfpiperead &&
+            i != selfpipewrite &&
+            i != p[0] &&
+            i != respfd &&
+            i != reqfd) {
             close(i); } }
     /* Wait for the child to either exec or report an error. */
     switch (read(p[0], &e, sizeof(e))) {
@@ -134,10 +147,10 @@ main(int argc, char *argv[]) {
     while (1) {
         FD_ZERO(&fds);
         FD_SET(selfpiperead, &fds);
-        FD_SET(REQFD, &fds);
-        if (select(selfpiperead > REQFD
+        FD_SET(reqfd, &fds);
+        if (select(selfpiperead > reqfd
                        ? selfpiperead + 1
-                       : REQFD + 1,
+                       : reqfd + 1,
                    &fds,
                    NULL,
                    NULL,
@@ -148,8 +161,8 @@ main(int argc, char *argv[]) {
             assert(read(selfpiperead, &status, sizeof(status)) ==
                    sizeof(status));
             childdied(status); }
-        if (FD_ISSET(REQFD, &fds)) {
-            r = read(REQFD, &msg, sizeof(msg));
+        if (FD_ISSET(reqfd, &fds)) {
+            r = read(reqfd, &msg, sizeof(msg));
             if (r < 0) {
                 /* Whoops, failed to talk to parent.  We're dead. */
                 break; }
@@ -163,7 +176,7 @@ main(int argc, char *argv[]) {
                 else {
                     msg.sentsignal.err = 0; }
                 msg.tag = msgsentsignal;
-                if (write(RESPFD, &msg, sizeof(msg)) != sizeof(msg)) {
+                if (write(respfd, &msg, sizeof(msg)) != sizeof(msg)) {
                     break; } }
             else if (msg.tag == msgpause) {
                 if (paused) break;
