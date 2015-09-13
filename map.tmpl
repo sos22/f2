@@ -113,6 +113,17 @@ map<key, value, hash>::get(const key &k) const {
         prev = &b->next; }
     return Nothing; }
 
+template <typename key, typename value, unsigned long hash(const key &)> bool
+map<key, value, hash>::haskey(const key &k) const {
+    if (nrbuckets == 0) return false;
+    auto h(hash(k));
+    auto prev(&buckets[h % nrbuckets]);
+    while (*prev) {
+        auto b(*prev);
+        if (b->h == h && b->k == k) return true;
+        prev = &b->next; }
+    return false; }
+
 template <typename key, typename value, unsigned long hash(const key &)>
 value *
 map<key, value, hash>::get_mutate(const key &k) {
