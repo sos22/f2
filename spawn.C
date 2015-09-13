@@ -1,7 +1,10 @@
 #include "spawn.H"
 
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <limits.h>
 #include <signal.h>
 #include <unistd.h>
 
@@ -14,6 +17,7 @@
 
 #include "either.tmpl"
 #include "list.tmpl"
+#include "map.tmpl"
 
 namespace spawn {
 
@@ -65,6 +69,13 @@ program::addarg(const fields::field &f) {
     args.pushtail(string(f.c_str()));
     return *this; }
 
+program &
+program::addfd(fd_t inparent, int inchild) {
+    for (auto it(fds.start()); !it.finished(); it.next()) {
+        assert(it.value() != inparent); }
+    fds.set(inchild, inparent);
+    return *this; }
+
 /* XXX acquiring a lock from a constructor is usually a bad sign. */
 subscription::subscription(subscriber &ss, const process &p)
     : iosubscription(ss, p.fromchild.poll(POLLIN)),
@@ -102,38 +113,65 @@ process::spawn(const program &p) {
     if (tochild.isfailure()) return tochild.failure();
     auto fromchild(fd_t::pipe());
     if (fromchild.isfailure()) {
-#ifndef COVERAGESKIP
         tochild.success().close();
-        return fromchild.failure();
-#endif
-    }
+        return fromchild.failure(); }
     auto pid(::vfork());
     if (pid < 0) {
-#ifndef COVERAGESKIP
+        auto e(error::from_errno());
         tochild.success().close();
         fromchild.success().close();
-        return error::from_errno();
-#endif
-    }
+        return e; }
     if (pid == 0) {
-        /* gcov doesn't collect coverage information if a program ends
-           at execve(), so have to exclude this bit from coverage
-           checking. */
-#ifndef COVERAGESKIP
-        /* We are the child.  Set up FDs. */
         fromchild.success().read.close();
         tochild.success().write.close();
-        char tochildstr[16];
-        sprintf(tochildstr, "%d", tochild.success().read.fd);
+        auto childread = tochild.success().read;
+        auto childwrite = fromchild.success().write;
+        /* We are the child. */
+        auto fds(p.fds);
+        /* Shuffle FDs into the right places. */
+        for (auto it(fds.start()); !it.finished(); it.next()) {
+            if (it.key() == it.value().fd) continue;
+            /* Have to move it->value() to it->key(). */
+            /* Move existing it->key() out of the way first, if we're
+             * eventually going to need it. */
+            maybe<fd_t> _movedto(Nothing);
+            auto movedto([&] {
+                    if (_movedto == Nothing) {
+                        int r = ::dup(it.key());
+                        if (r < 0) {
+                            error::from_errno().fatal(
+                                "dupe " + fields::mk(it.key())); }
+                        _movedto = fd_t(r); }
+                    return _movedto.just(); });
+            for (auto it2(fds.start()); !it2.finished(); it2.next()) {
+                if (it2.key() == it.key()) continue;
+                if (it2.value().fd == it.key()) it2.value() = movedto(); }
+            if (childread.fd == it.key()) childread = movedto();
+            if (childwrite.fd == it.key()) childwrite = movedto();
+            int r = ::dup2(it.value().fd, it.key());
+            if (r < 0) {
+                error::from_errno().fatal(
+                    "dupe " + it.value().field() +
+                    " to " + fields::mk(it.key())); }
+            it.value().close();
+            it.value() = fd_t(it.key()); }
+        /* Close anything we no longer want. */
+        {   struct rlimit lim;
+            if (::getrlimit(RLIMIT_NOFILE, &lim) < 0) {
+                error::from_errno().fatal("getting rlimit"); }
+            assert(lim.rlim_cur <= INT_MAX);
+            for (int x = 3; x < (int)lim.rlim_cur; x++) {
+                if (x != childwrite.fd && x != childread.fd && !fds.haskey(x)) {
+                    ::close(x); } } }
         char fromchildstr[16];
-        sprintf(fromchildstr, "%d", fromchild.success().write.fd);
-        args[2] = tochildstr;
+        sprintf(fromchildstr, "%d", childwrite.fd);
         args[1] = fromchildstr;
+        char tochildstr[16];
+        sprintf(tochildstr, "%d", childread.fd);
+        args[2] = tochildstr;
         /* Do the exec */
         assert(execv(args[0], (char **)args) < 0);
-        error::from_errno().fatal("execve");
-#endif
-    }
+        error::from_errno().fatal("execve"); }
     /* We are the parent. */
     tochild.success().read.close();
     fromchild.success().write.close();
@@ -149,9 +187,7 @@ process::spawn(const program &p) {
                 sizeof(msg)));
     if (rr.isfailure()) {
         /* Can't receive initial message -> exec failed. */
-#ifndef COVERAGESKIP
         rr.failure().warn("execing spawnservice");
-#endif
       die:
         if (::kill(pid, SIGKILL) < 0) error::from_errno().fatal("infanticide");
         if (::waitpid(pid, NULL, 0) < 0) error::from_errno().fatal("waitpid()");

@@ -6,6 +6,7 @@
 #include "fd.H"
 #include "filename.H"
 #include "list.H"
+#include "map.H"
 #include "pubsub.H"
 #include "shutdown.H"
 
@@ -19,12 +20,13 @@ class program {
     friend class process;
 private: filename exec;
 private: list<string> args;
+private: map<int, fd_t> fds;
 public:  program(const filename &);
 public:  program &addarg(const char *);
 public:  program &addarg(const string &);
 public:  program &addarg(string &&);
 public:  program &addarg(const fields::field &);
-};
+public:  program &addfd(fd_t in_parent, int in_child); };
 
 /* Ideally, this would inherit privately from iosubscription and
    re-expose the inheritance from subscriptionbase publically, but C++
@@ -83,10 +85,6 @@ public:  void kill();
 private: ~process() {}
 };
 
-}
-
-namespace tests {
-void _spawn();
 }
 
 #endif /* !SPAWN_H__ */

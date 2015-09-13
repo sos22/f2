@@ -8,6 +8,18 @@
 
 using namespace spawn;
 
+static buffer
+readfd(clientio io, fd_t f) {
+    buffer res;
+    for (auto e(res.receive(io, f));
+         e != error::disconnected;
+         e = res.receive(io, f)) {
+        e.fatal("reading from child"); }
+    f.close();
+    /* Make sure it's nul terminated. */
+    res.queue("", 1);
+    return res; }
+
 static testmodule __spawntest(
     "spawn",
     list<filename>::mk("spawn.C", "spawn.H"),
@@ -16,8 +28,8 @@ static testmodule __spawntest(
     /* Coverage looks quite low on these tests, partly because gcov
      * can't collect coverage for anything which calls exec() or dies
      * with a signal. */
-    testmodule::LineCoverage(85_pc),
-    testmodule::BranchCoverage(55_pc),
+    testmodule::LineCoverage(90_pc),
+    testmodule::BranchCoverage(60_pc),
     "truefalsebad", [] (clientio io) {
         {   auto p(process::spawn(program(filename("/bin/true")))
                    .fatal("spawning /bin/true"));
@@ -173,4 +185,62 @@ static testmodule __spawntest(
         auto start(timestamp::now());
         p->kill();
         auto end(timestamp::now());
-        assert(end - start < 50_ms); });
+        assert(end - start < 50_ms); },
+    "fd", [] (clientio io) {
+        auto inpipe(fd_t::pipe().fatal("in pipe"));
+        auto outpipe(fd_t::pipe().fatal("out pipe"));
+        auto p(process::spawn(program("/usr/bin/tr")
+                              .addarg("[:upper:]")
+                              .addarg("[:lower:]")
+                              .addfd(inpipe.read, 0)
+                              .addfd(outpipe.write, 1))
+               .fatal("spawn tr"));
+        inpipe.read.close();
+        outpipe.write.close();
+        inpipe.write.write(io, "HELLO", 5).fatal("send hello");
+        inpipe.write.close();
+        char buf[7];
+        assert(outpipe.read.read(io, buf, 7).fatal("reading back") == 5);
+        assert(!memcmp(buf, "hello", 5));
+        assert(p->join(io).left() == shutdowncode::ok);
+        outpipe.read.close(); },
+    "fdleak", [] (clientio io) {
+        /* Check that we're not leaking any unexpected FDs into the
+         * child. */
+        auto outpipe(fd_t::pipe().fatal("out pipe"));
+        /* Make sure there are some FDs for us to leak. :) */
+        auto bonuspipe(fd_t::pipe().fatal("bonus pipe"));
+        auto p(process::spawn(program("/bin/ls")
+                              .addarg("/proc/self/fd")
+                              .addfd(outpipe.write, 1))
+               .fatal("spawn ls"));
+        bonuspipe.close();
+        outpipe.write.close();
+        auto lsres(readfd(io, outpipe.read));
+        assert(p->join(io).left() == shutdowncode::ok);
+        auto str = (char *)lsres.linearise();
+        /* The only things open are stdin (0), the outpipe (1), stderr
+         * (2), and the fd ls opens /proc/self/fd (3) */
+        assert(!strcmp(str, "0\n1\n2\n3\n")); },
+    "fdswap", [] (clientio io) {
+        /* Check that swapping FDs works, since that's a bit more fiddly. */
+        auto pipe1(fd_t::pipe().fatal("pipe1"));
+        auto pipe2(fd_t::pipe().fatal("pipe2"));
+        auto p(process::spawn(program("/bin/sh")
+                              .addarg("-c")
+                              .addarg(
+                                  "echo pipe2 >&" + fields::mk(pipe2.write.fd) +
+                                  ";echo pipe1 >&"+ fields::mk(pipe1.write.fd))
+                              .addfd(pipe1.write, pipe2.write.fd)
+                              .addfd(pipe2.write, pipe1.write.fd))
+               .fatal("spawn sh"));
+        pipe1.write.close();
+        pipe2.write.close();
+        auto pipe1r(readfd(io, pipe1.read));
+        auto pipe2r(readfd(io, pipe2.read));
+        assert(!strcmp((char *)pipe1r.linearise(), "pipe2\n"));
+        assert(!strcmp((char *)pipe2r.linearise(), "pipe1\n"));
+        pipe1.read.close();
+        pipe2.read.close();
+        assert(p->join(io).left() == shutdowncode::ok); }
+);
