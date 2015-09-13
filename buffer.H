@@ -163,6 +163,10 @@ public:  void serialise(serialise1 &) const;
     template <typename t> const t *linearise(size_t start) const {
         return (const t *)linearise(start, start + sizeof(t)); }
 
+    /* Linearise the entire buffer's contents */
+    const void *linearise() const;
+    void *linearise();
+
     /* Fetch a byte from the buffer.  @i is a count of the number of
      * bytes extracted from the buffer before the returned one i.e. it
      * is in the same coordinate system as offset() */

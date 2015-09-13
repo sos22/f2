@@ -325,6 +325,12 @@ const void *
 buffer::linearise(size_t start, size_t end) const {
     return const_cast<buffer *>(this)->linearise(start, end); }
 
+void *
+buffer::linearise() { return linearise(offset(), offset() + avail()); }
+
+const void *
+buffer::linearise() const { return linearise(offset(), offset() + avail()); }
+
 bool
 buffer::contenteq(const buffer &o) const {
     auto delta(first->start() - o.first->start());

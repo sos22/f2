@@ -254,6 +254,12 @@ static testmodule __buffertest(
         assert(chr == 'X');
         buf.fetch(&z, sizeof(z));
         assert(z == 782); },
+    "lineariseflat", [] {
+        ::buffer buf;
+        buf.queue("hello", 6);
+        assert(!strcmp((char *)buf.linearise(), "hello"));
+        buf.discard(2);
+        assert(!strcmp((char *)buf.linearise(), "llo")); },
     "receivenotify", [] (clientio io) {
         ::buffer buf;
         auto pipe(fd_t::pipe());
