@@ -174,7 +174,7 @@ static testmodule __testmap(
         assert(m == (map<string, string>("goodbye", "bob",
                                          "greetings", "charlie"))); },
     "iterator", [] {
-        testmap<int, int> m(5, 7, 1, 2, 3, 4);
+        map<int, int> m(5, 7, 1, 2, 3, 4);
         bool a(false);
         bool b(false);
         bool c(false);
@@ -195,6 +195,11 @@ static testmodule __testmap(
         assert(a);
         assert(b);
         assert(c); },
+    "muteiter", [] {
+        map<int, int> m(1, 10, 2, 20, 3, 30);
+        for (auto it(m.start()); !it.finished(); it.next()) {
+            it.value() += it.key(); }
+        assert((m == map<int, int>(1, 11, 2, 22, 3, 33))); },
     "intperf", [] {
         static const unsigned nr = 10'000'000;
         auto m = new testmap<int, int>();

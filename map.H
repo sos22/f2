@@ -99,12 +99,12 @@ public:  void clear(const _key &);
 public:  bool operator==(const map &) const;
 public:  bool operator!=(const map &o) const { return !(*this == o); }
     /* Iterator interface. */
-public:  class constiterator {
+public:  class iterator {
         friend class map;
-    private: const map *owner;
+    private: map *owner;
     private: unsigned bucketnr;
-    private: const entry *cursor;
-    private: constiterator(const map *_owner)
+    private: entry *cursor;
+    private: explicit iterator(map *_owner)
         : owner(_owner),
           bucketnr(0),
           cursor(NULL) {
@@ -122,8 +122,19 @@ public:  class constiterator {
         if (bucketnr != owner->nrbuckets) cursor = owner->buckets[bucketnr]; }
     public:  bool finished() const { return cursor == NULL; }
     public:  const _key &key() const { return cursor->k; }
-    public:  const _value &value() const { return cursor->v; } };
-public:  constiterator start() const { return constiterator(this); }
+    public:  const _value &value() const { return cursor->v; }
+    public:  _value &value() { return cursor->v; } };
+public:  iterator start() { return iterator(this); }
+public:  class constiterator {
+        friend class map;
+    private: iterator it;
+    private: constiterator(map *_owner) : it(_owner) {}
+    public:  void next() { it.next(); }
+    public:  bool finished() const { return it.finished(); }
+    public:  const _key &key() const { return it.key(); }
+    public:  const _value &value() const { return it.value(); } };
+public:  constiterator start() const {
+    return constiterator(const_cast<map *>(this)); }
     /* Field interface. */
 public:  class fieldimpl;
 public:  const fieldimpl &field() const;
