@@ -122,6 +122,9 @@ fd_t::pipe()
     return r;
 }
 
+bool
+fd_t::operator==(fd_t o) const { return fd == o.fd; }
+
 fd_t::status_t
 fd_t::status() const {
     /* XXX collect TCP_INFO as well? */

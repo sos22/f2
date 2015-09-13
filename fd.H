@@ -102,6 +102,8 @@ public:
      * write FDs are named, rather than being fd[0] and fd[1]. */
     static orerror<piperes> pipe();
 
+public: bool operator==(fd_t) const;
+    
 public: typedef fd_tstatus status_t;
 public: status_t status() const;
     
