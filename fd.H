@@ -26,15 +26,6 @@ struct __piperes {
 
 class fd_t;
 
-namespace fields {
-class field;
-const field &mk(const fd_t &);
-};
-
-namespace tests {
-void fd();
-}
-
 class fd_tstatus {
 public: int fd;
 #define _fd_tstatus_params(iter, iter1) \
@@ -71,19 +62,9 @@ namespace fields {
 const field &mk(const fd_tstatus &); }
 
 class fd_t {
-    friend class filename;
-    friend class listenfd;
-    friend const fields::field &fields::mk(const fd_t &);
-    friend class udpsocket;
-    friend class tcpsocket;
-    friend class socket_t;
-    friend class spawn::process;
-    friend void tests::fd();
 public:
     int fd;
-    explicit fd_t(int _fd)
-        : fd(_fd)
-        {}
+    explicit fd_t(int _fd) : fd(_fd) {}
     virtual ~fd_t() {}
     fd_t() : fd(-1) {}
     /* Construct a pollfd structure, suitable for passing off to
@@ -123,6 +104,7 @@ public:
 
 public: typedef fd_tstatus status_t;
 public: status_t status() const;
-};
+    
+public: const fields::field &field() const; };
 
 #endif /* !FD_H__ */

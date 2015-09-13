@@ -122,12 +122,6 @@ fd_t::pipe()
     return r;
 }
 
-const fields::field &
-fields::mk(const fd_t &fd)
-{
-    return "fd:" + fields::mk(fd.fd).nosep();
-}
-
 fd_t::status_t
 fd_t::status() const {
     /* XXX collect TCP_INFO as well? */
@@ -166,6 +160,9 @@ fd_t::status() const {
 #undef doparam
 #undef doparam1
         ); }
+
+const fields::field &
+fd_t::field() const { return "fd:" + fields::mk(fd).nosep(); }
 
 fd_tstatus::fd_tstatus(const quickcheck &q)
     : fd((unsigned short)q),
