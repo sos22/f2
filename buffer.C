@@ -346,10 +346,6 @@ buffer::contenteq(const buffer &o) const {
         if (endcompare == cursor2->end() + delta) cursor2 = cursor2->next; }
     return cursor1 == NULL && cursor2 == NULL; }
 
-const bufferfield &
-fields::mk(const buffer &b) {
-    return bufferfield::mk(false, bufferfield::c_ascii, true, b); }
-
 buffer::buffer(deserialise1 &ds)
     : first(NULL),
       last(NULL),
@@ -379,6 +375,10 @@ buffer::serialise(serialise1 &s) const {
     s.push(last->end());
     for (auto it(first); it != NULL; it = it->next) {
         s.bytes(it->payload(it->start()), it->size()); } }
+
+const bufferfield &
+buffer::field() const {
+    return bufferfield::mk(false, bufferfield::c_ascii, true, *this); }
 
 const bufferfield &
 bufferfield::mk(bool _showshape,
@@ -426,7 +426,6 @@ bufferfield::showrepeats() const {
     auto r = new bufferfield(*this);
     r->hiderepeats_ = false;
     return *r; }
-
 
 void
 bufferfield::fmt(fields::fieldbuf &buf) const {
@@ -564,3 +563,6 @@ bufferfield::fmt(fields::fieldbuf &buf) const {
     iter.flush();
     if (showshape_) buf.push("]");
     buf.push(">"); }
+
+const bufferfield &
+fields::mk(const buffer &b) { return b.field(); }

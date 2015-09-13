@@ -20,9 +20,7 @@ class test;
 class buffer;
 class bufferfield;
 
-namespace fields {
-const bufferfield &mk(const buffer &);
-}
+namespace fields { class field; }
 
 class buffer {
     friend class bufferfield;
@@ -172,7 +170,9 @@ public:  void serialise(serialise1 &) const;
 
     /* Byte-by-byte comparison of two buffers.  Only considers the
      * content, and not the producer or consumer values. */
-public: bool contenteq(const buffer &) const; };
+public: bool contenteq(const buffer &) const;
+
+public: const bufferfield &field() const; };
 
 class bufferfield : public fields::field {
 private: bool showshape_;
@@ -199,4 +199,5 @@ public:  const bufferfield &showrepeats() const;
 private: void fmt(fields::fieldbuf &) const;
 };
 
+namespace fields { const ::bufferfield &mk(const buffer &); }
 #endif /* !BUFFER_H__ */
