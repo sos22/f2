@@ -24,6 +24,8 @@ static testmodule __testorerror(
         assert(s.success().x == 5);
         assert(!strcmp(s.success().y, "foo"));
         assert(s.success().z == 1.5); },
+    "constructfail", [] {
+        assert(orerror<int>(Failure, error::dlopen) == error::dlopen); },
     "failno=", [] {
         /* orerror<foo> = error::whatever should work even if foo has
          * no = operator. */

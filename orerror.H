@@ -8,9 +8,11 @@ template <typename> class parser;
 
 namespace fields { class field; }
 
-/* Tag type used purely to allow constructor disambiguation. */
+/* Tag types used purely to allow constructor disambiguation. */
 class _Success { };
 extern const _Success Success;
+class _Failure { };
+extern const _Failure Failure;
 
 template <typename t> class orerror;
 template <> class orerror<void>;
@@ -23,6 +25,7 @@ public: orerror(_Steal s, orerror &o) : either<error, t>(s, o) {}
 public: explicit orerror(deserialise1 &ds) : either<error, t>(ds) {}
 public: template <typename ... args> orerror(_Success, args &&...params)
     : either<error, t>(Right(), std::forward<args>(params)...) {}
+public: orerror(_Failure, error e) : either<error, t>(Left(), e) {}
 public: bool operator==(const error &e) const {
     return this->isleft() && this->left() == e; }
 public: bool operator==(const t &o) const {
