@@ -12,6 +12,7 @@
 #include "test2.H"
 
 #include "either.tmpl"
+#include "parsers.tmpl"
 #include "test2.tmpl"
 
 class computetest {
@@ -197,4 +198,9 @@ static testmodule __testcomputeagent(
                .issuccess());
         assert(t.sc.statstream(io, j.name(), ss)
                .fatal("statstream2")
-               .isfinished()); });
+               .isfinished()); },
+    "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
+    "jobresulteq", [] {
+        assert(jobresult::success() == jobresult::success());
+        assert(jobresult::failure() == jobresult::failure());
+        assert(jobresult::success() != jobresult::failure()); });
