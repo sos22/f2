@@ -2,6 +2,7 @@
 #define VOID_H__
 
 class deserialise1;
+namespace fields { class field; }
 class serialise1;
 
 /* This can be used as a template parameter in a lot of places where
@@ -9,6 +10,7 @@ class serialise1;
 class Void {
 public: Void() {}
 public: bool operator==(Void) const { return true; }
+public: const fields::field &field() const;
 public: void serialise(serialise1&) const {}
 public: Void(deserialise1 &) {} };
 

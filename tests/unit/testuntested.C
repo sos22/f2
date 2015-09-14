@@ -63,7 +63,6 @@ static testmodule __testuntested(
                        "util.H",
                        "version.C",
                        "version.H",
-                       "void.H",
                        "waitbox.C",
                        "waitbox.H",
                        "waitbox.tmpl"

@@ -7,6 +7,7 @@ function bits() {
     function _() {
         echo $1$suffix
     }
+    _ agentname
     _ beacon
     _ beaconclient
     _ beaconserver
@@ -52,7 +53,6 @@ function bits() {
     _ rpcservice2
     _ serialise
     _ shutdown
-    _ agentname
     _ socket
     _ spark
     _ spawn
@@ -73,6 +73,7 @@ function bits() {
     _ udpsocket
     _ util
     _ version
+    _ void
     _ waitbox
     _ walltime
 }
