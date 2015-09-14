@@ -2,6 +2,7 @@
 #include "test2.H"
 #include "void.H"
 
+#include "parsers.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testvoid(
@@ -20,4 +21,7 @@ static testmodule __testvoid(
         {   deserialise1 ds(buf);
             Void vv(ds);
             assert(ds.status().issuccess());
-            assert(vv == v); } } );
+            assert(vv == v); } },
+    "parser", [] {
+        assert(Void::parser().match("") == Void());
+        assert(Void::parser().match("whatever") == error::noparse); } );
