@@ -26,6 +26,15 @@ static testmodule __testorerror(
         assert(s.success().z == 1.5); },
     "constructfail", [] {
         assert(orerror<int>(Failure, error::dlopen) == error::dlopen); },
+    "orerrorerror", [] {
+        assert(orerror<error>(Failure, error::dlopen).isfailure());
+        assert(!orerror<error>(Failure, error::dlopen).issuccess());
+        assert(orerror<error>(Failure, error::dlopen).failure()
+               == error::dlopen);
+        assert(orerror<error>(Success, error::notempty).issuccess());
+        assert(!orerror<error>(Success, error::notempty).isfailure());
+        assert(orerror<error>(Success, error::notempty).success()
+               == error::notempty); },
     "failno=", [] {
         /* orerror<foo> = error::whatever should work even if foo has
          * no = operator. */

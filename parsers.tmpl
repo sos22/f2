@@ -69,10 +69,13 @@ parser<oldtype>::map(
 
 template <typename r> orerror<r>
 parser<r>::match(const string &what) const {
+    typedef orerror<r> typ;
     auto r1(parse(what.c_str()));
-    if (r1.isfailure()) return r1.failure();
-    else if (r1.success().left[0] != '\0') return error::noparse;
-    else return r1.success().res; }
+    if (r1.isfailure()) return typ(Failure, r1.failure());
+    else if (r1.success().left[0] != '\0') {
+        return typ(Failure, error::noparse); }
+    else {
+        return typ(Success, r1.success().res); } }
 
 template <typename a, typename b>
 class concatparser : public parser<pair<a, b> > {

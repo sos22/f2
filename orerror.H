@@ -16,6 +16,7 @@ extern const _Failure Failure;
 
 template <typename t> class orerror;
 template <> class orerror<void>;
+template <> class orerror<error>;
 
 template <typename t> class orerror : public either<error, t> {
 public: orerror(error e) : either<error, t>(Left(), e) {}
@@ -80,5 +81,25 @@ public: template <typename t> orerror(const orerror<t> &o)
     : orerror<Void>(error::unknown) {
     if (o.isfailure()) this->mkfailure(o.failure());
     else this->mksuccess(); } };
+
+/* orerror<error> produces a lot of ambiguous overloads. Use an
+ * explicit template specialisation to allow us to use the safe
+ * interfaces without getting errors from the dodgy ones. */
+template <> class orerror<error> {
+private: bool _succ;
+private: error _err;
+public:  orerror(_Failure, error e) : _succ(false), _err(e) {}
+public:  orerror(_Success, error e) : _succ(true), _err(e) {}
+public:  bool issuccess() const { return _succ; }
+public:  bool isfailure() const { return !_succ; }
+public:  const error &fatal(const fields::field &f) const {
+    if (this->isfailure()) this->failure().fatal(f);
+    else return this->success(); }
+public:  const error &success() const {
+    assert(_succ);
+    return _err; }
+public:  const error &failure() const {
+    assert(!_succ);
+    return _err; } };
 
 #endif /* !ORERROR_H__ */
