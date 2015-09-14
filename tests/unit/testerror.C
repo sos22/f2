@@ -4,6 +4,7 @@
 #include "test.H"
 #include "test2.H"
 
+#include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
@@ -48,7 +49,13 @@ static testmodule __testerror(
                        "<invalid error -99>")); },
     "serialise", [] {
         quickcheck q;
-        serialise<error>(q); }
+        serialise<error>(q); },
+    "parse", [] { parsers::roundtrip<error>(); },
+    "parse2", [] {
+        assert((error::parser() + "ZZZ")
+               .match("<No such file or directory>ZZZ")
+               .success() ==
+               error::from_errno(ENOENT)); }
 #if TESTING
     , "warn", [] {
         bool warned = false;

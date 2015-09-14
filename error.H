@@ -9,12 +9,15 @@ const field &mk(error); }
 
 class deserialise1;
 class serialise1;
-template <typename t> class orerror;
-class quickcheck;
+template <typename> class orerror;
+template <typename> class parser;
+
+class errorparser;
 
 /* Wrapper around errno.  Must be POD. */
 class error {
     friend class errorfield;
+    friend class errorparser;
     int e;
     explicit error(const int &_e) : e(_e) {}
     int unwrap() const;
@@ -89,6 +92,8 @@ public:
     static const error nostorageagents; /* No storage slaves available. */
     static const error dlopen; /* Error loading job library. */
     static const error duplicate; /* Duplicate key in map. */
+    
+    static const ::parser<error> &parser();
 };
 
 namespace __error_private {

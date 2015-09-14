@@ -136,7 +136,7 @@ static testmodule __testfields(
         simpletest(mk(maybe<int>(91)), "<91>"); },
     "orerror", [] {
         simpletest(mk(orerror<int>(error::disconnected)),
-                   "<failed:disconnected>");
+                   "<failed:<disconnected>>");
         simpletest(mk(orerror<int>(18)), "<18>"); },
     "list", [] {
         simpletest(mk(list<int>()), "{}");

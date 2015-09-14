@@ -64,6 +64,7 @@ public:
     static const field &n(error content) {
         return *new errorfield(content); }
     void fmt(fields::fieldbuf &buf) const {
+        buf.push("<");
         if (content.e > 0) {
             buf.push(strerror(content.e));
         } else if (content == error::unknown) {
@@ -135,8 +136,9 @@ public:
         } else if (content == error::duplicate) {
             buf.push("duplicate");
         } else {
-            ("<invalid error " + fields::mk(content.e) + ">")
-                .fmt(buf); } } };
+            ("invalid error " + fields::mk(content.e))
+                .fmt(buf); }
+        buf.push(">"); } };
 
 const fields::field &
 fields::mk(error e)
@@ -205,3 +207,18 @@ error::error(deserialise1 &ds) {
         _e = error::unknown.e;
         ds.fail(error::invalidmessage); }
     e = _e; }
+
+class errorparser : public parser<error> {
+public: orerror<result> parse(const char *) const; };
+orerror<errorparser::result>
+errorparser::parse(const char *what) const {
+    /* XXX this is really dumb */
+    for (int i = -__error_private::lasterror; i <= 4096; i++) {
+        error err(i);
+        const char *s = err.field().c_str();
+        size_t ss(strlen(s));
+        if (!strncmp(what, s, ss)) return result(what + ss, err); }
+    return error::noparse; }
+
+const ::parser<error> &
+error::parser(void) { return *new errorparser(); }
