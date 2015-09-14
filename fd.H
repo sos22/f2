@@ -93,6 +93,12 @@ public:
                          void *buf,
                          size_t bufsz,
                          maybe<timestamp> deadline = Nothing) const;
+    /* Read the entire contents of the FD and run it through the
+     * parser. You almost certainly want to close the FD after calling
+     * this. */
+    template <typename t> orerror<t> read(
+        clientio,
+        const parser<t> & = t::parser()) const;
     /* Like read(), but never blocks if there is no data available. */
     orerror<size_t> readpoll(void *buf, size_t bufsz) const;
     /* Set the O_NONBLOCK flag on this FD. */

@@ -1,0 +1,19 @@
+#ifndef FD_TMPL_H__
+#define FD_TMPL_H__
+
+template <typename t> orerror<t>
+fd_t::read(clientio io, const ::parser<t> &p) const {
+    orerror<t> res(error::unknown);
+    buffer b;
+    while (true) {
+        auto r(b.receive(io, *this));
+        if (r == error::disconnected) break;
+        if (r.isfailure()) {
+            res = r.failure();
+            return res; } }
+    b.queue("", 1);
+    string s((const char *)b.linearise());
+    res = p.match(s);
+    return res; }
+
+#endif /* !FD_TMPL_H__ */

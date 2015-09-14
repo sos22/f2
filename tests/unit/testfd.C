@@ -5,11 +5,14 @@
 #include "test2.H"
 #include "timedelta.H"
 
+#include "fd.tmpl"
+#include "orerror.tmpl"
+#include "parsers.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testfd(
     "fd",
-    list<filename>::mk("fd.C", "fd.H"),
+    list<filename>::mk("fd.C", "fd.H", "fd.tmpl"),
     testmodule::LineCoverage(85_pc),
     testmodule::BranchCoverage(35_pc),
     "closepoll", [] {
@@ -154,6 +157,15 @@ static testmodule __testfd(
         char b[10];
         assert(r.read.read(clientio::CLIENTIO, b, sizeof(b)) == 4);
         assert(!memcmp(b, "7...", 4));
+        r.read.close(); },
+    "readparse", [] {
+        auto r(fd_t::pipe().fatal("pipe"));
+        pair<int, string> t(5, "hello");
+        r.write.write(clientio::CLIENTIO, t.field());
+        r.write.close();
+        assert((r.read.read<pair<int, string> >(clientio::CLIENTIO)
+                .fatal("reading pair")
+                == t));
         r.read.close(); },
     "badstatus", [] {
         auto r(fd_t::pipe().fatal("pipe"));
