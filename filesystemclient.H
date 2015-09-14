@@ -13,6 +13,7 @@ private: class impl &impl();
 private: const class impl &impl() const;
     
 public:  static filesystemclient &connect(connpool &cp, const agentname &an);
+public:  const agentname &name() const;
     
 private: class asyncfindjobimpl;
 private: struct asyncfindjobdescr {

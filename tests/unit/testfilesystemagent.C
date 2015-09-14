@@ -87,4 +87,12 @@ static testmodule __testfilesystemagent(
         assert(agentlist.idx(0) != agentlist.idx(1));
         fsclient.destroy();
         fsagent.destroy(io);
-        cp.destroy(); });
+        cp.destroy(); },
+    "clientname", [] (clientio) {
+        quickcheck q;
+        clustername cluster(q);
+        agentname fsagentname(q);
+        auto &cp(*connpool::build(cluster).fatal("building connpool"));
+        auto &fsc(filesystemclient::connect(cp, fsagentname));
+        assert(fsc.name() == fsagentname);
+        fsc.destroy(); } );

@@ -23,6 +23,9 @@ filesystemclient &
 filesystemclient::connect(connpool &cp, const agentname &an) {
     return (new class impl(cp, an))->api; }
 
+const agentname &
+filesystemclient::name() const { return impl().an; }
+
 class filesystemclient::asyncfindjobimpl {
 public: filesystemclient::asyncfindjob api;
 public: maybe<list<agentname> > res;
