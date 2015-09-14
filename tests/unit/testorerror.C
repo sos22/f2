@@ -8,8 +8,8 @@ static testmodule __testorerror(
     "orerror",
     list<filename>::mk("orerror.H", "orerror.tmpl"),
     /* A test with lousy coverage is still better than no test at all... */
-    testmodule::LineCoverage(39_pc),
-    testmodule::BranchCoverage(0.8_pc),
+    testmodule::LineCoverage(50_pc),
+    testmodule::BranchCoverage(1_pc),
     "constructsucc", [] {
         class cons {
         public: const int x;
@@ -82,4 +82,11 @@ static testmodule __testorerror(
         failed.mksuccess(nrcons, nrdest);
         failed.mksuccess(nrcons, nrdest);
         assert(nrcons == 3);
-        assert(nrdest == 2); });
+        assert(nrdest == 2); },
+    "flatten", [] {
+        assert((orerror<orerror<int> >(error::noparse).flatten()
+                == error::noparse));
+        assert((orerror<orerror<int> >(Success, error::wouldblock).flatten()
+                == error::wouldblock));
+        assert((orerror<orerror<int> >(Success, 5).flatten()
+                == 5)); });

@@ -8,4 +8,10 @@ orerror<t>::field() const {
     if (isfailure()) return "<failed:" + failure().field() + ">";
     else return "<" + fields::mk(success()) + ">"; }
 
+template <typename t> const t
+orerror<t>::flatten() const {
+    if (isfailure()) return failure();
+    else if (success().isfailure()) return success().failure();
+    else return success().success(); }
+
 #endif /* !ORERROR_TMPL__ */

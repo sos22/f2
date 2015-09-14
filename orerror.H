@@ -58,7 +58,8 @@ public: t &success() {
 public: void warn(const fields::field &f) const {
     if (this->isfailure()) this->failure().warn(f); }
 public: void warn(const char *f) const {
-    if (this->isfailure()) this->failure().warn(f); } };
+    if (this->isfailure()) this->failure().warn(f); }
+public: const t flatten() const; };
 
 template <typename t> orerror<t>
 success(const t &x) { return x; }
