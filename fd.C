@@ -86,6 +86,17 @@ fd_t::write(clientio,
     else if (errno == EPIPE || errno == ECONNRESET) return error::disconnected;
     else return error::from_errno(); }
 
+orerror<void>
+fd_t::write(clientio io, const fields::field &f) const {
+    auto str(f.c_str());
+    auto len(::strlen(str));
+    size_t offset = 0;
+    while (offset < len) {
+        auto ss(write(io, str + offset, len - offset));
+        if (ss.isfailure()) return ss.failure();
+        offset += ss.success(); }
+    return Success; }
+
 orerror<size_t>
 fd_t::writefast(const void *buf, size_t sz) const {
     auto s(::write(fd, buf, sz));

@@ -146,6 +146,15 @@ static testmodule __testfd(
         r2.read.close();
         r.write.close(); },
     "field", [] { assert(!strcmp(fields::mk(fd_t(7)).c_str(), "fd:7")); },
+    "writefield", [] {
+        auto r(fd_t::pipe().fatal("pipe"));
+        r.write.write(clientio::CLIENTIO, fields::mk(7) + "...")
+            .fatal("write");
+        r.write.close();
+        char b[10];
+        assert(r.read.read(clientio::CLIENTIO, b, sizeof(b)) == 4);
+        assert(!memcmp(b, "7...", 4));
+        r.read.close(); },
     "badstatus", [] {
         auto r(fd_t::pipe().fatal("pipe"));
         r.close();

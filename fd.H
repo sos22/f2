@@ -84,6 +84,9 @@ public:
     /* Like write(), but specialised for non-block FDs. */
     orerror<size_t> writefast(const void *buf,
                               size_t bufsz) const;
+    /* Write an entire field into a filedescriptor. Returns an error
+     * if we get EOF before we've finished writing. */
+    orerror<void> write(clientio, const fields::field &) const;
     /* Read some bytes from the FD.  A very thin wrapper around
      * ::read() */
     orerror<size_t> read(clientio,
