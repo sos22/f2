@@ -16,7 +16,8 @@ class beaconconfig {
 public: const peernameport reqport;
 public: const peernameport respport;
 public: beaconconfig(const peernameport &reqport, const peernameport &respport);
-public: beaconconfig(const quickcheck &);
+public: beaconconfig(deserialise1 &);
+public: void serialise(serialise1 &) const;
 public: bool operator==(const beaconconfig &) const;
 public: bool operator!=(const beaconconfig &o) const {return !(*this == o); }
 public: const fields::field &field() const;

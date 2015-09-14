@@ -9,6 +9,7 @@
 #include "either.tmpl"
 #include "fields.tmpl"
 #include "pair.tmpl"
+#include "serialise.tmpl"
 
 template <typename rval> template <typename ... args>
 parser<rval>::result::result(const char *b, args &&... params)
@@ -339,7 +340,7 @@ template <typename t> void
 parsers::roundtrip(const parser<t> &what, unsigned nr) {
     quickcheck q;
     for (unsigned x = 0; x < nr; x++) {
-        t val(q);
+        auto val(mkrandom<t>(q));
         auto c(fields::mk(val).c_str());
         auto res(what.match(c));
         assert(res == val); } }

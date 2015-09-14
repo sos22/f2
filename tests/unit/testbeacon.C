@@ -18,13 +18,15 @@ static testmodule __beacontests(
                        "beaconclient.H",
                        "beaconserver.C",
                        "beaconserver.H"),
-    /* The last 1% is a gcov bug */
-    testmodule::LineCoverage(99_pc),
     testmodule::BranchCoverage(80_pc),
     "serialise", [] {
         quickcheck q;
         serialise<proto::beacon::req>(q);
         serialise<proto::beacon::resp>(q); },
+    "config", [] {
+        quickcheck q;
+        serialise<beaconconfig>(q);
+        serialise<beaconserverconfig>(q); },
     "basic", [] (clientio io) {
         /* Basic beacon functionality: can a client find a server,
          * in the simple case? */
@@ -496,7 +498,7 @@ static testmodule __beacontests(
     "badserver", [] (clientio io) {
         quickcheck q;
         clustername cn(q);
-        beaconconfig underlying(q);
+        auto underlying(mkrandom<beaconconfig>(q));
         auto c(beaconclient::build(beaconclientconfig(cn,
                                                       Nothing,
                                                       Nothing,
@@ -557,7 +559,7 @@ static testmodule __beacontests(
     "badclient", [] (clientio io) {
         quickcheck q;
         clustername cn(q);
-        beaconconfig underlying(q);
+        auto underlying(mkrandom<beaconconfig>(q));
         peername::port port(q);
         agentname sn(q);
         auto s(beaconserver::build(

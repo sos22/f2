@@ -8,7 +8,10 @@
 
 #include "parsers.tmpl"
 
-walltime::walltime(quickcheck q) : v(q) {}
+walltime::walltime(deserialise1 &ds) : v(ds) {}
+
+void
+walltime::serialise(serialise1 &s) const { s.push(v); }
 
 walltime
 walltime::now() {

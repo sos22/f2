@@ -10,7 +10,8 @@ class storageconfig {
 public: const filename poolpath;
 public: const beaconserverconfig beacon;
 public: storageconfig(const filename &, const beaconserverconfig &);
-public: storageconfig(const quickcheck &);
+public: explicit storageconfig(deserialise1 &);
+public: void serialise(serialise1 &) const;
 public: bool operator==(const storageconfig &o) const;
 public: bool operator!=(const storageconfig &o) const {
     return !(*this == o); }

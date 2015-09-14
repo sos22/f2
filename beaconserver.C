@@ -31,11 +31,18 @@ beaconserverconfig::beaconserverconfig(const beaconconfig &_proto,
       name(_name),
       cachetime(_cachetime) {}
 
-beaconserverconfig::beaconserverconfig(const quickcheck &q)
-    : proto(q),
-      cluster(q),
-      name(q),
-      cachetime(q) {}
+beaconserverconfig::beaconserverconfig(deserialise1 &ds)
+    : proto(ds),
+      cluster(ds),
+      name(ds),
+      cachetime(ds) {}
+
+void
+beaconserverconfig::serialise(serialise1 &s) const {
+    s.push(proto);
+    s.push(cluster);
+    s.push(name);
+    s.push(cachetime); }
 
 bool
 beaconserverconfig::operator==(const beaconserverconfig &o) const {

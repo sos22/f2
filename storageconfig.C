@@ -7,7 +7,13 @@
 storageconfig::storageconfig(const filename &f, const beaconserverconfig &c)
     : poolpath(f), beacon(c) {}
 
-storageconfig::storageconfig(const quickcheck &q) : poolpath(q), beacon(q) {}
+storageconfig::storageconfig(deserialise1 &ds)
+    : poolpath(ds), beacon(ds) {}
+
+void
+storageconfig::serialise(serialise1 &s) const {
+    s.push(poolpath);
+    s.push(beacon); }
 
 bool
 storageconfig::operator==(const storageconfig &o) const {

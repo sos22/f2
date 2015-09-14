@@ -15,7 +15,12 @@ beaconconfig::beaconconfig(const peernameport &_reqport,
     : reqport(_reqport),
       respport(_respport) {}
 
-beaconconfig::beaconconfig(const quickcheck &q) : reqport(q), respport(q) {}
+beaconconfig::beaconconfig(deserialise1 &ds) : reqport(ds), respport(ds) {}
+
+void
+beaconconfig::serialise(serialise1 &s) const {
+    s.push(reqport);
+    s.push(respport); }
 
 bool
 beaconconfig::operator==(const beaconconfig &o) const {

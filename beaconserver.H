@@ -16,6 +16,8 @@
 #include "udpsocket.H"
 
 class clientio;
+class deserialise1;
+class serialise1;
 
 class beaconserverconfig {
 public: const beaconconfig proto;
@@ -26,7 +28,8 @@ public: beaconserverconfig(const beaconconfig &_proto,
                            const clustername &_cluster,
                            const agentname &_name,
                            timedelta _cachetime);
-public: beaconserverconfig(const quickcheck &);
+public: explicit beaconserverconfig(deserialise1 &);
+public: void serialise(serialise1 &) const;
 public: bool operator==(const beaconserverconfig &o) const;
 public: bool operator!=(const beaconserverconfig &o) const {
     return !(*this == o); }
