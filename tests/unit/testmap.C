@@ -259,6 +259,15 @@ static testmodule __testmap(
          * full of strings). */
         serialise<testmap<int, int> >(q, 100);
         serialise<testmap<string, int> >(q, 10); },
+    "flush", [] {
+        map<int, int> m;
+        m.set(5, 7);
+        m.set(8, 9);
+        assert(m.haskey(5));
+        assert(m.haskey(8));
+        m.flush();
+        assert(!m.haskey(5));
+        assert(!m.haskey(8)); },
     "quickcheck", [] {
         unsigned nrempty(0);
         unsigned zerokey(0);

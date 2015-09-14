@@ -95,6 +95,8 @@ public:  bool haskey(const _key &) const;
 public:  _value *get_mutate(const _key &);
     /* Clear an entry in the map.  It must be set. */
 public:  void clear(const _key &);
+    /* Clear every entry in the map. */
+public:  void flush();
     /* Equality tests. */
 public:  bool operator==(const map &) const;
 public:  bool operator!=(const map &o) const { return !(*this == o); }
