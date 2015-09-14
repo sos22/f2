@@ -2,6 +2,7 @@
 #include "test2.H"
 
 #include "orerror.tmpl"
+#include "parsers.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testorerror(
@@ -100,4 +101,13 @@ static testmodule __testorerror(
         assert((orerror<orerror<int> >(Success, error::wouldblock).flatten()
                 == error::wouldblock));
         assert((orerror<orerror<int> >(Success, 5).flatten()
-                == 5)); });
+                == 5)); },
+    "parser", [] {
+        assert(orerror<void>::parser()
+               .match("<failed:<No such file or directory>>")
+               .success()
+               .failure()
+               == error::from_errno(ENOENT));
+        parsers::roundtrip(orerror<void>::parser());
+        parsers::roundtrip(orerror<int>::parser());
+        parsers::roundtrip(orerror<pair<int, string> >::parser()); });

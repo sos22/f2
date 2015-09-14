@@ -2,11 +2,26 @@
 #define ORERROR_TMPL__
 
 #include "either.tmpl"
+#include "parsers.tmpl"
 
 template <typename t> const fields::field &
 orerror<t>::field() const {
     if (isfailure()) return "<failed:" + failure().field() + ">";
     else return "<" + fields::mk(success()) + ">"; }
+
+template <typename t> const ::parser<orerror<t> > &
+orerror<t>::parser(const ::parser<t> &inner) {
+    std::function<orerror<t> (const either<error, t> &)> iff(
+        [] (const either<error, t> &i) -> orerror<t> {
+            if (i.isleft()) return i.left();
+            else return i.right(); });
+    return
+        (("<failed:" + error::parser() + ">") |
+         ("<" + inner + ">"))
+        . map(iff); }
+
+template <typename t> const ::parser<orerror<t> > &
+orerror<t>::parser() { return orerror<t>::parser(parsers::defaultparser<t>()); }
 
 template <typename t> const t
 orerror<t>::flatten() const {

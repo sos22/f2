@@ -66,6 +66,7 @@ public: void warn(const fields::field &f) const {
 public: void warn(const char *f) const {
     if (this->isfailure()) this->failure().warn(f); }
 public: static const ::parser<orerror<t> > &parser();
+public: static const ::parser<orerror<t> > &parser(const ::parser<t> &inner);
 public: const t flatten() const; };
 
 template <typename t> orerror<t>
