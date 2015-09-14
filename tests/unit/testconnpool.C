@@ -279,6 +279,12 @@ static testmodule __testconnpool(
         assert(c->pop(io) == error::dlopen);
         end = timestamp::now();
         assert(end - start < timedelta::milliseconds(10)); },
+    "getconfig", [] (clientio) {
+        quickcheck q;
+        clustername cn(q);
+        auto pool(connpool::build(cn).fatal("starting conn pool"));
+        assert(pool->getconfig().beacon.cluster() == cn);
+        pool->destroy(); },
     "echo", [] (clientio io) {
         quickcheck q;
         clustername cn(q);

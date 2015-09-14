@@ -305,6 +305,9 @@ connpool::implementation() { return *containerof(this, impl, api); }
 const POOL &
 connpool::implementation() const { return *containerof(this, impl, api); }
 
+const connpool::config &
+connpool::getconfig() const { return implementation().cfg; }
+
 template <> nnp<connpool::asynccallT<void> >
 connpool::_call(const agentname &sn,
                 interfacetype type,
