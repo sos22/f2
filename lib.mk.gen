@@ -21,6 +21,7 @@ function bits() {
     _ connpool
     _ coordinator
     _ digest
+    _ enumerate
     _ eq
     _ eqclient
     _ eqserver

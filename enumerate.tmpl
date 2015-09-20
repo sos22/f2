@@ -1,0 +1,21 @@
+#ifndef ENUMERATE_TMPL__
+#define ENUMERATE_TMPL__
+
+template <typename t> t
+enumerator::range(t low, t high) {
+    return (t)range<unsigned>(0, high - low) + low; }
+
+template <typename t> list<t>
+enumerate(void) {
+    enumerator enm;
+    enm.pendingpaths.pushtail(enumerator::path());
+    list<t> res;
+    while (!enm.pendingpaths.empty()) {
+        assert(enm.schedule.empty());
+        enm.currentpath.flush();
+        enm.schedule = enm.pendingpaths.pophead();
+        res.pushtail(t(enm));
+        logmsg(loglevel::debug, "found " + res.peektail().field()); }
+    return res; }
+
+#endif /* !ENUMERATE_TMPL__ */
