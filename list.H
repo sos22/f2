@@ -106,6 +106,9 @@ public:
     /* Peek at the first item in the list. */
     const t &peekhead() const;
     t &peekhead();
+    /* Peek at the last item in the list. */
+    const t &peektail() const;
+    t &peektail();
     /* Add a copy of an item to the front of the list */
     void pushhead(const t &);
     /* Copy some items to the tail of the list, in order */

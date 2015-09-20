@@ -173,6 +173,16 @@ list<t>::peekhead() {
     assert(!empty());
     return *start(); }
 
+template <typename t> const t &
+list<t>::peektail() const {
+    assert(!empty());
+    return *reverse(); }
+
+template <typename t> t &
+list<t>::peektail() {
+    assert(!empty());
+    return *reverse(); }
+
 template <typename t> void
 list<t>::pushhead(const t &what)
 {
