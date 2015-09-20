@@ -10,8 +10,10 @@ template <typename> class parser;
 
 class percentage {
 private: percentage() = delete;
-private: long double val; /* scaled so that 100% is 1 and 0% 0. */
-public:  explicit percentage(long double _val) : val(_val / 100) {}
+    /* The actual percentage, not scaled to a ratio, to avoid rouding
+     * errors printing and parsing. */
+private: long double val;
+public:  explicit percentage(long double _val) : val(_val) {}
 public:  percentage(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  bool operator==(percentage o) const { return val == o.val; }

@@ -11,7 +11,7 @@ void
 percentage::serialise(serialise1 &s) const { s.push(val); }
 
 const fields::field &
-percentage::field() const { return fields::mk_double(val * 100.0) + "%"; }
+percentage::field() const { return fields::mk_double(val) + "%"; }
 
 const parser<percentage> &
 percentage::parser() {
