@@ -1,4 +1,5 @@
 #include "job.H"
+#include "logging.H"
 #include "test2.H"
 
 #include "parsers.tmpl"
@@ -25,6 +26,15 @@ static testmodule __testjob(
             assert(!j.outputs().hasdupes());
             assert(j.outputs().issorted()); } },
     "parser", [] { parsers::roundtrip<job>(); },
+    "parser2", [] {
+        logmsg(
+            loglevel::notice,
+            "res " +
+            job::parser()
+            .match(
+                "<job:<filename:\"./testjob.so\">:testfunction -><stream:outstream>>")
+            .fatal("parsingjob")
+            .field()); },
     "serialisename", [] {
         /* serialising and deserialising must produce something with
          * the same name.  We've had problems in the past with it

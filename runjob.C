@@ -14,6 +14,8 @@
 #include "storageclient.H"
 
 #include "either.tmpl"
+#include "list.tmpl"
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 
 static orerror<jobresult>
@@ -42,7 +44,7 @@ runjob(clientio io, const job &j) {
     free(fname);
     return res; }
 
-static int
+static orerror<jobresult>
 runjob(clientio io,
        const clustername &cn,
        const agentname &fsn,
@@ -50,7 +52,7 @@ runjob(clientio io,
     auto cp(connpool::build(cn));
     if (cp.isfailure()) {
         cp.failure().warn("building connpool");
-        return 1; }
+        return cp.failure(); }
     auto &fs(filesystemclient::connect(cp.success(), fsn));
     auto storageagents(fs.findjob(io, j.name()));
     fs.destroy();
@@ -59,7 +61,7 @@ runjob(clientio io,
     if (storageagents.isfailure()) {
         cp.success()->destroy();
         storageagents.failure().warn("getting storage agent for job");
-        return 1; }
+        return storageagents.failure(); }
     auto &sc(storageclient::connect(
                  cp.success(), storageagents.success().pophead()));
     auto r(runjob(io, j));
@@ -74,15 +76,15 @@ runjob(clientio io,
         if (failure.isfailure()) r = failure.failure(); }
     sc.destroy();
     cp.success()->destroy();
-    return r.issuccess(); }
+    return r; }
 
 int
 main(int argc, char *argv[]) {
-    if (argc != 5) {
+    if (argc != 5 && argc != 6) {
         errx(
             1,
             "need four arguments: logging name, cluster name, "
-            "FS agent name, and job"); }
+            "FS agent name, job, and optionally output FD"); }
     initlogging(argv[1]);
     auto cn(parsers::__clustername()
             .match(argv[2])
@@ -93,8 +95,18 @@ main(int argc, char *argv[]) {
     auto j(job::parser()
            .match(argv[4])
            .fatal("parsing job " + fields::mk(argv[4])));
+    fd_t outfd(argc == 5
+               ? 1
+               : (parsers::intparser<unsigned>()
+                  .maperr<int>([] (const int &fd) -> orerror<int> {
+                          if (fd < 0) return error::noparse;
+                          else return fd; })
+                  .match(argv[5])
+                  .fatal("parsing fd " + fields::mk(argv[5]))));
     initpubsub();
     auto r = runjob(clientio::CLIENTIO, cn, fsn, j);
+    outfd.write(clientio::CLIENTIO, r.field())
+        .fatal("reporting result of job (" + r.field() + ")");
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
-    return r; }
+    return 0; }

@@ -96,10 +96,12 @@ static testmodule __testcomputeagent(
                        "jobname.H",
                        "jobresult.C",
                        "jobresult.H",
+                       "runjob.C",
                        "testjob.C"),
     testmodule::LineCoverage(75_pc),
     testmodule::BranchCoverage(50_pc),
     testmodule::Dependency("testjob.so"),
+    testmodule::Dependency("runjob" EXESUFFIX),
     "basics", [] (clientio io) {
         computetest t(io);
         auto &cc(t.cc);

@@ -11,6 +11,7 @@
 #include "storageconfig.H"
 #include "test2.H"
 
+#include "orerror.tmpl"
 #include "test2.tmpl"
 
 class teststorage {

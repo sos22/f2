@@ -19,7 +19,9 @@
 #include "util.H"
 
 #include "either.tmpl"
+#include "fd.tmpl"
 #include "list.tmpl"
+#include "map.tmpl"
 #include "maybe.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"
@@ -37,7 +39,7 @@ public: const job j;
 public: const proto::compute::tasktag tag;
     /* Connects main maintenance thread to our death publisher. */
 public: maybe<subscription> subsc;
-    /* Set by the thread as it shutds down. */
+    /* Set by the thread as it shuts down. */
 public: maybe<orerror<jobresult> > result;
     /* Set by the maintenance thread when it wants us to shut down. */
 public: waitbox<void> &shutdown;
@@ -115,77 +117,30 @@ private: void destroying(clientio); };
 
 void
 runningjob::run(clientio io) {
-    logmsg(loglevel::debug,
-           "trying to find owner of " + j.field());
-    auto &findstorageagent(owner.fs.findjob(j.name()));
-    {   subscriber sub;
-        subscription s1(sub, shutdown.pub());
-        subscription s2(sub, findstorageagent.pub());
-        while (shutdown.poll() == Nothing &&
-               findstorageagent.finished() == Nothing) { } }
-    if (shutdown.poll() != Nothing) {
-        findstorageagent.abort();
-        result.mkjust(error::aborted);
+    auto _pi(fd_t::pipe());
+    if (_pi.isfailure()) {
+        result.mkjust(_pi.failure());
         return; }
-    auto qstorageagent(findstorageagent.pop(
-                           findstorageagent.finished().just()));
-    logmsg(loglevel::debug,
-           "owner of " + j.field() + " -> " + qstorageagent.field());
-    if (qstorageagent.isfailure()) {
-        result.mkjust(qstorageagent.failure());
+    auto pi(_pi.success());
+    auto p(spawn::process::spawn(
+               spawn::program(PREFIX "/runjob" EXESUFFIX)
+               .addarg("runjob")
+               .addarg(owner.cp.getconfig().beacon.cluster().field())
+               .addarg(owner.fs.name().field())
+               .addarg(j.field())
+               .addarg("3")
+               .addfd(pi.write, 3)));
+    if (p.isfailure()) {
+        pi.close();
+        result.mkjust(p.failure());
         return; }
-    if (qstorageagent.success().length() == 0) {
-        result.mkjust(error::toosoon);
-        return; }
-    auto &sc(storageclient::connect(
-                 owner.cp, qstorageagent.success().pophead()));
-    void *f;
-    void *v;
-    void *lib(::dlopen(j.library.str().c_str(), RTLD_NOW|RTLD_LOCAL));
-    char *fname;
-    if (asprintf(&fname,
-                 "_Z%zd%sR6jobapi8clientio",
-                 strlen(j.function.c_str()),
-                 j.function.c_str()) < 0) {
-        fname = NULL;
-        result.mkjust(error::from_errno()); }
-    else if (lib == NULL) {
-        logmsg(loglevel::info,
-               "dlopen(" + j.library.field() + "):" + fields::mk(::dlerror()));
-        result.mkjust(error::dlopen); }
-    else if ((v = ::dlsym(lib, "f2version")) == NULL) {
-        logmsg(loglevel::info,
-               "dlopen(" + j.library.field() + "): f2version missing");
-        result.mkjust(error::dlopen); }
-    else if (*static_cast<version *>(v) != version::current) {
-        logmsg(loglevel::info,
-               "dlopen(" + j.library.field() + "): requested f2 version " +
-               fields::mk(*static_cast<version *>(v)) + ", but we are " +
-               fields::mk(version::current));
-        result.mkjust(error::dlopen); }
-    else if ((f = ::dlsym(lib, fname)) == NULL) {
-        logmsg(loglevel::info,
-               "dlopen("+j.library.field()+"::"+j.function.field()+"): " +
-               fields::mk(::dlerror()));
-        result.mkjust(error::dlopen); }
-    else {
-        auto fn((jobfunction *)f);
-        auto &api(newjobapi());
-        auto res(fn(api, io));
-        deletejobapi(api);
-        if (res.issuccess()) {
-            list<nnp<storageclient::asyncfinish> > pending;
-            for (auto it(j.outputs().start()); !it.finished(); it.next()) {
-                pending.append(sc.finish(j.name(), *it)); }
-            orerror<void> failure(Success);
-            while (failure == Success && !pending.empty()) {
-                failure = pending.pophead()->pop(io); }
-            while (!pending.empty()) pending.pophead()->abort();
-            if (failure == Success) result.mkjust(res.success());
-            else result.mkjust(failure.failure()); }
-        else result.mkjust(res.failure()); }
-    if (lib != NULL) ::dlclose(lib);
-    free(fname); }
+    pi.write.close();
+    auto jr(pi.read.read<orerror<jobresult> >(io).flatten());
+    pi.read.close();
+    auto rr(p.success()->join(io));
+    if (rr.isright()) jr = error::signalled;
+    else if (rr.left() != shutdowncode::ok) jr = error::unknown;
+    result.mkjust(Steal, jr); }
 
 void
 computeservice::maintenancethread::run(clientio io) {
