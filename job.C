@@ -80,8 +80,8 @@ job::field() const {
 const parser<job> &
 job::parser() {
     auto &stream(
-        ("->" + streamname::parser() + ":" + job::inputsrc::parser()) |
-        ("-<" + streamname::parser()));
+        ("-<" + streamname::parser() + ":" + job::inputsrc::parser()) |
+        ("->" + streamname::parser()));
     return ("<job:" + filename::parser() + ":" + string::parser() +
             ~strmatcher(" ") + parsers::sepby(stream, strmatcher(" ")) +
             ">")
