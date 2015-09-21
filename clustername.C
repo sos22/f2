@@ -27,10 +27,7 @@ clustername::clustername(const quickcheck &q) {
     } while (value.len() > maxsize); }
 
 bool
-clustername::operator==(const clustername &o) const { return !(*this != o); }
-
-bool
-clustername::operator!=(const clustername &o) const { return value != o.value; }
+clustername::operator==(const clustername &o) const { return value == o.value; }
 
 maybe<clustername>
 clustername::mk(const string &o) {

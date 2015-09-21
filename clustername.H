@@ -18,7 +18,6 @@ private: ::string value;
 private: clustername(const string &s) : value(s) {}
 public:  clustername(const quickcheck &);
 public:  bool operator==(const clustername &) const;
-public:  bool operator!=(const clustername &) const;
 public:  static maybe<clustername> mk(const string &);
 public:  const fields::field &field() const; };
 
