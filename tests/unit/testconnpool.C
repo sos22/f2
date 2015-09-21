@@ -218,7 +218,8 @@ static testmodule __testconnpool(
     "null", [] (clientio io) {
         /* Tests of what happens when there's nothing to connect
          * to. */
-        clustername cn((quickcheck()));
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
         auto start(timestamp::now());
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         assert(timestamp::now() < start + timedelta::milliseconds(100));
@@ -281,13 +282,13 @@ static testmodule __testconnpool(
         assert(end - start < timedelta::milliseconds(10)); },
     "getconfig", [] (clientio) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         assert(pool->getconfig().beacon.cluster() == cn);
         pool->destroy(); },
     "echo", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<echoservice>(
                      io,
@@ -360,7 +361,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "abandon1", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         waitbox<void> abandoned;
         auto srv(rpcservice2::listen<abandonservice>(
@@ -389,7 +390,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "timeoutcall", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         waitbox<void> abandoned;
         auto srv(rpcservice2::listen<abandonservice>(
@@ -417,7 +418,7 @@ static testmodule __testconnpool(
         pool->destroy(); },
     "slow", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<slowservice>(
                      io,
@@ -479,7 +480,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "slowabandon", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<slowservice>(
                      io,
@@ -513,7 +514,7 @@ static testmodule __testconnpool(
                timedelta::milliseconds(100)); },
     "abortcompleted", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<echoservice>(
                      io,
@@ -542,7 +543,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "clientdisco", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         waitbox<void> died;
         tests::hook<void> h(rpcservice2::clientdisconnected,
@@ -596,7 +597,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "largeresp", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto config(rpcservice2config::dflt(cn, sn));
         /* Use a small TX buffer limit to make things a bit
@@ -638,7 +639,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "largereq", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<largereqservice>(
                      io,
@@ -668,7 +669,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "returnbuffer", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<bufferservice>(
                      io,
@@ -697,7 +698,7 @@ static testmodule __testconnpool(
         /* The conn pool shouldn't drop connections which still
          * have outstanding calls. */
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<slowservice>(
                      io,
@@ -739,7 +740,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "abort1", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         waitbox<void> callstarted;
         waitbox<void> callaborted;
@@ -768,7 +769,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "abort2", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         waitbox<void> callstarted;
         waitbox<void> callaborted;
@@ -800,14 +801,14 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "config", [] {
         quickcheck q;
-        beaconclientconfig bcc((clustername(q)));
+        beaconclientconfig bcc(mkrandom<clustername>(q));
         assert(connpool::config::mk(bcc,
                                     timedelta::seconds(-1)) ==
                error::invalidparameter);
         assert(connpool::config(bcc) == connpool::config::mk(bcc)); },
     "connreap", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn1(q);
         agentname sn2(q);
         ::logmsg(loglevel::debug, "agent name 1 " + fields::mk(sn1));
@@ -875,7 +876,7 @@ static testmodule __testconnpool(
         pool->destroy(); },
     "multicall", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<slowservice>(
                      io,
@@ -914,7 +915,7 @@ static testmodule __testconnpool(
      * put it. */
     "doublelisten", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<echoservice>(
                      io,
@@ -932,7 +933,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "faildeserialiseclient", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<echoservice>(
                      io,
@@ -956,7 +957,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "faildeserialiseserver", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<echoservice>(
                      io,
@@ -980,7 +981,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "timeout", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<echoservice>(
                      io,
@@ -1004,7 +1005,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "pauseservice", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto srv(rpcservice2::listen<raceservice>(
                      io,
@@ -1054,7 +1055,7 @@ static testmodule __testconnpool(
         srv->destroy(io); },
     "initialisefail", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         assert(rpcservice2::listen<failinitservice>(
                    io,
@@ -1080,7 +1081,7 @@ static testmodule __testconnpool(
                         assert(ss == &ss2);
                         return; } } });
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname an(q);
         auto &bs(*beaconserver::build(
                      beaconserverconfig::dflt(cn, an),

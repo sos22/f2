@@ -30,9 +30,10 @@ static testmodule __beacontests(
     "basic", [] (clientio io) {
         /* Basic beacon functionality: can a client find a server,
          * in the simple case? */
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(
                    beaconserverconfig::dflt(cluster, agent),
                    mklist(interfacetype::test),
@@ -51,9 +52,10 @@ static testmodule __beacontests(
     "refresh", [] (clientio io) {
         /* Make sure it hangs around past the server-specified
          * expiry time i.e. that refresh works. */
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(
                    beaconserverconfig(
                        beaconconfig::dflt,
@@ -81,9 +83,10 @@ static testmodule __beacontests(
     "dropserver", [] (clientio io) {
         /* Do dead servers drop out of the client cache reasonably
          * promptly? */
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(
                    beaconserverconfig(beaconconfig::dflt,
                                       cluster,
@@ -131,9 +134,10 @@ static testmodule __beacontests(
         c->destroy(); },
     "clientfilter", [] (clientio io) {
         /* Does filtering by type work? */
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(
                    beaconserverconfig::dflt(cluster,
                                             agent),
@@ -147,7 +151,7 @@ static testmodule __beacontests(
         assert(c->poll(agent) == Nothing);
         (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
         assert(c->poll(agent) == Nothing);
-        peername::port port2((quickcheck()));
+        peername::port port2(q);
         auto s2(beaconserver::build(
                     beaconserverconfig::dflt(cluster,
                                              agent),
@@ -159,15 +163,16 @@ static testmodule __beacontests(
         s2->destroy(io);
         s->destroy(io); },
     "iterator", [] (clientio io) {
-        clustername cluster((quickcheck()));
-        agentname agent1((quickcheck()));
-        peername::port port1((quickcheck()));
-        agentname agent2((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent1(q);
+        peername::port port1(q);
+        agentname agent2(q);
         while (agent1 == agent2) agent2 = quickcheck();
-        peername::port port2((quickcheck()));
-        agentname agent3((quickcheck()));
+        peername::port port2(q);
+        agentname agent3(q);
         while (agent1 == agent3 || agent2 == agent3) agent3 = quickcheck();
-        peername::port port3((quickcheck()));
+        peername::port port3(q);
         auto c(beaconclient::build(cluster)
                .fatal("starting beacon client"));
         assert(c->start().finished());
@@ -228,7 +233,10 @@ static testmodule __beacontests(
         s1->destroy(io);
         s2->destroy(io);
         s3->destroy(io); },
-    "clientconfig", [] { parsers::roundtrip(parsers::__beaconclientconfig()); },
+    "clientconfig", [] {
+        parsers::roundtrip(parsers::__beaconclientconfig());
+        quickcheck q;
+        serialise<beaconclientconfig>(q); },
     "serverconfig", [] { parsers::roundtrip(beaconserverconfig::parser()); },
     "badconfig", [] {
         beaconclientconfig dflt(clustername::mk("foo").fatal("bad"));
@@ -250,10 +258,12 @@ static testmodule __beacontests(
             udpsocket::_client, [] (udpsocket u) {
                 u.close();
                 return error::pastend; });
+        quickcheck q;
         assert(beaconclient::build(
-                   beaconclientconfig(clustername(quickcheck())))
+                   beaconclientconfig(mkrandom<clustername>(q)))
                == error::pastend); },
     "clientfailure2", [] (clientio io) {
+        quickcheck q;
         unsigned errcount = 0;
         beaconclient *c;
         tests::hook<orerror<void>, const udpsocket &> h(
@@ -262,9 +272,9 @@ static testmodule __beacontests(
                 if (c == NULL || s != c->__test_listenfd()) return Success;
                 if (errcount++ < 3) return error::pastend;
                 else return Success; });
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(
                    beaconserverconfig::dflt(cluster, agent),
                    mklist(interfacetype::test),
@@ -287,9 +297,10 @@ static testmodule __beacontests(
          * broadcasts fail. */
         /* Start server first so that the server broadcast doesn't
          * save the client. */
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(beaconserverconfig::dflt(cluster, agent),
                                    mklist(interfacetype::test),
                                    port)
@@ -327,9 +338,10 @@ static testmodule __beacontests(
         /* If we stop the client from doing directed calls then
          * things should drop out of the cache at the expiry time
          * and come back at the broadcast time. */
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(
                    beaconserverconfig(beaconconfig::dflt,
                                       cluster,
@@ -382,7 +394,8 @@ static testmodule __beacontests(
         s->destroy(io); },
 #if TESTING
     "sillyiterator", [] (clientio) {
-        clustername cn((quickcheck()));
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
         beaconclientconfig config(cn, interfacetype::eq);
         auto c(beaconclient::build(config)
                .fatal("creating beacon client"));
@@ -399,13 +412,15 @@ static testmodule __beacontests(
         tests::hook<orerror<udpsocket>, udpsocket> h(
             udpsocket::_client,
             [] (udpsocket) { return error::pastend; });
-        assert(beaconserver::build(beaconserverconfig::dflt(quickcheck(),
-                                                            quickcheck()),
+        quickcheck q;
+        assert(beaconserver::build(beaconserverconfig::dflt(
+                                       mkrandom<clustername>(q), q),
                                    mklist(interfacetype::test),
-                                   quickcheck())
+                                   q)
                == error::pastend); },
 #if TESTING
     "serverfailure2", [] (clientio io) {
+        quickcheck q;
         bool fail = false;
         tests::hook<orerror<void>, const udpsocket &> h(
             udpsocket::_receive,
@@ -416,9 +431,9 @@ static testmodule __beacontests(
         tests::eventwaiter< ::loglevel> waiter(
             tests::logmsg,
             [&nr] (loglevel level) { if (level >= loglevel::info) nr++; });
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(beaconserverconfig(
                                        beaconconfig::dflt,
                                        cluster,
@@ -453,9 +468,10 @@ static testmodule __beacontests(
         s->destroy(io); },
 #endif
     "serverfailure3", [] (clientio io) {
-        clustername cluster((quickcheck()));
-        agentname agent((quickcheck()));
-        peername::port port((quickcheck()));
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
         auto s(beaconserver::build(beaconserverconfig(
                                        beaconconfig::dflt,
                                        cluster,
@@ -497,7 +513,7 @@ static testmodule __beacontests(
     ,
     "badserver", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         auto underlying(mkrandom<beaconconfig>(q));
         auto c(beaconclient::build(beaconclientconfig(cn,
                                                       Nothing,
@@ -558,7 +574,7 @@ static testmodule __beacontests(
         c->destroy(); },
     "badclient", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         auto underlying(mkrandom<beaconconfig>(q));
         peername::port port(q);
         agentname sn(q);

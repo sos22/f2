@@ -47,7 +47,7 @@ static testmodule __testasynccall(
     list<filename>::mk("asynccall.tmpl", "asynccall.H"),
     "basic", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto &srv(*rpcservice2::listen<slowservice>(
                       io,
@@ -73,7 +73,7 @@ static testmodule __testasynccall(
         srv.destroy(io); },
     "convenience", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto &srv(*rpcservice2::listen<slowservice>(
                       io,
@@ -91,7 +91,7 @@ static testmodule __testasynccall(
         srv.destroy(io); },
     "abort", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         auto &srv(*rpcservice2::listen<slowservice>(
                       io,

@@ -21,11 +21,6 @@ void
 clustername::serialise(serialise1 &s) const {
     value.serialise(s); }
 
-clustername::clustername(const quickcheck &q) {
-    do {
-        value = (string)q;
-    } while (value.len() > maxsize); }
-
 bool
 clustername::operator==(const clustername &o) const { return value == o.value; }
 

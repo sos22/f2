@@ -77,7 +77,7 @@ static testmodule __teststorageservice(
         f.rmdir().fatal("removing " + f.field()); },
     "realstart", [] (clientio io) {
         quickcheck q;
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         agentname an(q);
         auto f(filename::mktemp(q).fatal("mktemp"));
         assert(spawn::process::spawn(spawn::program(storagefmt).addarg(f.str()))

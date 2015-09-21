@@ -68,8 +68,9 @@ eqtestcase(clientio io,
                                      eqclient<unsigned> &,
                                      eventqueue<unsigned> &)> &f,
            const eventqueueconfig &qconf = eventqueueconfig::dflt()) {
-    clustername cn((quickcheck()));
-    agentname sn((quickcheck()));
+    quickcheck qc;
+    auto cn(mkrandom<clustername>(qc));
+    agentname sn(qc);
     auto pool(connpool::build(cn).fatal("starting conn pool"));
     auto server(eqserver::build());
     auto s(rpcservice2::listen<eqtestserver>(
@@ -154,8 +155,9 @@ static testmodule __testeq(
     "multiclient", [] (clientio io) {
         auto qconf(eventqueueconfig::dflt());
         qconf.queuelimit = 2;
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn)
                   .fatal("starting conn pool"));
         auto server(eqserver::build());
@@ -264,8 +266,9 @@ static testmodule __testeq(
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "badconn", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn)
                   .fatal("starting conn pool"));
         auto t(timedelta::time([&] {
@@ -279,8 +282,9 @@ static testmodule __testeq(
         assert(t >= timedelta::milliseconds(100));
         assert(t < timedelta::milliseconds(200)); },
     "failwaiter1", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -325,8 +329,9 @@ static testmodule __testeq(
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "failwaiter2", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -368,8 +373,9 @@ static testmodule __testeq(
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "pushlostsub", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -415,8 +421,9 @@ static testmodule __testeq(
         server->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "shutdownwaiter", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -456,8 +463,9 @@ static testmodule __testeq(
         server->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "dropnosub", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -492,8 +500,9 @@ static testmodule __testeq(
         q->destroy(io);
         state.unlink().fatal("unlinking test queue"); },
     "multiqueue", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -554,8 +563,9 @@ static testmodule __testeq(
         state2.unlink();
         pool->destroy(); },
     "pipeline", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -594,10 +604,11 @@ static testmodule __testeq(
     "multiclient2", [] (clientio io) {
         /* Slightly more interesting variant of abandoning a
          * wait. */
+        quickcheck qc;
         auto qconf(eventqueueconfig::dflt());
         qconf.queuelimit = 2;
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn)
                   .fatal("starting conn pool"));
         auto server(eqserver::build());
@@ -645,8 +656,9 @@ static testmodule __testeq(
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "asyncconnect", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn)
                   .fatal("starting conn pool"));
         auto server(eqserver::build());
@@ -696,8 +708,9 @@ static testmodule __testeq(
         q->destroy(io);
         state.unlink().fatal("unlinking test queue"); },
     "evadvance", [] (clientio io) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck qc;
+        auto cn(mkrandom<clustername>(qc));
+        agentname sn(qc);
         auto pool(connpool::build(cn).fatal("starting conn pool"));
         auto server(eqserver::build());
         auto s(rpcservice2::listen<eqtestserver>(
@@ -768,8 +781,9 @@ static testmodule __testeq(
         q->destroy(io);
         statefile.unlink().fatal("unlinking test queue"); },
     "abortconnect", [] (clientio) {
-        clustername cn((quickcheck()));
-        agentname sn((quickcheck()));
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname sn(q);
         auto pool(connpool::build(cn)
                   .fatal("starting conn pool"));
         eqclient<unsigned>::connect(
@@ -783,7 +797,7 @@ static testmodule __testeq(
     "badconnect", [] (clientio io) {
         quickcheck q;
         agentname an(q);
-        clustername cn(q);
+        auto cn(mkrandom<clustername>(q));
         auto &dummy(*rpcservice2::listen<dummyservice>(
                         io,
                         cn,

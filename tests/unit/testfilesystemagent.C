@@ -49,7 +49,7 @@ static testmodule __testfilesystemagent(
     testmodule::BranchCoverage(33_pc),
     "basic", [] (clientio io) {
         quickcheck q;
-        clustername cluster(q);
+        auto cluster(mkrandom<clustername>(q));
         agentname fsagentname("fsagent");
         auto &fsagent(*filesystemagent(
                           io,
@@ -90,7 +90,7 @@ static testmodule __testfilesystemagent(
         cp.destroy(); },
     "clientname", [] (clientio) {
         quickcheck q;
-        clustername cluster(q);
+        auto cluster(mkrandom<clustername>(q));
         agentname fsagentname(q);
         auto &cp(*connpool::build(cluster).fatal("building connpool"));
         auto &fsc(filesystemclient::connect(cp, fsagentname));

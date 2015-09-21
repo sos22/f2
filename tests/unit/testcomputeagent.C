@@ -33,7 +33,7 @@ public:  filesystemclient &fsc;
 public:  computeclient &cc;
 public:  explicit computetest(clientio io)
     : q(),
-      cluster(q),
+      cluster(mkrandom<clustername>(q)),
       fsagentname("fsagent"),
       computeagentname("computeagent"),
       storageagentname("storageagent"),
