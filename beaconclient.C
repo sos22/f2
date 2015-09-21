@@ -89,6 +89,29 @@ parsers::__beaconclientconfig() {
                         x.second()
                             .dflt(timedelta::minutes(1))); }); }
 
+void
+beaconclientconfig::serialise(serialise1 &s) const {
+    s.push(_cluster);
+    s.push(_type);
+    s.push(_name);
+    s.push(_proto);
+    s.push(_queryinterval);
+    s.push(_broadcastinterval); }
+
+beaconclientconfig::beaconclientconfig(deserialise1 &ds)
+    : _cluster(ds),
+      _type(ds),
+      _name(ds),
+      _proto(ds),
+      _queryinterval(ds),
+      _broadcastinterval(ds) {
+    if (_queryinterval < 0_s) {
+        ds.fail(error::range);
+        _queryinterval = 0_s; }
+    if (_broadcastinterval < 0_s) {
+        ds.fail(error::range);
+        _broadcastinterval = 0_s; } }
+
 bool
 beaconclientconfig::operator==(const beaconclientconfig &o) const {
     return !(*this != o); }

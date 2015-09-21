@@ -73,6 +73,8 @@ private: beaconclientconfig(
     const beaconconfig &,
     timedelta,
     timedelta);
+public:  void serialise(serialise1 &) const;
+public:  explicit beaconclientconfig(deserialise1 &);
 public:  bool operator==(const beaconclientconfig &o) const;
 public:  bool operator!=(const beaconclientconfig &o) const;
 public:  const fields::field &field() const; };
