@@ -60,8 +60,7 @@ beaconclientconfig::beaconclientconfig(const clustername &__cluster,
 
 const parser<beaconclientconfig> &
 parsers::__beaconclientconfig() {
-    return ("<beaconclientconfig:"
-            " cluster:" + __clustername() +
+    return ("<beaconclientconfig: " + __clustername() +
             ~(" type:" + _maybe(interfacetype::parser())) +
             ~(" name:" + _maybe(_agentname())) +
             ~(" proto:" + beaconconfig::parser()) +
@@ -127,8 +126,7 @@ beaconclientconfig::operator!=(const beaconclientconfig &o) const {
 
 const fields::field &
 beaconclientconfig::field() const {
-    return "<beaconclientconfig:"
-        " cluster:" + fields::mk(_cluster) +
+    return "<beaconclientconfig: " + fields::mk(_cluster) +
         " type:" + fields::mk(_type) +
         " name:" + fields::mk(_name) +
         " proto:" + fields::mk(_proto) +
