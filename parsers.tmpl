@@ -342,7 +342,7 @@ parsers::roundtrip(const parser<t> &what, unsigned nr) {
     for (unsigned x = 0; x < nr; x++) {
         auto val(mkrandom<t>(q));
         auto c(fields::mk(val).c_str());
-        auto res(what.match(c));
+        auto res(what.match(c).fatal("parse " + fields::mk(c)));
         assert(res == val); } }
 
 template <typename t> const parser<t> &
