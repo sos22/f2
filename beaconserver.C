@@ -93,7 +93,7 @@ orerror<beaconserver *>
 beaconserver::build(const beaconserverconfig &config,
                     const list<interfacetype> &type,
                     peername::port port) {
-    auto listensock(udpsocket::listen(config.proto.reqport));
+    auto listensock(udpsocket::listen(config.proto.reqport()));
     if (listensock.isfailure()) return listensock.failure();
     auto clientsock(udpsocket::client());
     if (clientsock.isfailure()) {
@@ -145,7 +145,7 @@ beaconserver::run(clientio io) {
         serialise1 s(buf);
         response.serialise(s);
         auto r(clientfd.send(buf,
-                             peername::udpbroadcast(config.proto.respport)));
+                             peername::udpbroadcast(config.proto.respport())));
         if (r.isfailure()) {
             r.failure().warn("sending beacon broadcast");
             errors++; } }

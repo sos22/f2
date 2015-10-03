@@ -10,28 +10,28 @@
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 
-beaconconfig::beaconconfig(const peernameport &_reqport,
-                           const peernameport &_respport)
-    : reqport(_reqport),
-      respport(_respport) {}
+beaconconfig::beaconconfig(const peernameport &__reqport,
+                           const peernameport &__respport)
+    : _reqport(__reqport),
+      _respport(__respport) {}
 
-beaconconfig::beaconconfig(deserialise1 &ds) : reqport(ds), respport(ds) {}
+beaconconfig::beaconconfig(deserialise1 &ds) : _reqport(ds), _respport(ds) {}
 
 void
 beaconconfig::serialise(serialise1 &s) const {
-    s.push(reqport);
-    s.push(respport); }
+    s.push(reqport());
+    s.push(respport()); }
 
 bool
 beaconconfig::operator==(const beaconconfig &o) const {
-    return reqport == o.reqport && respport == o.respport; }
+    return reqport() == o.reqport() && respport() == o.respport(); }
 
 const fields::field &
 beaconconfig::field() const {
     return
         "<beaconconfig:"
-        " reqport:" + reqport.field() +
-        " respport:" + respport.field() +
+        " reqport:" + reqport().field() +
+        " respport:" + respport().field() +
         ">"; }
 
 const parser<beaconconfig> &

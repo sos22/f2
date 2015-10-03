@@ -13,16 +13,19 @@
 /* Fields which a user might want to change which relate to the beacon
  * protocol. */
 class beaconconfig {
-public: const peernameport reqport;
-public: const peernameport respport;
-public: beaconconfig(const peernameport &reqport, const peernameport &respport);
-public: beaconconfig(deserialise1 &);
-public: void serialise(serialise1 &) const;
-public: bool operator==(const beaconconfig &) const;
-public: bool operator!=(const beaconconfig &o) const {return !(*this == o); }
-public: const fields::field &field() const;
-public: static const ::parser<beaconconfig> &parser();
-public: static beaconconfig dflt; };
+private: peernameport _reqport;
+private: peernameport _respport;
+public:  beaconconfig(const peernameport &reqport,const peernameport &respport);
+public:  beaconconfig(deserialise1 &);
+public:  peernameport reqport() const { return _reqport; }
+public:  peernameport respport() const { return _respport; }
+public:  bool privileged() const {
+    return reqport().privileged() || respport().privileged(); }
+public:  void serialise(serialise1 &) const;
+public:  bool operator==(const beaconconfig &) const;
+public:  const fields::field &field() const;
+public:  static const ::parser<beaconconfig> &parser();
+public:  static beaconconfig dflt; };
 
 /* Beacon interface.  Every server in the system is expected to send
  * periodic BEACON::resp messages to a broadcast (or in future

@@ -212,7 +212,7 @@ beaconclient::beaconclient(const thread::constoken &token,
 
 orerror<nnp<beaconclient> >
 beaconclient::build(const beaconclientconfig &config) {
-    auto _listenfd(udpsocket::listen(config.proto().respport));
+    auto _listenfd(udpsocket::listen(config.proto().respport()));
     if (_listenfd.isfailure()) return _listenfd.failure();
     auto _clientfd(udpsocket::client());
     if (_clientfd.isfailure()) {
@@ -244,7 +244,7 @@ beaconclient::sendbroadcast() {
     serialise1 s(txbuf);
     req.serialise(s);
     auto r(clientfd.send(
-               txbuf, peername::udpbroadcast(config.proto().reqport)));
+               txbuf, peername::udpbroadcast(config.proto().reqport())));
     if (r.isfailure()) {
         r.failure().warn("sending beacon broadcast request");
         errors++;

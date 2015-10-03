@@ -26,7 +26,7 @@ public:  explicit peernameport(unsigned short _p) : p(_p) {}
 public:  explicit peernameport(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  bool operator==(const peernameport &o) const { return p == o.p; }
-public:  bool operator!=(const peernameport &o) const { return p != o.p; }
+public:  bool privileged() const { return p < 1024; }
 public:  const fields::field &field() const;
     /* Special port which can be used to get the OS to allocate an
        arbitrary port for you. */

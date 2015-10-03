@@ -516,6 +516,7 @@ static testmodule __beacontests(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         auto underlying(mkrandom<beaconconfig>(q));
+        while (underlying.privileged()) underlying = mkrandom<beaconconfig>(q);
         auto c(beaconclient::build(beaconclientconfig(cn,
                                                       Nothing,
                                                       Nothing,
@@ -534,7 +535,7 @@ static testmodule __beacontests(
         /* Something which can't be decoded at all */
         {   ::buffer b;
             serialise1(b).push((unsigned) 123);
-            sender.send(b, peername::loopback(underlying.respport))
+            sender.send(b, peername::loopback(underlying.respport()))
                 .fatal("sending bad packet"); }
         /* Something which decodes and gives a bad version. */
         peername::port port(q);
@@ -550,7 +551,7 @@ static testmodule __beacontests(
             rsp.version = ::version::invalid;
             serialise1(b).push(rsp);
             sender.send(b,
-                        peername::loopback(underlying.respport))
+                        peername::loopback(underlying.respport()))
                 .fatal("sending bad version packet"); }
         sender.close();
         /* Give it a moment to go through. */
@@ -577,6 +578,7 @@ static testmodule __beacontests(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         auto underlying(mkrandom<beaconconfig>(q));
+        while (underlying.privileged()) underlying = mkrandom<beaconconfig>(q);
         peername::port port(q);
         agentname sn(q);
         auto s(beaconserver::build(
@@ -596,7 +598,7 @@ static testmodule __beacontests(
         {   auto sender(udpsocket::client().fatal("udp client"));
             ::buffer b;
             serialise1(b).push((unsigned) 123);
-            sender.send(b, peername::loopback(underlying.reqport))
+            sender.send(b, peername::loopback(underlying.reqport()))
                 .fatal("sending bad packet");
             sender.close(); }
         /* Shouldn't produce any log messages. */
