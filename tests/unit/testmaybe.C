@@ -104,7 +104,7 @@ static testmodule __testmaybe(
         bool havediffjust = false;
         unsigned firstjust;
         quickcheck q;
-        for (unsigned x = 0; x < 10; x++) {
+        for (unsigned x = 0; x < 20; x++) {
             maybe<unsigned> y(q);
             if (y == Nothing) {
                 havenothing = true; }
