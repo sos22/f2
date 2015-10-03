@@ -26,7 +26,9 @@
 const peername::port
 peername::port::any(0);
 
-peernameport::peernameport(deserialise1 &ds) : p(ds) { }
+peernameport::peernameport(deserialise1 &ds)
+    : p(ds) {
+    if (p == 0 || p == 65535) ds.fail(error::invalidparameter); }
 
 void
 peernameport::serialise(serialise1 &s) const { s.push(p); }
