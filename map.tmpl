@@ -106,22 +106,20 @@ maybe<value>
 map<key, value, hash>::get(const key &k) const {
     if (nrbuckets == 0) return Nothing;
     auto h(hash(k));
-    auto prev(&buckets[h % nrbuckets]);
-    while (*prev) {
-        auto b(*prev);
+    auto b(buckets[h % nrbuckets]);
+    while (b != NULL) {
         if (b->h == h && b->k == k) return b->v;
-        prev = &b->next; }
+        else b = b->next; }
     return Nothing; }
 
 template <typename key, typename value, unsigned long hash(const key &)> bool
 map<key, value, hash>::haskey(const key &k) const {
     if (nrbuckets == 0) return false;
     auto h(hash(k));
-    auto prev(&buckets[h % nrbuckets]);
-    while (*prev) {
-        auto b(*prev);
+    auto b(buckets[h % nrbuckets]);
+    while (b != NULL) {
         if (b->h == h && b->k == k) return true;
-        prev = &b->next; }
+        else b = b->next; }
     return false; }
 
 template <typename key, typename value, unsigned long hash(const key &)>
@@ -129,11 +127,10 @@ value *
 map<key, value, hash>::get_mutate(const key &k) {
     if (nrbuckets == 0) return NULL;
     auto h(hash(k));
-    auto prev(&buckets[h % nrbuckets]);
-    while (*prev) {
-        auto b(*prev);
+    auto b(buckets[h % nrbuckets]);
+    while (b != NULL) {
         if (b->h == h && b->k == k) return &b->v;
-        prev = &b->next; }
+        else b = b->next; }
     return NULL; }
 
 template <typename key, typename value, unsigned long hash(const key &)> void
@@ -174,6 +171,17 @@ map<key, value, hash>::operator==(const map &o) const {
                     else return false; }
                 c = c->next; } } }
     return true; }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+map<key, value, hash>::iterator::iterator(map *_owner)
+    : owner(_owner),
+      bucketnr(0),
+      cursor(NULL) {
+    for (bucketnr = 0;
+         bucketnr != owner->nrbuckets && owner->buckets[bucketnr] == NULL;
+         bucketnr++) {}
+    if (bucketnr == owner->nrbuckets) cursor = NULL;
+    else cursor = owner->buckets[bucketnr]; }
 
 template <class _key, class _value, unsigned long hash(const _key &)>
 class map<_key, _value, hash>::fieldimpl : public fields::field {

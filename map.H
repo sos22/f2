@@ -99,22 +99,13 @@ public:  void clear(const _key &);
 public:  void flush();
     /* Equality tests. */
 public:  bool operator==(const map &) const;
-public:  bool operator!=(const map &o) const { return !(*this == o); }
     /* Iterator interface. */
 public:  class iterator {
         friend class map;
     private: map *owner;
     private: unsigned bucketnr;
     private: entry *cursor;
-    private: explicit iterator(map *_owner)
-        : owner(_owner),
-          bucketnr(0),
-          cursor(NULL) {
-        for (bucketnr = 0;
-             bucketnr != owner->nrbuckets && owner->buckets[bucketnr] == NULL;
-             bucketnr++) {}
-        if (bucketnr == owner->nrbuckets) cursor = NULL;
-        else cursor = owner->buckets[bucketnr]; }
+    private: explicit iterator(map *_owner);
     public:  void next() {
         cursor = cursor->next;
         if (cursor != NULL) return;
