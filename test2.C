@@ -207,6 +207,16 @@ main(int argc, char *argv[]) {
                 it.value()->prepare();
                 it.value()->runtests(timeout); }
             else it.value()->listtests(); } }
+    else if (!strcmp(argv[1], "findmodule")) {
+        if (argc != 3) errx(1, "need a filename to find a module for");
+        for (auto it(modules->start()); !it.finished(); it.next()) {
+            for (auto it2(it.value()->files().start());
+                 !it2.finished();
+                 it2.next()) {
+                if (*it2 == argv[2]) {
+                    printf("%s\n", it.key().c_str());
+                    exit(0); } } }
+        errx(1, "no test module for file %s", argv[2]); }
     else {
         auto &module(*modules->get(argv[1])
                      .fatal("no such module: " + fields::mk(argv[1])));
