@@ -7,9 +7,10 @@ set -e
 
 outdir=$1
 mkdir ${outdir}
+mkdir ${outdir}/logs
 trap "rm -rf ${outdir}" EXIT
 
-make -j8 test2-c
+make -s -j8 test2-c
 
 # summary1 has one line for every individual test.  The first field of
 # the line is a sort key and the rest is the message itself.
@@ -30,6 +31,20 @@ function fail() {
     printf "0 %-20s fail\n" $1 >> ${summary}
 }
 
+function captureoutput() {
+    stdbuf -o L -e L $* 2>&1
+}
+
+function testmodule() {
+    local modname=$1
+    if captureoutput ./testmodule.sh ${modname} ${outdir}/${modname} > ${outdir}/logs/${modname}
+    then
+        rm ${outdir}/logs/${modname}
+    else
+        false
+    fi
+}
+
 summary=${outdir}/summary1
 : > ${summary}
 # Run the unit tests.
@@ -37,7 +52,7 @@ summary=${outdir}/summary1
     sed 's/^Module: \(.*\)/\1/p;d' |
     while read modname
     do
-        if ./testmodule.sh ${modname} ${outdir}/${modname}
+        if testmodule ${modname}
         then
             if ./checkcoverage.sh ${outdir}/${modname}
             then
