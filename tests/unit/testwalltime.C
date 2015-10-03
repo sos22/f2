@@ -3,6 +3,7 @@
 #include "walltime.H"
 
 #include "parsers.tmpl"
+#include "serialise.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testwalltime(
@@ -16,6 +17,9 @@ static testmodule __testwalltime(
             auto n(walltime::now());
             assert(!(n == last));
             last = n; } },
+    "serialise", [] {
+        quickcheck q;
+        serialise<walltime>(q); },
     "parser", [] { parsers::roundtrip(parsers::_walltime()); },
     "fixedfields", [] {
 #define simpletest(val, fmted)                                          \
