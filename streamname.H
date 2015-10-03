@@ -26,7 +26,6 @@ public:  void serialise(serialise1 &) const;
 public:  bool operator<(const streamname &o) const { return content< o.content;}
 public:  bool operator<=(const streamname &o) const {return content<=o.content;}
 public:  bool operator==(const streamname &o) const {return content==o.content;}
-public:  bool operator!=(const streamname &o) const {return content!=o.content;}
 public:  bool operator>=(const streamname &o) const {return content>=o.content;}
 public:  bool operator>(const streamname &o) const { return content >o.content;}
 public:  static const ::parser<streamname> &parser();
