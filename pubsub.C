@@ -14,6 +14,7 @@
 #include "thread.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
 

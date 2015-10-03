@@ -2,6 +2,7 @@
 #include "test2.H"
 #include "void.H"
 
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 #include "test2.tmpl"
 

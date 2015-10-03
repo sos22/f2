@@ -4,6 +4,7 @@
 #include "test2.H"
 
 #include "fields.tmpl"
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "test2.tmpl"

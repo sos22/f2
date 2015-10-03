@@ -11,6 +11,7 @@
 #include "either.tmpl"
 #include "fields.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 #include "test2.tmpl"
 
 const filename storageservice(PREFIX "/storageservice" EXESUFFIX);

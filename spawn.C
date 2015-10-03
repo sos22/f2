@@ -12,6 +12,7 @@
 
 #include "clientio.H"
 #include "fields.H"
+#include "orerror.tmpl"
 #include "test.H"
 #include "timedelta.H"
 

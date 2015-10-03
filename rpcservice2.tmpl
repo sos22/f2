@@ -1,6 +1,8 @@
 #ifndef RPCSERVICE2_TMPL__
 #define RPCSERVICE2_TMPL__
 
+#include "orerror.tmpl"
+
 template <typename t, typename ... args> orerror<nnp<t> >
 rpcservice2::listen(
     clientio io,

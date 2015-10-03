@@ -19,36 +19,23 @@ template <> class orerror<void>;
 template <> class orerror<error>;
 
 template <typename t> class orerror : public either<error, t> {
-public: orerror(error e) : either<error, t>(Left(), e) {}
-public: orerror(const t &x) : either<error, t>(Right(), x) {}
-public: orerror(_Steal s, t &x) : either<error, t>(s, Right(), x) {}
-public: orerror(_Steal s, orerror &o) : either<error, t>(s, o) {}
-public: explicit orerror(deserialise1 &ds) : either<error, t>(ds) {}
+public: orerror(error e);
+public: orerror(const t &x);
+public: orerror(_Steal s, t &x);
+public: orerror(_Steal s, orerror &o);
+public: explicit orerror(deserialise1 &ds);
 public: template <typename ... args> orerror(_Success, args &&...params)
     : either<error, t>(Right(), std::forward<args>(params)...) {}
 public: orerror(_Failure, error e) : either<error, t>(Left(), e) {}
-public: bool operator==(const error &e) const {
-    return this->isleft() && this->left() == e; }
-public: bool operator==(const t &o) const {
-    return this->isright() && this->right() == o; }
-public: bool operator==(const orerror &o) const {
-    return
-        (this->isleft() && o.isleft() && this->left() == o.left()) ||
-        (this->isright() && o.isright() && this->right() == o.right()); }
+public: bool operator==(const error &e) const;
+public: bool operator==(const t &o) const;
+public: bool operator==(const orerror &o) const;
 public: void operator=(error e) { this->mkleft(e); }
 public: void operator=(const t &x) { this->mkright(x); }
-public: void operator=(const orerror &o) {
-    if (o.isleft()) this->mkleft(o.left());
-    else this->mkright(o.right()); }
-public: error failure() const {
-    assert(this->isfailure());
-    return this->left(); }
-public: const t &fatal(const fields::field &f) const {
-    if (this->isfailure()) this->failure().fatal(f);
-    else return this->success(); }
-public: const t &fatal(const char *f) const {
-    if (this->isfailure()) this->failure().fatal(f);
-    else return this->success(); }
+public: void operator=(const orerror &o);
+public: error failure() const;
+public: const t &fatal(const fields::field &f) const;
+public: const t &fatal(const char *f) const;
 public: const fields::field &field() const;
 public: void mkfailure(error e) { this->mkleft(e); }
 public: template <typename ... args> void mksuccess(args &&...params) {

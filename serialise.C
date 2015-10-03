@@ -4,6 +4,7 @@
 #include "quickcheck.H"
 
 #include "either.tmpl"
+#include "orerror.tmpl"
 
 deserialise1::deserialise1(const buffer &_src)
     : src(left<nnp<quickcheck> >(_nnp(_src))),

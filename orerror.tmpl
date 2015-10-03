@@ -4,6 +4,55 @@
 #include "either.tmpl"
 #include "parsers.tmpl"
 
+template <typename t>
+orerror<t>::orerror(error e) : either<error, t>(Left(), e) {}
+
+template <typename t>
+orerror<t>::orerror(const t &x) : either<error, t>(Right(), x) {}
+
+template <typename t>
+orerror<t>::orerror(_Steal s, t &x) : either<error, t>(s, Right(), x) {}
+
+template <typename t>
+orerror<t>::orerror(_Steal s, orerror &o) : either<error, t>(s, o) {}
+
+template <typename t>
+orerror<t>::orerror(deserialise1 &ds) : either<error, t>(ds) {}
+
+template <typename t> error
+orerror<t>::failure() const {
+    assert(this->isfailure());
+    return this->left(); }
+
+template <typename t> const t &
+orerror<t>::fatal(const fields::field &f) const {
+    if (this->isfailure()) this->failure().fatal(f);
+    else return this->success(); }
+
+template <typename t> const t &
+orerror<t>::fatal(const char *f) const {
+    if (this->isfailure()) this->failure().fatal(f);
+    else return this->success(); }
+
+template <typename t> bool
+orerror<t>::operator==(const error &e) const {
+    return this->isleft() && this->left() == e; }
+
+template <typename t> bool
+orerror<t>::operator==(const t &o) const {
+    return this->isright() && this->right() == o; }
+
+template <typename t> bool
+orerror<t>::operator==(const orerror &o) const {
+    return
+        (this->isleft() && o.isleft() && this->left() == o.left()) ||
+        (this->isright() && o.isright() && this->right() == o.right()); }
+
+template <typename t> void
+orerror<t>::operator=(const orerror &o) {
+    if (o.isleft()) this->mkleft(o.left());
+    else this->mkright(o.right()); }
+
 template <typename t> const fields::field &
 orerror<t>::field() const {
     if (isfailure()) return "<failed:" + failure().field() + ">";

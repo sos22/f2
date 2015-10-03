@@ -1,6 +1,7 @@
 #include "streamname.H"
 #include "test2.H"
 
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 #include "test2.tmpl"
 

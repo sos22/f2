@@ -10,6 +10,7 @@
 
 #include "either.tmpl"
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "pair.tmpl"
 #include "serialise.tmpl"
 #include "test2.tmpl"

@@ -5,6 +5,7 @@
 #include "test2.H"
 #include "udpsocket.H"
 
+#include "orerror.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "test.tmpl"

@@ -1,6 +1,7 @@
 #include "parsers.H"
 #include "test2.H"
 
+#include "orerror.tmpl"
 #include "pair.tmpl"
 #include "parsers.tmpl"
 #include "test2.tmpl"

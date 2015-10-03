@@ -12,6 +12,7 @@
 
 #include "either.tmpl"
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "pair.tmpl"
 #include "rpcservice2.tmpl"
 #include "thread.tmpl"
