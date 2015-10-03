@@ -9,8 +9,8 @@
 static testmodule __testjob(
     "job",
     list<filename>::mk("job.C", "job.H"),
-    testmodule::LineCoverage(55_pc),
-    testmodule::BranchCoverage(55_pc),
+    testmodule::LineCoverage(90_pc),
+    testmodule::BranchCoverage(70_pc),
     "serialise", [] {
         quickcheck q;
         serialise<job>(q); },
