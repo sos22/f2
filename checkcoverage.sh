@@ -10,6 +10,8 @@ fi
 
 report=${1}
 
+make -j8 -s test2-c
+
 eval $(head -n 1 ${report})
 t=$(mktemp)
 ./test2-c --stat ${module} > ${t}
