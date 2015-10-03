@@ -342,7 +342,7 @@ beaconclient::run(clientio io) {
          * spamming old clients' logs. */
         if (ds.isfailure()) {
             logmsg(loglevel::debug,
-                   "parsing beacon response from" +
+                   "parsing beacon response from " +
                    fields::mk(rr.success()) +
                    ": " + fields::mk(ds.failure()));
             errors++;

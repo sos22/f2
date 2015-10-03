@@ -192,7 +192,7 @@ fields::mk(const peername &p) {
 peername::port::peernameport(const quickcheck &q) {
     do {
         p = (unsigned short)q;
-    } while (p <= 1024); }
+    } while (p <= 1024 || p == 65535); }
 
 peername
 peername::udpbroadcast(peername::port p)
