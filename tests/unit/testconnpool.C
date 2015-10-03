@@ -214,7 +214,7 @@ static testmodule __testconnpool(
                        "rpcservice2.H",
                        "rpcservice2.tmpl"),
     testmodule::LineCoverage(85_pc),
-    testmodule::BranchCoverage(70_pc),
+    testmodule::BranchCoverage(69_pc),
     "null", [] (clientio io) {
         /* Tests of what happens when there's nothing to connect
          * to. */
