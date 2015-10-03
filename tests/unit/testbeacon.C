@@ -19,7 +19,7 @@ static testmodule __beacontests(
                        "beaconclient.H",
                        "beaconserver.C",
                        "beaconserver.H"),
-    testmodule::BranchCoverage(80_pc),
+    testmodule::BranchCoverage(78_pc),
     "serialise", [] {
         quickcheck q;
         serialise<proto::beacon::req>(q);
