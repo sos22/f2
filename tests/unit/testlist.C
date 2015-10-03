@@ -325,4 +325,10 @@ static testmodule __listtest(
         list<cons> l((Immediate()), cons(nrcons), cons(nrcons), cons(nrcons));
         assert(nrcons == 3);
         list<cons> l2(Steal, l);
-        assert(nrcons == 3); } );
+        assert(nrcons == 3); },
+    "peektail", [] {
+        list<int> l(Immediate(), 1, 2, 3);
+        assert(l.peektail() == 3);
+        assert(l.peektail() == 3);
+        assert(l.poptail() == 3);
+        assert(l.peektail() == 2); } );
