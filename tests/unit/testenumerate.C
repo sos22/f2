@@ -17,6 +17,7 @@ static testmodule __testenumerate(
     list<filename>::mk("enumerate.C",
                        "enumerate.H",
                        "enumerate.tmpl"),
+    testmodule::BranchCoverage(70_pc),
     "range", [] {
         assert((enumerate<r<0,0> >() == list<r<0,0> >::mk(0)));
         assert((enumerate<r<0,1> >() == list<r<0,1> >::mk(0,1)));
