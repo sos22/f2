@@ -283,7 +283,8 @@ static testmodule __testeq(
                                timedelta::milliseconds(100).future()) ==
                            error::timeout); }));
         assert(t >= timedelta::milliseconds(100));
-        assert(t < timedelta::milliseconds(200)); },
+        assert(t < timedelta::milliseconds(200));
+        pool->destroy(); },
     "failwaiter1", [] (clientio io) {
         quickcheck qc;
         auto cn(mkrandom<clustername>(qc));
