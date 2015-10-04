@@ -20,10 +20,10 @@
 int
 main(int argc, char *argv[])
 {
+    if (argc != 2) errx(1, "need one argument, the storage configuration");
+
     initlogging("storage");
     initpubsub();
-
-    if (argc != 2) errx(1, "need one argument, the storage configuration");
 
     auto config(storageconfig::parser()
                 .match(argv[1])

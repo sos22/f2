@@ -115,4 +115,5 @@ static testmodule __teststorageservice(
         assert(r.res.empty());
         /* Kill it again. */
         ss->kill();
-        f.rmtree().fatal("removing " + f.field()); });
+        f.rmtree().fatal("removing " + f.field());
+        pool->destroy(); });
