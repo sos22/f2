@@ -16,6 +16,7 @@
 #include "waitbox.tmpl"
 
 static __thread const char *this_name;
+static unsigned nrthreads;
 
 thread::thread(const thread::constoken &token)
     : thr(),
@@ -32,7 +33,8 @@ thread::go() {
                            NULL,
                            pthreadstart,
                            this);
-    if (r) error::from_errno(r).fatal("spawn thread " + fields::mk(name)); }
+    if (r) error::from_errno(r).fatal("spawn thread " + fields::mk(name));
+    atomicinc(::nrthreads); }
 
 void *
 thread::pthreadstart(void *_this) {
@@ -49,6 +51,7 @@ thread::pthreadstart(void *_this) {
     /* Tell subscribers that we died. */
     storerelease(&thr->dead, true);
     thr->_pub.publish();
+    atomicloaddec(nrthreads);
     return NULL; }
 
 orerror<void>
@@ -105,3 +108,8 @@ thread::field() const {
 
 const char *
 thread::myname() { return this_name ?: "<unknown thread>"; }
+
+namespace {
+class exitchecks {
+public: ~exitchecks() { assert(nrthreads == 0); } };
+static exitchecks _exitchecks; }
