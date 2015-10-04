@@ -27,7 +27,7 @@ trap "rm -rf $t $t2 ${filelist}" EXIT
 # Run the tests
 GCOV_PREFIX_STRIP=$(($(pwd | sed 's,[^/],,g' | wc -c) - 1))  \
     GCOV_PREFIX=${t}                                         \
-    ${base}/test2-c --fuzzsched "$module" "*"
+    ${base}/test2-c --verbose --fuzzsched "$module" "*"
 
 # Set up symlinks so that gcov can find source files.
 find ${base} -type f \( -name '*.[CHch]' -o -name '*.tmpl' \) |
