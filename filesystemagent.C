@@ -1054,7 +1054,9 @@ filesystem::storagebarrier(
 void
 filesystem::destroy(clientio io) {
     shutdown.set();
-    join(io); }
+    auto &_pool(pool);
+    join(io);
+    _pool.destroy(); }
 
 /* Construct a new filesystem which will keep track of all stores
  * known to the beacon client. */

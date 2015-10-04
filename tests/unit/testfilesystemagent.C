@@ -96,4 +96,5 @@ static testmodule __testfilesystemagent(
         auto &cp(*connpool::build(cluster).fatal("building connpool"));
         auto &fsc(filesystemclient::connect(cp, fsagentname));
         assert(fsc.name() == fsagentname);
-        fsc.destroy(); } );
+        fsc.destroy();
+        cp.destroy(); } );
