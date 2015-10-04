@@ -4,6 +4,8 @@ set -e
 
 make -j8 -s test2-c spawnservice-c
 
+ulimit -c unlimited
+
 : ${TMPDIR:=/tmp}
 if [ $# -eq 1 ]
 then
