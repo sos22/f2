@@ -126,6 +126,9 @@ static testmodule __testeq(
                 q.queue(52, rpcservice2::acquirestxlock(_io));
                 assert(timedelta::time([&] { assert(c.pop(_io) == 52); })
                        < timedelta::milliseconds(500));
+                q.queue(53, rpcservice2::acquirestxlock(_io));
+                assert(timedelta::time([&] { assert(c.pop(_io) == 53); })
+                       < timedelta::milliseconds(500));
                 assert(c.pop() == Nothing); }); },
     "overflow", [] (clientio io) {
         auto qconf(eventqueueconfig::dflt());
@@ -635,7 +638,7 @@ static testmodule __testeq(
                     timedelta::seconds(1).future())
                 .fatal("connecting eqclient")
                 .first());
-        while (nrwaiters == 0)timedelta::milliseconds(1).future().sleep(io);
+        while (nrwaiters == 0) timedelta::milliseconds(1).future().sleep(io);
         assert(nrwaiters == 1);
         auto c2(eqclient<unsigned>::connect(
                     io,
@@ -645,7 +648,7 @@ static testmodule __testeq(
                     timedelta::seconds(1).future())
                 .fatal("connecting eqclient")
                 .first());
-        while (nrwaiters == 1)timedelta::milliseconds(1).future().sleep(io);
+        while (nrwaiters == 1) timedelta::milliseconds(1).future().sleep(io);
         assert(nrwaiters == 2);
         c2->destroy();
         /* Ick */
