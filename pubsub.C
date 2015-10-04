@@ -291,6 +291,7 @@ subscriber::~subscriber() {
 
 void
 initpubsub() {
+    if (pollthread != NULL) return;
     auto ss(::signal(SIGUSR1, sigusr1handler));
     if (ss == SIG_ERR) error::from_errno().fatal("installing sigusr1 handler");
     if (ss != SIG_DFL) error::toolate.fatal("conflicting SIGUSR1 handlers");
@@ -308,9 +309,11 @@ initpubsub() {
 
 void
 deinitpubsub(clientio io) {
+    if (pollthread == NULL) return;
     pollthread->stop(io);
     auto ss(::signal(SIGUSR1, SIG_DFL));
     if (ss == SIG_ERR) error::from_errno().fatal("restoring sigusr1 handler");
-    if (ss != sigusr1handler) error::toolate.fatal("SIGUSR1 handler changed"); }
+    if (ss != sigusr1handler) error::toolate.fatal("SIGUSR1 handler changed");
+    pollthread = NULL; }
 
 tests::event<void> tests::iosubdetachrace;

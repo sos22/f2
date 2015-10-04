@@ -9,6 +9,7 @@
 #include "list.H"
 #include "logging.H"
 #include "parsers.H"
+#include "pubsub.H"
 #include "quickcheck.H"
 #include "string.H"
 
@@ -170,6 +171,7 @@ error::fatal(const fields::field &msg) const
            "fatal error: " + msg + ": " + fields::mk(*this));
     fields::fieldbuf buf;
     (msg + ": " + fields::mk(*this)).fmt(buf);
+    ::deinitpubsub(clientio::CLIENTIO);
     errx(1, "fatal error: %s", buf.c_str());
 }
 
