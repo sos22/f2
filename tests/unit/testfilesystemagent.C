@@ -46,8 +46,8 @@ static testmodule __testfilesystemagent(
                        "filesystemclient.H",
                        "filesystemproto.C",
                        "filesystemproto.H"),
-    testmodule::LineCoverage(45_pc),
-    testmodule::BranchCoverage(33_pc),
+    testmodule::LineCoverage(47_pc),
+    testmodule::BranchCoverage(34_pc),
     "basic", [] (clientio io) {
         quickcheck q;
         auto cluster(mkrandom<clustername>(q));
