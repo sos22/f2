@@ -9,12 +9,12 @@ then
 fi
 
 report=${1}
-
-make -j8 -s test2-c
+builddir=$(dirname $(realpath $0))
+make -C $builddir -j8 -s test2-c
 
 eval $(head -n 1 ${report})
 t=$(mktemp)
-./test2-c --stat ${module} > ${t}
+${builddir}/test2-c --stat ${module} > ${t}
 eval $(<${t} sed 's/^[[:space:]]*Line coverage:[[:space:]]* \([0-9.]*\)%/targline=\1/p;d')
 eval $(<${t} sed 's/^[[:space:]]*Branch coverage:[[:space:]]*\([0-9.]*\)%/targbranch=\1/p;d')
 rm -f ${t}
