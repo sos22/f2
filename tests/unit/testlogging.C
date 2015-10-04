@@ -6,8 +6,8 @@
 static testmodule __testlogging(
     "logging",
     list<filename>::mk("logging.C", "logging.H"),
-    testmodule::LineCoverage(50_pc),
-    testmodule::BranchCoverage(35_pc),
+    testmodule::LineCoverage(70_pc),
+    testmodule::BranchCoverage(45_pc),
     /* The logging test is mostly of memlog, which is private to
      * logging.C, so the test itself is also in logging.C */
     "memlog", [] { tests::logging(); });
