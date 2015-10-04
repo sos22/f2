@@ -114,8 +114,8 @@ static testmodule __testeq(
                        "eqclient.H",
                        "eqserver.C",
                        "eqserver.H"),
-    testmodule::BranchCoverage(68_pc),
-    testmodule::LineCoverage(95_pc),
+    testmodule::BranchCoverage(67_pc),
+    testmodule::LineCoverage(93_pc),
     "basic", [] (clientio io) {
         eqtestcase(
             io,
