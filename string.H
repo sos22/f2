@@ -7,6 +7,7 @@
 
 class _Steal;
 class deserialise1;
+template <typename> class maybe;
 template <typename> class parser;
 class quickcheck;
 class serialise1;
@@ -52,6 +53,10 @@ public:  void truncate(size_t sz);
        valid as long as this does. */
     /* XXX Really rather skanky XXX */
 public:  const char *c_str() const;
+
+    /* If @p is a prefix of *this, return the bit of *this after the
+     * prefix.  Otherwise, return NULL. */
+public:  maybe<string> stripprefix(const string &p) const;
 
 public:  const fields::strfield &field() const { return fields::mk(*this); }
 

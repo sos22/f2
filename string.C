@@ -131,6 +131,15 @@ string::c_str() const {
         ? content
         : ""; }
 
+maybe<string>
+string::stripprefix(const string &other) const {
+    auto t(c_str());
+    auto o(other.c_str());
+    unsigned x;
+    for (x = 0; t[x] != '\0' && o[x] == t[x]; x++) ;
+    if (o[x] == '\0') return string(t + x);
+    else return Nothing; }
+
 const parser<string> &
 string::parser(void) {
     return parsers::strparser.map<string>([] (const char *const &inner) {
