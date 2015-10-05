@@ -86,7 +86,6 @@ f2main(list<string> &args) {
             1,
             "need three arguments: cluster name, "
             "FS agent name, job, and optionally output FD"); }
-    initlogging("runjob");
     auto cn(parsers::__clustername()
             .match(args.idx(0))
             .fatal("parsing cluster name " + fields::mk(args.idx(0))));
@@ -109,5 +108,4 @@ f2main(list<string> &args) {
     outfd.write(clientio::CLIENTIO, r.field())
         .fatal("reporting result of job (" + r.field() + ")");
     deinitpubsub(clientio::CLIENTIO);
-    deinitlogging();
     return Success; }

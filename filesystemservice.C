@@ -13,7 +13,6 @@
 
 orerror<void>
 f2main(list<string> &args) {
-    initlogging("filesystem");
     initpubsub();
     
     if (args.length() != 2) {

@@ -24,7 +24,7 @@ f2main(list<string> &args)
     if (args.length() != 1) {
         errx(1, "need one argument, the storage configuration"); }
 
-    initlogging("storage");
+    initlogging(args);
 
     auto config(storageconfig::parser()
                 .match(args.idx(0))

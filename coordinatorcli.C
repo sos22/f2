@@ -12,7 +12,6 @@
 orerror<void>
 f2main(list<string> &args) {
     initpubsub();
-    initlogging("coordinatorclient");
     if (args.length() < 3) {
         errx(1,
              "need at least three arguments: "

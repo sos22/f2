@@ -26,7 +26,7 @@ static testmodule __testmeta(
     "meta",
     list<filename>::mk("test2.H", "test2.C", "test2.tmpl"),
     testmodule::LineCoverage(64_pc),
-    testmodule::BranchCoverage(50_pc),
+    testmodule::BranchCoverage(49_pc),
     "nodupes", [] {
         /* No file should be tested by multiple modules. */
         map<filename, string> covered;
@@ -180,10 +180,7 @@ f2main(list<string> &args) {
     bool stat = false;
     maybe<timedelta> timeout(30_s);
     while (!args.empty()) {
-        if (args.peekhead() == "--verbose") {
-            initlogging("tests");
-            args.drophead(); }
-        else if (args.peekhead() == "--profile") {
+        if (args.peekhead() == "--profile") {
             startprofiling();
             args.drophead(); }
         else if (args.peekhead() == "--stat") {

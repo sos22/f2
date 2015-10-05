@@ -1,28 +1,15 @@
 #include "logging.H"
 
-#include <sys/time.h>
-#include <assert.h>
-#include <stdarg.h>
+#include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <syscall.h>
 #include <syslog.h>
-#include <time.h>
-#include <unistd.h>
 
-#include "beaconclient.H"
-#include "error.H"
 #include "fields.H"
-#include "maybe.H"
-#include "mutex.H"
 #include "test.H"
-#include "thread.H"
-#include "walltime.H"
+#include "map.H"
 
 #include "list.tmpl"
-#include "orerror.tmpl"
+#include "map.tmpl"
 #include "test.tmpl"
 
 const loglevel
@@ -40,378 +27,173 @@ loglevel::debug(10);
 const loglevel
 loglevel::verbose(11);
 
-/* Start it with something which changes when truncated to 32 bits so
-   as to make truncation bugs obvious. */
-const memlog_idx
-memlog_idx::min(1ul << 32);
+/* loglevel interface says >= means more serious, but internally
+   levels are in descending order. */
+bool
+loglevel::operator >=(const loglevel &o) const { return level <= o.level; }
 
-const memlog_idx
-memlog_idx::max(ULONG_MAX);
+bool
+loglevel::operator >(const loglevel &o) const { return level < o.level; }
 
-memlog_idx
-memlog_idx::operator ++(int)
-{
-    val++;
-    return memlog_idx(val - 1);
-}
+bool
+loglevel::operator ==(const loglevel &o) const { return level == o.level; }
 
-class log_sink {
-public:
-    virtual void msg(const char *s) = 0;
-    virtual ~log_sink() {};
-};
+const fields::field &
+loglevel::field() const {
+    if (*this == loglevel::emergency) return fields::mk("emergency");
+    else if (*this == loglevel::error) return fields::mk("error");
+    else if (*this == loglevel::notice) return fields::mk("notice");
+    else if (*this == loglevel::failure) return fields::mk("failure");
+    else if (*this == loglevel::info) return fields::mk("info");
+    else if (*this == loglevel::debug) return fields::mk("debug");
+    else if (*this == loglevel::verbose) return fields::mk("verbose");
+    else return "unknown loglevel " + fields::mk(this->level); }
 
-class memlog_sink : public log_sink {
-    const unsigned backlog;
-    list<memlog_entry> outstanding;
-    memlog_idx next_sequence;
-    mutex_t lock;
-public:
-    memlog_sink()
-        : backlog(10000), outstanding(), next_sequence(memlog_idx::min), lock()
-        {}
-    void msg(const char *s)
-        {
-            auto t(lock.lock());
-            outstanding.pushtail(memlog_entry(next_sequence++, s));
-            while (outstanding.length() > backlog)
-                outstanding.pophead();
-            lock.unlock(&t);
-        }
-    maybe<memlog_idx> fetch(memlog_idx start,
-                            unsigned limit,
-                            list<memlog_entry> &out)
-        {
-            assert(out.empty());
-            auto t(lock.lock());
-            unsigned nr;
-            nr = 0;
-            for (auto it(outstanding.start());
-                 !it.finished();
-                 it.next()) {
-                if (it->idx >= start) {
-                    if (nr == limit) {
-                        auto res(it->idx);
-                        lock.unlock(&t);
-                        return res;
-                    }
-                    nr++;
-                    out.pushtail(*it);
-                }
-            }
-            lock.unlock(&t);
-            return Nothing;
-        }
-    
-public: void flush() {
-    while (outstanding.length() > backlog) outstanding.pophead(); }
-    
-};
+static map<string, logmodule *>
+modules;
+logmodule::logmodule(const string &n)
+    : name(n),
+      noisy(false) {
+    modules.set(n, this); }
 
-class syslog_sink : public log_sink {
-    int priority;
-public:
-    syslog_sink(int _priority)
-        : priority(_priority)
-        {}
-    void msg(const char *s)
-        {
-            syslog(priority, "%s", s);
-        }
-    void open(const char *ident, int facility)
-        {
-            openlog(ident, 0, facility);
-        }
-    void close()
-        {
-            closelog();
-        }
-};
+class memlogentry {
+public: const fields::field &field() const;
+public: timestamp when;
+public: tid who;
+public: const logmodule *module;
+public: const char *file;
+public: unsigned line;
+public: const char *func;
+public: loglevel level;
+public: char what[]; };
 
-class filelog_sink : public log_sink {
-    FILE *f;
-    filelog_sink(const filelog_sink &) = delete;
-    void operator=(const filelog_sink &) = delete;
-public:
-    filelog_sink()
-        : f(NULL)
-        {}
-    ~filelog_sink() { assert(f == NULL); }
-    orerror<void> open(const char *filename)
-        {
-            assert(!f);
-            f = fopen(filename, "w");
-            if (f)
-                return Success;
-            else
-                return error::from_errno();
-        }
-    void close()
-        {
-            if (f)
-                fclose(f);
-            f = NULL;
-        }
-    void msg(const char *s)
-        {
-            assert(f);
-            fprintf(f, "%s\n", s);
-            fflush(f);
-        }
-};
+const fields::field &
+memlogentry::field() const {
+    return padright(when.field(), 24) + " " +
+        padright(level.field(), 9) + " " +
+        padright(who.field(), 7) +
+        (module->name != file
+         ? " m:" + padright(module->name.field(), 20)
+         : fields::mk("")) +
+        " " + padright(fields::mk(file) +
+                       ":" + fields::mk(func) +
+                       ":" + fields::mk(line).nosep(),
+                       40) +
+        " " + fields::mk(what).escape(); }
 
-class stdio_sink : public log_sink {
-    FILE *f;
-    stdio_sink(const stdio_sink &) = delete;
-    void operator=(const stdio_sink &) = delete;
-public:
-    stdio_sink(FILE *_f)
-        : f(_f)
-        {}
-    void msg(const char *s)
-        {
-            assert(f);
-            fprintf(f, "%s\n", s);
-            fflush(f);
-        }
-};
-
-class logpolicy {
-public:  memlog_sink memlog;
-private: syslog_sink syslog;
-    filelog_sink filelog;
-    stdio_sink stdiolog;
-    list<log_sink *> sinks[7];
-    list<log_sink *> &level_to_sink(loglevel l);
-public:
-    logpolicy();
-    void init(const char *);
-    void logmsg(loglevel level, const fields::field &);
-    void deinit();
-    ~logpolicy() { deinit(); }
-};
-
-static logpolicy
-policy;
-
-list<log_sink *> &
-logpolicy::level_to_sink(loglevel l)
-{
-    assert(l.level >= loglevel::emergency.level);
-    assert(l.level <= loglevel::verbose.level);
-    return sinks[l.level-loglevel::emergency.level];
-}
-
-logpolicy::logpolicy()
-    : memlog(),
-      syslog(LOG_INFO),
-      filelog(),
-      stdiolog(stdout)
-{
-}
+class memlog {
+public: list<memlogentry *> log;
+public: unsigned count;
+public: void append(memlogentry *e) {
+    log.append(e);
+    if (count == 1000) free(log.pophead());
+    else count++; } };
+static __thread memlog *_threadmemlog;
+static memlog &threadmemlog() {
+    if (_threadmemlog == NULL) _threadmemlog = new memlog();
+    return *_threadmemlog; }
+static memlog _globalmemlog;
+static memlog &globalmemlog(mutex_t::token) {return _globalmemlog;}
+static mutex_t globalmemlogmux;
+static FILE *logfile;
 
 void
-logpolicy::init(const char *ident)
-{
-    syslog.open(ident, LOG_DAEMON);
-    char *logfile;
-    int r;
-    r = asprintf(&logfile, "%s.log", ident);
-    assert(r >= 0);
-    filelog.open(logfile).fatal(fields::mk("opening logfile ") + logfile);
-    free(logfile);
-
-    for (auto it(loglevel::begin()); !it.finished(); it.next()) {
-        auto &l(level_to_sink(*it));
-        l.pushhead(&memlog);
-        l.pushhead(&stdiolog);
-        if (*it >= loglevel::info)
-            l.pushhead(&filelog);
-        if (*it >= loglevel::notice)
-            l.pushhead(&syslog);
-    }
-}
-void
-initlogging(const char *ident)
-{
-    policy.init(ident);
-}
-
-void
-logpolicy::logmsg(loglevel level, const fields::field &fld)
-{
+_logmsg(const logmodule &module,
+        const char *file,
+        unsigned line,
+        const char *func,
+        loglevel level,
+        const fields::field &what) {
     tests::logmsg.trigger(level);
-    auto &sink(level_to_sink(level));
-    if (sink.empty())
-        return;
-
-    fields::fieldbuf buf;
-    (fields::padright(fields::mk(timestamp::now()), 30)  +
-     " pid=" + fields::padright(fields::mk(getpid()).nosep(), 5) +
-     " tid=" + fields::padright(fields::mk(tid::me()), 7) +
-     " thread=" + fields::trunc(
-         fields::padright(fields::mk(thread::myname()), 15),
-         15) +
-     " level=" + fields::padright(fields::mk(level), 7) +
-     " " + fld).fmt(buf);
-    const char *res(buf.c_str());
-    for (auto it(sink.start()); !it.finished(); it.next())
-        (*it)->msg(res);
-}
-void
-logmsg(loglevel level, const fields::field &fld)
-{
-    policy.logmsg(level, fld);
-}
-void
-logmsg(loglevel level, const char *what)
-{
-    policy.logmsg(level, fields::mk(what));
-}
-
-void
-logpolicy::deinit(void)
-{
-    syslog.close();
-    filelog.close();
-    memlog.flush();
-}
-void
-deinitlogging(void)
-{
-    policy.deinit();
-}
-
-loglevel::iter
-loglevel::begin()
-{
-    return loglevel::iter();
-}
-
-loglevel::iter::iter()
-    : cursor(loglevel::emergency.level)
-{
-}
-
-bool
-loglevel::iter::finished() const
-{
-    return cursor > loglevel::verbose.level;
-}
-
-loglevel
-loglevel::iter::operator *() const
-{
-    assert(!finished());
-    return loglevel(cursor);
-}
+    auto cstr(what.c_str());
+    auto len(strlen(cstr));
+    auto mle = (memlogentry *)malloc(sizeof(memlogentry) + len + 1);
+    mle->when = timestamp::now();
+    mle->who = tid::me();
+    mle->module = &module;
+    mle->file = file;
+    mle->line = line;
+    mle->func = func;
+    mle->level = level;
+    memcpy(mle->what, cstr, len + 1);
+    const char *mlestr(NULL);
+    if (level >= loglevel::error) {
+        mlestr = mle->field().c_str();
+        syslog(level == loglevel::error ? LOG_CRIT : LOG_ALERT,
+               "%s",
+               mlestr); }
+    if (level >= loglevel::failure || module.noisy) {
+        if (mlestr == NULL) mlestr = mle->field().c_str();
+        fprintf(logfile, "%s\n", mlestr); }
+    if (level >= loglevel::info || module.noisy) {
+        if (mlestr == NULL) mlestr = mle->field().c_str();
+        fprintf(stderr, "%s\n", mlestr); }
+    if (level >= loglevel::debug || module.noisy) {
+        globalmemlogmux.locked([mle] (mutex_t::token t) {
+                globalmemlog(t).append(mle); }); }
+    else threadmemlog().append(mle); }
 
 void
-loglevel::iter::next()
-{
-    cursor++;
-}
-
-bool
-loglevel::operator >=(const loglevel &o) const
-{
-    /* loglevel interface says >= means more serious, but internally
-       levels are in descending order. */
-    return level <= o.level;
-}
-
-bool
-loglevel::operator >(const loglevel &o) const
-{
-    return level < o.level;
-}
-
-bool
-loglevel::operator ==(const loglevel &o) const
-{
-    return level == o.level;
-}
-
-const fields::field &
-fields::mk(const loglevel &l) {
-    if (l == loglevel::emergency)
-        return fields::mk("emergency");
-    else if (l == loglevel::error)
-        return fields::mk("error");
-    else if (l == loglevel::notice)
-        return fields::mk("notice");
-    else if (l == loglevel::failure)
-        return fields::mk("failure");
-    else if (l == loglevel::info)
-        return fields::mk("info");
-    else if (l == loglevel::debug)
-        return fields::mk("debug");
-    else if (l == loglevel::verbose)
-        return fields::mk("verbose");
-    else
-        return "unknown loglevel " + fields::mk(l.level); }
-
-const fields::field &
-fields::mk(const memlog_idx &m) {
-    return "<memlog_idx:" + fields::mk(m.val) + ">"; }
-
-const fields::field &
-fields::mk(const memlog_entry &e) {
-    return "<memlog_entry:" + fields::mk(e.idx) +
-        "=" + fields::mk(e.msg) + ">"; }
+_logmsg(const logmodule &module,
+        const char *file,
+        unsigned line,
+        const char *func,
+        loglevel level,
+        const char *what) {
+    _logmsg(module, file, line, func, level, fields::mk(what)); }
 
 void
-tests::logging() {
-    memlog_sink ms;
-    ms.msg("Hello");
-    ms.msg("World");
-    ms.msg("Goodbye");
-    {   list<memlog_entry> l;
-        auto truncat(ms.fetch(memlog_idx::min, 0, l));
-        assert(l.empty());
-        assert(truncat.isjust());
-        assert(truncat.just() == memlog_idx::min); }
-    {   list<memlog_entry> l;
-        auto truncat(ms.fetch(memlog_idx::min, 999, l));
-        assert(l.length() == 3);
-        assert(truncat == Nothing);
-        unsigned long idx = 0;
-        for (auto it(l.start()); !it.finished(); it.next()) {
-            assert(it->idx.as_long() == idx + memlog_idx::min.as_long());
-            switch (idx) {
-            case 0:
-                assert(!strcmp(it->msg, "Hello"));
-                break;
-            case 1:
-                assert(!strcmp(it->msg, "World"));
-                break;
-            case 2:
-                assert(!strcmp(it->msg, "Goodbye"));
-                break;
-            default:
-                abort();
-            }
-            idx++; } }
-    {   list<memlog_entry> l;
-        auto truncat1(ms.fetch(memlog_idx::min, 1, l));
-        assert(l.length() == 1);
-        assert(truncat1.isjust());
-        assert(l.peekhead().idx == memlog_idx::min);
-        assert(!strcmp(l.peekhead().msg, "Hello"));
-        l.flush();
-        auto truncat2(ms.fetch(truncat1.just(), 1, l));
-        assert(l.length() == 1);
-        assert(truncat2.isjust());
-        assert(l.peekhead().idx == truncat1.just());
-        assert(!strcmp(l.peekhead().msg, "World"));
-        l.flush();
-        auto truncat3(ms.fetch(truncat2.just(), 1, l));
-        assert(l.length() == 1);
-        assert(truncat3 == Nothing);
-        assert(l.peekhead().idx == truncat2.just());
-        assert(!strcmp(l.peekhead().msg, "Goodbye")); }
-    ms.flush(); }
+dumpmemlog() {
+    logmsg(loglevel::notice, "log dump from thread " + tid::me().field());
+    auto titer(threadmemlog().log.start());
+    globalmemlogmux.locked([&titer] (mutex_t::token t) {
+            auto giter(globalmemlog(t).log.start());
+            while (!giter.finished() && !titer.finished()) {
+                if ((*giter)->when < (*titer)->when) {
+                    fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
+                    giter.next(); }
+                else {
+                    fprintf(stderr, "*** %s\n", (*titer)->field().c_str());
+                    titer.next(); } }
+            while (!giter.finished()) {
+                fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
+                giter.next(); } });
+    while (!titer.finished()) {
+        fprintf(stderr, "*** %s\n", (*titer)->field().c_str());
+        titer.next(); } }
 
-namespace tests {
-event<loglevel> logmsg;
-}
+void
+_initlogging(const char *_ident, list<string> &args) {
+    {   auto it(args.start());
+        while (!it.finished()) {
+            if (*it == "==") break;
+            if (*it == "--listmodules") {
+                for (auto it2(modules.start()); !it2.finished(); it2.next()) {
+                    fprintf(stderr, "%s\n", it2.key().c_str()); }
+                exit(0); }
+            if (*it == "--verbose") {
+                for (auto it2(modules.start()); !it2.finished(); it2.next()) {
+                    it2.value()->noisy = true; }
+                it.remove();
+                continue; }
+            auto mod(it->stripprefix("--noisymodule="));
+            if (mod != Nothing) {
+                it.remove();
+                auto m(modules.get(mod.just()));
+                if (m == Nothing) {
+                    errx(1, "no such module %s", mod.just().c_str()); }
+                if (m.just()->noisy) {
+                    errx(1, "module %s is already noisy", mod.just().c_str()); }
+                m.just()->noisy = true;
+                continue; }
+            it.next(); } }
+    size_t s = strlen(_ident);
+    if (s >= 2 && !strcmp(_ident + s - 2, ".C")) s -= 2;
+    auto ident = (char *)malloc(s + 5);
+    memcpy(ident, _ident, s);
+    memcpy(ident + s, ".log", 5);
+    logfile = fopen(ident, "a");
+    if (logfile == NULL) err(1, "opening %s", ident);
+    free(ident); }
+
+namespace tests { event<loglevel> logmsg; }

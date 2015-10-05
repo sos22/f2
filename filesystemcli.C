@@ -22,7 +22,6 @@
 orerror<void>
 f2main(list<string> &args) {
     initpubsub();
-    initlogging("filesystemclient");
     if (args.length() < 3) {
         errx(1,
              "need at least three arguments: "

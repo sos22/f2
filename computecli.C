@@ -22,7 +22,6 @@
 
 orerror<void>
 f2main(list<string> &args) {
-    initlogging("computeclient");
     initpubsub();
     if (args.length() < 3) {
         errx(1, "need at least three arguments: a cluster, a peer and a mode");}

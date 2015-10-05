@@ -15,7 +15,6 @@
 
 orerror<void>
 f2main(list<string> &args) {
-    initlogging("compute");
     initpubsub();
     
     if (args.length() != 3) {

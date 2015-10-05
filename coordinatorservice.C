@@ -242,7 +242,6 @@ coordinatorservice::_jobcreator::run(clientio io) {
 
 orerror<void>
 f2main(list<string> &args) {
-    initlogging("coordinator");
     initpubsub();
 
     if (args.length() != 3) {

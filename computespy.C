@@ -12,7 +12,6 @@
 
 orerror<void>
 f2main(list<string> &args) {
-    initlogging("computeclient");
     initpubsub();
     if (args.length() != 2) {
         errx(1, "need two arguments, the cluster and the agent name"); }

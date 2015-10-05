@@ -15,7 +15,6 @@
 
 orerror<void>
 f2main(list<string> &args) {
-    initlogging("storagespy");
     initpubsub();
     if (args.length() != 2) {
         errx(1, "need at two arguments: a cluster and a peer"); }

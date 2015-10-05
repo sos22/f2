@@ -1,6 +1,7 @@
 #include "main.H"
 
 #include "list.H"
+#include "logging.H"
 #include "string.H"
 
 #include "list.tmpl"
@@ -10,6 +11,7 @@ int
 main(int argc, char *argv[]) {
     list<string> args;
     for (int i = 1; i < argc; i++) args.pushtail(argv[i]);
+    initlogging(args);
     f2main(args).fatal("error from f2main");
     return 0; }
 
