@@ -124,7 +124,6 @@ runningjob::run(clientio io) {
     auto pi(_pi.success());
     auto p(spawn::process::spawn(
                spawn::program(PREFIX "/runjob" EXESUFFIX)
-               .addarg("runjob")
                .addarg(owner.cp.getconfig().beacon.cluster().field())
                .addarg(owner.fs.name().field())
                .addarg(j.field())

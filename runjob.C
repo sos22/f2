@@ -81,29 +81,29 @@ runjob(clientio io,
 
 orerror<void>
 f2main(list<string> &args) {
-    if (args.length() != 4 && args.length() != 5) {
+    if (args.length() != 3 && args.length() != 4) {
         errx(
             1,
-            "need four arguments: logging name, cluster name, "
+            "need three arguments: cluster name, "
             "FS agent name, job, and optionally output FD"); }
-    initlogging(args.idx(0).c_str());
+    initlogging("runjob");
     auto cn(parsers::__clustername()
-            .match(args.idx(1))
-            .fatal("parsing cluster name " + fields::mk(args.idx(1))));
+            .match(args.idx(0))
+            .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto fsn(parsers::_agentname()
-             .match(args.idx(2))
-             .fatal("parsing agent name " + fields::mk(args.idx(2))));
+             .match(args.idx(1))
+             .fatal("parsing agent name " + fields::mk(args.idx(1))));
     auto j(job::parser()
-           .match(args.idx(3))
-           .fatal("parsing job " + fields::mk(args.idx(3))));
-    fd_t outfd(args.length() == 4
+           .match(args.idx(2))
+           .fatal("parsing job " + fields::mk(args.idx(2))));
+    fd_t outfd(args.length() == 3
                ? 1
                : (parsers::intparser<unsigned>()
                   .maperr<int>([] (const int &fd) -> orerror<int> {
                           if (fd < 0) return error::noparse;
                           else return fd; })
-                  .match(args.idx(4))
-                  .fatal("parsing fd " + fields::mk(args.idx(4)))));
+                  .match(args.idx(3))
+                  .fatal("parsing fd " + fields::mk(args.idx(3)))));
     initpubsub();
     auto r = runjob(clientio::CLIENTIO, cn, fsn, j);
     outfd.write(clientio::CLIENTIO, r.field())
