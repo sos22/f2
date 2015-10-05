@@ -2,6 +2,7 @@
 
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <syslog.h>
 
 #include "fields.H"
@@ -162,6 +163,12 @@ dumpmemlog() {
         fprintf(stderr, "*** %s\n", (*titer)->field().c_str());
         titer.next(); } }
 
+static void
+_logging_exit(int code, void *) {
+    if (code != 0) {
+        logmsg(loglevel::emergency, "exiting with status " + fields::mk(code));
+        dumpmemlog(); } }
+
 void
 _initlogging(const char *_ident, list<string> &args) {
     {   auto it(args.start());
@@ -194,6 +201,7 @@ _initlogging(const char *_ident, list<string> &args) {
     memcpy(ident + s, ".log", 5);
     logfile = fopen(ident, "a");
     if (logfile == NULL) err(1, "opening %s", ident);
-    free(ident); }
+    free(ident);
+    on_exit(_logging_exit, NULL); }
 
 namespace tests { event<loglevel> logmsg; }
