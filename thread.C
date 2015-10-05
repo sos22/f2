@@ -12,6 +12,7 @@
 #include "util.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "thread.tmpl"
 #include "waitbox.tmpl"
 

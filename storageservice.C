@@ -5,6 +5,7 @@
 #include "fields.H"
 #include "filename.H"
 #include "logging.H"
+#include "main.H"
 #include "nnp.H"
 #include "parsers.H"
 #include "peername.H"
@@ -17,16 +18,17 @@
 
 #include "parsers.tmpl"
 
-int
-main(int argc, char *argv[])
+orerror<void>
+f2main(list<string> &args)
 {
-    if (argc != 2) errx(1, "need one argument, the storage configuration");
+    if (args.length() != 1) {
+        errx(1, "need one argument, the storage configuration"); }
 
     initlogging("storage");
 
     auto config(storageconfig::parser()
-                .match(argv[1])
-                .fatal("cannot parse " + fields::mk(argv[1]) +
+                .match(args.idx(0))
+                .fatal("cannot parse " + fields::mk(args.idx(0)) +
                        " as storage configuration"));
 
     initpubsub();

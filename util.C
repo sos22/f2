@@ -7,6 +7,8 @@
 #include "error.H"
 #include "orerror.H"
 
+#include "orerror.tmpl"
+
 orerror<long>
 parselong(const char *what)
 {

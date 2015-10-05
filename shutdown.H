@@ -10,10 +10,6 @@ class field;
 const field &mk(const shutdowncode &);
 }
 
-namespace spawn {
-class process;
-}
-
 /* Silly little wrapper type around the exit codes passed to exit() */
 class shutdowncode {
     friend const fields::field &fields::mk(const shutdowncode &);
@@ -27,7 +23,6 @@ public:
     void finish() __attribute__((noreturn));
 
     static orerror<shutdowncode> parse(const char *);
-    bool operator==(shutdowncode) const;
-    bool operator!=(shutdowncode o) const { return !(*this == o); } };
+    bool operator==(shutdowncode) const; };
 
 #endif /* !SHUTDOWN_H__ */

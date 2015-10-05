@@ -4,23 +4,24 @@
 #include "compute.H"
 #include "eqclient.H"
 #include "logging.H"
+#include "main.H"
 #include "parsers.H"
 #include "pubsub.H"
 
 #include "parsers.tmpl"
 
-int
-main(int argc, char *argv[]) {
+orerror<void>
+f2main(list<string> &args) {
     initlogging("computeclient");
     initpubsub();
-    if (argc != 3) {
+    if (args.length() != 2) {
         errx(1, "need two arguments, the cluster and the agent name"); }
     auto cluster(parsers::__clustername()
-                 .match(argv[1])
-                 .fatal("parsing cluster name " + fields::mk(argv[1])));
+                 .match(args.idx(0))
+                 .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto peer(parsers::_agentname()
-              .match(argv[2])
-              .fatal("parsing agent name " + fields::mk(argv[2])));
+              .match(args.idx(1))
+              .fatal("parsing agent name " + fields::mk(args.idx(1))));
     auto pool(connpool::build(cluster).fatal("building conn pool"));
 
     auto clnt(eqclient<proto::compute::event>::connect(

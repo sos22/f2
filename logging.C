@@ -22,6 +22,7 @@
 #include "walltime.H"
 
 #include "list.tmpl"
+#include "orerror.tmpl"
 #include "test.tmpl"
 
 const loglevel

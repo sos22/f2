@@ -8,6 +8,7 @@
 #include "eq.H"
 #include "fields.H"
 #include "logging.H"
+#include "main.H"
 #include "parsers.H"
 #include "peername.H"
 #include "pubsub.H"
@@ -19,48 +20,49 @@
 #include "maybe.tmpl"
 #include "parsers.tmpl"
 
-int
-main(int argc, char *argv[]) {
+orerror<void>
+f2main(list<string> &args) {
     initlogging("computeclient");
     initpubsub();
-    if (argc < 4) {
+    if (args.length() < 3) {
         errx(1, "need at least three arguments: a cluster, a peer and a mode");}
     auto cluster(parsers::__clustername()
-                 .match(argv[1])
-                 .fatal("parsing cluster name " + fields::mk(argv[1])));
+                 .match(args.idx(0))
+                 .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto peer(parsers::_agentname()
-              .match(argv[2])
-              .fatal("parsing agent name " + fields::mk(argv[2])));
+              .match(args.idx(1))
+              .fatal("parsing agent name " + fields::mk(args.idx(1))));
     auto &pool(*connpool::build(cluster).fatal("building conn pool"));
     auto &client(computeclient::connect(pool, peer));
-    if (!strcmp(argv[3], "START")) {
-        if (argc != 5) errx(1, "START mode needs a job argument");
+    if (args.idx(2) == "START") {
+        if (args.length() != 4) errx(1, "START mode needs a job argument");
         auto j(job::parser()
-               .match(argv[4])
-               .fatal("parsing job " + fields::mk(argv[4])));
+               .match(args.idx(3))
+               .fatal("parsing job " + fields::mk(args.idx(3))));
         fields::print("result " +
                       client
                       .start(clientio::CLIENTIO, j)
                       .fatal("starting job")
                       .field()); }
-    else if (!strcmp(argv[3], "ENUMERATE")) {
-        if (argc != 4) errx(1, "ENUMERATE has no arguments");
+    else if (args.idx(2) == "ENUMERATE") {
+        if (args.length() != 3) errx(1, "ENUMERATE has no arguments");
         fields::print("result " +
                       client
                       .enumerate(clientio::CLIENTIO)
                       .fatal("enumerating jobs")
                       .field()); }
-    else if (!strcmp(argv[3], "DROP")) {
-        if (argc != 5) {
+    else if (args.idx(2) == "DROP") {
+        if (args.length() != 4) {
             errx(1, "DROP mode takes a single argument, the job name to drop");}
         auto j(jobname::parser()
-               .match(argv[4])
-               .fatal("parsing job " + fields::mk(argv[4])));
+               .match(args.idx(3))
+               .fatal("parsing job " + fields::mk(args.idx(3))));
         client
             .drop(clientio::CLIENTIO, j)
             .fatal("dropping job"); }
     else {
-        errx(1, "unknown mode %s", argv[3]); }
+        errx(1, "unknown mode %s", args.idx(2).c_str()); }
     client.destroy();
     pool.destroy();
-    deinitpubsub(clientio::CLIENTIO); }
+    deinitpubsub(clientio::CLIENTIO);
+    return Success; }

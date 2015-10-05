@@ -8,6 +8,7 @@
 #include "filename.H"
 #include "fuzzsched.H"
 #include "logging.H"
+#include "main.H"
 #include "profile.H"
 #include "spawn.H"
 #include "timedelta.H"
@@ -166,8 +167,8 @@ testmodule::prepare() const {
 static void
 _alarm(int) { abort(); }
 
-int
-main(int argc, char *argv[]) {
+orerror<void>
+f2main(list<string> &args) {
     struct timeval now;
     gettimeofday(&now, NULL);
     printf("Seed: %lx\n", now.tv_usec);
@@ -178,59 +179,55 @@ main(int argc, char *argv[]) {
     
     bool stat = false;
     maybe<timedelta> timeout(30_s);
-    while (argc > 1) {
-        if (!strcmp(argv[1], "--verbose")) {
+    while (!args.empty()) {
+        if (args.peekhead() == "--verbose") {
             initlogging("tests");
-            argv++;
-            argc--; }
-        else if (!strcmp(argv[1], "--profile")) {
+            args.drophead(); }
+        else if (args.peekhead() == "--profile") {
             startprofiling();
-            argv++;
-            argc--; }
-        else if (!strcmp(argv[1], "--stat")) {
+            args.drophead(); }
+        else if (args.peekhead() == "--stat") {
             stat = true;
-            argv++;
-            argc--; }
-        else if (!strcmp(argv[1], "--notimeouts")) {
+            args.drophead(); }
+        else if (args.peekhead() == "--notimeouts") {
             timeout = Nothing;
-            argv++;
-            argc--; }
-        else if (!strcmp(argv[1], "--fuzzsched")) {
+            args.drophead(); }
+        else if (args.peekhead() == "--fuzzsched") {
             __do_fuzzsched = true;
-            argv++;
-            argc--; }
+            args.drophead(); }
         else break; }
-    if (argc == 1) listmodules();
-    else if (!strcmp(argv[1], "*")) {
-        if (argc != 2 && (argc != 3 || strcmp(argv[2], "*"))) {
+    if (args.empty()) listmodules();
+    else if (args.idx(0) == "*") {
+        if (args.length() != 1 && (args.length() != 2 || args.idx(1) != "*")) {
             errx(1,
                  "cannot specify a specific test without "
                  "specifying a specific module"); }
         for (auto it(modules->start()); !it.finished(); it.next()) {
-            if (argc == 3) {
+            if (args.length() == 2) {
                 it.value()->prepare();
                 it.value()->runtests(timeout); }
             else it.value()->listtests(); } }
-    else if (!strcmp(argv[1], "findmodule")) {
-        if (argc != 3) errx(1, "need a filename to find a module for");
+    else if (args.idx(0) == "findmodule") {
+        if (args.length() != 2) errx(1, "need a filename to find a module for");
+        filename f(args.idx(1));
         for (auto it(modules->start()); !it.finished(); it.next()) {
             for (auto it2(it.value()->files().start());
                  !it2.finished();
                  it2.next()) {
-                if (*it2 == argv[2]) {
+                if (*it2 == f) {
                     printf("%s\n", it.key().c_str());
                     exit(0); } } }
-        errx(1, "no test module for file %s", argv[2]); }
+        errx(1, "no test module for file %s", args.idx(1).c_str()); }
     else {
-        auto &module(*modules->get(argv[1])
-                     .fatal("no such module: " + fields::mk(argv[1])));
-        if (argc == 2) {
+        auto &module(*modules->get(args.idx(0))
+                     .fatal("no such module: " + fields::mk(args.idx(0))));
+        if (args.length() == 1) {
             if (stat) module.printmodule();
             else module.listtests(); }
-        else if (argc == 3) {
+        else if (args.length() == 2) {
             module.prepare();
-            if (strcmp(argv[2], "*")) module.runtest(argv[2], timeout);
+            if (args.idx(1) != "*") module.runtest(args.idx(1), timeout);
             else module.runtests(timeout); }
         else errx(1, "too many arguments"); }
     stopprofiling();
-    return 0; }
+    return Success; }

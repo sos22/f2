@@ -7,6 +7,7 @@
 #include "filesystemproto.H"
 #include "jobname.H"
 #include "logging.H"
+#include "main.H"
 #include "pubsub.H"
 #include "streamname.H"
 #include "streamstatus.H"
@@ -18,21 +19,21 @@
 #include "pair.tmpl"
 #include "parsers.tmpl"
 
-int
-main(int argc, char *argv[]) {
+orerror<void>
+f2main(list<string> &args) {
     initpubsub();
     initlogging("filesystemclient");
-    if (argc < 4) {
+    if (args.length() < 3) {
         errx(1,
              "need at least three arguments: "
              "clustername, agentname, and mode"); }
     auto cluster(parsers::__clustername()
-                 .match(argv[1])
-                 .fatal("parsing " + fields::mk(argv[1]) +
+                 .match(args.idx(0))
+                 .fatal("parsing " + fields::mk(args.idx(0)) +
                         " as clustername"));
     auto sn(parsers::_agentname()
-            .match(argv[2])
-            .fatal("parsing " + fields::mk(argv[2]) +
+            .match(args.idx(1))
+            .fatal("parsing " + fields::mk(args.idx(1)) +
                    " as agentname"));
     auto pool(connpool::build(cluster).fatal("building connection pool"));
     
@@ -54,24 +55,26 @@ main(int argc, char *argv[]) {
                     return ds.status(); })
                 .fatal("making call against filesystem agent"); });
     
-    if (!strcmp(argv[3], "FINDJOB")) {
-        if (argc != 5) errx(1, "FINDJOB needs a jobname argument");
+    if (args.idx(2) == "FINDJOB") {
+        if (args.length() != 4) errx(1, "FINDJOB needs a jobname argument");
         auto jn(jobname::parser()
-                .match(argv[4])
-                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
+                .match(args.idx(3))
+                .fatal("parsing " + fields::mk(args.idx(3)) + " as jobname"));
         maybe<list<agentname> > res(Nothing);
         makecall(proto::filesystem::tag::findjob,
                  [&jn] (serialise1 &s) { s.push(jn); },
                  [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
-    else if (!strcmp(argv[3], "FINDSTREAM")) {
-        if (argc != 6) errx(1,"FINDJOB needs jobname and streamname arguments");
+    else if (args.idx(2) == "FINDSTREAM") {
+        if (args.length() != 5) {
+            errx(1,"FINDJOB needs jobname and streamname arguments"); }
         auto jn(jobname::parser()
-                .match(argv[4])
-                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"));
+                .match(args.idx(3))
+                .fatal("parsing " + fields::mk(args.idx(3)) + " as jobname"));
         auto str(streamname::parser()
-                 .match(argv[5])
-                 .fatal("parsing " + fields::mk(argv[5]) + " as streamname"));
+                 .match(args.idx(4))
+                 .fatal("parsing " + fields::mk(args.idx(4)) +
+                        " as streamname"));
         maybe<list<pair<agentname, streamstatus> > > res(Nothing);
         makecall(proto::filesystem::tag::findstream,
                  [&jn, &str] (serialise1 &s) {
@@ -79,34 +82,35 @@ main(int argc, char *argv[]) {
                      s.push(str); },
                  [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
-    else if (!strcmp(argv[3], "NOMINATEAGENT")) {
-        if (argc != 4 && argc != 5) {
+    else if (args.idx(2) == "NOMINATEAGENT") {
+        if (args.length() != 3 && args.length() != 4) {
             errx(1, "NOMINATEAGENT takes an optional jobname argument"); }
         maybe<jobname> jn(Nothing);
-        if (argc == 5) {
+        if (args.length() == 4) {
             jn = jobname::parser()
-                .match(argv[4])
-                .fatal("parsing " + fields::mk(argv[4]) + " as jobname"); }
+                .match(args.idx(3))
+                .fatal("parsing " + fields::mk(args.idx(3)) + " as jobname"); }
         maybe<maybe<agentname> > res(Nothing);
         makecall(proto::filesystem::tag::nominateagent,
                  [&jn] (serialise1 &s) { s.push(jn); },
                  [&res] (deserialise1 &ds) { res.mkjust(ds); });
         fields::print("result " + fields::mk(res.just()) + "\n"); }
-    else if (!strcmp(argv[3], "STORAGEBARRIER")) {
-        if (argc != 6) {
+    else if (args.idx(2) == "STORAGEBARRIER") {
+        if (args.length() != 5) {
             errx(1, "STORAGEBARRIER needs agentname and event ID arguments"); }
         auto an(parsers::_agentname()
-                .match(argv[4])
-                .fatal("parsing " + fields::mk(argv[4]) + " as agentname"));
+                .match(args.idx(3))
+                .fatal("parsing " + fields::mk(args.idx(3)) + " as agentname"));
         auto eid(parsers::eq::eventid()
-                 .match(argv[5])
-                 .fatal("parsing " + fields::mk(argv[5]) + " as event ID"));
+                 .match(args.idx(4))
+                 .fatal("parsing " + fields::mk(args.idx(4)) + " as event ID"));
         makecall(proto::filesystem::tag::storagebarrier,
                  [&an, &eid] (serialise1 &s) {
                      s.push(an);
                      s.push(eid); },
                  [] (deserialise1 &) {}); }
     else {
-        errx(1, "unknown mode %s", argv[3]); }
+        errx(1, "unknown mode %s", args.idx(2).c_str()); }
     pool->destroy();
-    deinitpubsub(clientio::CLIENTIO); }
+    deinitpubsub(clientio::CLIENTIO);
+    return Success; }

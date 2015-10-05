@@ -11,6 +11,7 @@
 #include "jobapi.H"
 #include "jobapiimpl.H"
 #include "jobresult.H"
+#include "main.H"
 #include "storageclient.H"
 
 #include "either.tmpl"
@@ -78,35 +79,35 @@ runjob(clientio io,
     cp.success()->destroy();
     return r; }
 
-int
-main(int argc, char *argv[]) {
-    if (argc != 5 && argc != 6) {
+orerror<void>
+f2main(list<string> &args) {
+    if (args.length() != 4 && args.length() != 5) {
         errx(
             1,
             "need four arguments: logging name, cluster name, "
             "FS agent name, job, and optionally output FD"); }
-    initlogging(argv[1]);
+    initlogging(args.idx(0).c_str());
     auto cn(parsers::__clustername()
-            .match(argv[2])
-            .fatal("parsing cluster name " + fields::mk(argv[2])));
+            .match(args.idx(1))
+            .fatal("parsing cluster name " + fields::mk(args.idx(1))));
     auto fsn(parsers::_agentname()
-             .match(argv[3])
-             .fatal("parsing agent name " + fields::mk(argv[3])));
+             .match(args.idx(2))
+             .fatal("parsing agent name " + fields::mk(args.idx(2))));
     auto j(job::parser()
-           .match(argv[4])
-           .fatal("parsing job " + fields::mk(argv[4])));
-    fd_t outfd(argc == 5
+           .match(args.idx(3))
+           .fatal("parsing job " + fields::mk(args.idx(3))));
+    fd_t outfd(args.length() == 4
                ? 1
                : (parsers::intparser<unsigned>()
                   .maperr<int>([] (const int &fd) -> orerror<int> {
                           if (fd < 0) return error::noparse;
                           else return fd; })
-                  .match(argv[5])
-                  .fatal("parsing fd " + fields::mk(argv[5]))));
+                  .match(args.idx(4))
+                  .fatal("parsing fd " + fields::mk(args.idx(4)))));
     initpubsub();
     auto r = runjob(clientio::CLIENTIO, cn, fsn, j);
     outfd.write(clientio::CLIENTIO, r.field())
         .fatal("reporting result of job (" + r.field() + ")");
     deinitpubsub(clientio::CLIENTIO);
     deinitlogging();
-    return 0; }
+    return Success; }

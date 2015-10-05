@@ -42,6 +42,7 @@ function bits() {
     _ jobresult
     _ lqueue
     _ map
+    _ main
     _ maybe
     _ mutex
     _ parsers

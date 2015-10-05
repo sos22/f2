@@ -6,6 +6,7 @@
 #include "job.H"
 #include "jobname.H"
 #include "logging.H"
+#include "main.H"
 #include "rpcservice2.H"
 #include "serialise.H"
 #include "storage.H"
@@ -239,24 +240,24 @@ coordinatorservice::_jobcreator::run(clientio io) {
     while (!outstanding.empty()) {
         fail(outstanding.peekhead(), error::shutdown, atl); } }
 
-int
-main(int argc, char *argv[]) {
+orerror<void>
+f2main(list<string> &args) {
     initlogging("coordinator");
     initpubsub();
 
-    if (argc != 4) {
+    if (args.length() != 3) {
         errx(1,
              "need three arguments: the cluster to join, the filesystem "
              "name, and our own name"); }
     auto cluster(parsers::__clustername()
-                 .match(argv[1])
-                 .fatal("parsing cluster name " + fields::mk(argv[1])));
+                 .match(args.idx(0))
+                 .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto name(parsers::_agentname()
-              .match(argv[2])
-              .fatal("parsing agent name " + fields::mk(argv[2])));
+              .match(args.idx(1))
+              .fatal("parsing agent name " + fields::mk(args.idx(1))));
     auto fs(parsers::_agentname()
-            .match(argv[3])
-            .fatal("parsing agent name " + fields::mk(argv[3])));
+            .match(args.idx(2))
+            .fatal("parsing agent name " + fields::mk(args.idx(2))));
     auto bc(beaconclient::build(cluster)
             .fatal("creating beacon client"));
     auto pool(connpool::build(cluster)
@@ -271,5 +272,4 @@ main(int argc, char *argv[]) {
                      *pool)
                  .fatal("listening on coordinator interface"));
 
-    while (true) timedelta::hours(1).future().sleep(clientio::CLIENTIO);
-    return 0; }
+    while (true) timedelta::hours(1).future().sleep(clientio::CLIENTIO); }

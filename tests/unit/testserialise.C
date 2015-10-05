@@ -1,6 +1,7 @@
 #include "serialise.H"
 #include "test2.H"
 
+#include "orerror.tmpl"
 #include "serialise.tmpl"
 #include "test2.tmpl"
 

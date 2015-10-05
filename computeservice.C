@@ -6,30 +6,31 @@
 #include "fields.H"
 #include "filename.H"
 #include "logging.H"
+#include "main.H"
 #include "parsers.H"
 #include "pubsub.H"
 #include "timedelta.H"
 
 #include "parsers.tmpl"
 
-int
-main(int argc, char *argv[]) {
+orerror<void>
+f2main(list<string> &args) {
     initlogging("compute");
     initpubsub();
     
-    if (argc != 4) {
+    if (args.length() != 3) {
         errx(1,
              "need three arguments: a cluster name, the filesystem "
              "agent name, and the compute agent name"); }
     auto cluster(parsers::__clustername()
-                 .match(argv[1])
-                 .fatal("parsing cluster name " + fields::mk(argv[1])));
+                 .match(args.idx(0))
+                 .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto fsname(parsers::_agentname()
-                .match(argv[2])
-                .fatal("parsing filesystem name " + fields::mk(argv[2])));
+                .match(args.idx(1))
+                .fatal("parsing filesystem name " + fields::mk(args.idx(1))));
     auto name(parsers::_agentname()
-              .match(argv[3])
-              .fatal("parsing agent name " + fields::mk(argv[3])));
+              .match(args.idx(2))
+              .fatal("parsing agent name " + fields::mk(args.idx(2))));
     
     auto service(computeagent::build(
                      clientio::CLIENTIO,
