@@ -13,7 +13,9 @@
 digest::digest(const fields::field &what)
 {
     logmsg(loglevel::error,
-           fields::mk("need to implement a proper MAC function; this one is massively insecure"));
+           fields::mk(
+               "need to implement a proper MAC function; this one "
+               "is massively insecure"));
     fields::fieldbuf buf;
     what.fmt(buf);
     char *str = buf.c_str();

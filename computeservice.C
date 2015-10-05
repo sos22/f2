@@ -37,6 +37,6 @@ f2main(list<string> &args) {
                      fsname,
                      name,
                      filename("computestate"))
-                 .fatal("listening on computer interface"));
+                 .fatal("listening on compute interface"));
     
     while (true) timedelta::hours(1).future().sleep(clientio::CLIENTIO); }
