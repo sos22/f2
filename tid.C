@@ -24,7 +24,4 @@ tid::operator ==(const tid &o) const
 }
 
 const fields::field &
-fields::mk(const tid &t)
-{
-    return "t:" + mk(t.val).nosep();
-}
+tid::field() const { return "t:" + fields::mk(val).nosep(); }

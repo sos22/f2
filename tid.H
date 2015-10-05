@@ -1,22 +1,17 @@
 #ifndef TID_H__
 #define TID_H__
 
-class tid;
-
-namespace fields {
-class field;
-const field &mk(const tid &);
-}
+namespace fields { class field; }
 
 class tid {
-    friend const fields::field &fields::mk(const tid &);
-    tid(unsigned);
+    explicit tid(unsigned);
     unsigned val;
 public:
     tid() = delete;
     static tid me();
     unsigned os() const { return val; }
     bool operator==(const tid &) const;
+public: const fields::field &field() const;
 };
 
 #endif /* !TID_H__ */
