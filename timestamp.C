@@ -55,7 +55,7 @@ timestamp::sleep(clientio) const {
         nanosleep(&ts, NULL); } }
 
 const fields::field &
-fields::mk(const timestamp &ts) {
+timestamp::field() const {
     static mutex_t basislock;
     static timestamp basis(0);
     static bool havebasis(false);
@@ -65,5 +65,4 @@ fields::mk(const timestamp &ts) {
             basis = timestamp::now();
             storerelease(&havebasis, true); }
         basislock.unlock(&token); }
-    return "<timestamp:" + mk(ts.v - basis.v) + "ns>";
-}
+    return "<timestamp:" + fields::mk(v - basis.v) + "ns>"; }

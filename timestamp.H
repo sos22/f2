@@ -14,15 +14,11 @@ class timestamp;
 struct timeval;
 class walltime;
 
-namespace fields {
-class field;
-const field &mk(const timestamp &);
-}
+namespace fields { class field; }
 
 class timestamp {
-    friend const fields::field &fields::mk(const timestamp &);
     long v; /* nanoseconds since epoch */
-    timestamp(long _v) : v(_v) {}
+    explicit timestamp(long _v) : v(_v) {}
 public:
     timestamp(quickcheck);
     timedelta operator-(timestamp) const;
@@ -46,6 +42,7 @@ public:
     void sleep(clientio) const;
 
     static timestamp now();
+public: const fields::field &field() const;
 };
 
 #endif /* TIMESTAMP_H__ */
