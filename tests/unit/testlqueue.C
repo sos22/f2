@@ -97,18 +97,20 @@ static testmodule __testlqueue(
         /* One thread generates events continuously, the other one
          * constantly subscribes and unsubscribes. */
         evtsrc<unsigned long> src(60_s);
-        bool stop = false;
-        spark<void> producer([&src, &stop] {
+        bool stopprod = false;
+        bool stopcons = false;
+        spark<void> producer([&src, &stopprod] {
                 unsigned long cntr = 1;
-                while (!stop) src.push(cntr++); });
-        spark<void> consumer([&src, &stop] {
+                while (!stopprod) src.push(cntr++); });
+        spark<void> consumer([&src, &stopcons] {
                 unsigned long last = 0;
-                while (!stop) {
+                while (!stopcons) {
                     evtdest<unsigned long> dst(src);
                     auto r(dst.pop(clientio::CLIENTIO));
                     assert(r > last);
                     last = r; } });
         (2_s).future().sleep(io);
-        stop = true;
+        stopcons = true;
         consumer.get();
+        stopprod = true;
         producer.get(); });
