@@ -63,7 +63,8 @@ public:  orerror<void> append(
     const streamname &sn,
     bytecount oldsize,
     buffer &b);
-public:  orerror<streamstatus> finish(
+public:  orerror<proto::eq::eventid> finish(
+    clientio,
     const jobname &t,
     const streamname &sn);
 private: orerror<void> read(

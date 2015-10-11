@@ -68,10 +68,10 @@ public:  orerror<asyncappend::resT> append(clientio,
     
 private: class asyncfinishimpl;
 private: struct asyncfinishdescr {
-    typedef void _resT;
+    typedef proto::eq::eventid _resT;
     typedef storageclient _friend;
     typedef asyncfinishimpl _implT;
-    typedef connpool::asynccall::token _innerTokenT; };
+    typedef connpool::asynccallT<_resT>::token _innerTokenT; };
 public:  typedef asynccall<asyncfinishdescr> asyncfinish;
     friend asyncfinish;
 public:  asyncfinish &finish(jobname, const streamname &);

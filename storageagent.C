@@ -150,14 +150,16 @@ storageagent::_called(
     else if (tag == proto::storage::tag::finish) {
         jobname job(ds);
         streamname stream(ds);
-        if (!ds.isfailure()) {
-            auto r(finish(job, stream));
-            if (!r.isfailure()) {
-                eqq.queue(proto::storage::event::finishstream(job,
-                                                              stream,
-                                                              r.success()),
-                          io); }
-            ic->complete(r, io, oct); } }
+        if (ds.isfailure()) return ds.failure();
+        auto r(finish(io, job, stream));
+        if (r.isfailure()) return r.failure();
+        ic->complete([eid(r.success())] (serialise1 &s,
+                                         mutex_t::token /* txlock */,
+                                         onconnectionthread) {
+                         s.push(eid); },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
     else if (tag == proto::storage::tag::read) {
         jobname job(ds);
         streamname stream(ds);
@@ -319,8 +321,9 @@ storageagent::append(
     fd.success().close();
     return Success; }
 
-orerror<streamstatus>
+orerror<proto::eq::eventid>
 storageagent::finish(
+    clientio io,
     const jobname &jn,
     const streamname &sn) {
     filename dirname(config.poolpath + jn.asfilename() + sn.asfilename());
@@ -336,7 +339,12 @@ storageagent::finish(
     else if (exists == true) return error::already;
     {   auto t(finished.createfile());
         if (t.isfailure()) return t.failure(); }
-    return streamstatus::finished(sn, sz.success()); }
+    return eqq.queue(
+        proto::storage::event::finishstream(
+            jn,
+            sn,
+            streamstatus::finished(sn, sz.success())),
+        io); }
 
 orerror<void>
 storageagent::read(

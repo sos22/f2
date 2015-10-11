@@ -43,7 +43,7 @@ public:  const fields::field &field() const;
 public:  static const tag createjob;
     /* Inputs: jobname, streamname, offset, buffer.  Outputs: None */
 public:  static const tag append;
-    /* Inputs: jobname, streamname.  Outputs: None */
+    /* Inputs: jobname, streamname.  Outputs: Event ID */
 public:  static const tag finish;
     /* Inputs: jobname, streamname, maybe<unsigned long> start,
      * maybe<unsigned long> end.  Outputs: size_t filesize,

@@ -142,19 +142,21 @@ storageclient::append(clientio io,
 
 class storageclient::asyncfinishimpl {
 public: storageclient::asyncfinish api;
-public: connpool::asynccall &cl;
+public: connpool::asynccallT<asyncfinish::resT> &cl;
 public: explicit asyncfinishimpl(class storageclient::impl &owner,
                                  jobname jn,
                                  const streamname &sn)
     : api(),
-      cl(*owner.cp.call(
+      cl(*owner.cp.call<asyncfinish::resT>(
              owner.an,
              interfacetype::storage,
              Nothing,
              [jn, sn] (serialise1 &s, connpool::connlock) {
                  s.push(proto::storage::tag::finish);
                  s.push(jn);
-                 s.push(sn); })) {} };
+                 s.push(sn); },
+             [] (deserialise1 &ds, connpool::connlock) {
+                 return asyncfinish::resT(ds); })) {} };
 
 template <> orerror<storageclient::asyncfinish::resT>
 storageclient::asyncfinish::pop(token t) {
