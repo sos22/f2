@@ -12,6 +12,7 @@
 
 #include "clientio.H"
 #include "fields.H"
+#include "fuzzsched.H"
 #include "orerror.tmpl"
 #include "test.H"
 #include "timedelta.H"
@@ -170,6 +171,7 @@ process::spawn(const program &p) {
         char tochildstr[16];
         sprintf(tochildstr, "%d", childread.fd);
         args[2] = tochildstr;
+        fuzzsched();
         /* Do the exec */
         assert(execv(args[0], (char **)args) < 0);
         error::from_errno().fatal("execve"); }
