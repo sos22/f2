@@ -177,14 +177,17 @@ do
     else
         for x in $merges
         do
+            commit=$(git -C ${repo} rev-parse $x)
             t=$(mktemp)
             echo "merging $x"
             if ( merge $x ) >$t 2>&1
             then
                 echo "merging $x successful"
+                echo "${now} MERGE $commit ($x) PASS" >> ${logs}
                 mergesuccmsg $x | sendemail
             else
                 echo "merging $x failed"
+                echo "${now} MERGE $commit ($x) FAIL" >> ${logs}
                 mergefailmsg $x $t | sendemail
             fi
             rm -f $t
