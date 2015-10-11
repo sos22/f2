@@ -81,8 +81,10 @@ findmodules() {
 merge() {
     set -e
     local name=$1
-    local t=$(mktemp -d)
+    local now=$(date +%Y-%m-%d-%H-%M-%S)
+    local t=${results}/merge/${name}/${now}
     trap "rm -rf $t" EXIT
+    mkdir -p $t
     echo "merging $name into ${t}"
     git clone -q ${repo} ${t}/work
     cd ${t}/work
@@ -175,6 +177,7 @@ do
         for x in $merges
         do
             t=$(mktemp)
+            echo "merging $name"
             if ( merge $x ) >$t 2>&1
             then
                 mergesuccmsg $x | sendemail
