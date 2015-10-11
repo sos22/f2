@@ -115,5 +115,5 @@ quickcheck::filename() const {
             } while (c == '/' || !isprint(c));
             buf[x] = c; }
         buf[len] = 0;
-    } while (!strcmp(buf, ".") || !strcmp(buf, ".."));
+    } while (!strcmp(buf, "") || !strcmp(buf, ".") || !strcmp(buf, ".."));
     return buf; }
