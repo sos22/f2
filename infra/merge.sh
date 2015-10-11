@@ -77,7 +77,7 @@ then
 fi
 # And check that make clean really works
 make -s clean
-rm -f config
+rm -fr config tmp
 if [ $(git status --porcelain --ignored | wc -l) != 0 ]
 then
     echo "make clean failed to clean all files!"

@@ -23,13 +23,13 @@ main(int argc, char *argv[])
     if (argc != 2) errx(1, "need one argument, the storage configuration");
 
     initlogging("storage");
-    initpubsub();
 
     auto config(storageconfig::parser()
                 .match(argv[1])
                 .fatal("cannot parse " + fields::mk(argv[1]) +
                        " as storage configuration"));
 
+    initpubsub();
     logmsg(loglevel::notice, fields::mk("storage agent starting"));
 
     signal(SIGPIPE, SIG_IGN);
