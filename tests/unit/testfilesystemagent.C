@@ -89,6 +89,50 @@ static testmodule __testfilesystemagent(
         fsclient.destroy();
         fsagent.destroy(io);
         cp.destroy(); },
+    "barrier", [] (clientio io) {
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname fsagentname("fsagent");
+        auto &fsagent(*filesystemagent(
+                          io,
+                          cluster,
+                          fsagentname,
+                          peername::all(peername::port::any))
+                      .fatal("starting filesystem agent"));
+        auto &cp(*connpool::build(cluster).fatal("building connpool"));
+        auto &fsclient(filesystemclient::connect(cp, fsagentname));
+        teststorage sa1(io, q, cluster, agentname("storageagent"), cp);
+        bool havemissing = false;
+        bool havepresent = false;
+        int mat;
+        int pat;
+        int x;
+        for (x = 0; !havemissing || !havepresent; x++) {
+            job j(filename("library"),
+                  ("function" + fields::mk(x)).c_str(),
+                  empty,
+                  empty);
+            auto evt(sa1.storageclient.createjob(io, j).fatal("creating job"));
+            if (fsclient
+                .findjob(io, j.name())
+                .fatal("querying job")
+                .empty()) {
+                if (!havemissing) mat = x;
+                havemissing = true; }
+            else {
+                if (!havepresent) pat = x;
+                havepresent = true; }
+            fsclient.storagebarrier(io, sa1.an, evt).fatal("storage barrier");
+            assert(!fsclient
+                   .findjob(io, j.name())
+                   .fatal("querying job")
+                   .empty()); }
+        logmsg(loglevel::info,
+               "missing at " + fields::mk(mat) + ", "
+               "present at " + fields::mk(pat));
+        fsclient.destroy();
+        fsagent.destroy(io);
+        cp.destroy(); },
     "clientname", [] (clientio) {
         quickcheck q;
         auto cluster(mkrandom<clustername>(q));
