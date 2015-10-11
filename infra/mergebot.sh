@@ -122,10 +122,10 @@ merge() {
     echo -n "final merge "
     git show -s --format=oneline $1
     git cherry-pick $1
-    ./runtests.sh testdir
+    ./runtests.sh ../testdir
     # Check that gitignore is correct
     make -j8 -s covall
-    if git status --porcelain | grep -v '^?? tmp/' | grep -v '?? tmpdir/' | grep -q '^??'
+    if git status --porcelain | grep -v '^?? tmp/' | grep -q '^??'
     then
         echo "make covall generated extra files"
         git status --porcelain
@@ -134,7 +134,7 @@ merge() {
     # And check that make clean really works
     make -s clean
     rm -f config
-    if [ $(git status --porcelain --ignored | grep -vw testdir | wc -l) != 0 ]
+    if [ $(git status --porcelain --ignored | wc -l) != 0 ]
     then
         echo "make clean failed to clean all files!"
         git status --porcelain --ignored
