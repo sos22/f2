@@ -1,3 +1,4 @@
+#include "parsers.H"
 #include "test2.H"
 #include "thread.H"
 #include "timedelta.H"
@@ -69,6 +70,35 @@ static testmodule __testthread(
         thr2->join(token.just());
         /* And that does run the destructor. */
         assert(died); },
+    "join", [] (clientio io) {
+        class testthr : public thread {
+        public: explicit testthr(constoken token) : thread(token) {}
+        public: void run(clientio io) { (500_ms).future().sleep(io); } };
+        auto t(thread::start<testthr>(fields::mk("foo")));
+        assert(t->hasdied() == Nothing);
+        auto tt(timedelta::time([t, io] { t->join(io); }));
+        assert(tt > 100_ms);
+        assert(tt < 700_ms); },
+    "field", [] (clientio io) {
+        assert(!strcmp(thread::myname(), "<unknown thread>"));
+        class testthr : public thread {
+        public: explicit testthr(constoken token) : thread(token) {}
+        public: void run(clientio io) { (200_ms).future().sleep(io); } };
+        auto t(thread::spawn<testthr>(fields::mk("foo")));
+        assert(string(t.unwrap()->field().c_str()) ==
+               "<thread:{no tid yet} foo unstarted>");
+        auto tt(t.go());
+        (100_ms).future().sleep(io);
+        string m(tt->field().c_str());
+        assert(("<thread:t:" + parsers::intparser<int>() + " foo>")
+               .match(m)
+               .success() > 0);
+        (200_ms).future().sleep(io);
+        m = string(tt->field().c_str());
+        assert(("<thread:t:" + parsers::intparser<int>() + " foo dead>")
+               .match(m)
+               .success() > 0);
+        tt->join(io); },
     "start", [] (clientio io) {
         class testthr : public thread {
         public: bool &go;
