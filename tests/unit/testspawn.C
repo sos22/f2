@@ -125,7 +125,7 @@ static testmodule __spawntest(
         (2_s).future().sleep(io);
         assert(p->hasdied() == Nothing);
         p->signal(signalnr::cont);
-        (500_ms).future().sleep(io);
+        (1500_ms).future().sleep(io);
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "signal4", [] (clientio io) {
         auto p(process::spawn(program("/bin/true")).fatal("spawning truth"));
