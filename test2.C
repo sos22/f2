@@ -99,7 +99,7 @@ testmodule::listtests() const {
 
 void
 testmodule::printmodule() const {
-    printf("Module: %s\n", fields::padright(name().field(), 20).c_str());
+    printf("Module: %s\n", name().field().c_str());
     printf("    Line coverage:   %s\n",
            fields::padright(linecoverage.p.field(), 10).c_str());
     printf("    Branch coverage: %s\n",
