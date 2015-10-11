@@ -125,7 +125,7 @@ merge() {
     ./runtests.sh testdir
     # Check that gitignore is correct
     make -j8 -s covall
-    if git status --porcelain | grep -q '^??'
+    if git status --porcelain | grep -v '^?? tmp/' | grep -v '?? tmpdir/' | grep -q '^??'
     then
         echo "make covall generated extra files"
         git status --porcelain
