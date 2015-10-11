@@ -1,0 +1,7 @@
+#ifndef NNP_TMPL__
+#define NNP_TMPL__
+
+template <typename t> const fields::field &
+nnp<t>::field() const { return "[" + fields::mk(*inner) + "]"; }
+
+#endif /* !NNP_TMPL__ */

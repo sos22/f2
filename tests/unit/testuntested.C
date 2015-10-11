@@ -33,6 +33,7 @@ static testmodule __testuntested(
                        "logging.C",
                        "logging.H",
                        "nnp.H",
+                       "nnp.tmpl",
                        "main.H",
                        "main.C",
                        "profile.C",
