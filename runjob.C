@@ -20,7 +20,7 @@
 #include "parsers.tmpl"
 
 static orerror<jobresult>
-runjob(clientio io, const job &j) {
+runjob(clientio io, storageclient &sc, const job &j) {
     orerror<jobresult> res(error::unknown);
     char *fname;
     if (asprintf(&fname,
@@ -38,7 +38,7 @@ runjob(clientio io, const job &j) {
                                              : ::dlsym(lib, fname));
     if (f == NULL || v == NULL || *v != version::current) res = error::dlopen;
     else {
-        auto &api(newjobapi());
+        auto &api(newjobapi(sc, j));
         res = f(api, io);
         deletejobapi(api); }
     if (lib != NULL) ::dlclose(lib);
@@ -65,7 +65,7 @@ runjob(clientio io,
         return storageagents.failure(); }
     auto &sc(storageclient::connect(
                  cp.success(), storageagents.success().pophead()));
-    auto r(runjob(io, j));
+    auto r(runjob(io, sc, j));
     if (r.issuccess() && r.success().issuccess()) {
         list<nnp<storageclient::asyncfinish> > pending;
         for (auto it(j.outputs().start()); !it.finished(); it.next()) {

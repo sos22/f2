@@ -2,9 +2,10 @@
 #define JOBAPIIMPL_H__
 
 class jobapi;
-template <typename> class waitbox;
+class job;
+class storageclient;
 
-jobapi &newjobapi();
+jobapi &newjobapi(storageclient &sc, const job &);
 void deletejobapi(jobapi &);
 
 #endif /* !JOBAPIIMPL_H__ */

@@ -21,3 +21,11 @@ jobresult
 waitonesecond(jobapi &, clientio io) {
     (1_s).future().sleep(io);
     return jobresult::success(); }
+
+jobfunction helloworld;
+jobresult
+helloworld(jobapi &api, clientio io) {
+    api.output(streamname::mk("output").fatal("output name"))
+        .just()
+        ->append(io, buffer("Hello world"));
+    return jobresult::success(); }

@@ -201,6 +201,26 @@ static testmodule __testcomputeagent(
         assert(t.sc.statstream(io, j.name(), ss)
                .fatal("statstream2")
                .isfinished()); },
+    "helloworld", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        job j(
+            filename("./testjob.so"),
+            "helloworld",
+            empty,
+            list<streamname>::mk(ss));
+        t.sc.createjob(io, j).fatal("creating storage for job");
+        t.cc.start(io, j).fatal("starting job");
+        assert(t.cc.waitjob(io, j.name())
+               .flatten()
+               .fatal("waitjob")
+               .issuccess());
+        assert(t.sc.statstream(io, j.name(), ss)
+               .fatal("statstream2")
+               .isfinished());
+        auto r(t.sc.read(io, j.name(), ss).fatal("read"));
+        assert(r.second().contenteq(buffer("Hello world")));
+        assert(r.first() == 11_B); },
     "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
     "jobresulteq", [] {
         assert(jobresult::success() == jobresult::success());

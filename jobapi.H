@@ -33,7 +33,7 @@ private: ~jobapi();
      * which a job can perform against it. */
 public:  class outputstream {
         /* Add some bytes to the end of the stream. */
-    public: virtual void append(const buffer &); };
+    public: virtual void append(clientio, const buffer &) = 0; };
     /* ``Open'' an output stream, mapping from a stream name to an
      * actual outputstream which can be used to record the job's
      * outputs.  Returns Nothing if no output stream has that
