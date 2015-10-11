@@ -19,8 +19,10 @@
 
 #include "connpool.tmpl"
 #include "either.tmpl"
+#include "fields.tmpl"
 #include "list.tmpl"
 #include "mutex.tmpl"
+#include "nnp.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"
 #include "test.tmpl"
@@ -254,7 +256,8 @@ public:  impl(CONN &_conn,
 public:  maybe<token> finished() const;
 public:  token finished(clientio) const;
 public:  orerror<void> pop(token);
-public:  orerror<void> abort(); };
+public:  orerror<void> abort();
+public:  const fields::field &field() const; };
 
 /* ----------------------------- config type ---------------------------- */
 connpool::config::config(const beaconclientconfig &_beacon,
@@ -514,9 +517,14 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
     bool quick = false;
     list<nnp<CALL> > aborts;
     mux.locked([this, &aborts] (mutex_t::token tok) {
+            for (auto it(aborted(tok).start());
+                 !it.finished();
+                 it.next()) {
+                assert((*it)->_aborted); }
             aborts.transfer(aborted(tok)); });
     for (auto it(aborts.start()); !it.finished(); it.next()) {
         auto c(*it);
+        logmsg(loglevel::debug, "process abort on " + fields::mk(c));
         assert(c->_aborted);
         bool found = false;
         for (auto it2(calls.start()); !it2.finished(); it2.next()) {
@@ -525,6 +533,8 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                 if (connected) {
                     /* The message was already sent.  Queue up an
                      * abort. */
+                    logmsg(loglevel::debug,
+                           "slow abort on " + fields::mk(c));
                     bool wasempty = txbuffer->empty();
                     auto startoff(txbuffer->offset() + txbuffer->avail());
                     serialise1 s(*txbuffer);
@@ -551,10 +561,13 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                          !it2.finished();
                          it2.next()) {
                         if (*it2 == c) {
+                            logmsg(loglevel::debug, "abort newcall");
                             it2.remove();
                             found = true;
                             return; } }
-                    /* finished before abort().  Fine. */}); }
+                    /* finished before abort().  Fine. */
+                    logmsg(loglevel::debug,
+                           "abort finished call " + fields::mk(c)); }); }
         if (found) failcall(c, error::aborted, cl);
         c->dereference(); }
     /* If we queued up an abort then the caller needs to wake up
@@ -654,6 +667,7 @@ CONN::queuetx(list<nnp<CALL> > &calls,
         /* Quick lock-free check.  It doesn't matter if this misses
          * some updates; async abort is inherently racy, anyway. */
         if (c->_aborted) {
+            logmsg(loglevel::debug, "quick abort " + fields::mk(c));
             failcall(c, error::aborted, cl);
             remove = true;
             continue; }
@@ -669,6 +683,8 @@ CONN::queuetx(list<nnp<CALL> > &calls,
         remove = false;
         if (c->seqnr(cl) == Nothing) {
             c->seqnr(cl) = nextseq;
+            logmsg(loglevel::debug,
+                   "call " + fields::mk(c) + " seq " + c->seqnr(cl).field());
             nextseq++; }
         auto startoff(txbuffer.offset() + txbuffer.avail());
         proto::reqheader(-1,
@@ -724,6 +740,7 @@ CONN::processresponse(buffer &rxbuffer,
                    " type " + c->type.field() +
                    " reported success even though deserialiser failed with " +
                    ds.failure().field()); }
+        logmsg(loglevel::debug, "complete call " + fields::mk(c));
         c->mux.locked(
             [c, callres] (mutex_t::token tok) {
                 assert(c->res(tok) == Nothing);
@@ -1013,6 +1030,7 @@ CONN::call(maybe<timestamp> deadline,
      * without waiting for the connection thread (if we already have a
      * connection) */
     auto res(_nnp(*new CALL(*this, deadline, type, s, ds)));
+    logmsg(loglevel::verbose, "queue call " + fields::mk(res));
     newcalls(token).pushtail(res);
     callschanged.publish();
     return res; }
@@ -1118,18 +1136,21 @@ CALL::finished(clientio io) const {
 
 orerror<void>
 CALL::pop(token t) {
+    logmsg(loglevel::verbose, "release call " + fields::mk(this));
     auto r(res(t).just());
     dereference();
     return r; }
 
 orerror<void>
 CALL::abort() {
+    logmsg(loglevel::verbose, "start abort " + fields::mk(this));
     if (mux.locked<bool>([this] (mutex_t::token tok) {
                 if (res(tok) != Nothing) return true;
                 aborted(tok) = true;
                 return false; })) {
         /* Call finished before we aborted it.  No need to put it in
-         * the abort queue. */ }
+         * the abort queue. */
+        logmsg(loglevel::verbose, "already complete"); }
     else {
         conn.mux.locked([this] (mutex_t::token tok) {
                 reference();
@@ -1139,3 +1160,17 @@ CALL::abort() {
      * is guaranteed to complete the call quickly, so we don't need a
      * full clientio token here. */
     return pop(finished(clientio::CLIENTIO)); }
+
+const fields::field &
+CALL::field() const {
+    const fields::field *rr =
+        mux.trylocked<const fields::field *>(
+            [&] (maybe<mutex_t::token> t) {
+                if (t == Nothing) return &("<busy " + mux.field() +">");
+                else return &res(t.just()).field(); });
+    return "<call: " + fields::mkptr(this) +
+        " deadline:" + deadline.field() +
+        " type:" + type.field() +
+        " res:" + *rr +
+        " aborted:" + fields::mk(_aborted) +
+        ">"; }

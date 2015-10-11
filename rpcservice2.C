@@ -767,7 +767,8 @@ rpcservice2::connworker::processmessage(
                             i->abandoned(tok).set(); }
                         else logmsg(loglevel::debug, "double abort?");
                         return; }
-                    logmsg(loglevel::debug, "too-late abort"); } );
+                    logmsg(loglevel::debug,
+                           "too-late abort on " + hdr.seq.field()); } );
             /* Aborts generate no reply. */
             return Success; }
         else {
