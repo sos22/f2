@@ -119,12 +119,13 @@ static testmodule __spawntest(
     "signal3", [] (clientio io) {
         auto p(process::spawn(program("/bin/sleep").addarg("1"))
                .fatal("spawning"));
+        (500_ms).future().sleep(io);
         assert(p->hasdied() == Nothing);
         p->signal(signalnr::stop);
         (2_s).future().sleep(io);
         assert(p->hasdied() == Nothing);
         p->signal(signalnr::cont);
-        (2_s).future().sleep(io);
+        (500_ms).future().sleep(io);
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "signal4", [] (clientio io) {
         auto p(process::spawn(program("/bin/true")).fatal("spawning truth"));
