@@ -13,7 +13,6 @@ static testmodule __testmutex(
     "mutex",
     list<filename>::mk("mutex.C", "mutex.H", "mutex.tmpl"),
     testmodule::BranchCoverage(70_pc),
-    testmodule::LineCoverage(85_pc),
     "basic", [] () {
         /* Spawn a bunch of threads and confirm that only one can
          * hold each lock at a time. */
@@ -93,6 +92,10 @@ static testmodule __testmutex(
         shutdown = true;
         for (unsigned x = 0; x < nr_threads; x++) {
             thrs[x]->join(clientio::CLIENTIO); } },
+    "locked", [] {
+        mutex_t mux;
+        assert(mux.locked<int>([] { return 7; }) == 7);
+        assert(mux.locked<int>([] (mutex_t::token) { return 8; }) == 8); },
     "field", [] {
         mutex_t mux;
         assert(!strcmp(mux.field().c_str(), "<unheld>"));
