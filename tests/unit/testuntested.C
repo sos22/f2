@@ -30,6 +30,8 @@ static testmodule __testuntested(
                        "interfacetype.H",
                        "listenfd.C",
                        "listenfd.H",
+                       "logging.C",
+                       "logging.H",
                        "nnp.H",
                        "main.H",
                        "main.C",
@@ -69,5 +71,5 @@ static testmodule __testuntested(
                        "waitbox.H",
                        "waitbox.tmpl"
         ),
-    testmodule::LineCoverage(8_pc),
-    testmodule::BranchCoverage(7_pc));
+    testmodule::LineCoverage(14_pc),
+    testmodule::BranchCoverage(9_pc));
