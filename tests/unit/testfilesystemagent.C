@@ -46,8 +46,8 @@ static testmodule __testfilesystemagent(
                        "filesystemclient.H",
                        "filesystemproto.C",
                        "filesystemproto.H"),
-    testmodule::LineCoverage(47_pc),
-    testmodule::BranchCoverage(34_pc),
+    testmodule::LineCoverage(58_pc),
+    testmodule::BranchCoverage(40_pc),
     "basic", [] (clientio io) {
         quickcheck q;
         auto cluster(mkrandom<clustername>(q));
@@ -130,6 +130,36 @@ static testmodule __testfilesystemagent(
         logmsg(loglevel::info,
                "missing at " + fields::mk(mat) + ", "
                "present at " + fields::mk(pat));
+        fsclient.destroy();
+        fsagent.destroy(io);
+        cp.destroy(); },
+    "dropjob", [] (clientio io) {
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname fsagentname("fsagent");
+        auto &fsagent(*filesystemagent(
+                          io,
+                          cluster,
+                          fsagentname,
+                          peername::all(peername::port::any))
+                      .fatal("starting filesystem agent"));
+        auto &cp(*connpool::build(cluster).fatal("building connpool"));
+        auto &fsclient(filesystemclient::connect(cp, fsagentname));
+        teststorage sa(io, q, cluster, agentname("storageagent"), cp);
+        job j("library", "function", empty, empty);
+        {   auto evt(sa.storageclient.createjob(io, j).fatal("creating job"));
+            fsclient.storagebarrier(io, sa.an, evt).fatal("barrier1"); }
+        assert(!fsclient
+               .findjob(io, j.name())
+               .fatal("querying job")
+               .empty());
+        {   auto evt = sa.storageclient.removejob(io, j.name())
+                .fatal("removing job");
+            fsclient.storagebarrier(io, sa.an, evt).fatal("barrier2"); }
+        assert(fsclient
+               .findjob(io, j.name())
+               .fatal("querying job")
+               .empty());
         fsclient.destroy();
         fsagent.destroy(io);
         cp.destroy(); },

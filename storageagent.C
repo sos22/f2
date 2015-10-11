@@ -196,11 +196,16 @@ storageagent::_called(
                               oct); } }
     else if (tag == proto::storage::tag::removejob) {
         jobname job(ds);
-        if (!ds.isfailure()) {
-            auto r(removejob(job));
-            if (!r.isfailure()) {
-                eqq.queue(proto::storage::event::removejob(job), io); }
-            ic->complete(r, io, oct); } }
+        if (ds.isfailure()) return ds.failure();
+        auto r(removejob(io, job));
+        if (r.isfailure()) return r.failure();
+        ic->complete([eid(r.success())] (serialise1 &s,
+                                         mutex_t::token /* txlock */,
+                                         onconnectionthread) {
+                         s.push(eid); },
+                     acquirestxlock(io),
+                     oct);
+        return Success; }
     else ds.fail(error::invalidmessage);
     return ds.status(); }
 
@@ -494,8 +499,8 @@ storageagent::statstream(const jobname &jn,
     if (finished) return streamstatus::finished(sn, sz);
     else return streamstatus::partial(sn, sz); }
 
-orerror<void>
-storageagent::removejob(const jobname &jn) {
+orerror<proto::eq::eventid>
+storageagent::removejob(clientio io, const jobname &jn) {
     logmsg(loglevel::debug, "remove job " + fields::mk(jn));
     auto dirname(config.poolpath + jn.asfilename());
     {   /* Start by removing the complete tag, so that crash recovery
@@ -507,4 +512,4 @@ storageagent::removejob(const jobname &jn) {
         r.failure().warn(
             "remove job directory " + dirname.field() +
             " after marking it incomplete"); }
-    return r; }
+    return eqq.queue(proto::storage::event::removejob(jn), io); }

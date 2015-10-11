@@ -59,7 +59,7 @@ public:  static const tag statjob;
 public:  static const tag liststreams;
     /* Inputs: jobname, streamname.  Outputs: streamstatus. */
 public:  static const tag statstream;
-    /* Inputs: jobname.  Outputs: None */
+    /* Inputs: jobname.  Outputs: Event ID of the remove job event */
 public:  static const tag removejob; };
 
 class event {

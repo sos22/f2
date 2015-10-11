@@ -91,7 +91,8 @@ private: orerror<void> liststreams(
 private: orerror<streamstatus> statstream(
     const jobname &jn,
     const streamname &sn);
-public:  orerror<void> removejob(
+public:  orerror<proto::eq::eventid> removejob(
+    clientio io,
     const jobname &jn); };
 
 #endif /* !STORAGEAGENT_H__ */

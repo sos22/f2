@@ -148,10 +148,10 @@ public:  orerror<asyncstatstream::resT> statstream(
     
 private: class asyncremovejobimpl;
 private: struct asyncremovejobdescr {
-    typedef void _resT;
+    typedef proto::eq::eventid _resT;
     typedef storageclient _friend;
     typedef asyncremovejobimpl _implT;
-    typedef connpool::asynccall::token _innerTokenT; };
+    typedef connpool::asynccallT<_resT>::token _innerTokenT; };
 public:  typedef asynccall<asyncremovejobdescr> asyncremovejob;
     friend asyncremovejob;
 public:  asyncremovejob &removejob(jobname);

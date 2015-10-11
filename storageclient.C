@@ -354,17 +354,19 @@ storageclient::statstream(clientio io, jobname jn, const streamname &sn) {
 
 class storageclient::asyncremovejobimpl {
 public: storageclient::asyncremovejob api;
-public: connpool::asynccall &cl;
+public: connpool::asynccallT<asyncremovejobdescr::_resT> &cl;
 public: explicit asyncremovejobimpl(class storageclient::impl &owner,
                                     const jobname &jn)
     : api(),
-      cl(*owner.cp.call(
+      cl(*owner.cp.call<asyncremovejobdescr::_resT>(
              owner.an,
              interfacetype::storage,
              Nothing,
              [jn] (serialise1 &s, connpool::connlock) {
                  s.push(proto::storage::tag::removejob);
-                 s.push(jn); })) {} };
+                 s.push(jn); },
+             [] (deserialise1 &ds, connpool::connlock) {
+                 return storageclient::asyncremovejob::resT(ds); })) {} };
 
 template <> orerror<storageclient::asyncremovejob::resT>
 storageclient::asyncremovejob::pop(token t) {
