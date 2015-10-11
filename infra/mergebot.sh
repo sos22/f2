@@ -176,11 +176,13 @@ do
         for x in $merges
         do
             t=$(mktemp)
-            echo "merging $name"
+            echo "merging $x"
             if ( merge $x ) >$t 2>&1
             then
+                echo "merging $x successful"
                 mergesuccmsg $x | sendemail
             else
+                echo "merging $x failed"
                 mergefailmsg $x $t | sendemail
             fi
             rm -f $t
