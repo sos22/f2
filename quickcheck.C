@@ -105,7 +105,7 @@ const char *
 quickcheck::filename() const {
     char *buf;
     do {
-        unsigned len = ((unsigned)random() % 255) + 5;
+        unsigned len = ((unsigned)random() % 255) + 6;
         buf = (char *)tmpheap::_alloc(len + 1);
         strcpy(buf, "tmp/");
         for (unsigned x = 4; x < len - 1; x++) {
@@ -115,5 +115,5 @@ quickcheck::filename() const {
             } while (c == '/' || !isprint(c));
             buf[x] = c; }
         buf[len] = 0;
-    } while (!strcmp(buf, "") || !strcmp(buf, ".") || !strcmp(buf, ".."));
+    } while (!strcmp(buf, ".") || !strcmp(buf, ".."));
     return buf; }
