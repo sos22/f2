@@ -33,7 +33,7 @@ public: slowcallimpl(connpool &pool,
              [_td, _key] (serialise1 &s, connpool::connlock) {
                  s.push(_td);
                  s.push(_key); },
-             [] (deserialise1 &ds, connpool::connlock) -> unsigned {
+             [] (deserialise1 &ds, connpool::connlock) {
                  return (unsigned)ds; })) {} };
 
 template <> orerror<unsigned>
@@ -83,10 +83,12 @@ static testmodule __testasynccall(
                   .fatal("starting service"));
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
-        auto &c((new slowcallimpl(pool, sn, 100_ms, 5))->api);
-        assert(timestamp::now() - start < 10_ms);
+        auto &c((new slowcallimpl(pool, sn, 200_ms, 5))->api);
+        {   auto n(timestamp::now());
+            assert(n - start < 20_ms); }
         assert(c.pop(io) == 5);
-        assert(timestamp::now() - start > 100_ms);
+        {   auto n(timestamp::now());
+            assert(n - start > 200_ms); }
         pool.destroy();
         srv.destroy(io); },
     "abort", [] (clientio io) {
