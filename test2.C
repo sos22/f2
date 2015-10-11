@@ -177,6 +177,8 @@ f2main(list<string> &args) {
     signal(SIGPIPE, SIG_IGN);
     signal(SIGALRM, _alarm);
     
+    initlogging(args);
+    
     bool stat = false;
     maybe<timedelta> timeout(30_s);
     while (!args.empty()) {
