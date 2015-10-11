@@ -48,10 +48,12 @@ public: const t &success() const {
 public: t &success() {
     assert(this->issuccess());
     return this->right(); }
-public: void warn(const fields::field &f) const {
-    if (this->isfailure()) this->failure().warn(f); }
-public: void warn(const char *f) const {
-    if (this->isfailure()) this->failure().warn(f); }
+public: const orerror &warn(const fields::field &f) const {
+    if (this->isfailure()) this->failure().warn(f);
+    return *this; }
+public: const orerror &warn(const char *f) const {
+    if (this->isfailure()) this->failure().warn(f);
+    return *this; }
 public: static const ::parser<orerror<t> > &parser();
 public: static const ::parser<orerror<t> > &parser(const ::parser<t> &inner);
 public: const t flatten() const; };

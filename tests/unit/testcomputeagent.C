@@ -39,9 +39,9 @@ public:  explicit computetest(clientio io)
       computeagentname("computeagent"),
       storageagentname("storageagent"),
       computedir(q),
-      computeformatres(::computeagent::format(computedir)),
+      computeformatres(::computeagent::format(computedir).warn("computedir")),
       storagedir(q),
-      storageformatres(::storageagent::format(storagedir)),
+      storageformatres(::storageagent::format(storagedir).warn("storagedir")),
       cp(*connpool::build(cluster).fatal("building connpool")),
       storageagent(*::storageagent::build(
                        io,

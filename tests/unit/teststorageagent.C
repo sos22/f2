@@ -27,7 +27,7 @@ public: storageclient &client;
 public: teststate(clientio io)
     : q(),
       pool(filename::mktemp().fatal("mktemp")),
-      fmtres(storageagent::format(pool)),
+      fmtres(storageagent::format(pool).warn("format")),
       cn(mkrandom<clustername>(q)),
       an(q),
       agent(storageagent::build(io, cn, an, pool)
