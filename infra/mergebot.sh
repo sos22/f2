@@ -101,6 +101,7 @@ merge() {
         echo -n "merging "
         git show -s --format=oneline $commit
         git cherry-pick $commit
+        rm -rf tmp
         make -j8 -s testall
         if git status --porcelain | grep -q '^??'
         then
@@ -113,6 +114,7 @@ merge() {
         for x in $modules
         do
             ./test2-t --fuzzsched $x '*'
+            echo "module $x: result $?"
         done
     done
     # The last one is special, because we run the entire suite, and
