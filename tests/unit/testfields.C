@@ -168,6 +168,22 @@ static testmodule __testfields(
         simpletest(mk("\t").escape(), "\"\\x09\"");
         simpletest(mk("ZZZ\xffXXX").escape(), "\"ZZZ\\xffXXX\"");
         simpletest(mk(7).escape(), "7"); },
+    "ptr", [] {
+        int x = 7;
+        int *y = &x;
+        simpletest(mk(y), "[7]");
+        x = 12;
+        simpletest(mk(y), "[12]");
+        y = NULL;
+        simpletest(mk(y), "NULL");
+        const int *z = &x;
+        simpletest(mk(z), "[12]");
+        z = NULL;
+        simpletest(mk(z), "NULL"); },
+    "mkptr", [] {
+        simpletest(mkptr((unsigned *)0), "0");
+        simpletest(mkptr((unsigned *)0xf001), "f001");
+        simpletest(mkptr((unsigned *)0xdeadf001), "dead:f001"); },
     "c_str", [] { simpletest(mk(5), "5"); },
     /* Not really a useful test case, but it makes the coverage 100%,
      * and the print() function's simple enough that just confirming

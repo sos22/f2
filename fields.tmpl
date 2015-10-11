@@ -11,6 +11,13 @@ mk(const t *const &what) {
     if (!what) return mk("NULL");
     else return "[" + mk(*what) + "]"; }
 template <typename t> const field &
+mk(t *const &what) {
+    if (!what) return mk("NULL");
+    else return "[" + mk(*what) + "]"; }
+template <typename t> const field &
+mkptr(const t *const &what) {
+    return mk((unsigned long)what).base(16).sep(colon, 4).hidebase(); }
+template <typename t> const field &
 mk(const t &what) { return what.field(); } }
 
 #endif /* !FIELDS_TMPL__ */

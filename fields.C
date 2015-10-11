@@ -23,6 +23,10 @@ static struct : public field {
 } _comma;
 const field &comma(_comma);
 static struct : public field {
+    void fmt(fieldbuf &p) const { p.push(":"); }
+} _colon;
+const field &colon(_colon);
+static struct : public field {
     void fmt(fieldbuf &p) const { p.push("."); }
 } _period;
 const field &period(_period);

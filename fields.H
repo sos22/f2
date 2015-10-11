@@ -42,6 +42,7 @@ public:
 
 extern const field &space;
 extern const field &comma;
+extern const field &colon;
 extern const field &period;
 
 const field &operator +(const field &, const field &);
@@ -122,6 +123,7 @@ const doublefield &mk_double(long double);
 
 void print(const field &f);
 
-template <typename t> const field &mk(const t &); };
+template <typename t> const field &mk(const t &);
+template <typename t> const field &mkptr(const t * const&); };
 
 #endif /* !FIELDS_H__ */
