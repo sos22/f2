@@ -15,6 +15,14 @@ mutex_t::lock() {
     heldby.mkjust(tid::me());
     return token(); }
 
+const fields::field &
+mutex_t::field() const {
+    /* Careful: we might be racing with people acquiring and releasing
+     * the lock. This is safe because we know about how the fields are
+     * implemented. */
+    if (heldby == Nothing) return fields::mk("<unheld>");
+    else return "<heldby:"+heldby.__just().field()+">"; }
+
 mutex_t::token
 mutex_t::DUMMY() { return token(); }
 

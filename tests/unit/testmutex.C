@@ -1,17 +1,19 @@
 #include "mutex.H"
+#include "parsers.H"
 #include "test2.H"
 #include "thread.H"
 #include "timedelta.H"
 
 #include "mutex.tmpl"
+#include "parsers.tmpl"
 #include "test2.tmpl"
 #include "thread.tmpl"
 
 static testmodule __testmutex(
     "mutex",
     list<filename>::mk("mutex.C", "mutex.H", "mutex.tmpl"),
-    testmodule::BranchCoverage(45_pc),
-    testmodule::LineCoverage(80_pc),
+    testmodule::BranchCoverage(65_pc),
+    testmodule::LineCoverage(85_pc),
     "basic", [] () {
         /* Spawn a bunch of threads and confirm that only one can
          * hold each lock at a time. */
@@ -90,4 +92,14 @@ static testmodule __testmutex(
         (5_s).future().sleep(clientio::CLIENTIO);
         shutdown = true;
         for (unsigned x = 0; x < nr_threads; x++) {
-            thrs[x]->join(clientio::CLIENTIO); } });
+            thrs[x]->join(clientio::CLIENTIO); } },
+    "field", [] {
+        mutex_t mux;
+        assert(!strcmp(mux.field().c_str(), "<unheld>"));
+        auto t(mux.lock());
+        assert(("<heldby:t:" + parsers::intparser<unsigned>() + ">")
+               .match(mux.field().c_str())
+               .success()
+               > 0);
+        mux.unlock(&t);
+        assert(!strcmp(mux.field().c_str(), "<unheld>")); });
