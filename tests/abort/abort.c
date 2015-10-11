@@ -11,5 +11,5 @@ main() {
      * confuse the harness, so turn them off. */
     struct rlimit rl;
     memset(&rl, 0, sizeof(rl));
-    if (setrlimit(RLIMIT_CORE, &rl) < 0) err("setrlimit");
+    if (setrlimit(RLIMIT_CORE, &rl) < 0) err(1, "setrlimit");
     abort(); }
