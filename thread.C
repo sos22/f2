@@ -112,5 +112,7 @@ thread::myname() { return this_name ?: "<unknown thread>"; }
 
 namespace {
 class exitchecks {
-public: ~exitchecks() { assert(nrthreads == 0); } };
+public: static void doit(int code, void *) {
+    if (code == 0) assert(nrthreads == 0); }
+public: exitchecks() { on_exit(doit, NULL); } };
 static exitchecks _exitchecks; }
