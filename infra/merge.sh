@@ -40,6 +40,7 @@ do
     shift
     echo -n "merging "
     git show -s --format=oneline $commit
+    echo "  $# commits left"
     git cherry-pick $commit
     rm -rf tmp
     make -j8 -s testall
