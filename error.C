@@ -171,7 +171,6 @@ error::fatal(const fields::field &msg) const
            "fatal error: " + msg + ": " + fields::mk(*this));
     fields::fieldbuf buf;
     (msg + ": " + fields::mk(*this)).fmt(buf);
-    ::deinitpubsub(clientio::CLIENTIO);
     errx(1, "fatal error: %s", buf.c_str());
 }
 
