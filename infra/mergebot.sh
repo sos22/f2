@@ -23,6 +23,8 @@
 # Otherwise, we generate an email describing the error, throw away
 # merge-pending and the merge/ branch, and go back to normal mode.
 
+set -x
+
 if [ $# != 2 ]
 then
     echo "need two parameters, the path to the repo and a results directory"
@@ -30,6 +32,8 @@ then
 fi
 repo=$(realpath $1)
 results=$(realpath $2)
+infradir=$(realpath $(dirname $0) )
+logs=${results}/logs
 
 mkdir -p ${results}/routine
 
@@ -50,8 +54,7 @@ _basemode() {
 basemode() {
     local now=$(date +%Y-%m-%d-%H-%M-%S)
     local t=${results}/routine/${now}
-    local logs=${results}/logs
-    local commit=$(git -C ${repo} rev-parse HEAD)
+    local commit=$(git ls-remote ${repo} refs/heads/master | tr [:space:] ' ' | cut -d' ' -f 1)
     mkdir $t
     if ( _basemode $t $commit )
     then
@@ -62,87 +65,6 @@ basemode() {
         grep -v 'pass$' ${t}/testdir/summary | sed 's/^/    /' >> $logs
         ${t}/checkout/infra/summarisefailure.sh ${t} ${now} | sendemail
     fi
-}
-
-findmodules() {
-    local suffix=$1
-    while read fname
-    do
-        if echo $fname | grep -q '^tests/unit/'
-        then
-            echo $fname | sed 's,tests/unit/test\([0-9a-z_-]*\).C,\1,'
-        else
-            ./test2${suffix} findmodule $fname | grep -v ^Seed
-        fi
-    done
-}
-
-merge() {
-    set -e
-    local name=$1
-    local now=$(date +%Y-%m-%d-%H-%M-%S)
-    local t=${results}/merge/${name}
-    trap "rm -rf $t" EXIT
-    mkdir -p $t
-    echo "merging $name into ${t}"
-    git clone -q ${repo} ${t}/work
-    cd ${t}/work
-    git fetch -q ${repo} merge/${name}:merge/${name}
-    git checkout -q master
-    git checkout -q -b merge-pending
-    # Dribble intermediate commits in one at a time until we get to
-    # the last one in the series.
-    set $(git rev-list ..merge/${name} | tr ' ' '\n' | tac | tr '\n' ' ')
-    echo "commits $*"
-    while [ $# != 1 ]
-    do
-        local commit=$1
-        shift
-        echo -n "merging "
-        git show -s --format=oneline $commit
-        git cherry-pick $commit
-        rm -rf tmp
-        make -j8 -s testall
-        if git status --porcelain | grep -q '^??'
-        then
-            echo "make testall generated extra files"
-            git status --porcelain
-            exit 1
-        fi
-        local modules="meta $(git diff --name-only HEAD^ | findmodules -t | sort -u)"
-        echo "test modules $modules"
-        for x in $modules
-        do
-            ./test2-t --fuzzsched $x '*'
-            echo "module $x: result $?"
-        done
-    done
-    # The last one is special, because we run the entire suite, and
-    # because we perform coverage checking at the end.
-    echo -n "final merge "
-    git show -s --format=oneline $1
-    git cherry-pick $1
-    ./runtests.sh ../testdir
-    # Check that gitignore is correct
-    make -j8 -s covall
-    if git status --porcelain | grep -v '^?? tmp/' | grep -q '^??'
-    then
-        echo "make covall generated extra files"
-        git status --porcelain
-        exit 1
-    fi
-    # And check that make clean really works
-    make -s clean
-    rm -f config
-    if [ $(git status --porcelain --ignored | wc -l) != 0 ]
-    then
-        echo "make clean failed to clean all files!"
-        git status --porcelain --ignored
-        exit 1
-    fi
-    # Merge successful. Push to master.
-    git push ${repo} merge-pending:master
-    exit 0
 }
 
 mailheader() {
@@ -163,36 +85,40 @@ mergesuccmsg() {
     echo "$x successfully merged into master"
 }
 
+ltime=$(stat --printf=%Y $0)
 while true
 do
-    merges=
-    shopt -s nullglob
-    for x in ${repo}/refs/heads/merge/*
-    do
-        merges="$merges $(echo $x | sed 's,^.*/,,')"
-    done
-    if [ "$merges" = "" ]
+    git pull ${repo}
+    nltime=$(stat --printf=%Y $0)
+    if [ $ltime != $nltime ]
+    then
+        echo "re-execute $0 $*..."
+        exec $*0 $*
+    fi
+    t=$(mktemp)
+    git ls-remote ${repo} 'refs/heads/merge/*' | sed 's,refs/heads/merge/,,' > $t
+    if [ $(wc -l < $t) = 0 ]
     then
         basemode
     else
-        for x in $merges
+        cat $t | while read commit name
         do
-            commit=$(git -C ${repo} rev-parse $x)
             t=$(mktemp)
-            echo "merging $x"
-            if ( merge $x ) >$t 2>&1
+            echo "merging $name"
+            if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1
             then
-                echo "merging $x successful"
-                echo "${now} MERGE $commit ($x) PASS" >> ${logs}
-                mergesuccmsg $x | sendemail
+                echo "merging $name successful"
+                echo "${now} MERGE $commit ($name) PASS" >> ${logs}
+                mergesuccmsg $name | sendemail
             else
-                echo "merging $x failed"
-                echo "${now} MERGE $commit ($x) FAIL" >> ${logs}
-                mergefailmsg $x $t | sendemail
+                echo "merging $name failed"
+                echo "${now} MERGE $commit ($name) FAIL" >> ${logs}
+                mergefailmsg $name $t | sendemail
             fi
             rm -f $t
             # The merge branch gets deleted even if the merge fails.
-            git push --delete ${repo} merge/${x}
+            git push --delete ${repo} merge/${name}
         done
     fi
+    rm -f $t
 done
