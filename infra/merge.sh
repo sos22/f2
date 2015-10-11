@@ -53,7 +53,12 @@ do
     echo "test modules $modules"
     for x in $modules
     do
-        ./test2-t --fuzzsched $x '*'
+        # If the module was removed in this commit then we don't want
+        # to test it here.
+        if ./test2-t | grep -q "Module: $x\$"
+        then
+            ./test2-t --fuzzsched $x '*'
+        fi
     done
 done
 # The last one is special, because we run the entire suite, and
