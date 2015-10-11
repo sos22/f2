@@ -51,8 +51,11 @@ _basemode() {
     ./runtests.sh ${outdir}/testdir
 }
 
+_now() {
+    date +%Y-%m-%d-%H-%M-%S;
+}
 basemode() {
-    local now=$(date +%Y-%m-%d-%H-%M-%S)
+    local now=$(_now)
     local t=${results}/routine/${now}
     local commit=$(git ls-remote ${repo} refs/heads/master | tr [:space:] ' ' | cut -d' ' -f 1)
     mkdir $t
@@ -104,6 +107,7 @@ do
         cat $t | while read commit name
         do
             t=$(mktemp)
+            now=$(_now)
             echo "merging $name"
             if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1
             then
