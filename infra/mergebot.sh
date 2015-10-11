@@ -81,7 +81,7 @@ merge() {
     set -e
     local name=$1
     local now=$(date +%Y-%m-%d-%H-%M-%S)
-    local t=${results}/merge/${name}/${now}
+    local t=${results}/merge/${name}
     trap "rm -rf $t" EXIT
     mkdir -p $t
     echo "merging $name into ${t}"
