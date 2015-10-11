@@ -12,7 +12,7 @@
 static testmodule __testmutex(
     "mutex",
     list<filename>::mk("mutex.C", "mutex.H", "mutex.tmpl"),
-    testmodule::BranchCoverage(65_pc),
+    testmodule::BranchCoverage(70_pc),
     testmodule::LineCoverage(85_pc),
     "basic", [] () {
         /* Spawn a bunch of threads and confirm that only one can
@@ -102,4 +102,23 @@ static testmodule __testmutex(
                .success()
                > 0);
         mux.unlock(&t);
-        assert(!strcmp(mux.field().c_str(), "<unheld>")); });
+        assert(!strcmp(mux.field().c_str(), "<unheld>")); },
+    "trylock", [] {
+        mutex_t mux;
+        auto t1(mux.trylock());
+        assert(t1 != Nothing);
+        assert(mux.trylock() == Nothing);
+        mux.unlock(&t1.just());
+        t1 = mux.trylock();
+        assert(t1 != Nothing);
+        mux.unlock(&t1.just()); },
+    "trylocked", [] {
+        mutex_t mux;
+        mux.trylocked([] (maybe<mutex_t::token> t) {
+                assert(t != Nothing); });
+        auto t(mux.lock());
+        assert(mux.trylocked<bool>([] (maybe<mutex_t::token> tt) {
+                    return tt == Nothing; }));
+        mux.unlock(&t);
+        assert(!mux.trylocked<bool>([] (maybe<mutex_t::token> tt) {
+                    return tt == Nothing; })); } );

@@ -15,6 +15,14 @@ mutex_t::lock() {
     heldby.mkjust(tid::me());
     return token(); }
 
+maybe<mutex_t::token>
+mutex_t::trylock() {
+    fuzzsched();
+    if (pthread_mutex_trylock(&mux) == 0) {
+        heldby.mkjust(tid::me());
+        return token(); }
+    else return Nothing; }
+
 const fields::field &
 mutex_t::field() const {
     /* Careful: we might be racing with people acquiring and releasing
@@ -45,3 +53,9 @@ mutex_t::locked(const std::function<void (void)> &f) {
     auto _token(lock());
     f();
     unlock(&_token); }
+
+void
+mutex_t::trylocked(const std::function<void (maybe<mutex_t::token>)> &f) {
+    auto _token(trylock());
+    f(_token);
+    if (_token != Nothing) unlock(&_token.just()); }

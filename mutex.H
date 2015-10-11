@@ -44,10 +44,13 @@ public:
     mutex_t();
     ~mutex_t();
     token lock();
+    maybe<token> trylock();
     template <typename t> t locked(const std::function<t (token)> &);
     template <typename t> t locked(const std::function<t (void)> &);
+    template <typename t> t trylocked(const std::function<t (maybe<token>)> &);
     void locked(const std::function<void (token)> &);
     void locked(const std::function<void (void)> &);
+    void trylocked(const std::function<void (maybe<token>)> &);
     
     const fields::field &field() const;
     
