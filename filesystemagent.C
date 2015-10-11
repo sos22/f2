@@ -196,7 +196,9 @@ public: job *findjob(const jobname &jn, mutex_t::token);
 public: const job *findjob(const jobname &jn, mutex_t::token) const;
 public: void dropjob(job &j, mutex_t::token);
 
-public: void eqnewjob(proto::eq::eventid eid,
+public: void eqnewjob(connpool &pool,
+                      subscriber &sub,
+                      proto::eq::eventid eid,
                       const jobname &job,
                       mutex_t::token);
 public: void eqremovejob(proto::eq::eventid eid,
@@ -430,26 +432,21 @@ store::dropjob(job &j, mutex_t::token tok) {
 
 /* Process an event queue newjob event. */
 void
-store::eqnewjob(proto::eq::eventid eid,
+store::eqnewjob(connpool &pool,
+                subscriber &sub,
+                proto::eq::eventid eid,
                 const jobname &job,
                 mutex_t::token tok) {
     /* Check whether we've already got the job in the list. */
     auto j(findjob(job, tok));
-    if (j == NULL) {
-        /* New job. */
-        logmsg(loglevel::info,
-               "discover new job " + fields::mk(job) +
-               " from event at " + fields::mk(eid));
-        jobs(tok).append(*this, eid, job);
-        /* No LISTSTREAMS: if we saw the newjob event, we will also
-         * see all the newstream ones. */ }
-    else {
-        /* Job already exists.  Mostly a no-op, except that once we've
-         * gotten the t_newjob event we're guaranteed to get
-         * t_newstream events for any streams in the job, so we can
-         * cancel any outstanding LISTSTREAMS. */
-        auto isc(j->abortliststreamscall(tok));
-        j->liststreamsres(isc) = Nothing; } }
+    if (j != NULL) return;
+    /* New job. */
+    logmsg(loglevel::info,
+           "discover new job " + fields::mk(job) +
+           " from event at " + fields::mk(eid));
+    jobs(tok)
+        .append(*this, eid, job)
+        .startliststreams(pool, sub, tok); }
 
 /* Process an event queue removejob event. */
 void
@@ -582,7 +579,7 @@ store::eqevent(connpool &pool,
     auto &evt(ev.just().success().second());
     switch (evt.typ) {
     case proto::storage::event::t_newjob:
-        eqnewjob(eid, evt.job, tok);
+        eqnewjob(pool, sub, eid, evt.job, tok);
         break;
     case proto::storage::event::t_removejob:
         eqremovejob(eid, evt.job, tok, oft);
