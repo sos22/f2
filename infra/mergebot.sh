@@ -61,7 +61,6 @@ basemode() {
         echo "${now} ${commit} FAIL" >> $logs
         grep -v 'pass$' ${t}/testdir/summary | sed 's/^/    /' >> $logs
         ${t}/checkout/infra/summarisefailure.sh ${t} ${now} | sendemail
-        exit 1
     fi
 }
 
