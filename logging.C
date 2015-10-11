@@ -50,12 +50,15 @@ loglevel::field() const {
     else if (*this == loglevel::verbose) return fields::mk("verbose");
     else return "unknown loglevel " + fields::mk(this->level); }
 
-static map<string, logmodule *>
-modules;
+static map<string, logmodule *> &
+modules(void) {
+    static map<string, logmodule *> _modules;
+    return _modules; }
+
 logmodule::logmodule(const string &n)
     : name(n),
       noisy(false) {
-    modules.set(n, this); }
+    modules().set(n, this); }
 
 class memlogentry {
 public: const fields::field &field() const;
@@ -175,18 +178,18 @@ _initlogging(const char *_ident, list<string> &args) {
         while (!it.finished()) {
             if (*it == "==") break;
             if (*it == "--listmodules") {
-                for (auto it2(modules.start()); !it2.finished(); it2.next()) {
+                for (auto it2(modules().start()); !it2.finished(); it2.next()) {
                     fprintf(stderr, "%s\n", it2.key().c_str()); }
                 exit(0); }
             if (*it == "--verbose") {
-                for (auto it2(modules.start()); !it2.finished(); it2.next()) {
+                for (auto it2(modules().start()); !it2.finished(); it2.next()) {
                     it2.value()->noisy = true; }
                 it.remove();
                 continue; }
             auto mod(it->stripprefix("--noisymodule="));
             if (mod != Nothing) {
                 it.remove();
-                auto m(modules.get(mod.just()));
+                auto m(modules().get(mod.just()));
                 if (m == Nothing) {
                     errx(1, "no such module %s", mod.just().c_str()); }
                 if (m.just()->noisy) {

@@ -181,8 +181,6 @@ f2main(list<string> &args) {
     signal(SIGPIPE, SIG_IGN);
     signal(SIGALRM, _alarm);
     
-    initlogging(args);
-    
     on_exit(::exithandler, NULL);
     
     bool stat = false;
