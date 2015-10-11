@@ -823,7 +823,6 @@ public:  list<pair<agentname, streamstatus> > findstream(
     const jobname &jn,
     const streamname &sn) const;
 public:  maybe<agentname> nominateagent(const maybe<jobname> &) const;
-public:  void newjob(const agentname &, const jobname &, proto::eq::eventid);
 public:  void storagebarrier(
     const agentname &,
     proto::eq::eventid,
@@ -1016,32 +1015,6 @@ filesystem::nominateagent(const maybe<jobname> &jn) const {
             mux.unlock(&tok);
             return res; }
         idx--; } }
-
-void
-filesystem::newjob(const agentname &sn,
-                   const jobname &jn,
-                   proto::eq::eventid eid) {
-    auto tok(mux.lock());
-    store *sto = NULL;
-    for (auto it(stores(tok).start());
-         sto == NULL && !it.finished();
-         it.next()) {
-        if (it->name == sn) sto = &*it; }
-    if (sto == NULL) {
-        /* Someone created a store on a agent which we don't know
-         * about.  We're only ever invoked for agents returned from
-         * nominateagent() and we know that the agent was in the
-         * beacon then, so we're probably racing with the agent
-         * crashing and dropping out of the beacon.  Assume that the
-         * agent's going away and drop the newjob() notification. */
-        mux.unlock(&tok);
-        logmsg(loglevel::failure,
-               "new job " + fields::mk(jn) +
-               " on lost agent " + fields::mk(sn));
-        return; }
-    sto->eqnewjob(eid, jn, tok);
-    mux.unlock(&tok);
-    return; }
 
 void
 filesystem::storagebarrier(
