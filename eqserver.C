@@ -237,6 +237,8 @@ geneventqueue::formatqueue(const proto::eq::genname &name,
 orerror<nnp<geneventqueue> >
 geneventqueue::openqueue(const proto::eq::genname &expectedname,
                          const filename &statefile) {
+    logmsg(loglevel::verbose,
+           "open event queue " + statefile.field());
     auto _sz(statefile.size());
     if (_sz.isfailure()) return _sz.failure();
     auto sz(_sz.success());
