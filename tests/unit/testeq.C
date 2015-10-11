@@ -188,7 +188,7 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::testunsigned,
-                    timedelta::seconds(1).future(),
+                    timedelta::seconds(3).future(),
                     cconfig1)
                 .fatal("connecting eqclient")
                 .first());
@@ -199,7 +199,7 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::testunsigned,
-                    timedelta::seconds(1).future(),
+                    timedelta::seconds(3).future(),
                     cconfig2)
                 .fatal("connecting eqclient")
                 .first());
@@ -247,7 +247,7 @@ static testmodule __testeq(
             *pool,
             sn,
             proto::eq::names::testunsigned,
-            timedelta::seconds(1).future())
+            timedelta::seconds(3).future())
             .fatal("connecting eqclient")
             .first();
         assert(c2->pop() == Nothing);
@@ -316,7 +316,7 @@ static testmodule __testeq(
                    *pool,
                    sn,
                    proto::eq::names::testunsigned,
-                   timedelta::seconds(1).future(),
+                   timedelta::seconds(3).future(),
                    cconfig)
                .fatal("connecting eqclient")
                .first());
@@ -362,7 +362,7 @@ static testmodule __testeq(
                    *pool,
                    sn,
                    proto::eq::names::testunsigned,
-                   timedelta::seconds(1).future(),
+                   timedelta::seconds(3).future(),
                    cconfig)
                .fatal("connecting eqclient")
                .first());
@@ -406,7 +406,7 @@ static testmodule __testeq(
                    *pool,
                    sn,
                    proto::eq::names::testunsigned,
-                   timedelta::seconds(1).future(),
+                   timedelta::seconds(3).future(),
                    cconfig)
                .fatal("connecting eqclient")
                .first());
@@ -455,7 +455,7 @@ static testmodule __testeq(
                    *pool,
                    sn,
                    proto::eq::names::testunsigned,
-                   timedelta::seconds(1).future(),
+                   timedelta::seconds(3).future(),
                    cconfig)
                .fatal("connecting eqclient")
                .first());
@@ -491,7 +491,7 @@ static testmodule __testeq(
                    *pool,
                    sn,
                    proto::eq::names::testunsigned,
-                   timedelta::seconds(1).future())
+                   timedelta::seconds(3).future())
                .fatal("connecting eqclient")
                .first());
         assert(c->pop() == Nothing);
@@ -536,7 +536,7 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::testunsigned,
-                    timedelta::seconds(1).future(),
+                    timedelta::seconds(3).future(),
                     cconfig)
                 .fatal("connecting eqclient")
                 .first());
@@ -545,7 +545,7 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::teststring,
-                    timedelta::seconds(1).future(),
+                    timedelta::seconds(3).future(),
                     cconfig)
                 .fatal("connecting eqclient")
                 .first());
@@ -592,7 +592,7 @@ static testmodule __testeq(
                    *pool,
                    sn,
                    proto::eq::names::testunsigned,
-                   timedelta::seconds(1).future(),
+                   timedelta::seconds(3).future(),
                    cconfig)
                .fatal("connecting eqclient")
                .first());
@@ -636,7 +636,7 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::testunsigned,
-                    timedelta::seconds(1).future())
+                    timedelta::seconds(3).future())
                 .fatal("connecting eqclient")
                 .first());
         while (nrwaiters == 0) timedelta::milliseconds(1).future().sleep(io);
@@ -646,7 +646,7 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::testunsigned,
-                    timedelta::seconds(1).future())
+                    timedelta::seconds(3).future())
                 .fatal("connecting eqclient")
                 .first());
         while (nrwaiters == 1) timedelta::milliseconds(1).future().sleep(io);
@@ -736,7 +736,7 @@ static testmodule __testeq(
                        *pool,
                        sn,
                        proto::eq::names::testunsigned,
-                       timedelta::seconds(1).future())
+                       timedelta::seconds(3).future())
                    .fatal("connecting eqclient"));
         assert(droppedeid <= cpair.second());
         auto c(cpair.first());
@@ -768,7 +768,7 @@ static testmodule __testeq(
             *pool,
             sn,
             proto::eq::names::testunsigned,
-            timedelta::seconds(1).future())
+            timedelta::seconds(3).future())
             .fatal("reconnecting eqclient")
             .first();
 
@@ -815,7 +815,7 @@ static testmodule __testeq(
                    pool,
                    an,
                    proto::eq::names::testunsigned,
-                   timestamp::now() + timedelta::seconds(2))
+                   timestamp::now() + timedelta::seconds(3))
                == error::dlopen);
         pool.destroy();
         dummy.destroy(io); });
