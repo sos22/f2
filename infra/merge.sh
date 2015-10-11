@@ -25,7 +25,7 @@ findmodules() {
 
 mkdir -p $t
 echo "merging $name into ${t}"
-git clone -q ${repo} ${t}/work
+git clone -b master -q ${repo} ${t}/work
 cd ${t}/work
 git fetch -q ${repo} merge/${name}:merge/${name}
 git checkout -q master

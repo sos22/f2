@@ -174,7 +174,7 @@ main(int argc, char *argv[]) {
     srandom((unsigned)now.tv_usec);
     
     signal(SIGPIPE, SIG_IGN);
-    signal(SIGABRT, _alarm);
+    signal(SIGALRM, _alarm);
     
     bool stat = false;
     maybe<timedelta> timeout(30_s);
