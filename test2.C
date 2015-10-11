@@ -167,6 +167,10 @@ testmodule::prepare() const {
 static void
 _alarm(int) { abort(); }
 
+/* Get a core dump whenever a test fails. */
+static void
+exithandler(int code, void *) { if (code != 0) abort(); }
+
 orerror<void>
 f2main(list<string> &args) {
     struct timeval now;
@@ -178,6 +182,8 @@ f2main(list<string> &args) {
     signal(SIGALRM, _alarm);
     
     initlogging(args);
+    
+    on_exit(::exithandler, NULL);
     
     bool stat = false;
     maybe<timedelta> timeout(30_s);
