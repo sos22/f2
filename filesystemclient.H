@@ -4,6 +4,7 @@
 #include "asynccall.H"
 #include "connpool.H"
 #include "eq.H"
+#include "streamstatus.H"
 
 class jobname;
 
@@ -25,6 +26,19 @@ public:  typedef asynccall<asyncfindjobdescr> asyncfindjob;
     friend asyncfindjob;
 public:  asyncfindjob &findjob(jobname);
 public:  orerror<asyncfindjob::resT> findjob(clientio, jobname);
+    
+private: class asyncfindstreamimpl;
+private: struct asyncfindstreamdescr {
+    typedef list<pair<agentname, streamstatus> > _resT;
+    typedef filesystemclient _friend;
+    typedef asyncfindstreamimpl _implT;
+    typedef connpool::asynccall::token _innerTokenT; };
+public:  typedef asynccall<asyncfindstreamdescr> asyncfindstream;
+    friend asyncfindstream;
+public:  asyncfindstream &findstream(jobname, const streamname &);
+public:  orerror<asyncfindstream::resT> findstream(clientio,
+                                                   jobname,
+                                                   const streamname &);
     
 private: class asyncstoragebarrierimpl;
 private: struct asyncstoragebarrierdescr {

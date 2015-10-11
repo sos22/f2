@@ -46,8 +46,8 @@ static testmodule __testfilesystemagent(
                        "filesystemclient.H",
                        "filesystemproto.C",
                        "filesystemproto.H"),
-    testmodule::LineCoverage(58_pc),
-    testmodule::BranchCoverage(40_pc),
+    testmodule::LineCoverage(70_pc),
+    testmodule::BranchCoverage(50_pc),
     "basic", [] (clientio io) {
         quickcheck q;
         auto cluster(mkrandom<clustername>(q));
@@ -160,6 +160,51 @@ static testmodule __testfilesystemagent(
                .findjob(io, j.name())
                .fatal("querying job")
                .empty());
+        fsclient.destroy();
+        fsagent.destroy(io);
+        cp.destroy(); },
+    "findstream", [] (clientio io) {
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname fsagentname("fsagent");
+        auto &fsagent(*filesystemagent(
+                          io,
+                          cluster,
+                          fsagentname,
+                          peername::all(peername::port::any))
+                      .fatal("starting filesystem agent"));
+        auto &cp(*connpool::build(cluster).fatal("building connpool"));
+        auto &fsclient(filesystemclient::connect(cp, fsagentname));
+        teststorage sa(io, q, cluster, agentname("storageagent"), cp);
+        auto sn(streamname::mk("output").fatal("make output streamname"));
+        job j("library",
+              "function",
+              empty,
+              list<streamname>(Immediate(), sn));
+        {   auto n(fsclient
+                   .findstream(io, j.name(), sn)
+                   .fatal("findstream on non-existent job"));
+            assert(n.empty()); }
+        {   auto evt(sa.storageclient.createjob(io, j).fatal("creating job"));
+            fsclient.storagebarrier(io, sa.an, evt).fatal("barrier1"); }
+        {   auto n(fsclient
+                   .findstream(io, j.name(), sn)
+                   .fatal("findstream on non-existent job"));
+            assert(!n.empty());
+            assert(n.length() == 1);
+            assert(n.peekhead().first() == sa.an);
+            assert(!n.peekhead().second().isfinished());
+            assert(n.peekhead().second().isempty()); }
+        {   auto evt(sa.storageclient.finish(io, j.name(), sn).fatal("finish"));
+            fsclient.storagebarrier(io, sa.an, evt).fatal("barrier2"); }
+        {   auto n(fsclient
+                   .findstream(io, j.name(), sn)
+                   .fatal("findstream on non-existent job"));
+            assert(!n.empty());
+            assert(n.length() == 1);
+            assert(n.peekhead().first() == sa.an);
+            assert(n.peekhead().second().isfinished());
+            assert(n.peekhead().second().isempty()); }
         fsclient.destroy();
         fsagent.destroy(io);
         cp.destroy(); },

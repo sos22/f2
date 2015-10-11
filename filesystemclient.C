@@ -59,6 +59,41 @@ orerror<filesystemclient::asyncfindjob::resT>
 filesystemclient::findjob(clientio io, jobname j) {
     return findjob(j).pop(io); }
 
+class filesystemclient::asyncfindstreamimpl {
+public: asyncfindstream api;
+public: maybe<asyncfindstream::resT> res;
+public: connpool::asynccall &cl;
+public: asyncfindstreamimpl(class filesystemclient::impl &owner,
+                            const jobname &jn,
+                            const streamname &sn)
+    : api(),
+      res(Nothing),
+      cl(*owner.cp.call<void>(
+             owner.an,
+             interfacetype::filesystem,
+             Nothing,
+             [jn, sn] (serialise1 &s, connpool::connlock) {
+                 s.push(proto::filesystem::tag::findstream);
+                 s.push(jn);
+                 s.push(sn); },
+             [this] (deserialise1 &ds, connpool::connlock) -> orerror<void> {
+                 res.mkjust(ds);
+                 return ds.status(); })) {} };
+template <> orerror<filesystemclient::asyncfindstream::resT>
+filesystemclient::asyncfindstream::pop(token t) {
+    auto r(impl().cl.pop(t.inner));
+    orerror<resT> rv(error::unknown);
+    if (r.isfailure()) rv = r.failure();
+    else rv.mksuccess(Steal, impl().res.just());
+    delete &impl();
+    return rv; }
+filesystemclient::asyncfindstream &
+filesystemclient::findstream(jobname jn, const streamname &sn) {
+    return (new asyncfindstreamimpl(impl(), jn, sn))->api; }
+orerror<filesystemclient::asyncfindstream::resT>
+filesystemclient::findstream(clientio io, jobname j, const streamname &sn) {
+    return findstream(j, sn).pop(io); }
+
 class filesystemclient::asyncstoragebarrierimpl {
 public: filesystemclient::asyncstoragebarrier api;
 public: connpool::asynccallT<void> &cl;
