@@ -1,5 +1,7 @@
 #include "main.H"
 
+#include <signal.h>
+
 #include "list.H"
 #include "logging.H"
 #include "string.H"
@@ -7,11 +9,27 @@
 #include "list.tmpl"
 #include "orerror.tmpl"
 
+static void
+fatalsignal(int signr) {
+    /* Bit of an abuse: we might already hold some memlog locks, so
+       this could deadlock. We're crashing anyway, though, so it
+       probably doesn't matter. */
+    dumpmemlog();
+    signal(signr, SIG_DFL);
+    raise(signr); }
+
 int
 main(int argc, char *argv[]) {
     list<string> args;
     for (int i = 1; i < argc; i++) args.pushtail(argv[i]);
     initlogging(args);
+    /* core-dumping signals should probably dump the memory log */
+    signal(SIGSEGV, fatalsignal);
+    signal(SIGQUIT, fatalsignal);
+    signal(SIGILL, fatalsignal);
+    signal(SIGABRT, fatalsignal);
+    signal(SIGFPE, fatalsignal);
+    signal(SIGBUS, fatalsignal);
     f2main(args).fatal("error from f2main");
     return 0; }
 
