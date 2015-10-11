@@ -45,9 +45,9 @@ static testmodule __beacontests(
                                                       agent))
                .fatal("starting beacon client"));
         auto r(c->query(io, agent));
-        assert(r.type.length() == 1);
-        assert(r.type.idx(0) == interfacetype::test);
-        assert(r.name.getport() == port);
+        assert(r.type().length() == 1);
+        assert(r.type().idx(0) == interfacetype::test);
+        assert(r.name().getport() == port);
         c->destroy();
         s->destroy(io); },
     "refresh", [] (clientio io) {
@@ -129,7 +129,7 @@ static testmodule __beacontests(
             port)
             .fatal("restarting beacon server");
         assert(timedelta::time([c, io, port, &agent] {
-                    assert(c->query(io, agent).name.getport() == port); })
+                    assert(c->query(io, agent).name().getport() == port); })
             < timedelta::milliseconds(100));
         s->destroy(io);
         c->destroy(); },
@@ -159,7 +159,7 @@ static testmodule __beacontests(
                     mklist(interfacetype::storage),
                     port2)
                 .fatal("starting second beacon server"));
-        assert(c->query(io, agent).name.getport() == port2);
+        assert(c->query(io, agent).name().getport() == port2);
         c->destroy();
         s2->destroy(io);
         s->destroy(io); },
@@ -196,9 +196,9 @@ static testmodule __beacontests(
                     mklist(interfacetype::test2),
                     port3)
                 .fatal("starting beacon server"));
-        assert(c->query(io, agent1).name.getport() == port1);
-        assert(c->query(io, agent2).name.getport() == port2);
-        assert(c->query(io, agent3).name.getport() == port3);
+        assert(c->query(io, agent1).name().getport() == port1);
+        assert(c->query(io, agent2).name().getport() == port2);
+        assert(c->query(io, agent3).name().getport() == port3);
         bool found1 = false;
         bool found2 = false;
         bool found3 = false;
@@ -286,7 +286,7 @@ static testmodule __beacontests(
         auto tv(timedelta::time(
                     [c, port, &agent] {
                         assert(c->query(clientio::CLIENTIO, agent)
-                               .name
+                               .name()
                                .getport() == port); }));
         assert(errcount >= 3);
         assert(tv >= timedelta::milliseconds(200));
@@ -325,7 +325,7 @@ static testmodule __beacontests(
                    .fatal("beaconclientconfig::mk"))
                .fatal("beaconclient::build"));
         auto tv(timedelta::time([c, &agent, port, io] {
-                    assert(c->query(io, agent).name.getport() == port); }));
+                    assert(c->query(io, agent).name().getport() == port); }));
         assert(cntr >= 3);
         /* First three broadcasts fail, and we do one every 100ms,
          * so it should take at least 200ms to complete
@@ -452,7 +452,7 @@ static testmodule __beacontests(
                                           timedelta::milliseconds(20))
                    .fatal("beaconclientconfig::mk"))
                .fatal("beaconclient::build"));
-        assert(c->query(io, agent).name.getport() == port);
+        assert(c->query(io, agent).name().getport() == port);
         fail = true;
         /* Wait long enough for it to drop out of the cache. */
         (timestamp::now() + timedelta::milliseconds(400)).sleep(io);
@@ -464,7 +464,7 @@ static testmodule __beacontests(
         /* If the failure clears then we should be able to use the
          * server normally again. */
         fail = false;
-        assert(c->query(io, agent).name.getport() == port);
+        assert(c->query(io, agent).name().getport() == port);
         c->destroy();
         s->destroy(io); },
 #endif
@@ -506,7 +506,7 @@ static testmodule __beacontests(
         /* Stop injecting errors and make sure server starts working. */
         fail = false;
         assert(timedelta::time([c, io, port, &agent] {
-                    assert(c->query(io, agent).name.getport() == port); })
+                    assert(c->query(io, agent).name().getport() == port); })
             <= timedelta::milliseconds(300));
         c->destroy();
         s->destroy(io); }
@@ -569,7 +569,7 @@ static testmodule __beacontests(
                    mklist(interfacetype::test),
                    port)
                .fatal("starting beacon server"));
-        assert(c->query(io, sn).name.getport() == port);
+        assert(c->query(io, sn).name().getport() == port);
         c->status(loglevel::emergency);
         assert(loudmsgs > 0);
         s->destroy(io);
@@ -610,7 +610,7 @@ static testmodule __beacontests(
                                                       Nothing,
                                                       underlying))
                .fatal("beaconclient::build"));
-        assert(c->query(io, sn).name.getport() == port);
+        assert(c->query(io, sn).name().getport() == port);
         s->destroy(io);
         c->destroy(); }
 #endif

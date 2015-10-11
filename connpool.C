@@ -746,7 +746,7 @@ CONN::connectphase(
         logmsg(loglevel::debug, "waiting for beacon");
         sub.wait(io, checktimeouts(calls, cl, idledat, false, NULL));
         return Nothing; }
-    auto &peer(_beaconres.just().name);
+    auto &peer(_beaconres.just().name());
 
     if (debounceconnect.isjust() &&
         debounceconnect.just().first() == peer &&

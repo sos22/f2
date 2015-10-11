@@ -127,9 +127,10 @@ public:  class result {
         friend class beaconclient;
     private: result(const peername &, const list<interfacetype> &);
     private: result() = delete;
-    private: void operator=(const result &) = delete;
-    public:  const peername name;
-    public:  const list<interfacetype> type; };
+    private: peername _name;
+    public:  const peername &name() const { return _name; }
+    private: list<interfacetype> _type;
+    public:  const list<interfacetype> &type() const { return _type; } };
     /* Query the client's current knowledge of a particular agent,
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */

@@ -403,10 +403,10 @@ beaconclient::run(clientio io) {
     listenfd.close();
     clientfd.close(); }
 
-beaconclient::result::result(const peername &_name,
-                             const list<interfacetype> &_type)
-    : name(_name),
-      type(_type) {}
+beaconclient::result::result(const peername &__name,
+                             const list<interfacetype> &__type)
+    : _name(__name),
+      _type(__type) {}
 
 maybe<beaconclient::result>
 beaconclient::poll(const agentname &sn) const {
