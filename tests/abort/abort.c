@@ -1,6 +1,7 @@
 /* Trivial program which just calls abort(), for testing. */
 #include <sys/resource.h>
 #include <sys/time.h>
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
 
