@@ -163,6 +163,9 @@ testmodule::prepare() const {
         exit(1); }
     deinitpubsub(clientio::CLIENTIO); }
 
+static void
+_alarm(int) { abort(); }
+
 int
 main(int argc, char *argv[]) {
     struct timeval now;
@@ -171,6 +174,7 @@ main(int argc, char *argv[]) {
     srandom((unsigned)now.tv_usec);
     
     signal(SIGPIPE, SIG_IGN);
+    signal(SIGABRT, _alarm);
     
     bool stat = false;
     maybe<timedelta> timeout(30_s);
