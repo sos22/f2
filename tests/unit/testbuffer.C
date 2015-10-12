@@ -484,7 +484,7 @@ static testmodule __buffertest(
             buf2.queue("HELLO", 5);
             auto r(timedelta::time<orerror<void> >([&buf2, &p] {
                         return buf2.sendfast(p.write); }));
-            assert(r.td < timedelta::milliseconds(10));
+            assert(r.td < timedelta::milliseconds(100));
             if (r.v == error::wouldblock) break;
             r.v.fatal("sending fast");
             assert(buf2.avail() < 5 + a);
