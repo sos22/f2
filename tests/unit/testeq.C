@@ -247,7 +247,8 @@ static testmodule __testeq(
             *pool,
             sn,
             proto::eq::names::testunsigned,
-            timedelta::seconds(3).future())
+            timedelta::seconds(3).future(),
+            cconfig2)
             .fatal("connecting eqclient")
             .first();
         assert(c2->pop() == Nothing);
