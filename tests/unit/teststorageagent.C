@@ -151,6 +151,54 @@ static testmodule __teststorageagent(
         assert(end - start < 10_ms);
         assert(res.issuccess());
         assert(res.success() == j); },
+    "statstream", [] (clientio io) {
+        teststate t((io));
+        auto sn(streamname::mk("X").fatal("X"));
+        job j(filename("dummy.so"),
+              "dummyfn",
+              empty,
+              list<streamname>(Immediate(), sn));
+        t.client.createjob(io, j).fatal("creating job");
+        assert(t.client
+               .statjob(io, j.name())
+               .fatal("stat job")
+               == j);
+        auto ss(t.client
+                .statstream(io, j.name(), sn)
+                .fatal("stat stream"));
+        assert(!ss.isfinished());
+        t.client
+            .finish(io, j.name(), sn)
+            .fatal("finish stream");
+        ss = t.client
+            .statstream(io, j.name(), sn)
+            .fatal("stat stream2");
+        assert(ss.isfinished());
+        assert(ss.isempty()); },
+    "tagfield", [] {
+        quickcheck q;
+        list<pair<string, proto::storage::tag> > seen;
+        for (unsigned x = 0; x < 100; x++) {
+            auto t = mkrandom<proto::storage::tag>(q);
+            string s(t.field().c_str());
+            for (auto it(seen.start()); !it.finished(); it.next()) {
+                assert((it->first() == s) == (it->second() == t)); } } },
+    "eventfield", [] {
+        quickcheck q;
+        list<pair<string, proto::storage::event> > seen;
+        for (unsigned x = 0; x < 100; x++) {
+            auto t = mkrandom<proto::storage::event>(q);
+            string s(t.field().c_str());
+            for (auto it(seen.start()); !it.finished(); it.next()) {
+                assert((it->first() == s) == (it->second() == t)); } } },
+    "opennull", [] (clientio io) {
+        quickcheck q;
+        assert(storageagent::build(
+                   io,
+                   mkrandom<clustername>(q),
+                   q,
+                   filename("this does not exist"))
+               == error::from_errno(ENOENT)); },
     "formatempty", [] {
         quickcheck q;
         filename f(q);
