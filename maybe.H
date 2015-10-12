@@ -55,24 +55,11 @@ public:
     explicit maybe(deserialise1 &);
     explicit maybe(quickcheck &);
     maybe(const maybe &o);
-    /* Move constructor for moves from other maybe<t>s.  Note that
-     * this leaves @o as a just<t>, rather than converting it to
-     * Nothing, and does a move on the inner t. */
-    maybe(maybe &&o)
-        : _isnothing(o._isnothing) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-        if (!_isnothing) new (&content) t(std::move(o.content));
-#pragma GCC diagnostic pop
-    }
-    ~maybe() { if (isjust()) content.~t(); }
-    maybe(_Nothing) : _isnothing(true) {}
-    maybe(const t &what) : _isnothing(false) { ::new (&content) t(what); }
-    maybe(t &&what) : _isnothing(false) { ::new (&content) t(what); }
+    ~maybe();
+    maybe(_Nothing);
+    maybe(const t &what);
     
-    template <typename ... args> maybe(Just, args&&...params)
-        : _isnothing(false) {
-        new (&content) t(std::forward<args>(params)...); }
+    template <typename ... args> maybe(Just, args&&...params);
     
     /* Convert @this into a just<t> by invoking the <t> constructor,
      * using @params as the constructor arguments.  If @this is
@@ -83,10 +70,8 @@ public:
      * invoking the t destructor.  This is occasionally more
      * convenient than using *@this = Nothing if the t type doesn't
      * have an assignment operator. */
-    void mknothing() {
-        if (!_isnothing) content.~t();
-        _isnothing = true; }
-
+    void mknothing();
+    
     /* Assignment from one maybe to another, using the constructor to
      * convert Nothing to Just, the destructor to convert Just to
      * Nothing, and operator= to convert one Just to another.  We
@@ -94,76 +79,40 @@ public:
      * between Justs.  Doing it this way means that you can't use
      * operator= on maybe<t> unless you can use operator= on t, which
      * seems like a good restriction to have. */
-    void operator=(const maybe &o) {
-        if (_isnothing) {
-            if (o._isnothing) return;
-            else {
-                new (&content) t(o.content);
-                _isnothing = false; } }
-        else {
-            if (o._isnothing) {
-                content.~t();
-                _isnothing = true; }
-            else content = o.content; } }
-    void operator=(_Nothing) {
-        if (!_isnothing) content.~t();
-        _isnothing = true; }
-    void operator=(const t &o) {
-        if (_isnothing) {
-            new (&content) t(o);
-            _isnothing = false; }
-        else content = o; }
-    bool isnothing() const { return _isnothing; }
-    bool operator!() const { return isnothing(); }
-    bool isjust() const { return !isnothing(); }
-    const t &just() const {
-        assert(isjust());
-        return content; }
-    t &just() {
-        assert(isjust());
-        return content; }
+    void operator=(const maybe &o);
+    void operator=(_Nothing);
+    void operator=(const t &o);
+    bool isnothing() const;
+    bool operator!() const;
+    bool isjust() const;
+    const t &just() const;
+    t &just();
     t just(_Steal);
     /* Default value.  x.dflt(y) is y if x is Nothing and x.just()
      * otherwise. */
-    const t &dflt(const t &what) const {
-        if (isjust()) return content;
-        else return what; }
+    const t &dflt(const t &what) const;
     /* Error handling: If x is Nothing, x.fatal(msg) terminates the
      * program and prints the message msg.  Otherwise, x.fatal(msg) is
      * x.just(). */
-#ifndef COVERAGESKIP
-    const t &fatal(const fields::field &msg) const {
-        if (isjust()) return just();
-        else error::nothing.fatal(msg); }
-    const t &fatal(const char *msg) const {
-        if (isjust()) return just();
-        else error::nothing.fatal(msg); }
-#endif
-    bool operator==(const maybe &o) const {
-        if (_isnothing != o._isnothing) return false;
-        else if (_isnothing) return true;
-        else return content == o.content; }
-    bool operator!=(const maybe &o) const {
-        if (_isnothing != o._isnothing) return true;
-        else if (_isnothing) return false;
-        else return content != o.content; }
-    bool operator==(const _Nothing) const { return _isnothing; }
-    bool operator!=(const _Nothing) const { return !_isnothing; }
-    bool operator==(const t &o) const { return !_isnothing && content == o; }
-    bool operator!=(const t &o) const { return _isnothing || content != o; }
+    const t &fatal(const fields::field &msg) const;
+    const t &fatal(const char *msg) const;
+    bool operator==(const maybe &o) const;
+    bool operator!=(const maybe &o) const;
+    bool operator==(_Nothing) const;
+    bool operator!=(_Nothing) const;
+    bool operator==(const t &o) const;
+    bool operator!=(const t &o) const;
 
     /* Lift a function into maybe<t>.  x.map(f) is Nothing if x is
      * Nothing and is otherwise mkjust(f(x.just())). */
-    template <typename o> maybe<o> map(const std::function<o (const t&)> &f) {
-        if (isnothing()) return Nothing;
-        else return f(just()); }
+    template <typename o> maybe<o> map(const std::function<o (const t&)> &f);
 
     void serialise(serialise1 &) const;
 
     /* Extract the contents of the maybe, without first checking
      * whether the maybe is non-Nothing, and without dereferencing
      * @this at all.  This is only really useful for containerof. */
-    const t &__just() const { return content; }
+    const t &__just() const;
     
     /* Suppress maybe-uninitialised compiler warnings on content by
      * pretending to initialise it.  These warnings should always be
@@ -172,16 +121,12 @@ public:
     /* It's also quite expensive for types with non-trivial
      * constructors.  Fortunately, gcc only seems to generate the bad
      * warning for primitive types, so we should be okay. */
-    template <typename ... args> void silencecompiler(args &&...params) {
-        assert(_isnothing);
-        new (&content) t(std::forward<args>(params)...);
-        content.~t(); }
+    template <typename ... args> void silencecompiler(args &&...params);
     
     const fields::field &field() const;
 };
 
-template <typename t> maybe<t>
-mkjust(const t &x) { return maybe<t>(x); }
+template <typename t> maybe<t> mkjust(const t &x);
 
 /* Special case for maybe<void>.  Semantically, this is just a bool;
  * its only purpose is to make other templates come out a little bit
@@ -190,8 +135,7 @@ template <> class maybe<void> {
 private: bool r;
 private: maybe() : r(false) {}
 public:  maybe(const quickcheck &);
-public:  template <typename t> maybe(const maybe<t> &o)
-    : r(o.r) {}
+public:  template <typename t> maybe(const maybe<t> &o);
 public:  maybe(_Nothing)
     : r(true) {}
 public:  static maybe just;
@@ -203,37 +147,17 @@ public:   bool isjust() const { return !r; }
 public:   void mkjust() { r = false; }
 public:   bool operator==(const _Nothing) const {
     return isnothing(); }
-public:   bool operator!=(const _Nothing) const {
-    return isjust(); }
 public:   bool operator==(const maybe<void> &x) const {
     return isjust() == x.isjust(); }
-public:   bool operator!=(const maybe<void> &x) const {
-    return !(*this == x); }
-public:   template <typename o> maybe<o> map(const std::function<o ()> &f) {
-        if (isnothing()) return Nothing;
-        else return f(); } };
+public:   template <typename o> maybe<o> map(const std::function<o ()> &f); };
 
-template <typename t> bool
-_Nothing::operator==(const maybe<t> &o) const { return o.isnothing(); }
+template <typename t> bool operator ==(const t &a, const maybe<t> &o);
 
-template <typename t> bool
-_Nothing::operator!=(const maybe<t> &o) const { return o.isjust(); }
-
-template <typename t> bool
-operator ==(const t &a, const maybe<t> &o) {
-    return o.isjust() && a == o.just(); }
-
-template <typename t> bool
-operator !=(const t &a, const maybe<t> &o) {
-    return o.isnothing() || a != o.just(); }
+template <typename t> bool operator !=(const t &a, const maybe<t> &o);
 
 template <typename> class parser;
 namespace parsers {
 template <typename t> const parser<maybe<t> > &_maybe(const parser<t> &);
-}
-
-namespace tests {
-void _maybe();
 }
 
 #endif /* !MAYBE_H__ */

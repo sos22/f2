@@ -104,8 +104,8 @@ static testmodule __testfilesystemagent(
         teststorage sa1(io, q, cluster, agentname("storageagent"), cp);
         bool havemissing = false;
         bool havepresent = false;
-        int mat;
-        int pat;
+        int mat = -1; /* shut compiler up */
+        int pat = -1; /* shut compiler up */
         int x;
         for (x = 0; !havemissing || !havepresent; x++) {
             job j(filename("library"),
@@ -130,6 +130,8 @@ static testmodule __testfilesystemagent(
         logmsg(loglevel::info,
                "missing at " + fields::mk(mat) + ", "
                "present at " + fields::mk(pat));
+        assert(mat != -1);
+        assert(pat != -1);
         fsclient.destroy();
         fsagent.destroy(io);
         cp.destroy(); },

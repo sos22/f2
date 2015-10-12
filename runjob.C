@@ -70,11 +70,13 @@ runjob(clientio io,
         list<nnp<storageclient::asyncfinish> > pending;
         for (auto it(j.outputs().start()); !it.finished(); it.next()) {
             pending.append(sc.finish(j.name(), *it)); }
-        orerror<void> failure(Success);
+        orerror<void> failure(error::unknown);
+        failure = Success; /* Don't use the one-stop init because of
+                            * spurious compiler warnings. */
         while (failure == Success && !pending.empty()) {
             failure = pending.pophead()->pop(io); }
         while (!pending.empty()) pending.pophead()->abort();
-        if (failure.isfailure()) r = failure.failure(); }
+        if (failure != Success) r = failure.failure(); }
     sc.destroy();
     cp.success()->destroy();
     return r; }

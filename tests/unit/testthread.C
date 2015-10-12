@@ -4,6 +4,7 @@
 #include "timedelta.H"
 
 #include "fields.tmpl"
+#include "parsers.tmpl"
 #include "test2.tmpl"
 #include "thread.tmpl"
 

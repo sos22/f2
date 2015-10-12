@@ -45,6 +45,7 @@ function bits() {
     _ main
     _ maybe
     _ mutex
+    _ orerror
     _ parsers
     _ peername
     _ percentage

@@ -6,19 +6,28 @@
 #include "serialise.H"
 
 template <typename t>
+maybe<t>::maybe(quickcheck &o)
+    : _isnothing(o) {
+    if (!isnothing()) new (&content) t(o); }
+
+template <typename t>
 maybe<t>::maybe(const maybe &o)
     : _isnothing(o._isnothing) {
     if (!_isnothing) new (&content) t(o.content); }
 
 template <typename t>
-maybe<t>::maybe(quickcheck &o)
-    : _isnothing(o) {
-    if (!isnothing()) new (&content) t(o); }
+maybe<t>::~maybe() { if (isjust()) content.~t(); }
 
-template <typename t> const fields::field &
-maybe<t>::field() const {
-    if (isnothing()) return fields::mk("Nothing");
-    else return "<" + fields::mk(just()) + ">"; }
+template <typename t>
+maybe<t>::maybe(_Nothing) : _isnothing(true) {}
+
+template <typename t>
+maybe<t>::maybe(const t &what) : _isnothing(false) { ::new(&content) t(what); }
+
+template <typename t> template <typename ... args>
+maybe<t>::maybe(Just, args&&...params)
+    : _isnothing(false) {
+    new (&content) t(std::forward<args>(params)...); }
 
 template <typename t> template <typename ... args> void
 maybe<t>::mkjust(args &&...params) {
@@ -26,18 +35,132 @@ maybe<t>::mkjust(args &&...params) {
     _isnothing = false;
     ::new (&content) t(std::forward<args>(params)...); }
 
+template <typename t> void
+maybe<t>::mknothing() {
+    if (!_isnothing) content.~t();
+    _isnothing = true; }
+
+template <typename t> void
+maybe<t>::operator=(const maybe &o) {
+    if (_isnothing) {
+        if (o._isnothing) return;
+        else {
+            new (&content) t(o.content);
+            _isnothing = false; } }
+    else {
+        if (o._isnothing) {
+            content.~t();
+            _isnothing = true; }
+        else content = o.content; } }
+
+template <typename t> void
+maybe<t>::operator=(_Nothing) {
+    if (!_isnothing) content.~t();
+    _isnothing = true; }
+
+template <typename t> void
+maybe<t>::operator=(const t &o) {
+    if (_isnothing) {
+        new (&content) t(o);
+        _isnothing = false; }
+    else content = o; }
+
+template <typename t> bool
+maybe<t>::isnothing() const { return _isnothing; }
+
+template <typename t> bool
+maybe<t>::operator!() const { return isnothing(); }
+
+template <typename t> bool
+maybe<t>::isjust() const { return !isnothing(); }
+
+template <typename t> const t &
+maybe<t>::just() const {
+    assert(isjust());
+    return content; }
+
+template <typename t> t &
+maybe<t>::just() {
+    assert(isjust());
+    return content; }
+
+template <typename t> const fields::field &
+maybe<t>::field() const {
+    if (isnothing()) return fields::mk("Nothing");
+    else return "<" + fields::mk(just()) + ">"; }
+
 template <typename t> t
 maybe<t>::just(_Steal s) { return t(s, just()); }
+
+template <typename t> const t &
+maybe<t>::dflt(const t &what) const {
+    if (isjust()) return content;
+    else return what; }
+
+template <typename t> const t &
+maybe<t>::fatal(const fields::field &msg) const {
+    if (isjust()) return just();
+    else error::nothing.fatal(msg); }
+
+template <typename t> const t &
+maybe<t>::fatal(const char *msg) const {
+    if (isjust()) return just();
+    else error::nothing.fatal(msg); }
+
+template <typename t> bool
+maybe<t>::operator==(const maybe &o) const {
+    if (_isnothing != o._isnothing) return false;
+    else if (_isnothing) return true;
+    else return content == o.content; }
+
+template <typename t> bool
+maybe<t>::operator!=(const maybe &o) const {
+    if (_isnothing != o._isnothing) return true;
+    else if (_isnothing) return false;
+    else return content != o.content; }
+
+template <typename t> bool
+maybe<t>::operator==(_Nothing) const { return _isnothing; }
+
+template <typename t> bool
+maybe<t>::operator!=(_Nothing) const { return !_isnothing; }
+
+template <typename t> bool
+maybe<t>::operator==(const t &o) const { return !_isnothing && content == o; }
+
+template <typename t> bool
+maybe<t>::operator!=(const t &o) const { return _isnothing || content != o; }
+
+template <typename t> template <typename o> maybe<o>
+maybe<t>::map(const std::function<o (const t &)> &f) {
+    if (isnothing()) return Nothing;
+    else return f(just()); }
 
 template <typename t> void
 maybe<t>::serialise(serialise1 &s) const {
     s.push(_isnothing);
     if (isjust()) s.push(just()); }
 
+template <typename t> const t &
+maybe<t>::__just() const { return content; }
+
 template <typename t>
 maybe<t>::maybe(deserialise1 &ds)
     : _isnothing(ds) {
-    if (!_isnothing) new (&content) t(ds); }
+    if (!_isnothing) new (&content) t(ds);
+    else {
+        /* Not strictly necessary, except that it shuts the compiler
+         * up. */
+        memset(&content, 0xab, sizeof(content)); } }
+
+template <typename t> template <typename ... args> void
+maybe<t>::silencecompiler(args &&... params) {
+    assert(_isnothing);
+    new (&content) t(std::forward<args>(params)...);
+    content.~t(); }
+
+template <typename t> maybe<t>
+mkjust(const t &x) { return maybe<t>(x); }
 
 namespace parsers {
 template <typename t> const parser<maybe<t> > &
@@ -45,5 +168,28 @@ _maybe(const parser<t> &underlying) {
     return strmatcher("Nothing", maybe<t>(Nothing)) ||
         ("<" + underlying + ">").map<maybe<t> >(
             [] (const t &x) { return maybe<t>(x); }); } }
+
+template <typename t> bool
+_Nothing::operator==(const maybe<t> &o) const { return o.isnothing(); }
+
+template <typename t> bool
+_Nothing::operator!=(const maybe<t> &o) const { return o.isjust(); }
+
+template <typename t>
+maybe<void>::maybe(const maybe<t> &o) : r(o.r) {}
+
+template <typename o> maybe<o>
+maybe<void>::map(const std::function<o ()> &f) {
+    if (isnothing()) return Nothing;
+    else return f(); }
+
+template <typename t> bool
+operator ==(const t &a, const maybe<t> &o) {
+    return o.isjust() && a == o.just(); }
+
+template <typename t> bool
+operator !=(const t &a, const maybe<t> &o) {
+    return o.isnothing() || a != o.just(); }
+
 
 #endif /* !MAYBE_TMPL__ */

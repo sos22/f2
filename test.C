@@ -17,6 +17,7 @@
 #include "waitbox.H"
 
 #include "list.tmpl"
+#include "maybe.tmpl"
 #include "test.tmpl"
 
 namespace tests {

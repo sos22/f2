@@ -12,7 +12,6 @@ class nodestruct { public: ~nodestruct() { abort(); } };
 class countcopies {
 public: int counter;
 public: explicit countcopies(int base) : counter(base) {}
-public: countcopies(const countcopies &&c) : counter(c.counter) {}
 public: countcopies(const countcopies &c) : counter(c.counter+1) {} };
 
 class notedestruct {
@@ -29,17 +28,13 @@ static testmodule __testmaybe(
     "maybe",
     list<filename>::mk("maybe.C", "maybe.H", "maybe.tmpl"),
     testmodule::LineCoverage(90_pc),
-    testmodule::BranchCoverage(5_pc),
+    testmodule::BranchCoverage(50_pc),
     "nothing", [] { maybe<nodestruct> x(Nothing); },
     "copy", [] {
         maybe<countcopies> x(countcopies(0));
         maybe<countcopies> y(x);
         assert(x.just().counter == 1);
         assert(y.just().counter == 2); },
-    "move", [] {
-        maybe<countcopies> x(
-            std::move(maybe<countcopies>(std::move(countcopies(0)))));
-        assert(x.just().counter == 1); },
     "destruct", [] {
         bool dead = false;
         {   maybe<notedestruct> aaa = notedestruct(&dead);
@@ -175,6 +170,16 @@ static testmodule __testmaybe(
         assert(!dead);
         y = x;
         assert(dead); },
+    "maybevoid", [] {
+        assert(maybe<void>(Nothing).isnothing());
+        auto just(maybe<void>::just);
+        assert(just.isjust());
+        maybe<void> x(Nothing);
+        assert(x == x);
+        assert(!(x == just));
+        assert(just == just);
+        x = just;
+        assert(x.isjust()); },
     "Just", [] {
         maybe<int> x(Just(), 5);
         assert(x.just() == 5); });

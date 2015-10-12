@@ -3,6 +3,8 @@
 #include "logging.H"
 #include "timedelta.H"
 
+#include "maybe.tmpl"
+
 SETVERSION;
 
 jobfunction testfunction;

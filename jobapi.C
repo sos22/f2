@@ -5,6 +5,9 @@
 #include "storageclient.H"
 #include "util.H"
 
+#include "either.tmpl"
+#include "maybe.tmpl"
+
 namespace {
 class outputstreamimpl : public jobapi::outputstream {
 public: jobapi::impl &owner;
