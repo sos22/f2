@@ -9,7 +9,7 @@ git fetch arnold:f2 master:master
 git branch | grep ' merge/' | while read name
                               do
                                   git checkout $name
-                                  if not git rebase master
+                                  if ! git rebase master
                                   then
                                       git rebase --abort
                                       continue
