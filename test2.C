@@ -114,11 +114,13 @@ testmodule::runtest(const string &what, maybe<timedelta> limit) const {
            (fields::padright(name().field(), 20) +
             fields::padright(what.field(), 20)).c_str());
     if (limit != Nothing) alarm((unsigned)(limit.just() / 1_s));
-    logmsg(loglevel::debug, "start test " + name().field());
+    logmsg(loglevel::debug,
+           "start test " + name().field() + "::" + what.field());
     tests.get(what)
         .fatal("no such test: " + name().field() + "::" + what.field())
         ();
-    logmsg(loglevel::debug, "pass test " + name().field());
+    logmsg(loglevel::debug,
+           "pass test " + name().field() + "::" + what.field());
     if (limit != Nothing) alarm(0); }
 
 static list<string>
