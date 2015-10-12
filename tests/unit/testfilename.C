@@ -160,8 +160,7 @@ static testmodule __testfilename(
         assert(it.isfailure());
         assert(it.failure() == error::notfound); },
     "iter..", [] {
-        quickcheck q;
-        auto t(filename::mktemp(q).fatal("mktemp"));
+        auto t(filename::mktemp().fatal("mktemp"));
         t.mkdir().fatal("mkdir");
         assert(!filename::diriter(t).isfailure());
         assert(filename::diriter(t).finished());
@@ -177,7 +176,7 @@ static testmodule __testfilename(
         list<filename> created;
         quickcheck q;
         for (unsigned x = 0; x < 200; x++) {
-            auto f(filename::mktemp(q).fatal("creating temp " + fields::mk(x)));
+            auto f(filename::mktemp().fatal("creating temp " + fields::mk(x)));
             assert(!f.isdir().fatal("isdir"));
             assert(!f.isfile().fatal("isdir"));
             if ((bool)q) f.createfile().fatal("createfile");

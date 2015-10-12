@@ -349,16 +349,22 @@ filename::contenteq(const filename &o) const {
     return us.success().contenteq(them.success()); }
 
 orerror<filename>
-filename::mktemp(quickcheck q) {
-    orerror<filename> res(Success, q);
+filename::mktemp() {
+    orerror<filename> res(Success, "");
+    unsigned cntr = 0;
     while (true) {
-        auto e(res.success().isfile());
-        if (e.issuccess()) { if (e.success() == false) break; }
-        else {
-            if (e != error::notafile && e != error::from_errno(EISDIR)) {
-                res = e.failure();
+        res.mksuccess(("tmp/tmp" + fields::mk(cntr)).c_str());
+        auto r(res.success().isfile());
+        if (r.isfailure()) {
+            if (r == error::from_errno(EISDIR) ||
+                r == error::notafile) {
+                r = true; }
+            else {
+                res = r.failure();
                 break; } }
-        res = q; }
+        if (r == false) break;
+        assert(r == true);
+        cntr++; }
     return res; }
 
 const parser<filename> &

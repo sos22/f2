@@ -26,7 +26,7 @@ public: connpool &cp;
 public: storageclient &client;
 public: teststate(clientio io)
     : q(),
-      pool(filename::mktemp(q).fatal("mktemp")),
+      pool(filename::mktemp().fatal("mktemp")),
       fmtres(storageagent::format(pool)),
       cn(mkrandom<clustername>(q)),
       an(q),

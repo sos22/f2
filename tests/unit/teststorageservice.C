@@ -59,8 +59,7 @@ static testmodule __teststorageservice(
                .left()
                == shutdowncode(1)); },
     "unformatted", [] (clientio io) {
-        quickcheck q;
-        auto f(filename::mktemp(q).fatal("mktemp"));
+        auto f(filename::mktemp().fatal("mktemp"));
         f.mkdir().fatal("making " + f.field());
         assert(spawn::process::spawn(
                    spawn::program(storageservice)
@@ -80,7 +79,7 @@ static testmodule __teststorageservice(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         agentname an(q);
-        auto f(filename::mktemp(q).fatal("mktemp"));
+        auto f(filename::mktemp().fatal("mktemp"));
         assert(spawn::process::spawn(spawn::program(storagefmt).addarg(f.str()))
                .fatal("starting spawnfmt")
                ->join(io)
