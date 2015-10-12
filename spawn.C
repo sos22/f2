@@ -158,13 +158,15 @@ process::spawn(const program &p) {
             it.value().close();
             it.value() = fd_t(it.key()); }
         /* Close anything we no longer want. */
-        {   struct rlimit lim;
-            if (::getrlimit(RLIMIT_NOFILE, &lim) < 0) {
-                error::from_errno().fatal("getting rlimit"); }
-            assert(lim.rlim_cur <= INT_MAX);
-            for (int x = 3; x < (int)lim.rlim_cur; x++) {
-                if (x != childwrite.fd && x != childread.fd && !fds.haskey(x)) {
-                    ::close(x); } } }
+        for (filename::diriter it(filename("/proc/self/fd"));
+             !it.finished();
+             it.next()) {
+            auto elem(parsers::intparser<int>().match(it.filename()));
+            if (elem.issuccess() &&
+                elem != childwrite.fd &&
+                elem != childread.fd &&
+                elem.success() > 2 &&
+                !fds.haskey(elem.success())) ::close(elem.success()); }
         char fromchildstr[16];
         sprintf(fromchildstr, "%d", childwrite.fd);
         args[1] = fromchildstr;
