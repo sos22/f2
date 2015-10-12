@@ -105,14 +105,16 @@ const char *
 quickcheck::filename() const {
     char *buf;
     do {
-        unsigned len = ((unsigned)random() % 255) + 6;
+        unsigned len = ((unsigned)random() % 249) + 6;
         buf = (char *)tmpheap::_alloc(len + 1);
         strcpy(buf, "tmp/");
         for (unsigned x = 4; x < len - 1; x++) {
             char c;
             do {
                 c = (char)(random() % 255 + 1);
-            } while (c == '/' || !isprint(c));
+            } while (c == '/' ||
+                     !isprint(c) ||
+                     (c == '.' && buf[x-1] == '.' && buf[x-2] == '/'));
             buf[x] = c; }
         buf[len] = 0;
     } while (!strcmp(buf, ".") || !strcmp(buf, ".."));
