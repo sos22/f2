@@ -91,11 +91,16 @@ public: unsigned count;
 public: void append(memlogentry *e) {
     log.append(e);
     if (count == 1000) free(log.pophead());
-    else count++; } };
-static __thread memlog *_threadmemlog;
-static memlog &threadmemlog() {
-    if (_threadmemlog == NULL) _threadmemlog = new memlog();
-    return *_threadmemlog; }
+    else count++; }
+public: ~memlog() {
+    while (!log.empty()) free(log.pophead()); } };
+class ownedmemlog {
+public: memlog *inner;
+public: ownedmemlog() : inner(new memlog()) {}
+public: ~ownedmemlog() { delete inner; inner = NULL; } };
+static memlog *threadmemlog() {
+    static __thread ownedmemlog i;
+    return i.inner; }
 static memlog _globalmemlog;
 static memlog &globalmemlog(mutex_t::token) {return _globalmemlog;}
 static mutex_t globalmemlogmux;
@@ -135,7 +140,7 @@ _logmsg(const logmodule &module,
     if (level >= loglevel::debug || module.noisy) {
         globalmemlogmux.locked([mle] (mutex_t::token t) {
                 globalmemlog(t).append(mle); }); }
-    else threadmemlog().append(mle); }
+    else if (threadmemlog() != NULL) threadmemlog()->append(mle); }
 
 void
 _logmsg(const logmodule &module,
@@ -149,22 +154,27 @@ _logmsg(const logmodule &module,
 void
 dumpmemlog() {
     logmsg(loglevel::notice, "log dump from thread " + tid::me().field());
-    auto titer(threadmemlog().log.start());
+    maybe<decltype(threadmemlog()->log.start())> titer(Nothing);
+    if (threadmemlog() != NULL) titer = threadmemlog()->log.start();
     globalmemlogmux.locked([&titer] (mutex_t::token t) {
             auto giter(globalmemlog(t).log.start());
-            while (!giter.finished() && !titer.finished()) {
-                if ((*giter)->when < (*titer)->when) {
-                    fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
-                    giter.next(); }
-                else {
-                    fprintf(stderr, "*** %s\n", (*titer)->field().c_str());
-                    titer.next(); } }
+            if (titer != Nothing) {
+                while (!giter.finished() && !titer.just().finished()) {
+                    if ((*giter)->when < (*titer.just())->when) {
+                        fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
+                        giter.next(); }
+                    else {
+                        fprintf(stderr,
+                                "*** %s\n",
+                                (*titer.just())->field().c_str());
+                        titer.just().next(); } } }
             while (!giter.finished()) {
                 fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
                 giter.next(); } });
-    while (!titer.finished()) {
-        fprintf(stderr, "*** %s\n", (*titer)->field().c_str());
-        titer.next(); } }
+    if (titer != Nothing) {
+        while (!titer.just().finished()) {
+            fprintf(stderr, "*** %s\n", (*titer.just())->field().c_str());
+            titer.just().next(); } } }
 
 static void
 _logging_exit(int code, void *) {
