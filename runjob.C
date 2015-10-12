@@ -29,14 +29,17 @@ runjob(clientio io, storageclient &sc, const job &j) {
                  j.function.c_str()) < 0) {
         fname = NULL; }
     void *lib = ::dlopen(j.library.str().c_str(), RTLD_NOW|RTLD_LOCAL);
-    if (lib == NULL) res = error::dlopen;
     auto v = static_cast<version *>(lib == NULL
                                     ? NULL
                                     : ::dlsym(lib, "f2version"));
     auto f = reinterpret_cast<jobfunction *>(lib == NULL || fname == NULL
                                              ? NULL
                                              : ::dlsym(lib, fname));
-    if (f == NULL || v == NULL || *v != version::current) res = error::dlopen;
+    if (f == NULL || v == NULL || *v != version::current) {
+        res = error::dlopen;
+        logmsg(loglevel::error,
+               "cannot open " + j.library.field() +
+               ": " + fields::mk(::dlerror())); }
     else {
         auto &api(newjobapi(sc, j));
         res = f(api, io);

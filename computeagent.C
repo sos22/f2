@@ -134,11 +134,16 @@ runningjob::run(clientio io) {
         result.mkjust(p.failure());
         return; }
     pi.write.close();
-    auto jr(pi.read.read<orerror<jobresult> >(io).flatten());
+    auto jr(pi
+            .read
+            .read<orerror<jobresult> >(io)
+            .flatten()
+            .warn("getting job result from runjob"));
     pi.read.close();
     auto rr(p.success()->join(io));
     if (rr.isright()) jr = error::signalled;
     else if (rr.left() != shutdowncode::ok) jr = error::unknown;
+    jr.warn("jobresult result");
     result.mkjust(Steal, jr); }
 
 void
