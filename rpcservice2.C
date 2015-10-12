@@ -625,6 +625,7 @@ rpcservice2::connworker::complete(
     proto::sequencenr seqnr,
     nnp<incompletecall> call,
     acquirestxlock atl) {
+    logmsg(loglevel::debug, "complete call " + seqnr.field());
     txlock(atl).locked([this, call, &doit, res, seqnr] (mutex_t::token txtoken){
             auto &txb(txbuffer(txtoken));
             auto oldavail(txb.avail());
@@ -742,6 +743,7 @@ rpcservice2::connworker::processmessage(
                        "peer " + fields::mk(peer) + " sent multiple HELLOs?");
                 return error::toolate; }
             calledhello(hdr.seq, atl, oct);
+            logmsg(loglevel::debug, "hello from " + fields::mk(peer));
             donehello = true;
             return Success; }
         else if (t == proto::meta::tag::abort) {
@@ -756,6 +758,7 @@ rpcservice2::connworker::processmessage(
                        "peer " + fields::mk(peer) +
                        " sent abort before HELLO?");
                 return error::toosoon; }
+            logmsg(loglevel::debug, "attempt abort " + hdr.seq.field());
             txlock(atl).locked([this, &hdr] (mutex_t::token tok) {
                     for (auto it(outstandingcalls(tok).start());
                          !it.finished();
@@ -792,6 +795,7 @@ rpcservice2::connworker::processmessage(
                " sent duplicate sequence number " +
                hdr.seq.field());
         return error::invalidmessage; }
+    logmsg(loglevel::debug, "received call " + hdr.seq.field());
     /* We drop the lock to allocate the call, so something might get
      * removed from the list, but that's fine because it can't cause a
      * non-dupe to become a duplicate.  It's only really a debug

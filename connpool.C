@@ -618,8 +618,8 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                         return false; } ) );
             if (raced) {
                 /* More calls arrived just in time to stop us timing
-                 * out.  Try again from the top. */
-                return checktimeouts(calls, cl, idledat, connected, txbuffer);}
+                 * out. Immediate retry. */
+                r = timestamp::now(); }
             else {
                 logmsg(loglevel::debug,
                        "connection to " + fields::mk(agent) + " timed out"); } }
