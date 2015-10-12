@@ -83,6 +83,7 @@ public:  either<shutdowncode, signalnr> join(clientio);
     /* Equivalent to signal(signalnr::kill) followed by join() */
 public:  void kill();
 private: ~process() {}
+public:  const fields::field &field() const;
 };
 
 }

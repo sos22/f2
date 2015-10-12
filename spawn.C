@@ -373,4 +373,12 @@ process::kill() {
     signal(signalnr::kill);
     /* killing the child guarantees that it'll end soon, so no need
        for a clientio token. */
-    join(clientio::CLIENTIO); } }
+    join(clientio::CLIENTIO); }
+
+const fields::field &
+process::field() const {
+    auto rr = mux.trylocked<const fields::field *>(
+        [this] (maybe<mutex_t::token> m) {
+            if (m == Nothing) return &("<busy:" + mux.field() + ">");
+            else return &res.field(); });
+    return "<process:" + fields::mk(pid).nosep() + " res:" + *rr + ">"; } }
