@@ -13,13 +13,14 @@
 #include "clientio.H"
 #include "fields.H"
 #include "fuzzsched.H"
-#include "orerror.tmpl"
+#include "logging.H"
 #include "test.H"
 #include "timedelta.H"
 
 #include "either.tmpl"
 #include "list.tmpl"
 #include "map.tmpl"
+#include "orerror.tmpl"
 
 namespace spawn {
 
@@ -117,6 +118,7 @@ process::spawn(const program &p) {
     if (fromchild.isfailure()) {
         tochild.success().close();
         return fromchild.failure(); }
+    logmsg(loglevel::debug, "starting spawnservice");
     auto pid(::vfork());
     if (pid < 0) {
         auto e(error::from_errno());
@@ -190,6 +192,7 @@ process::spawn(const program &p) {
                 clientio::CLIENTIO,
                 &msg,
                 sizeof(msg)));
+    logmsg(loglevel::debug, "spawn service initial message " + rr.field());
     if (rr.isfailure()) {
         /* Can't receive initial message -> exec failed. */
         rr.failure().warn("execing spawnservice");
@@ -207,9 +210,11 @@ process::spawn(const program &p) {
     assert(msg.tag == message::msgexecgood);
 
     /* Child is running.  Let it go. */
-    return new process(pid,
-                       fromchild.success().read,
-                       tochild.success().write); }
+    auto res(new process(pid,
+                         fromchild.success().read,
+                         tochild.success().write));
+    logmsg(loglevel::debug, "new child in " + fields::mk(res));
+    return res; }
 
 process::process(int _pid, fd_t _fromchild, fd_t _tochild)
     : pid(_pid),
@@ -222,9 +227,12 @@ process::process(int _pid, fd_t _fromchild, fd_t _tochild)
 
 void
 process::signal(signalnr snr) {
+    logmsg(loglevel::debug,
+           "signal " + fields::mk(this) + " with " + snr.field());
     auto t(mux.lock());
     if (res != Nothing) {
         /* Too late */
+        logmsg(loglevel::debug, "already exited with " + res.field());
         mux.unlock(&t);
         return; }
     struct message msg;
@@ -248,9 +256,11 @@ process::signal(signalnr snr) {
            sizeof(msg));
     if (msg.tag == message::msgsentsignal) {
         /* We're fine. */
+        logmsg(loglevel::debug, "signal sent");
         assert(sendres == sizeof(msg)); }
     else {
         /* Child died before we could send the signal. */
+        logmsg(loglevel::debug, "child dead: signal lost");
         assert(sendres == sizeof(msg) || sendres.isfailure());
         assert(msg.tag == message::msgchildstopped);
         if (WIFEXITED(msg.childstopped.status)) {
@@ -322,6 +332,8 @@ maybe<process::token>
 process::hasdied() const {
     auto t(mux.lock());
     if (res != Nothing) {
+        logmsg(loglevel::debug,
+               fields::mk(this) + " is already dead " + res.field());
         mux.unlock(&t);
         return token(); }
     struct message msg;
@@ -338,8 +350,11 @@ process::hasdied() const {
             res = either<shutdowncode, signalnr>(
                 Right(),
                 signalnr(WTERMSIG(msg.childstopped.status))); }
+        logmsg(loglevel::debug,
+               fields::mk(this) + " collected death " + res.field());
         mux.unlock(&t);
         return token(); }
+    logmsg(loglevel::debug, fields::mk(this) + " is still alive");
     mux.unlock(&t);
     return Nothing; }
 

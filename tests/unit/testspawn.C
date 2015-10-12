@@ -1,3 +1,4 @@
+#include "logging.H"
 #include "spawn.H"
 #include "test2.H"
 #include "timedelta.H"
@@ -117,15 +118,20 @@ static testmodule __spawntest(
         (50_ms).future().sleep(io);
         assert(p->join(p->hasdied().just()).right() == signalnr::term); },
     "signal3", [] (clientio io) {
+        logmsg(loglevel::debug, "starting sleep");
         auto p(process::spawn(program("/bin/sleep").addarg("1"))
                .fatal("spawning"));
+        logmsg(loglevel::debug, "started sleep");
         (500_ms).future().sleep(io);
         assert(p->hasdied() == Nothing);
         p->signal(signalnr::stop);
+        logmsg(loglevel::debug, "stopped sleep");
         (2_s).future().sleep(io);
         assert(p->hasdied() == Nothing);
         p->signal(signalnr::cont);
+        logmsg(loglevel::debug, "continued sleep");
         (1500_ms).future().sleep(io);
+        logmsg(loglevel::debug, "sleep should be finished");
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "signal4", [] (clientio io) {
         auto p(process::spawn(program("/bin/true")).fatal("spawning truth"));
