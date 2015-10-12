@@ -106,9 +106,12 @@ either<a, b>::operator==(const either &o) const {
 
 template <typename a, typename b> bool
 either<a, b>::operator!=(const either &o) const {
-    if (isleft_ != o.isleft_) return true;
-    if (isleft_) return _left != o._left;
-    else return _right != o._right; }
+    return !(*this == o); }
+
+template <typename a, typename b> const fields::field &
+either<a, b>::field() const {
+    if (isleft()) return "<left:" + fields::mk(left()) + ">";
+    else return "<right:" + fields::mk(right()) + ">"; }
 
 template <typename a, typename b>
 either<a,b>::~either() {

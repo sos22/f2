@@ -156,11 +156,6 @@ static testmodule __testeither(
         assert(x.isright());
         dest = false; },
     "==", [] {
-        quickcheck q;
-        for (unsigned x = 0; x < 10000; x++) {
-            either<int, int> l(q);
-            either<int, int> r(q);
-            assert((l == r) == !(l != r)); }
         assert((either<int, char>(Left(), 5)) ==
                (either<int, char>(Left(), 5)));
         assert((either<int, char>(Left(), 5)) !=
@@ -196,6 +191,11 @@ static testmodule __testeither(
         assert((either<void, int>(Left()).isleft()));
         assert((either<void, int>(Right(), 6).isright()));
         assert((either<void, int>(Right(), 6).right() == 6)); },
+    "field", [] {
+        assert(!strcmp(either<int, int>(Left(), 5).field().c_str(),
+                       "<left:5>"));
+        assert(!strcmp(either<int, int>(Right(), 73).field().c_str(),
+                       "<right:73>")); },
     "rightvoid", [] {
         {   either<int, void> e((Right()));
             assert(e.isright());

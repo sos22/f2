@@ -44,6 +44,7 @@ public:  template <typename ... args> void mkleft(args &&...params);
 public:  template <typename ... args> void mkright(args &&...params);
 public:  bool operator==(const either &o) const;
 public:  bool operator!=(const either &o) const;
+public:  const fields::field &field() const;
 public:  ~either(); };
 
 template <typename a> class either<void, a> : public either<Void, a> {
