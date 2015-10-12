@@ -174,7 +174,7 @@ process::spawn(const program &p) {
         fuzzsched();
         /* Do the exec */
         assert(execv(args[0], (char **)args) < 0);
-        error::from_errno().fatal("execve"); }
+        error::from_errno().fatal("execve " + fields::mk(args[0])); }
     /* We are the parent. */
     tochild.success().read.close();
     fromchild.success().write.close();
