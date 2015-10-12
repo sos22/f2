@@ -210,45 +210,51 @@ public: void run(clientio io); };
  * calling abort() and pop().  That implies that most of the
  * communication should be conn->call, rather than vice-versa. */
 class CALL {
-public: connpool::asynccall api;
-public: CONN &conn;
+public:  connpool::asynccall api;
+public:  CONN &conn;
 
-public: const maybe<timestamp> deadline;
-public: const interfacetype type;
-public: const std::function<connpool::serialiser> serialiser;
-public: const deserialiser deserialise;
+public:  const maybe<timestamp> deadline;
+public:  const interfacetype type;
+public:  const std::function<connpool::serialiser> serialiser;
+public:  const deserialiser deserialise;
 
     /* Notified when the call completes. */
-public: publisher pub;
+public:  publisher pub;
 
     /* Acquired from finished(), which is const. */
-public: mutable mutex_t mux;
+public:  mutable mutex_t mux;
 
-public: maybe<orerror<void> > _res;
-public: maybe<orerror<void> > &res(mutex_t::token) { return _res; }
+public:  maybe<orerror<void> > _res;
+public:  maybe<orerror<void> > &res(mutex_t::token) { return _res; }
     /* A token is enough to read _res without the lock, but not to
      * write it. */
-public: maybe<orerror<void> > res(token) const { return _res; }
+public:  maybe<orerror<void> > res(token) const { return _res; }
 
-public: bool _aborted;
-public: bool &aborted(mutex_t::token) { return _aborted; }
+public:  bool _aborted;
+public:  bool &aborted(mutex_t::token) { return _aborted; }
+
+public:  unsigned _refcount;
+public:  void reference() { atomicinc(_refcount); }
+public:  void dereference() {
+    if (atomicloaddec(_refcount) == 1) delete this; }
+private: ~impl() {}
 
     /* Sequence number is only allocated when we transmit, and is
      * reset if we abandon an attempt to do the call. */
-public: maybe<proto::sequencenr> _seqnr;
-public: maybe<proto::sequencenr> &seqnr(connlock) { return _seqnr; }
+public:  maybe<proto::sequencenr> _seqnr;
+public:  maybe<proto::sequencenr> &seqnr(connlock) { return _seqnr; }
 
-public: impl(CONN &_conn,
-             maybe<timestamp> _deadline,
-             interfacetype _type,
-             const std::function<connpool::serialiser> &_serialiser,
-             const deserialiser &_deserialise);
+public:  impl(CONN &_conn,
+              maybe<timestamp> _deadline,
+              interfacetype _type,
+              const std::function<connpool::serialiser> &_serialiser,
+              const deserialiser &_deserialise);
 
     /* Implementations of the public API. */
-public: maybe<token> finished() const;
-public: token finished(clientio) const;
-public: orerror<void> pop(token);
-public: orerror<void> abort(); };
+public:  maybe<token> finished() const;
+public:  token finished(clientio) const;
+public:  orerror<void> pop(token);
+public:  orerror<void> abort(); };
 
 /* ----------------------------- config type ---------------------------- */
 connpool::config::config(const beaconclientconfig &_beacon,
@@ -549,7 +555,8 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                             found = true;
                             return; } }
                     /* finished before abort().  Fine. */}); }
-        if (found) failcall(c, error::aborted, cl); }
+        if (found) failcall(c, error::aborted, cl);
+        c->dereference(); }
     /* If we queued up an abort then the caller needs to wake up
      * immediately to process it. */
     if (quick) return timestamp::now();
@@ -1087,6 +1094,7 @@ CALL::impl(CONN &_conn,
       mux(),
       _res(Nothing),
       _aborted(false),
+      _refcount(1),
       _seqnr(Nothing) {}
 
 maybe<connpool::asynccall::token>
@@ -1111,7 +1119,7 @@ CALL::finished(clientio io) const {
 orerror<void>
 CALL::pop(token t) {
     auto r(res(t).just());
-    delete this;
+    dereference();
     return r; }
 
 orerror<void>
@@ -1124,6 +1132,7 @@ CALL::abort() {
          * the abort queue. */ }
     else {
         conn.mux.locked([this] (mutex_t::token tok) {
+                reference();
                 conn.aborted(tok).pushtail(_nnp(*this));
                 conn.callschanged.publish(); }); }
     /* Setting aborted and notifying the conn's callschanged publisher
