@@ -1,3 +1,4 @@
+#include "logging.H"
 #include "pubsub.H"
 #include "socket.H"
 #include "spark.H"
@@ -203,33 +204,34 @@ static testmodule __testpubsub(
         spark<void> t1([&thread1, &pub1, &pub2, deadline, &cntr1] {
                 subscriber sub;
                 subscription ss(sub, pub1);
+                timedelta longest(0_s);
                 while (timestamp::now() < deadline) {
-                    assert(timedelta::time<bool>(
-                               [&thread1, &ss, &sub, deadline] () {
-                                   while (!thread1) {
-                                       auto r(sub.wait(_io, deadline));
-                                       assert(
-                                           r == &ss ||
-                                           timestamp::now() >= deadline); }
-                                   return true; }).td
-                           < timedelta::milliseconds(10));
+                    auto tt(timedelta::time(
+                                [&thread1, &ss, &sub, deadline] () {
+                                    while (!thread1) {
+                                        auto r(sub.wait(_io, deadline));
+                                        assert(
+                                            r == &ss ||
+                                            timestamp::now() >= deadline); }}));
+                    if (tt > longest) longest = tt;
+                    assert(tt < 100_ms);
                     assert(thread1);
                     thread1 = false;
                     pub2.publish();
-                    cntr1++; } });
+                    cntr1++; }
+                logmsg(loglevel::debug, "longest stall " + longest.field()); });
         spark<void> t2([&thread1, &pub1, &pub2, &cntr2, deadline] {
                 subscriber sub;
                 subscription ss(sub, pub2);
                 while (timestamp::now() < deadline) {
-                    assert(timedelta::time<bool>(
+                    assert(timedelta::time(
                                [&thread1, &ss, &sub, deadline] () {
                                    while (thread1) {
                                        auto r(sub.wait(_io, deadline));
                                        assert(
                                            r == &ss ||
-                                           timestamp::now() >= deadline); }
-                                   return true; }).td
-                           < timedelta::milliseconds(10));
+                                           timestamp::now() >= deadline); } })
+                           < 100_ms);
                     assert(!thread1);
                     thread1 = true;
                     pub1.publish();
