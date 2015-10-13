@@ -35,6 +35,37 @@ static testmodule __testjob(
                 "<job:<filename:\"./testjob.so\">:testfunction -><stream:outstream>>")
             .fatal("parsingjob")
             .field()); },
+    "convenience", [] {
+        job j(filename("a"), string("b"));
+        auto ss1(streamname::mk("1").fatal("1"));
+        auto ss2(streamname::mk("2").fatal("2"));
+        j.addoutput(ss1);
+        assert(j == job(filename("a"),
+                        string("b"),
+                        empty,
+                        list<streamname>::mk(ss1)));
+        j.addoutput(ss2);
+        assert(j == job(filename("a"),
+                        string("b"),
+                        empty,
+                        list<streamname>::mk(ss1, ss2)));
+        quickcheck q;
+        auto jj(mkrandom<job>(q));
+        j.addinput(ss1, jj.name(), ss2);
+        assert(j == job(filename("a"),
+                        string("b"),
+                        map<streamname, job::inputsrc>(
+                            ss1,
+                            job::inputsrc(jj.name(), ss2)),
+                        list<streamname>::mk(ss1, ss2)));
+        auto jj2(mkrandom<job>(q));
+        j.addinput(ss2, jj2.name(), ss1);
+        assert(j == job(filename("a"),
+                        string("b"),
+                        map<streamname, job::inputsrc>(
+                            ss1, job::inputsrc(jj.name(), ss2),
+                            ss2, job::inputsrc(jj2.name(), ss1)),
+                        list<streamname>::mk(ss1, ss2))); },
     "serialisename", [] {
         /* serialising and deserialising must produce something with
          * the same name.  We've had problems in the past with it

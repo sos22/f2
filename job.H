@@ -32,6 +32,11 @@ public:  job(
     const string &_function,
     const map<streamname, inputsrc> &_inputs,
     const list<streamname> &_outputs);
+public:  job(
+    const filename &_library,
+    const string &_function);
+public: job &addoutput(const streamname &);
+public: job &addinput(const streamname &, const jobname &, const streamname &);
 public: jobname name() const;
 public: bool operator==(const job &) const;
 public: bool operator!=(const job &j) const { return !(*this == j); }

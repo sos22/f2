@@ -14,16 +14,6 @@
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 
-job::job(const filename &_library,
-         const string &_function,
-         const map<streamname, inputsrc> &_inputs,
-         const list<streamname> &__outputs)
-    : library(_library),
-      function(_function),
-      inputs(_inputs),
-      _outputs(__outputs) {
-      sort(_outputs); }
-
 void
 job::serialise(serialise1 &s) const {
     s.push(library);
@@ -51,6 +41,36 @@ job::job(deserialise1 &ds)
     if (outputs().hasdupes() || !outputs().issorted()) {
         ds.fail(error::invalidmessage);
         _outputs.flush(); } }
+
+job::job(const filename &_library,
+         const string &_function,
+         const map<streamname, inputsrc> &_inputs,
+         const list<streamname> &__outputs)
+    : library(_library),
+      function(_function),
+      inputs(_inputs),
+      _outputs(__outputs) {
+      sort(_outputs); }
+
+job::job(const filename &_library,
+         const string &_function)
+    : library(_library),
+      function(_function),
+      inputs(empty),
+      _outputs(empty) {}
+
+job &
+job::addoutput(const streamname &sn) {
+    _outputs.append(sn);
+    sort(_outputs);
+    return *this; }
+
+job &
+job::addinput(const streamname &inpname,
+              const jobname &jn,
+              const streamname &outname) {
+    inputs.set(inpname, inputsrc(jn, outname));
+    return *this; }
 
 jobname
 job::name() const { return jobname(digest(fields::mk(*this))); }
