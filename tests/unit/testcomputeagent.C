@@ -175,7 +175,7 @@ static testmodule __testcomputeagent(
                            .fatal("waitjob inner")
                            .issuccess()); }));
         assert(taken > 900_ms);
-        assert(taken < 1100_ms);
+        assert(taken < 1500_ms);
         t.cc.drop(io, j.name()).fatal("dropjob");
         assert(t.cc.waitjob(io, j.name()) == error::toosoon); },
     "finishstreams", [] (clientio io) {
