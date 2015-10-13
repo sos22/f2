@@ -98,7 +98,7 @@ static testmodule __testcomputeagent(
                        "jobresult.H",
                        "runjob.C",
                        "testjob.C"),
-    testmodule::LineCoverage(75_pc),
+    testmodule::LineCoverage(80_pc),
     testmodule::BranchCoverage(50_pc),
     testmodule::Dependency("testjob.so"),
     testmodule::Dependency("runjob" EXESUFFIX),
@@ -221,6 +221,51 @@ static testmodule __testcomputeagent(
         auto r(t.sc.read(io, j.name(), ss).fatal("read"));
         assert(r.second().contenteq(buffer("Hello world")));
         assert(r.first() == 11_B); },
+    "helloinput", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        auto j(job(filename("./testjob.so"),
+                   "helloworld")
+               .addoutput(ss));
+        t.sc.createjob(io, j).fatal("creating storage for job");
+        /* Do it all through the storage client, not the compute
+         * agent, so that the tests are independent. */
+        t.sc.append(io, j.name(), ss, buffer("Hello world"), 0_B)
+            .fatal("append");
+        t.sc.finish(io, j.name(), ss)
+            .fatal("finish");
+        /* Now create a job to consume it. */
+        auto sss(streamname::mk("input").fatal("input name"));
+        auto jj(job(filename("./testjob.so"),
+                    "helloinput")
+                .addinput(sss, j.name(), ss));
+        t.sc.createjob(io, jj).fatal("creating second job");
+        t.cc.start(io, jj).fatal("starting job");
+        assert(t.cc.waitjob(io, jj.name())
+               .flatten()
+               .fatal("waitjob")
+               .issuccess()); },
+    "helloinputfail", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        auto j(job(filename("./testjob.so"),
+                   "helloworld")
+               .addoutput(ss));
+        t.sc.createjob(io, j).fatal("creating storage for job");
+        t.sc.append(io, j.name(), ss, buffer("Wrong world"), 0_B)
+            .fatal("append");
+        t.sc.finish(io, j.name(), ss)
+            .fatal("finish");
+        auto sss(streamname::mk("input").fatal("input name"));
+        auto jj(job(filename("./testjob.so"),
+                    "helloinput")
+                .addinput(sss, j.name(), ss));
+        t.sc.createjob(io, jj).fatal("creating second job");
+        t.cc.start(io, jj).fatal("starting job");
+        assert(t.cc.waitjob(io, jj.name())
+               .flatten()
+               .fatal("waitjob")
+               .isfailure()); },
     "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
     "jobresulteq", [] {
         assert(jobresult::success() == jobresult::success());

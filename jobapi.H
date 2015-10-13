@@ -42,7 +42,9 @@ public:  virtual maybe<nnp<outputstream> > output(const streamname &);
     /* A wrapper for an input stream, exposing all of the operations
      * which a job can perform against it. */
 public:  class inputstream {
-    public: virtual buffer read(bytecount start, bytecount end); };
+    public: virtual buffer read(clientio,
+                                maybe<bytecount> start = Nothing,
+                                maybe<bytecount> end = Nothing) = 0; };
     /* ``Open'' an input stream, mapping from a stream name to an
      * actual inputstream which can be used to extract the job's
      * indirect input.  Returns Nothing if no input stream has that

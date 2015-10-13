@@ -31,3 +31,12 @@ helloworld(jobapi &api, clientio io) {
         .just()
         ->append(io, buffer("Hello world"));
     return jobresult::success(); }
+
+jobfunction helloinput;
+jobresult
+helloinput(jobapi &api, clientio io) {
+    auto b(api.input(streamname::mk("input").fatal("input name"))
+           .just()
+           ->read(io));
+    if (b.contenteq(buffer("Hello world"))) return jobresult::success();
+    else return jobresult::failure(); }

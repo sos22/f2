@@ -7,6 +7,8 @@
 
 #include "either.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
+#include "pair.tmpl"
 
 namespace {
 class outputstreamimpl : public jobapi::outputstream {
@@ -18,7 +20,19 @@ public: outputstreamimpl(jobapi::impl &_owner,
     : owner(_owner),
       sn(_sn),
       expsize(0_B) {}
-public: void append(clientio io, const buffer &) final; }; }
+public: void append(clientio io, const buffer &) final; };
+
+class inputstreamimpl : public jobapi::inputstream {
+public: jobapi::impl &owner;
+public: const jobname jn;
+public: const streamname sn;
+public: inputstreamimpl(jobapi::impl &_owner,
+                        const jobname &_jn,
+                        const streamname &_sn)
+    : owner(_owner),
+      jn(_jn),
+      sn(_sn) {}
+public: buffer read(clientio io, maybe<bytecount>, maybe<bytecount>) final; }; }
 
 class jobapi::impl {
 public: jobapi api;
@@ -43,7 +57,13 @@ jobapi::output(const streamname &sn) {
                     new outputstreamimpl(implementation(), sn))); }
 
 maybe<nnp<jobapi::inputstream> >
-jobapi::input(const streamname &) { return Nothing; }
+jobapi::input(const streamname &sn) {
+    auto r(implementation().self.inputs.get(sn));
+    if (r == Nothing) return Nothing;
+    return _nnp(*static_cast<jobapi::inputstream *>(
+                    new inputstreamimpl(implementation(),
+                                        r.just().first(),
+                                        r.just().second()))); }
 
 jobapi &
 newjobapi(storageclient &sc, const job &self) {
@@ -61,3 +81,15 @@ outputstreamimpl::append(clientio io, const buffer &b) {
                     expsize)
         .fatal("appending to output");
     expsize += bytecount::bytes(b.avail()); }
+
+buffer
+inputstreamimpl::read(clientio io,
+                      maybe<bytecount> start,
+                      maybe<bytecount> end) {
+    return owner.sc.read(io,
+                         jn,
+                         sn,
+                         start,
+                         end)
+        .fatal("reading from input")
+        .second(); }
