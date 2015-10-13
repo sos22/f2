@@ -961,7 +961,7 @@ CONN::workphase(clientio io,
     /* Only armed when we have stuff to send. */
     iosubscription outsub(sub, fd.poll(POLLOUT));
     bool outarmed(true);
-
+    
     buffer rxbuffer;
     while (true) {
         if (!txbuffer.empty() && !outarmed) {
@@ -1080,6 +1080,10 @@ CONN::run(clientio io) {
                              idledat,
                              nextseqnr));
         if (fd.isjust()) {
+            /* connectphase can sometimes lose edges, so put them
+             * back. */
+            newcallssub.set();
+            shutdownsub.set();
             workphase(io,
                       calls,
                       sub,
