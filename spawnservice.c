@@ -48,7 +48,15 @@ sigchldhandler(int signr, siginfo_t *info, void *ignore) {
     assert(signr == SIGCHLD);
     if (info->si_code != CLD_EXITED &&
         info->si_code != CLD_KILLED &&
-        info->si_code != CLD_DUMPED) return;
+        info->si_code != CLD_DUMPED) {
+        char buf[10];
+        buf[4] = '\n';
+        buf[3] = "0123456789abcdef"[(info->si_code >> 24) % 16];
+        buf[2] = "0123456789abcdef"[(info->si_code >> 16) % 16];
+        buf[1] = "0123456789abcdef"[(info->si_code >> 8) % 16];
+        buf[0] = "0123456789abcdef"[info->si_code % 16];
+        write(2, buf, 5);
+        return; }
     (void)ignore;
     assert(wait(&status) != -1);
     assert(write(selfpipewrite, &status, sizeof(status)) ==
