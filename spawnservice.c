@@ -9,10 +9,10 @@
 #define _GNU_SOURCE
 #include <sys/fcntl.h>
 #include <sys/prctl.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <assert.h>
 #include <errno.h>
+#include <poll.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -27,24 +27,12 @@ reqfd;
 static int
 respfd;
 
-/* We use the self pipe trick to select() on signals.  This is the
- * write end. */
-static int
-selfpipewrite;
-
+/* We need a SIGCHLD handler so that it breaks us out of ppoll() */
 static void
 sigchldhandler(int signr, siginfo_t *info, void *ignore) {
-    int status;
-    int e = errno;
-    assert(signr == SIGCHLD);
-    if (info->si_code != CLD_EXITED &&
-        info->si_code != CLD_KILLED &&
-        info->si_code != CLD_DUMPED) return;
-    (void)ignore;
-    assert(wait(&status) != -1);
-    assert(write(selfpipewrite, &status, sizeof(status)) ==
-           sizeof(status));
-    errno = e; }
+    (void)signr;
+    (void)info;
+    (void)ignore; }
 
 static void
 execfailed(void) {
@@ -76,26 +64,32 @@ int
 main(int argc, char *argv[]) {
     int p[2];
     pid_t child;
+    pid_t c;
     int e;
-    fd_set fds;
     struct sigaction sa;
-    int selfpiperead;
     struct message msg;
     int i;
     int status;
     ssize_t r;
     bool paused;
+    sigset_t sigs;
+    int fl;
 
     assert(argc >= 4);
 
     respfd = atoi(argv[1]);
     reqfd = atoi(argv[2]);
 
+    sigemptyset(&sigs);
+    sigprocmask(SIG_SETMASK, NULL, &sigs);
+    sigaddset(&sigs, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigs, NULL);
+
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
-    if (pipe2(p, O_CLOEXEC) < 0) execfailed();
-    selfpipewrite = p[1];
-    selfpiperead = p[0];
+    fl = fcntl(reqfd, F_GETFL);
+    fl |= O_NONBLOCK;
+    fcntl(reqfd, F_SETFL, fl);
 
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = sigchldhandler;
@@ -115,12 +109,9 @@ main(int argc, char *argv[]) {
         write(p[1], &errno, sizeof(errno));
         _exit(1); }
     /* We are the parent. */
-    close(p[1]);
     /* Close the FDs we don't need. */
     for (i = 0; i <= 1000; i++) {
-        if (i != selfpiperead &&
-            i != selfpipewrite &&
-            i != p[0] &&
+        if (i != p[0] &&
             i != respfd &&
             i != reqfd) {
             close(i); } }
@@ -145,49 +136,44 @@ main(int argc, char *argv[]) {
 
     paused = false;
     while (1) {
-        FD_ZERO(&fds);
-        FD_SET(selfpiperead, &fds);
-        FD_SET(reqfd, &fds);
-        if (select(selfpiperead > reqfd
-                       ? selfpiperead + 1
-                       : reqfd + 1,
-                   &fds,
-                   NULL,
-                   NULL,
-                   NULL) < 0) {
-            if (errno == EINTR) continue;
-            else _exit(3); }
-        if (FD_ISSET(selfpiperead, &fds)) {
-            assert(read(selfpiperead, &status, sizeof(status)) ==
-                   sizeof(status));
+        struct pollfd pfd;
+        memset(&pfd, 0, sizeof(pfd));
+        pfd.fd = reqfd;
+        pfd.events = POLLIN;
+        sigdelset(&sigs, SIGCHLD);
+        r = ppoll(&pfd, 1, NULL, &sigs);
+        if (r < 0) {
+            if (errno != EINTR) break;
+            c = waitpid(-1, &status, WNOHANG);
+            if (c == -1) break;
+            if (c == 0) continue;
             childdied(status); }
-        if (FD_ISSET(reqfd, &fds)) {
-            r = read(reqfd, &msg, sizeof(msg));
-            if (r < 0) {
-                /* Whoops, failed to talk to parent.  We're dead. */
-                break; }
-            if (r == 0) {
-                /* Parent closed the pipe -> kill child and get
-                 * out. */
-                break; }
-            if (msg.tag == msgsendsignal) {
-                if (kill(child, msg.sendsignal.signr) < 0) {
-                    msg.sentsignal.err = errno; }
-                else {
-                    msg.sentsignal.err = 0; }
-                msg.tag = msgsentsignal;
-                if (write(respfd, &msg, sizeof(msg)) != sizeof(msg)) {
-                    break; } }
-            else if (msg.tag == msgpause) {
-                if (paused) break;
-                if (kill(child, SIGSTOP) < 0) break;
-                if (waitpid(child, &status, WUNTRACED) < 0) break;
-                childstopped(status);
-                paused = true; }
-            else if (msg.tag == msgunpause) {
-                if (!paused) break;
-                if (kill(child, SIGCONT) < 0) break;
-                paused = false; }
-            else break; } }
+        assert(pfd.revents & POLLIN);
+        r = read(reqfd, &msg, sizeof(msg));
+        if (r < 0) {
+            if (errno == EWOULDBLOCK) continue;
+            break; }
+        if (r == 0) {
+            /* Parent closed the pipe -> kill child and get out. */
+            break; }
+        if (msg.tag == msgsendsignal) {
+            if (kill(child, msg.sendsignal.signr) < 0) {
+                msg.sentsignal.err = errno; }
+            else {
+                msg.sentsignal.err = 0; }
+            msg.tag = msgsentsignal;
+            if (write(respfd, &msg, sizeof(msg)) != sizeof(msg)) {
+                break; } }
+        else if (msg.tag == msgpause) {
+            if (paused) break;
+            if (kill(child, SIGSTOP) < 0) break;
+            if (waitpid(child, &status, WUNTRACED) < 0) break;
+            childstopped(status);
+            paused = true; }
+        else if (msg.tag == msgunpause) {
+            if (!paused) break;
+            if (kill(child, SIGCONT) < 0) break;
+            paused = false; }
+        else break; }
     kill(child, SIGKILL);
     _exit(1); }
