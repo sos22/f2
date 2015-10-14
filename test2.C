@@ -71,7 +71,8 @@ static testmodule __testmeta(
         for (filename::diriter it(filename(".")); !it.finished(); it.next()) {
             auto extension(strrchr(it.filename(), '.'));
             if (extension == NULL ||
-                (strcmp(extension, ".C") &&
+                (strcmp(extension, ".c") &&
+                 strcmp(extension, ".C") &&
                  strcmp(extension, ".H") &&
                  strcmp(extension, ".tmpl"))) {
                 continue; }
