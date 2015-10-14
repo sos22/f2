@@ -1,0 +1,80 @@
+#ifndef TESTASSERT_TMPL__
+#define TESTASSERT_TMPL__
+
+namespace testassert {
+template <typename inner>
+expression<inner>::~expression() {}
+
+template <typename inner>
+val<inner>::val(const char *_label, const std::function<inner ()> &_calc)
+    : label(_label),
+      calc(_calc),
+      value(Nothing) {}
+
+template <typename inner> const fields::field &
+val<inner>::field() const {
+    return fields::mk(label) +
+        "{" +
+            *(value == Nothing
+              ? static_cast<const fields::field *>(&fields::mk("..."))
+              : static_cast<const fields::field *>(&fields::mk(value.just()))) +
+        "}"; }
+
+template <typename inner> inner
+val<inner>::eval() {
+    if (value == Nothing) value = calc();
+    return value.just(); }
+
+template <typename inner>
+cnst<inner>::cnst(inner _value) : value(_value) {}
+
+template <typename inner> const fields::field &
+cnst<inner>::field() const { return fields::mk(value); }
+
+template <typename inner> inner
+cnst<inner>::eval() { return value; }
+
+template <typename inner> class exprplus : public expression<inner> {
+public: expression<inner> &a;
+public: expression<inner> &b;
+public: exprplus(expression<inner> &_a, expression<inner> &_b) : a(_a), b(_b) {}
+public: ~exprplus() {
+    delete &a;
+    delete &b; }
+public: const fields::field &field() const {
+    return "(" + a.field() + " + " + b.field() + ")"; }
+public: inner eval() { return a.eval() + b.eval(); } };
+template <typename inner> expression<inner> &
+operator+(expression<inner> &a, expression<inner> &b) {
+    return *new exprplus<inner>(a, b); }
+
+template <typename inner> class exprandand : public expression<inner> {
+public: expression<inner> &a;
+public: expression<inner> &b;
+public: exprandand(expression<inner> &_a, expression<inner> &_b):a(_a),b(_b) {}
+public: ~exprandand() {
+    delete &a;
+    delete &b; }
+public: const fields::field &field() const {
+    return "(" + a.field() + " && " + b.field() + ")"; }
+public: inner eval() { return a.eval() && b.eval(); } };
+template <typename inner> expression<inner> &
+operator&&(expression<inner> &a, expression<inner> &b) {
+    return *new exprandand<inner>(a, b); }
+
+template <typename inner> class exprgreater : public expression<bool> {
+public: expression<inner> &a;
+public: expression<inner> &b;
+public: exprgreater(expression<inner> &_a, expression<inner> &_b):a(_a),b(_b) {}
+public: ~exprgreater() {
+    delete &a;
+    delete &b; }
+public: const fields::field &field() const {
+    return "(" + a.field() + " > " + b.field() + ")"; }
+public: bool eval() { return a.eval() > b.eval(); } };
+template <typename inner> expression<bool> &
+operator>(expression<inner> &a, expression<inner> &b) {
+    return *new exprgreater<inner>(a, b); }
+}
+
+#endif /* !TESTASSERT_TMPL__ */
