@@ -7,8 +7,8 @@ repo=$2
 name=$3
 
 now=$(date +%Y-%m-%d-%H-%M-%S)
-t=${results}/merge/${name}
-trap "rm -rf $t" EXIT
+t=${results}/merge/${name}/${now}
+mkdir -p $t
 
 findmodules() {
     local suffix=$1
@@ -59,6 +59,12 @@ do
         if ./test2-t | grep -q "Module: $x\$"
         then
             ./test2-t --fuzzsched $x '*'
+            if git status --porcelain | grep -q '^??'
+            then
+                echo "test2-t $x generated extra files"
+                git status --porcelain
+                exit 1
+            fi
         fi
     done
 done
@@ -87,3 +93,6 @@ then
 fi
 # Merge successful. Push to master.
 git push ${repo} merge-pending:master
+
+# No need to keep logs any more
+rm -rf $t

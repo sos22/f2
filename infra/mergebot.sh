@@ -80,12 +80,12 @@ EOF
 }
 mergefailmsg() {
     mailheader "Merge failed: $1"
-    echo "$x cannot be merged"
+    echo "$1 cannot be merged"
     cat $2
 }
 mergesuccmsg() {
     mailheader "Merge successful: $1"
-    echo "$x successfully merged into master"
+    echo "$1 successfully merged into master"
 }
 
 ltime=$(stat --printf=%Y $0)
