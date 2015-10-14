@@ -96,7 +96,7 @@ do
     if [ $ltime != $nltime ]
     then
         echo "re-execute $0 $*..."
-        exec $*0 $*
+        exec $0 $*
     fi
     t=$(mktemp)
     git ls-remote ${repo} 'refs/heads/merge/*' | sed 's,refs/heads/merge/,,' > $t
