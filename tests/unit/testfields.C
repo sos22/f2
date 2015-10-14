@@ -122,8 +122,9 @@ static testmodule __testfields(
     "conc2", [] { simpletest("foo" + mk("bar"), "foobar"); },
     "alwayssign", [] { simpletest(mk(5).alwayssign(), "+5"); },
     "zero", [] { simpletest(mk((long)0), "0"); },
-    "double1", [] { simpletest(mk_double(5.0), "5"); },
-    "double2", [] { simpletest(mk_double(5.25), "5.25"); },
+    "double1", [] { simpletest(mk(5.0), "5"); },
+    "double2", [] { simpletest(mk(5.25), "5.25"); },
+    "double3", [] { simpletest(mk(5.25l), "5.25"); },
     "multibufs", [] {
         auto buf1(new fieldbuf());
         auto buf2(new fieldbuf());

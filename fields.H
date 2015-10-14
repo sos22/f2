@@ -119,7 +119,8 @@ public:
     static const doublefield &n(long double val);
     void fmt(fieldbuf &) const;
 };
-const doublefield &mk_double(long double);
+const doublefield &mk(long double);
+const doublefield &mk(double);
 
 void print(const field &f);
 

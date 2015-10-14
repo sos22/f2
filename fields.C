@@ -527,7 +527,12 @@ doublefield::fmt(fieldbuf &b) const
     b.push(buf);
 }
 const doublefield &
-mk_double(long double d)
+mk(long double d)
+{
+    return doublefield::n(d);
+}
+const doublefield &
+mk(double d)
 {
     return doublefield::n(d);
 }
