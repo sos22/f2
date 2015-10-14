@@ -508,6 +508,18 @@ mk(bool b) {
     if (b) return mk("TRUE");
     else return mk("FALSE"); }
 
+const field &
+mk(char c) {
+    if (isprint(c)) {
+        char s[2] = {c, '\0'};
+        return fields::mk(s); }
+    else if (c == '\0') return fields::mk("\\0");
+    else if (c == '\n') return fields::mk("\\n");
+    else return "\\x" + padleft(fields::mk((unsigned)c).base(16).hidebase(),
+                                2,
+                                fields::mk("0")); }
+
+
 doublefield::doublefield(long double _val)
     : field(), val_(_val)
 {}

@@ -125,6 +125,11 @@ static testmodule __testfields(
     "double1", [] { simpletest(mk(5.0), "5"); },
     "double2", [] { simpletest(mk(5.25), "5.25"); },
     "double3", [] { simpletest(mk(5.25l), "5.25"); },
+    "char1", [] { simpletest(mk('a'), "a"); },
+    "char2", [] { simpletest(mk('.'), "."); },
+    "char3", [] { simpletest(mk('\0'), "\\0"); },
+    "char4", [] { simpletest(mk('\n'), "\\n"); },
+    "char5", [] { simpletest(mk('\x03'), "\\x03"); },
     "multibufs", [] {
         auto buf1(new fieldbuf());
         auto buf2(new fieldbuf());

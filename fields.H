@@ -109,6 +109,8 @@ static inline const intfield &mk(unsigned x) { return mk((unsigned long)x); }
 static inline const intfield &mk(unsigned short x) {
     return mk((unsigned long)x); }
 
+const field &mk(char);
+
 const field &mk(bool);
 
 class doublefield : public field {
