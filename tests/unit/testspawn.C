@@ -24,14 +24,14 @@ readfd(clientio io, fd_t f) {
 
 static testmodule __spawntest(
     "spawn",
-    list<filename>::mk("spawn.C", "spawn.H"),
+    list<filename>::mk("spawn.C", "spawn.H", "spawnservice.c"),
     testmodule::Dependency("spawnservice" EXESUFFIX),
     testmodule::Dependency("tests/abort/abort"),
     /* Coverage looks quite low on these tests, partly because gcov
      * can't collect coverage for anything which calls exec() or dies
      * with a signal. */
-    testmodule::LineCoverage(90_pc),
-    testmodule::BranchCoverage(60_pc),
+    testmodule::LineCoverage(65_pc),
+    testmodule::BranchCoverage(45_pc),
     "truefalsebad", [] (clientio io) {
         {   auto p(process::spawn(program(filename("/bin/true")))
                    .fatal("spawning /bin/true"));
