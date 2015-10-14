@@ -252,6 +252,10 @@ filename::diriter::diriter(const class filename &f)
         dir = d;
         next(); } }
 
+fd_t
+filename::diriter::dirfd() const {
+    return fd_t(::dirfd(dir.fatal("dirfd on failed dir"))); }
+
 bool
 filename::diriter::isfailure() const {
     return dir.isfailure(); }

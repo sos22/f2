@@ -168,6 +168,7 @@ process::spawn(const program &p) {
                 elem != childwrite.fd &&
                 elem != childread.fd &&
                 elem.success() > 2 &&
+                elem.success() != it.dirfd().fd &&
                 !fds.haskey(elem.success())) ::close(elem.success()); }
         char fromchildstr[16];
         sprintf(fromchildstr, "%d", childwrite.fd);

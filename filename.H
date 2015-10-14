@@ -114,6 +114,8 @@ public:  class diriter {
     private: diriter() = delete;
     private: diriter(const diriter &) = delete;
     public:  diriter(const filename &);
+    public:  fd_t dirfd() const; /* The FD we opened to read the
+                                  * directory */
     public:  bool isfailure() const;
     public:  error failure() const;
     public:  bool finished() const;
