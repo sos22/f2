@@ -354,8 +354,7 @@ process::hasdied() const {
                fields::mk(this) + " collected death " + res.field());
         mux.unlock(&t);
         return token(); }
-    logmsg(loglevel::debug,
-           fields::mk(this) + " is still alive (" + r.field() + ")");
+    logmsg(loglevel::debug, fields::mk(this) + " is still alive");
     mux.unlock(&t);
     return Nothing; }
 

@@ -9,14 +9,12 @@
 #define _GNU_SOURCE
 #include <sys/fcntl.h>
 #include <sys/prctl.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -34,34 +32,18 @@ respfd;
 static int
 selfpipewrite;
 
-static double
-now() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (double)tv.tv_sec + (double)tv.tv_usec * 1e-9; }
-
 static void
 sigchldhandler(int signr, siginfo_t *info, void *ignore) {
     int status;
     int e = errno;
-    write(2, "sighandler\n", 11);
     assert(signr == SIGCHLD);
     if (info->si_code != CLD_EXITED &&
         info->si_code != CLD_KILLED &&
-        info->si_code != CLD_DUMPED) {
-        char buf[10];
-        buf[4] = '\n';
-        buf[3] = "0123456789abcdef"[(info->si_code >> 24) % 16];
-        buf[2] = "0123456789abcdef"[(info->si_code >> 16) % 16];
-        buf[1] = "0123456789abcdef"[(info->si_code >> 8) % 16];
-        buf[0] = "0123456789abcdef"[info->si_code % 16];
-        write(2, buf, 5);
-        return; }
+        info->si_code != CLD_DUMPED) return;
     (void)ignore;
     assert(wait(&status) != -1);
     assert(write(selfpipewrite, &status, sizeof(status)) ==
            sizeof(status));
-    write(2, "wrote pipe\n", 11);
     errno = e; }
 
 static void
@@ -134,9 +116,8 @@ main(int argc, char *argv[]) {
         _exit(1); }
     /* We are the parent. */
     close(p[1]);
-    fprintf(stderr, "%f in spawn parent\n", now());
     /* Close the FDs we don't need. */
-    for (i = 3; i <= 1000; i++) {
+    for (i = 0; i <= 1000; i++) {
         if (i != selfpiperead &&
             i != selfpipewrite &&
             i != p[0] &&
@@ -161,7 +142,6 @@ main(int argc, char *argv[]) {
         kill(child, SIGKILL);
         execfailed();
         abort(); }
-    fprintf(stderr, "%f child done exec\n", now());
 
     paused = false;
     while (1) {
@@ -178,13 +158,10 @@ main(int argc, char *argv[]) {
             if (errno == EINTR) continue;
             else _exit(3); }
         if (FD_ISSET(selfpiperead, &fds)) {
-            fprintf(stderr, "%f self pipe readable\n", now());
             assert(read(selfpiperead, &status, sizeof(status)) ==
                    sizeof(status));
-            fprintf(stderr, "%f child has died %o\n", now(), status);
             childdied(status); }
         if (FD_ISSET(reqfd, &fds)) {
-            fprintf(stderr, "%f reqfd readable\n", now());
             r = read(reqfd, &msg, sizeof(msg));
             if (r < 0) {
                 /* Whoops, failed to talk to parent.  We're dead. */
@@ -194,10 +171,6 @@ main(int argc, char *argv[]) {
                  * out. */
                 break; }
             if (msg.tag == msgsendsignal) {
-                fprintf(stderr,
-                        "%f send signal %d\n",
-                        now(),
-                        msg.sendsignal.signr);
                 if (kill(child, msg.sendsignal.signr) < 0) {
                     msg.sentsignal.err = errno; }
                 else {
@@ -206,18 +179,15 @@ main(int argc, char *argv[]) {
                 if (write(respfd, &msg, sizeof(msg)) != sizeof(msg)) {
                     break; } }
             else if (msg.tag == msgpause) {
-                fprintf(stderr, "%f pause child\n", now());
                 if (paused) break;
                 if (kill(child, SIGSTOP) < 0) break;
                 if (waitpid(child, &status, WUNTRACED) < 0) break;
                 childstopped(status);
                 paused = true; }
             else if (msg.tag == msgunpause) {
-                fprintf(stderr, "%f unpause child\n", now());
                 if (!paused) break;
                 if (kill(child, SIGCONT) < 0) break;
                 paused = false; }
             else break; } }
-    fprintf(stderr, "%f all done\n", now());
     kill(child, SIGKILL);
     _exit(1); }
