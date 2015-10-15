@@ -1,10 +1,12 @@
 #include "logging.H"
 #include "spawn.H"
+#include "testassert.H"
 #include "test2.H"
 #include "timedelta.H"
 
 #include "either.tmpl"
 #include "orerror.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 #include "timedelta.tmpl"
 
@@ -63,7 +65,7 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        assert(t <= timedelta::milliseconds(50)); },
+        tassert(T(t) <= T(timedelta::milliseconds(50))); },
     "sleep2", [] (clientio io) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg("1"))
@@ -81,7 +83,7 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        assert(t <= timedelta::milliseconds(50)); },
+        tassert(T(t) <= T(timedelta::milliseconds(50))); },
     "sleep3", [] (clientio) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg(string("1")))
@@ -89,7 +91,7 @@ static testmodule __spawntest(
         assert(p->join(clientio::CLIENTIO).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        assert(t <= timedelta::milliseconds(50)); },
+        tassert(T(t) <= T(timedelta::milliseconds(50))); },
     "sleep4", [] (clientio io) {
         auto p(process::spawn(program("/bin/sleep")
                               .addarg(std::move(string("1"))))
@@ -193,7 +195,7 @@ static testmodule __spawntest(
         auto start(timestamp::now());
         p->kill();
         auto end(timestamp::now());
-        assert(end - start < 50_ms); },
+        tassert(T(end) - T(start) < T(50_ms)); },
     "fd", [] (clientio io) {
         auto inpipe(fd_t::pipe().fatal("in pipe"));
         auto outpipe(fd_t::pipe().fatal("out pipe"));
