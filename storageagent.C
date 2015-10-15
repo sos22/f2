@@ -219,6 +219,7 @@ storageagent::createjob(clientio io, const job &t) {
     if (r == error::already) {
         /* If it's a leftover from a previous operation remove it and
          * try again. */
+        logmsg(loglevel::debug, "clear out stale entry");
         auto complete((dirname + "complete").isfile());
         if (complete.isfailure()) goto fail;
         else if (complete == false) {
@@ -255,6 +256,7 @@ storageagent::createjob(clientio io, const job &t) {
              * anything. */
             auto eid((dirname + "eid").deserialiseobj<proto::eq::eventid>());
             if (eid.isfailure()) goto fail;
+            logmsg(loglevel::debug, "replay");
             return eid; } }
     if (r.isfailure()) return r.failure();
     r = (dirname + "job").serialiseobj(t);
@@ -270,6 +272,7 @@ storageagent::createjob(clientio io, const job &t) {
         if (r.isfailure()) goto fail;
         r = (dirname + "complete").createfile();
         if (r.isfailure()) goto fail;
+        logmsg(loglevel::debug, "succeeded");
         return eid; }
  fail:
     r.failure().warn("creating job " + t.field());

@@ -740,7 +740,8 @@ CONN::processresponse(buffer &rxbuffer,
                    " type " + c->type.field() +
                    " reported success even though deserialiser failed with " +
                    ds.failure().field()); }
-        logmsg(loglevel::debug, "complete call " + fields::mk(c));
+        logmsg(loglevel::debug,
+               "complete call " + fields::mk(c) + " -> " + callres.field());
         c->mux.locked(
             [c, callres] (mutex_t::token tok) {
                 assert(c->res(tok) == Nothing);
