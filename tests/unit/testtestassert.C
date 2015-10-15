@@ -57,6 +57,14 @@ static testmodule __testcomputeagent(
             assert(t.eval() == true);
             assert(!strcmp(t.field().c_str(), "(x{7} > y{5})"));
             delete &t; }
+        {   auto &t(T(5) >= T(5));
+            assert(t.eval() == true);
+            assert(!strcmp(t.field().c_str(), "(5 >= 5)"));
+            delete &t; }
+        {   auto &t(T(5) <= T(5));
+            assert(t.eval() == true);
+            assert(!strcmp(t.field().c_str(), "(5 <= 5)"));
+            delete &t; }
         {   int y = 5;
             int x = 7;
             auto &t(T(x) < T(y));

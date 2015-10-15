@@ -53,8 +53,10 @@ binop(-);
 binop(&&);
 binop(||);
 binop(>);
+binop(>=);
 binop(==);
 binop(<);
+binop(<=);
 #undef binop
 
 }
