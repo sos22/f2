@@ -8,7 +8,7 @@
 static testmodule __testcomputeagent(
     "testassert",
     list<filename>::mk("testassert.H", "testassert.tmpl"),
-    testmodule::BranchCoverage(50_pc),
+    testmodule::BranchCoverage(30_pc),
     "values", [] {
         {   auto &t(T(5));
             assert(!strcmp(t.field().c_str(), "5"));
@@ -56,6 +56,29 @@ static testmodule __testcomputeagent(
             assert(!strcmp(t.field().c_str(), "(x{...} > y{...})"));
             assert(t.eval() == true);
             assert(!strcmp(t.field().c_str(), "(x{7} > y{5})"));
+            delete &t; }
+        {   int y = 5;
+            int x = 7;
+            auto &t(T(x) < T(y));
+            assert(!strcmp(t.field().c_str(), "(x{...} < y{...})"));
+            assert(t.eval() == false);
+            assert(!strcmp(t.field().c_str(), "(x{7} < y{5})"));
+            delete &t; }
+        {   auto &t(T(5.25) - T(4.0));
+            assert(t.eval() == 1.25);
+            assert(!strcmp(t.field().c_str(), "(5.25 - 4)"));
+            delete &t; }
+        {   auto &t(T(string("hello")) == T(string("bar")));
+            assert(t.eval() == false);
+            assert(!strcmp(t.field().c_str(),
+                           "(string(\"hello\"){hello} == "
+                           "string(\"bar\"){bar})"));
+            delete &t; }
+        {   auto &t(T(string("foo")) == T(string("foo")));
+            assert(t.eval() == true);
+            assert(!strcmp(t.field().c_str(),
+                           "(string(\"foo\"){foo} == "
+                           "string(\"foo\"){foo})"));
             delete &t; }
         {   bool f = false;
             bool t = true;

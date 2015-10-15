@@ -42,12 +42,19 @@ public: cnst(inner _value);
 public: const fields::field &field() const;
 public: inner eval(); };
 
-template <typename a> expression<a> &operator+(expression<a> &,
-                                               expression<a> &);
-template <typename a> expression<a> &operator&&(expression<a> &,
-                                                expression<a> &);
-template <typename a> expression<bool> &operator>(expression<a> &,
-                                                  expression<a> &);
+#define binop(op)                                                       \
+    template <typename a, typename b>                                   \
+    expression<decltype(*(a *)1ul op *(b *)2ul)> &operator op(          \
+        expression<a> &,                                                \
+        expression<b> &)
+binop(+);
+binop(-);
+binop(&&);
+binop(||);
+binop(>);
+binop(==);
+binop(<);
+#undef binop
 
 }
 
