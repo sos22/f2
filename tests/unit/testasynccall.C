@@ -1,12 +1,14 @@
 /* Simple test of the asynccall machinery. */
 #include "asynccall.H"
 #include "connpool.H"
+#include "testassert.H"
 #include "test2.H"
 
 #include "tests/lib/testservices.H"
 
 #include "asynccall.tmpl"
 #include "orerror.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 
 #include "tests/lib/testservices.tmpl"
@@ -58,7 +60,7 @@ static testmodule __testasynccall(
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
         auto &c((new slowcallimpl(pool, sn, 100_ms, 5))->api);
-        assert(timestamp::now() - start < 10_ms);
+        tassert(T(timestamp::now()) - T(start) < T(10_ms));
         auto t(c.finished());
         assert(t == Nothing);
         {   subscriber sub;
@@ -67,8 +69,8 @@ static testmodule __testasynccall(
             while (t == Nothing) {
                 sub.wait(io);
                 t = c.finished(); } }
-        assert(timestamp::now() - start > 100_ms);
-        assert(c.pop(t.just()) == 5);
+        tassert(T(timestamp::now()) - T(start) > T(100_ms));
+        tassert(T(c.pop(t.just())) == T(5));
         pool.destroy();
         srv.destroy(io); },
     "convenience", [] (clientio io) {
@@ -84,11 +86,9 @@ static testmodule __testasynccall(
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
         auto &c((new slowcallimpl(pool, sn, 200_ms, 5))->api);
-        {   auto n(timestamp::now());
-            assert(n - start < 20_ms); }
-        assert(c.pop(io) == 5);
-        {   auto n(timestamp::now());
-            assert(n - start > 200_ms); }
+        tassert(T(timestamp::now()) - T(start) < T(20_ms));
+        tassert(T(c.pop(io)) == T(5));
+        tassert(T(timestamp::now()) - T(start) > T(200_ms));
         pool.destroy();
         srv.destroy(io); },
     "abort", [] (clientio io) {
