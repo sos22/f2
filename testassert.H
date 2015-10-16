@@ -21,6 +21,7 @@
 #define TESTASSERT_H__
 
 #include "fields.H"
+#include "logging.H"
 
 namespace testassert {
 template <typename inner> class expression {
