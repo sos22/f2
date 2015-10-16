@@ -15,6 +15,7 @@ streamname::isvalid() const {
     auto c(content.c_str());
     for (unsigned x = 0; x < l; x++) {
         if (!isprint(c[x]) || c[x] == '/') return false; }
+    if (!strcmp(c, ".") || !strcmp(c, "..")) return false;
     return true; }
 
 maybe<streamname>
@@ -43,9 +44,11 @@ streamname::mkrandom(deserialise1 &ds) {
         "1234567890qwertyuiopasdfghjklzxcvbnm"
         "QWERTYUIOPASDFGHJKLZXCVBNM[]{};'#:@~,.<>?"
         "!\"$%^&*()-=_+\\| ";
-    for (unsigned x = 0; x < l; x++) {
-        c[x] = validchars[(unsigned)ds % (sizeof(validchars) - 1)]; }
-    c[l] = '\0';
+    do {
+        for (unsigned x = 0; x < l; x++) {
+            c[x] = validchars[(unsigned)ds % (sizeof(validchars) - 1)]; }
+        c[l] = '\0'; }
+    while (!strcmp(c, ".") || !strcmp(c, ".."));
     content = string::steal(c);
     assert(isvalid()); }
 
