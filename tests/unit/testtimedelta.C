@@ -1,9 +1,11 @@
+#include "testassert.H"
 #include "test2.H"
 #include "timedelta.H"
 
 #include "fields.tmpl"
 #include "parsers.tmpl"
 #include "serialise.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 #include "timedelta.tmpl"
 
@@ -75,11 +77,11 @@ static testmodule __testtimedelta(
                         .sleep(clientio::CLIENTIO);
                     return 5; }));
         assert(t.v == 5);
-        assert(timedelta::milliseconds(100) < t.td);
-        assert(t.td < timedelta::milliseconds(101)); },
+        tassert(T(100_ms) < T(t.td));
+        tassert(T(t.td) < T(timedelta::milliseconds(120))); },
     "timeV", [] {
         auto t(timedelta::time([] {
                     (timestamp::now()+timedelta::milliseconds(100))
                         .sleep(clientio::CLIENTIO); }));
-        assert(timedelta::milliseconds(100) < t);
-        assert(t < timedelta::milliseconds(101)); });
+        tassert(T(100_ms) < T(t));
+        tassert(T(t) < T(120_ms)); });
