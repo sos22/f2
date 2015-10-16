@@ -811,6 +811,7 @@ static testmodule __testconnpool(
         auto cn(mkrandom<clustername>(q));
         agentname sn1(q);
         agentname sn2(q);
+        while (sn2 == sn1) sn2 = q;
         ::logmsg(loglevel::debug, "agent name 1 " + fields::mk(sn1));
         ::logmsg(loglevel::debug, "agent name 2 " + fields::mk(sn2));
         auto srv1(rpcservice2::listen<echoservice>(
