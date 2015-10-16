@@ -72,5 +72,5 @@ static testmodule __testuntested(
                        "waitbox.H",
                        "waitbox.tmpl"
         ),
-    testmodule::LineCoverage(11_pc),
-    testmodule::BranchCoverage(8_pc));
+    testmodule::LineCoverage(17_pc),
+    testmodule::BranchCoverage(12_pc));
