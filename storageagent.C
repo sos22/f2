@@ -258,20 +258,32 @@ storageagent::createjob(clientio io, const job &t) {
             if (eid.isfailure()) goto fail;
             logmsg(loglevel::debug, "replay");
             return eid; } }
-    if (r.isfailure()) return r.failure();
+    if (r.isfailure()) {
+        r.failure().warn("creating job dir");
+        return r.failure(); }
     r = (dirname + "job").serialiseobj(t);
-    if (r.isfailure()) goto fail;
+    if (r.isfailure()) {
+        r.failure().warn("serialising job");
+        goto fail; }
     for (auto it(t.outputs().start()); !it.finished(); it.next()) {
         auto fn(dirname + it->asfilename());
         r = fn.mkdir();
-        if (r.isfailure()) goto fail;
+        if (r.isfailure()) {
+            r.failure().warn("output dir " + it->field());
+            goto fail; }
         r = (fn + "content").createfile();
-        if (r.isfailure()) goto fail; }
+        if (r.isfailure()) {
+            r.failure().warn("output content " + it->field());
+            goto fail; } }
     {   auto eid(eqq.queue(proto::storage::event::newjob(t.name()), io));
         r = (dirname + "eid").serialiseobj(eid);
-        if (r.isfailure()) goto fail;
+        if (r.isfailure()) {
+            r.failure().warn("eid");
+            goto fail; }
         r = (dirname + "complete").createfile();
-        if (r.isfailure()) goto fail;
+        if (r.isfailure()) {
+            r.failure().warn("complete");
+            goto fail; }
         logmsg(loglevel::debug, "succeeded");
         return eid; }
  fail:
