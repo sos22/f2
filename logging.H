@@ -77,6 +77,9 @@ void dumpmemlog(void);
 void _initlogging(const char *ident, list<string> &args);
 #define initlogging(args) _initlogging(__BASE_FILE__, args);
 
+class filename;
+void mkverbose(const filename &);
+
 namespace tests { extern event<loglevel> logmsg; }
 
 #endif /* !LOGGING_H__ */

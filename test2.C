@@ -149,25 +149,28 @@ testmodule::runtests(maybe<timedelta> limit) const {
 void
 testmodule::prepare() const {
     filename("tmp").mkdir();
-    if (dependencies.empty()) return;
-    initpubsub();
-    spawn::program p("/usr/bin/make");
-    for (auto it(dependencies.start()); !it.finished(); it.next()) {
-        p.addarg(it->str()); }
-    auto res(spawn::process::spawn(p)
-             .fatal("starting make")
-             ->join(clientio::CLIENTIO));
-    if (res.isright()) {
-        fprintf(stderr,
-                "make died with signal %s\n",
-                res.right().field().c_str());
-        exit(1); }
-    else if (res.left() != shutdowncode::ok) {
-        fprintf(stderr,
-                "make failed with code %s\n",
-                fields::mk(res.left()).c_str());
-        exit(1); }
-    deinitpubsub(clientio::CLIENTIO); }
+    if (!dependencies.empty()) {
+        initpubsub();
+        spawn::program p("/usr/bin/make");
+        for (auto it(dependencies.start()); !it.finished(); it.next()) {
+            p.addarg(it->str()); }
+        auto res(spawn::process::spawn(p)
+                 .fatal("starting make")
+                 ->join(clientio::CLIENTIO));
+        if (res.isright()) {
+            fprintf(stderr,
+                    "make died with signal %s\n",
+                    res.right().field().c_str());
+            exit(1); }
+        else if (res.left() != shutdowncode::ok) {
+            fprintf(stderr,
+                    "make failed with code %s\n",
+                    fields::mk(res.left()).c_str());
+            exit(1); }
+        deinitpubsub(clientio::CLIENTIO); }
+    for (auto it(files().start()); !it.finished(); it.next()) {
+        mkverbose(*it); }
+    mkverbose(filename(string("tests/unit/test") + name() + string(".C"))); }
 
 static void
 _alarm(int) { abort(); }

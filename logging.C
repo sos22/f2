@@ -6,6 +6,7 @@
 #include <syslog.h>
 
 #include "fields.H"
+#include "filename.H"
 #include "test.H"
 #include "map.H"
 
@@ -216,5 +217,11 @@ _initlogging(const char *_ident, list<string> &args) {
     if (logfile == NULL) err(1, "opening %s", ident);
     free(ident);
     on_exit(_logging_exit, NULL); }
+
+void
+mkverbose(const filename &fn) {
+    auto m(modules().get(fn.str()));
+    if (m==Nothing) logmsg(loglevel::error, "no logging module " + fn.field());
+    else m.just()->noisy = true; }
 
 namespace tests { event<loglevel> logmsg; }
