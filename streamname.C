@@ -49,11 +49,6 @@ streamname::mkrandom(deserialise1 &ds) {
     content = string::steal(c);
     assert(isvalid()); }
 
-streamname::streamname(quickcheck q)
-    : content() {
-    deserialise1 ds(q);
-    mkrandom(ds); }
-
 streamname::streamname(_Steal, streamname &s) : content(Steal, s.content) {}
 
 void

@@ -20,7 +20,6 @@ private: bool isvalid() const;
 private: void mkrandom(deserialise1 &ds);
 public:  static maybe<streamname> mk(const string &);
 public:  explicit streamname(deserialise1 &);
-public:  explicit streamname(quickcheck);
 public:  streamname(_Steal, streamname &);
 public:  void serialise(serialise1 &) const;
 public:  bool operator<(const streamname &o) const { return content< o.content;}
