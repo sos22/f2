@@ -65,7 +65,7 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(50))); },
+        tassert(T(t) <= T(timedelta::milliseconds(200))); },
     "sleep2", [] (clientio io) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg("1"))
@@ -83,7 +83,7 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(50))); },
+        tassert(T(t) <= T(timedelta::milliseconds(200))); },
     "sleep3", [] (clientio) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg(string("1")))
@@ -91,7 +91,7 @@ static testmodule __spawntest(
         assert(p->join(clientio::CLIENTIO).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(50))); },
+        tassert(T(t) <= T(timedelta::milliseconds(200))); },
     "sleep4", [] (clientio io) {
         auto p(process::spawn(program("/bin/sleep")
                               .addarg(std::move(string("1"))))
@@ -195,7 +195,7 @@ static testmodule __spawntest(
         auto start(timestamp::now());
         p->kill();
         auto end(timestamp::now());
-        tassert(T(end) - T(start) < T(50_ms)); },
+        tassert(T(end) - T(start) < T(200_ms)); },
     "fd", [] (clientio io) {
         auto inpipe(fd_t::pipe().fatal("in pipe"));
         auto outpipe(fd_t::pipe().fatal("out pipe"));
