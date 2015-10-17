@@ -8,7 +8,7 @@
 static testmodule __testcomputeagent(
     "testassert",
     list<filename>::mk("testassert.H", "testassert.tmpl"),
-    testmodule::BranchCoverage(20_pc),
+    testmodule::BranchCoverage(16_pc),
     "values", [] {
         {   auto &t(T(5));
             assert(!strcmp(t.field().c_str(), "5"));
@@ -36,6 +36,18 @@ static testmodule __testcomputeagent(
             x = 93;
             assert(!strcmp(t.field().c_str(), "x{97}"));
             delete &t; } },
+    "T2", [] {
+        auto &t(T2(int,  ([] { return 3; })()));
+        assert(t.eval() == 3);
+        assert(!strcmp(t.field().c_str(), "([] { return 3; })(){3}"));
+        delete &t; },
+    "deref", [] {
+        int x = 5;
+        int &y(x);
+        auto &t(T(y));
+        assert(t.eval() == 5);
+        logmsg(loglevel::info, t.field().c_str());
+        delete &t; },
     "expressions", [] {
         {   int y = 5;
             auto &t(T(y) + T(7));

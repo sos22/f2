@@ -61,15 +61,21 @@ binop(<=);
 
 }
 
-#define T(f, ...)                                                       \
-    *(__builtin_constant_p(f##__VA_ARGS__)                              \
-      ? static_cast<testassert::expression<decltype(f##__VA_ARGS__)> *>( \
-          new testassert::cnst<decltype(f##__VA_ARGS__)>(               \
-              f##__VA_ARGS__))                                          \
-      : static_cast<testassert::expression<decltype(f##__VA_ARGS__)> *>( \
-          new testassert::val<decltype(f##__VA_ARGS__)>(                \
-              #f #__VA_ARGS__ ,                                         \
-              [&] { return f##__VA_ARGS__ ; } )))
+template <typename t> t __remove_referenceness__(const t &x) { return x; }
+
+/* T for when the expression cannot be used in decltype e.g. it
+ * contains a lambda. */
+#define T2(type, f, ...)                                                \
+    (*(__builtin_constant_p(f##__VA_ARGS__)                             \
+       ? static_cast<testassert::expression<type> *>(                   \
+           new testassert::cnst<type>(                                  \
+               f##__VA_ARGS__))                                         \
+       : static_cast<testassert::expression<type> *>(                   \
+           new testassert::val<type>(                                   \
+               #f #__VA_ARGS__ ,                                        \
+               [&] { return f##__VA_ARGS__ ; } ))))
+
+#define T(...) T2(decltype(__remove_referenceness__(__VA_ARGS__)), __VA_ARGS__)
 
 #define tassert(...)                                                    \
     do {                                                                \
