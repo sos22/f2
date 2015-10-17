@@ -4,6 +4,7 @@
 #include "socket.H"
 #include "spark.H"
 #include "test.H"
+#include "testassert.H"
 #include "test2.H"
 
 #include "tests/lib/testservices.H"
@@ -15,6 +16,7 @@
 #include "rpcservice2.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 
 #include "tests/lib/testservices.tmpl"
@@ -141,7 +143,7 @@ public: orerror<void> called(
     assert(s == largestring);
     /* Slow down thread to make it a bit easier for the client to fill their
      * TX buffer. */
-    (timestamp::now() + timedelta::milliseconds(10)).sleep(io);
+    (10_ms).future().sleep(io);
     ic->complete(
         [this] (serialise1 &, mutex_t::token, onconnectionthread) {},
         acquirestxlock(io),
@@ -222,7 +224,7 @@ static testmodule __testconnpool(
         auto cn(mkrandom<clustername>(q));
         auto start(timestamp::now());
         auto pool(connpool::build(cn).fatal("starting conn pool"));
-        assert(timestamp::now() < start + timedelta::milliseconds(100));
+        tassert(T(timestamp::now()) < T(start) + T(100_ms));
         start = timestamp::now();
         assert(pool->call<void>(
                    io,
@@ -240,8 +242,8 @@ static testmodule __testconnpool(
                        return error::dlopen; })
                == error::dlopen);
         auto end(timestamp::now());
-        assert(end > start + timedelta::milliseconds(10));
-        assert(end < start + timedelta::milliseconds(110));
+        tassert(T(end) > T(start) + T(10_ms));
+        tassert(T(end) < T(start) + T(110_ms));
         start = timestamp::now();
         auto c(pool->call<void>(
                    agentname("nonesuch"),
@@ -255,7 +257,7 @@ static testmodule __testconnpool(
                        return error::dlopen; }));
         end = timestamp::now();
         /* Starting the call should be very cheap. */
-        assert(end < start + timedelta::milliseconds(10));
+        tassert(T(end) < T(start) + T(10_ms));
         start = end;
         assert(c->abort() == error::dlopen);
         end = timestamp::now();
@@ -275,11 +277,11 @@ static testmodule __testconnpool(
         start = timestamp::now();
         pool->destroy();
         end = timestamp::now();
-        assert(end - start < timedelta::milliseconds(50));
+        tassert(T(end) - T(start) < T(timedelta::milliseconds(50)));
         start = end;
         assert(c->pop(io) == error::dlopen);
         end = timestamp::now();
-        assert(end - start < timedelta::milliseconds(10)); },
+        tassert(T(end) - T(start) < T(timedelta::milliseconds(10))); },
     "getconfig", [] (clientio) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
@@ -506,12 +508,13 @@ static testmodule __testconnpool(
             (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
         /* Shut down server while it's got outstanding calls.
          * Should be able to do it quickly. */
-        assert(timedelta::time([srv, io] { srv->destroy(io); }) <
-               timedelta::milliseconds(100));
-        assert(timedelta::time([call, io] { call->abort(); }) <
-               timedelta::milliseconds(100));
-        assert(timedelta::time([pool] { pool->destroy(); }) <
-               timedelta::milliseconds(100)); },
+        tassert(T2(timedelta,
+                   timedelta::time([srv, io] { srv->destroy(io); })) <
+                T(100_ms));
+        tassert(T2(timedelta, timedelta::time([call, io] { call->abort(); })) <
+                T(100_ms));
+        tassert(T2(timedelta, timedelta::time([pool] { pool->destroy(); })) <
+                T(100_ms)); },
     "abortcompleted", [] (clientio io) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
@@ -534,8 +537,7 @@ static testmodule __testconnpool(
                           connpool::connlock) -> orerror<int> {
                           assert(string(*d.success()) == "foo");
                           return 1023; }));
-        while (call->finished() == Nothing) {
-            (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
+        while (call->finished() == Nothing) (1_ms).future().sleep(io);
         ::logmsg(loglevel::info, "aborting");
         assert(call->abort() == 1023);
         ::logmsg(loglevel::info, "aborted");
@@ -591,8 +593,8 @@ static testmodule __testconnpool(
                        return Success; })
                == Success);
         pool2->destroy();
-        assert(timedelta::time([&died, io] { died.get(io); })
-               < timedelta::milliseconds(100));
+        tassert(T2(timedelta, timedelta::time([&died, io] { died.get(io); }))
+                < T(timedelta::milliseconds(100)));
         pool1->destroy();
         srv->destroy(io); },
     "largeresp", [] (clientio io) {
@@ -732,10 +734,10 @@ static testmodule __testconnpool(
         auto end(timestamp::now());
         /* Must have made it to the target time, even though the
          * idle timeout on the pool is only 50ms. */
-        assert(finished.just() - start > timedelta::milliseconds(200));
+        tassert(T2(timestamp, finished.just())-T(start) > T(200_ms));
         /* But not too far past it. */
-        assert(end - finished.just() < timedelta::milliseconds(20));
-        assert(end - start < timedelta::milliseconds(250));
+        tassert(T(end) - T(finished.just()) < T(timedelta::milliseconds(20)));
+        tassert(T(end) - T(start) < T(timedelta::milliseconds(250)));
         pool->destroy();
         srv->destroy(io); },
     "abort1", [] (clientio io) {
@@ -763,8 +765,10 @@ static testmodule __testconnpool(
                        abort(); }));
         callstarted.get(io);
         assert(b->abort() == error::aborted);
-        assert(timedelta::time([&callaborted, io] { callaborted.get(io); })
-               < timedelta::milliseconds(50));
+        tassert(T2(timedelta,
+                   timedelta::time([&callaborted, io] {
+                           callaborted.get(io); }))
+                < T(timedelta::milliseconds(50)));
         pool->destroy();
         srv->destroy(io); },
     "abort2", [] (clientio io) {
@@ -907,8 +911,8 @@ static testmodule __testconnpool(
                         s.push(timedelta::hours(1));
                         s.push(1u); }));
         auto t(timedelta::time([c2, io] { c2->pop(io); }));
-        assert(t >= timedelta::milliseconds(40));
-        assert(t < timedelta::milliseconds(100));
+        tassert(T(t) >= T(timedelta::milliseconds(40)));
+        tassert(T(t) < T(timedelta::milliseconds(100)));
         s1.get();
         pool->destroy();
         srv->destroy(io); },
@@ -1049,7 +1053,7 @@ static testmodule __testconnpool(
         end = timestamp::now();
         assert(end - start < 100_ms);
         (100_ms).future().sleep(io);
-        assert(nrcalls - prepause > 10);
+        tassert(T(nrcalls) - T(prepause) > T(10u));
         /* We're done.  Shut it all down. */
         stopclient = true;
         client.get();
