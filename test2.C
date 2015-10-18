@@ -17,6 +17,7 @@
 #include "list.tmpl"
 #include "map.tmpl"
 #include "orerror.tmpl"
+#include "pair.tmpl"
 #include "test2.tmpl"
 
 static map<string, nnp<testmodule> > *
@@ -83,6 +84,20 @@ static testmodule __testmeta(
         assert(!failed); });
 
 void
+testresultaccumulator::result(const testmodule &tm,
+                              const string &testcase,
+                              timedelta duration) {
+    results.append(pair<string, string>(tm.name(), testcase), duration); }
+
+void
+testresultaccumulator::dump() const {
+    for (auto it(results.start()); !it.finished(); it.next()) {
+        logmsg(loglevel::info,
+               it->first().first().field() + "::" +
+               it->first().second().field() + " -> " +
+               it->second().field()); } }
+
+void
 testmodule::applyinit() {
     if (modules == NULL) modules = new map<string, nnp<testmodule> >();
     modules->set(name(), _nnp(*this)); }
@@ -110,7 +125,9 @@ testmodule::printmodule() const {
         printf("    File:            %s\n", it->str().c_str()); } }
 
 void
-testmodule::runtest(const string &what, maybe<timedelta> limit) const {
+testmodule::runtest(const string &what,
+                    maybe<timedelta> limit,
+                    testresultaccumulator &results) const {
     printf("%s\n",
            (fields::padright(name().field(), 20) +
             fields::padright(what.field(), 20)).c_str());
@@ -123,7 +140,8 @@ testmodule::runtest(const string &what, maybe<timedelta> limit) const {
     logmsg(loglevel::debug,
            "pass test " + name().field() + "::" + what.field() +
            " in " + timetaken.field());
-    if (limit != Nothing) alarm(0); }
+    if (limit != Nothing) alarm(0);
+    results.result(*this, what, timetaken); }
 
 static list<string>
 shuffle(_Steal s, list<string> &what) {
@@ -139,13 +157,14 @@ shuffle(_Steal s, list<string> &what) {
     return res; }
 
 void
-testmodule::runtests(maybe<timedelta> limit) const {
+testmodule::runtests(maybe<timedelta> limit,
+                     testresultaccumulator &results) const {
     list<string> schedule;
     for (auto it(tests.start()); !it.finished(); it.next()) {
         schedule.pushtail(it.key()); }
     list<string> shuffled(shuffle(Steal, schedule));
     for (auto it(shuffled.start()); !it.finished(); it.next()) {
-        runtest(*it, limit); } }
+        runtest(*it, limit, results); } }
 
 void
 testmodule::prepare() const {
@@ -216,11 +235,13 @@ f2main(list<string> &args) {
             errx(1,
                  "cannot specify a specific test without "
                  "specifying a specific module"); }
+        testresultaccumulator acc;
         for (auto it(modules->start()); !it.finished(); it.next()) {
             if (args.length() == 2) {
                 it.value()->prepare();
-                it.value()->runtests(timeout); }
-            else it.value()->listtests(); } }
+                it.value()->runtests(timeout, acc); }
+            else it.value()->listtests(); }
+        acc.dump(); }
     else if (args.idx(0) == "findmodule") {
         if (args.length() != 2) errx(1, "need a filename to find a module for");
         filename f(args.idx(1));
@@ -240,8 +261,10 @@ f2main(list<string> &args) {
             else module.listtests(); }
         else if (args.length() == 2) {
             module.prepare();
-            if (args.idx(1) != "*") module.runtest(args.idx(1), timeout);
-            else module.runtests(timeout); }
+            testresultaccumulator acc;
+            if (args.idx(1) != "*") module.runtest(args.idx(1), timeout, acc);
+            else module.runtests(timeout, acc);
+            acc.dump(); }
         else errx(1, "too many arguments"); }
     stopprofiling();
     return Success; }

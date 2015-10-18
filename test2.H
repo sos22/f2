@@ -4,11 +4,19 @@
 #include "filename.H"
 #include "list.H"
 #include "map.H"
+#include "pair.H"
 #include "percentage.H"
 #include "string.H"
 
 class clientio;
 template <typename> class maybe;
+
+class testmodule;
+
+class testresultaccumulator {
+private: list<pair<pair<string, string> , timedelta> > results;
+public:  void result(const testmodule &, const string &, timedelta);
+public:  void dump() const; };
 
 class testmodule {
 public:  class LineCoverage {
@@ -50,8 +58,10 @@ public:  template <typename ... argsT> testmodule(
     argsT &&...args);
 public:  void listtests() const;
 public:  void printmodule() const;
-public:  void runtest(const string &name, maybe<timedelta>) const;
-public:  void runtests(maybe<timedelta>) const;
+public:  void runtest(const string &name,
+                      maybe<timedelta>,
+                      testresultaccumulator &) const;
+public:  void runtests(maybe<timedelta>, testresultaccumulator &) const;
 public:  void prepare() const; };
 
 #endif /* !TEST2_H__ */
