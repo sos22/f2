@@ -108,7 +108,7 @@ static testmodule __testasynccall(
         (50_ms).future().sleep(io);
         assert(srv.nrabandoned == 0);
         c.abort();
-        tassert(T(timestamp::now()) - T(start) < T(60_ms));
+        tassert(T(timestamp::now()) - T(start) < T(100_ms));
         (50_ms).future().sleep(io);
         assert(srv.nrabandoned == 1);
         srv.destroy(io);
