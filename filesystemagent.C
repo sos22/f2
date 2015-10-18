@@ -439,7 +439,9 @@ store::eqnewjob(connpool &pool,
                 mutex_t::token tok) {
     /* Check whether we've already got the job in the list. */
     auto j(findjob(job, tok));
-    if (j != NULL) return;
+    if (j != NULL) {
+        logmsg(loglevel::debug, "already have job " + job.field());
+        return; }
     /* New job. */
     logmsg(loglevel::info,
            "discover new job " + fields::mk(job) +
@@ -553,6 +555,9 @@ store::eqfinishstream(proto::eq::eventid eid,
                " at " + fields::mk(s->refreshedat(oft)));
         /* apply it anyway. */ }
     /* This is the finish of this stream. */
+    logmsg(loglevel::debug,
+           "finish stream " + jn.field() + "::" +
+           sn.field() + " with " + status.field());
     s->status(tok, oft) = status;
     s->refreshedat(oft) = eid; }
 
@@ -566,6 +571,7 @@ store::eqevent(connpool &pool,
                onfilesystemthread oft) {
     auto ev(eventqueue(oft).left().first()->popid());
     if (ev == Nothing) return;
+    logmsg(loglevel::debug, name.field() + " got event " + ev.field());
     if (ev.just().isfailure()) {
         /* Error on the event queue.  Tear it down, abort all
          * outstanding calls, and restart the machinery from the
@@ -620,6 +626,9 @@ store::eqconnected(connpool &pool,
          * unlikely to be the optimal strategy for this kind of
          * failure. */
         return res.failure(); }
+    logmsg(loglevel::debug,
+           "connected eventqueue on " + name.field() + " at " +
+           res.success().second().field());
     eventqueue(oft).mkleft(res.success());
     eqsub(oft).mkjust(sub,
                       eventqueue(oft).left().first()->pub(),
@@ -841,26 +850,40 @@ filesystem::run(clientio io) {
         auto s(sub.wait(io));
         if (s == &sssub) continue;
         auto token(mux.lock());
-        if (s == &bcsub) beaconwoken(sub, token);
+        if (s == &bcsub) {
+            logmsg(loglevel::debug, "woke for beacon");
+            beaconwoken(sub, token); }
         else if (s == &barriersub) {
-            /* Handled after we drop the lock. */ }
+            /* Handled after we drop the lock. */
+            logmsg(loglevel::debug, "woke for barriers"); }
         else if (s->data == SUBSCRIPTION_EQ) {
             auto sto(containerof(static_cast<subscription *>(s),
                                  store,
                                  eqsub(oft).__just()));
             auto res(sto->eqwoken(pool, sub, token, oft));
+            logmsg(loglevel::debug,
+                   "woke for event from " + sto->name.field() + " -> " +
+                   res.field());
             if (res.isfailure()) dropstore(*sto, token); }
         else if (s->data == SUBSCRIPTION_LISTJOBS) {
             auto sto(containerof(static_cast<subscription *>(s),
                                  store,
                                  listjobssub(oft).__just()));
             auto res(sto->listjobswoken(pool, sub, token, oft));
+            logmsg(loglevel::debug,
+                   "woke for listjobs finish on " + sto->name.field() + " -> "+
+                   res.field());
             if (res.isfailure()) dropstore(*sto, token); }
         else if (s->data == SUBSCRIPTION_LISTSTREAMS) {
             auto j(containerof(static_cast<subscription *>(s),
                                filesystemimpl::job,
                                liststreamssub(token).__just()));
             auto res(j->liststreamswoken(token, oft));
+            logmsg(loglevel::debug,
+                   "woke for liststreams finish on " +
+                   j->sto.name.field() + "::" +
+                   j->name.field() + " -> " +
+                   res.field());
             if (res.isfailure()) j->sto.dropjob(*j, token); }
         else abort();
         mux.unlock(&token);
@@ -881,26 +904,52 @@ filesystem::barrierswoken(clientio io, onfilesystemthread oft) {
          remove ? barrier.remove() : barrier.next()) {
         remove = false;
         auto sto(findstore(barrier->an, token));
-        if (sto == NULL) continue;
+        if (sto == NULL) {
+            logmsg(loglevel::debug,
+                   "barrier on " + barrier->an.field() +
+                   " which doesn't exist yet?");
+            continue; }
         /* Can't do barriers until we've connected the event queue. */
-        if (sto->eventqueue(oft).isright()) continue;
+        if (sto->eventqueue(oft).isright()) {
+            logmsg(loglevel::debug,
+                   "barrier on " + barrier->an.field() +
+                   " which isn't connected yet?");
+            continue; }
         /* Can't do barriers if we have a LISTJOBS outstanding. */
-        if (sto->listjobs(oft) != NULL) continue;
+        if (sto->listjobs(oft) != NULL) {
+            logmsg(loglevel::debug,
+                   "barrier on " + barrier->an.field() +
+                   " which still has a listjobs?");
+            continue; }
         /* Can't do barriers if we have any LISTSTREAMS
          * outstanding. */
         bool ls = false;
         for (auto job(sto->jobs(token).start());
              !ls && !job.finished();
              job.next()) {
-            ls = job->liststreams(token) != NULL; }
+            if (job->liststreams(token) != NULL) {
+                logmsg(loglevel::debug,
+                       "barrier on " + barrier->an.field() +
+                       " which still has a liststreams on " +
+                       job->name.field());
+                ls  = true;
+                break; } }
         if (ls) continue;
         /* Barriers have to wait for the barrier event. */
-        if (barrier->eid > sto->eventqueue(oft).left().second()) continue;
+        if (barrier->eid > sto->eventqueue(oft).left().second()) {
+            logmsg(loglevel::debug,
+                   "barrier wants " + barrier->an.field() + "::" +
+                   barrier->eid.field() + "; only have " +
+                   sto->eventqueue(oft).left().second().field());
+            continue; }
         remove = true;
         done.append(*barrier); }
     mux.unlock(&token);
     /* Complete the barriers after we've dropped the lock. */
     for (auto barrier(done.start()); !barrier.finished(); barrier.next()) {
+        logmsg(loglevel::debug,
+               "barrier complete on " + barrier->an.field() + "::" +
+               barrier->eid.field());
         /* XXX bit of an abuse to use a clientio token here: barrier
          * callbacks can prevent the filesystem from shutting down,
          * but the types imply otherwise. */
@@ -1096,12 +1145,15 @@ filesystemservice::called(clientio io,
     else if (tag == proto::filesystem::tag::storagebarrier) {
         agentname an(ds);
         proto::eq::eventid eid(ds);
+        logmsg(loglevel::debug, "barrier " + an.field() + " " + eid.field());
         if (ds.isfailure()) return ds.failure();
         /* XXX we're not watching for aborts here! */
         fs.storagebarrier(
             an,
             eid,
-            [ic] (clientio _io) {
+            [an, eid, ic] (clientio _io) {
+                logmsg(loglevel::debug,
+                       "barrier " + an.field() + " " + eid.field() + " done");
                 ic->complete(
                     [] (serialise1 &, mutex_t::token /* txlock */) {},
                     _io); });
