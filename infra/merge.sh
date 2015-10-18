@@ -10,10 +10,20 @@ now=$(date +%Y-%m-%d-%H-%M-%S)
 t=${results}/merge/${name}/${now}
 mkdir -p $t
 
+expectedtestmodule() {
+    local fname=$1
+    local extension=$(echo $fname | sed 's/^.*\.//')
+    [ $extension == "C" ] || [ $extension == "H" ] || [ $extension == "tmpl" ] || \
+        [ $extension == "c" ] || [ $extension == "h" ]
+}
 findmodules() {
     local suffix=$1
     while read fname
     do
+        if ! expectedtestmodule $fname
+        then
+            continue
+        fi
         if echo $fname | grep -q '^tests/unit/'
         then
             echo $fname | sed 's,tests/unit/test\([0-9a-z_-]*\).C,\1,'
