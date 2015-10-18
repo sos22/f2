@@ -1068,6 +1068,64 @@ static testmodule __testconnpool(
                    sn,
                    peername::all(peername::port::any))
                == error::toolate); },
+    "asynccallconst", [] (clientio io) {
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname sn(q);
+        auto srv(rpcservice2::listen<echoservice>(
+                     io,
+                     cn,
+                     sn,
+                     peername::all(peername::port::any))
+                 .fatal("starting echo service"));
+        auto pool(connpool::build(cn).fatal("starting conn pool"));
+        auto ac(pool->call<int>(
+                    sn,
+                    interfacetype::test,
+                    timestamp::now() + timedelta::hours(1),
+                    [] (serialise1 &s, connpool::connlock) {
+                        string("HELLO!").serialise(s); },
+                    []
+                    (deserialise1 &ds, connpool::connlock) -> orerror<int> {
+                        string msg(ds);
+                        unsigned cntr(ds);
+                        assert(!ds.isfailure());
+                        assert(msg == "HELLO!");
+                        assert(cntr == 73);
+                        return 12; }));
+        const connpool::asynccallT<int> &constac(*ac);
+        {   subscriber sub;
+            subscription sc(sub, constac.pub());
+            while (constac.finished() == Nothing) sub.wait(io); }
+        assert(ac->finished() != Nothing);
+        assert(ac->pop(ac->finished().just()).issuccess());
+        pool->destroy();
+        srv->destroy(io); },
+    "deadlinepast", [] (clientio io) {
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname sn(q);
+        auto srv(rpcservice2::listen<echoservice>(
+                     io,
+                     cn,
+                     sn,
+                     peername::all(peername::port::any))
+                 .fatal("starting echo service"));
+        auto pool(connpool::build(cn).fatal("starting conn pool"));
+        assert(pool->call<void>(
+                   io,
+                   sn,
+                   interfacetype::test,
+                   timestamp::now() - 10_ms,
+                   [] (serialise1 &s, connpool::connlock) {
+                       string("").serialise(s); },
+                   []
+                   (deserialise1 &ds, connpool::connlock) -> orerror<void> {
+                       (string)ds;
+                       (unsigned)ds;
+                       return Success; }) == error::timeout);
+        pool->destroy();
+        srv->destroy(io); },
     "connbad", [] (clientio io) {
         /* Connect to something which isn't an rpcservice */
         auto l(socket_t::listen(peername::all(peernameport::any))
