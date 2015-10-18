@@ -16,7 +16,7 @@ class testmodule;
 class testresultaccumulator {
 private: list<pair<pair<string, string> , timedelta> > results;
 public:  void result(const testmodule &, const string &, timedelta);
-public:  void dump() const; };
+public:  void dump(const maybe<filename> &) const; };
 
 class testmodule {
 public:  class LineCoverage {

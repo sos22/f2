@@ -92,6 +92,7 @@ public:
     static const error nostorageagents; /* No storage slaves available. */
     static const error dlopen; /* Error loading job library. */
     static const error duplicate; /* Duplicate key in map. */
+    static const error sqlite; /* SQLite error */
     
     static const ::parser<error> &parser();
 };

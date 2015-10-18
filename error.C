@@ -54,9 +54,10 @@ const error error::nostorageagents(-29);
 const error error::signalled(-30);
 const error error::dlopen(-31);
 const error error::duplicate(-32);
+const error error::sqlite(-33);
 /* When adding a new error, make sure you update lasterror and
  * errorfield::fmt() */
-const int __error_private::lasterror = 32;
+const int __error_private::lasterror = 33;
 
 class errorfield : public fields::field {
     error content;
@@ -136,6 +137,8 @@ public:
             buf.push("dlopen");
         } else if (content == error::duplicate) {
             buf.push("duplicate");
+        } else if (content == error::sqlite) {
+            buf.push("sqlite");
         } else {
             ("invalid error " + fields::mk(content.e))
                 .fmt(buf); }

@@ -5,13 +5,17 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <sqlite3.h>
+
 #include "filename.H"
 #include "fuzzsched.H"
+#include "gitversion.H"
 #include "logging.H"
 #include "main.H"
 #include "profile.H"
 #include "spawn.H"
 #include "timedelta.H"
+#include "walltime.H"
 
 #include "either.tmpl"
 #include "list.tmpl"
@@ -90,12 +94,84 @@ testresultaccumulator::result(const testmodule &tm,
     results.append(pair<string, string>(tm.name(), testcase), duration); }
 
 void
-testresultaccumulator::dump() const {
+testresultaccumulator::dump(const maybe<filename> &df) const {
     for (auto it(results.start()); !it.finished(); it.next()) {
         logmsg(loglevel::info,
                it->first().first().field() + "::" +
                it->first().second().field() + " -> " +
-               it->second().field()); } }
+               it->second().field()); }
+    if (df != Nothing) {
+        auto now(walltime::now());
+        sqlite3 *db;
+        auto r(sqlite3_open_v2(df.just().str().c_str(),
+                               &db,
+                               SQLITE_OPEN_READWRITE,
+                               NULL));
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("opening " + df.just().field() +
+                                ": " + fields::mk(r)); }
+        auto query(
+            ("INSERT INTO results "
+             "(testmodule, testname, duration, date, sha) VALUES "
+             "(?, ?, ?, " +
+                 fields::mk(now.asint()).nosep() + ", \"" GITVERSION "\");")
+            .c_str());
+        sqlite3_stmt *stmt;
+        r = sqlite3_prepare_v2(
+            db,
+            query,
+            -1,
+            &stmt,
+            NULL);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("preparing insert statement: " +
+                                fields::mk(r)); }
+        char *errmsg;
+        errmsg = NULL;
+        r = sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, &errmsg);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("begin transaction: " +
+                                fields::mk(r) + ": " +
+                                fields::mk(errmsg)); }
+        assert(errmsg == NULL);
+        for (auto it (results.start()); !it.finished(); it.next()) {
+            r = sqlite3_bind_text(stmt,
+                                  1,
+                                  it->first().first().c_str(),
+                                  -1,
+                                  SQLITE_STATIC);
+            if (r != SQLITE_OK) {
+                error::sqlite.fatal("bind parameter 1: " + fields::mk(r)); }
+            r = sqlite3_bind_text(stmt,
+                                  2,
+                                  it->first().second().c_str(),
+                                  -1,
+                                  SQLITE_STATIC);
+            if (r != SQLITE_OK) {
+                error::sqlite.fatal("bind parameter 2: " + fields::mk(r)); }
+            r = sqlite3_bind_int64(stmt,
+                                   3,
+                                   it->second().as_nanoseconds());
+            if (r != SQLITE_OK) {
+                error::sqlite.fatal("bind parameter 3: " + fields::mk(r)); }
+            r = sqlite3_step(stmt);
+            if (r != SQLITE_DONE) {
+                error::sqlite.fatal("inserting record: " + fields::mk(r)); }
+            r = sqlite3_reset(stmt);
+            if (r != SQLITE_OK) {
+                error::sqlite.fatal("resetting query: " + fields::mk(r)); } }
+        r = sqlite3_exec(db, "END TRANSACTION", NULL, NULL, &errmsg);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("end transaction: " +
+                                fields::mk(r) + ": " +
+                                fields::mk(errmsg)); }
+        assert(errmsg == NULL);
+        r = sqlite3_finalize(stmt);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("finalise query: " + fields::mk(r)); }
+        r = sqlite3_close(db);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("close database: " + fields::mk(r)); } } }
 
 void
 testmodule::applyinit() {
@@ -215,6 +291,7 @@ f2main(list<string> &args) {
     
     bool stat = false;
     maybe<timedelta> timeout(30_s);
+    maybe<filename> database(Nothing);
     while (!args.empty()) {
         if (args.peekhead() == "--profile") {
             startprofiling();
@@ -228,6 +305,9 @@ f2main(list<string> &args) {
         else if (args.peekhead() == "--fuzzsched") {
             __do_fuzzsched = true;
             args.drophead(); }
+        else if (args.peekhead() == "--database") {
+            args.drophead();
+            database.mkjust(args.pophead()); }
         else break; }
     if (args.empty()) listmodules();
     else if (args.idx(0) == "*") {
@@ -241,7 +321,7 @@ f2main(list<string> &args) {
                 it.value()->prepare();
                 it.value()->runtests(timeout, acc); }
             else it.value()->listtests(); }
-        acc.dump(); }
+        acc.dump(database); }
     else if (args.idx(0) == "findmodule") {
         if (args.length() != 2) errx(1, "need a filename to find a module for");
         filename f(args.idx(1));
@@ -253,6 +333,38 @@ f2main(list<string> &args) {
                     printf("%s\n", it.key().c_str());
                     exit(0); } } }
         errx(1, "no test module for file %s", args.idx(1).c_str()); }
+    else if (args.idx(0) == "freshdatabase") {
+        if (database == Nothing) errx(1, "need a --database for freshdatabase");
+        {   auto e(database.just().unlink());
+            if (e.isfailure() && e.failure() != error::already) {
+                e.fatal("removing " + database.just().field()); } }
+        sqlite3 *db;
+        auto r(sqlite3_open_v2(database.just().str().c_str(),
+                               &db,
+                               SQLITE_OPEN_READWRITE|SQLITE_OPEN_CREATE,
+                               NULL));
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("opening " + database.just().field() +
+                                ": " + fields::mk(r)); }
+        char *errmsg;
+        errmsg = NULL;
+        r = sqlite3_exec(db,
+                         "CREATE TABLE results "
+                         "(testmodule NOT NULL, "
+                         "testname NOT NULL, "
+                         "duration INT NOT NULL, "
+                         "date INT NOT NULL, "
+                         "sha NOT NULL);",
+                         NULL,
+                         NULL,
+                         &errmsg);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("create table: " +
+                                fields::mk(r) + ": " +
+                                fields::mk(errmsg)); }
+        r = sqlite3_close(db);
+        if (r != SQLITE_OK) {
+            error::sqlite.fatal("close database: " + fields::mk(r)); } }
     else {
         auto &module(*modules->get(args.idx(0))
                      .fatal("no such module: " + fields::mk(args.idx(0))));
@@ -264,7 +376,7 @@ f2main(list<string> &args) {
             testresultaccumulator acc;
             if (args.idx(1) != "*") module.runtest(args.idx(1), timeout, acc);
             else module.runtests(timeout, acc);
-            acc.dump(); }
+            acc.dump(database); }
         else errx(1, "too many arguments"); }
     stopprofiling();
     return Success; }
