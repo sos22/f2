@@ -23,7 +23,15 @@ echo
 if git branch | grep -q ' merge/'
 then
     echo "Merges still pending: "
-    git branch | grep ' merge/' | sed 's,  merge/,,'
+    git branch | grep ' merge/' | sed 's,^  merge/,,' | while read name
+                                                        do
+                                                            if [ $(git ls-remote arnold:f2 merge/$name | wc -l) -ne 0 ]
+                                                            then
+                                                                printf "%-20s (pushed)\\n" $name
+                                                            else
+                                                                echo $name
+                                                            fi
+                                                        done
 else
     echo "All branches merged"
 fi
