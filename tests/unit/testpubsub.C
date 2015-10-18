@@ -3,6 +3,7 @@
 #include "socket.H"
 #include "spark.H"
 #include "test.H"
+#include "testassert.H"
 #include "test2.H"
 #include "timedelta.H"
 
@@ -10,6 +11,7 @@
 #include "pair.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 #include "timedelta.tmpl"
 
@@ -188,7 +190,7 @@ static testmodule __testpubsub(
                 return true; } );
         t1.get();
         t2.get();
-        assert(cntr >= 5000); },
+        tassert(T(cntr) >= T(5000)); },
     "pingpong", [] {
         /* Ping-pong back and forth between two threads for a
          * bit. */
@@ -238,8 +240,8 @@ static testmodule __testpubsub(
                     cntr2++; } });
         t1.get();
         t2.get();
-        assert(cntr1 - cntr2 >= -1 && cntr1 - cntr2 <= 1);
-        assert(cntr1 >= 5000); },
+        tassert(T(cntr1) - T(cntr2) >= T(-1) && T(cntr1) - T(cntr2) <= T(1));
+        tassert(T(cntr1) >= T(5000)); },
     "ioshutdownrace", [] {
         auto pipe(fd_t::pipe());
         subscriber sub;
@@ -331,8 +333,8 @@ static testmodule __testpubsub(
         auto closewrite(timestamp::now());
         pipe.write.close();
         auto t(listen.get());
-        assert(t.first() < closeread);
-        assert(closewrite < t.second());
+        tassert(T(t.first()) < T(closeread));
+        tassert(T(closewrite) < T(t.second()));
         deinitpubsub(_io); },
     "listenclosed2", [] {
         /* listen on fd0 and fd1 at the same time, close fd1,
