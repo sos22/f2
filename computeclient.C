@@ -158,6 +158,7 @@ public: orerror<orerror<jobresult> > watcheq(
             if (abort.poll() != Nothing) return error::aborted;
             sub.wait(io);
             continue; }
+        logmsg(loglevel::debug, "EQ event " + r.field());
         if (r.just().isfailure()) return r.just().failure();
         auto &evt(r.just().success().second());
         if (evt.finish() == Nothing ||
@@ -165,11 +166,13 @@ public: orerror<orerror<jobresult> > watcheq(
             continue; }
         return evt.finish().just().second().first(); } }
 public: void run(clientio io) {
+    logmsg(loglevel::debug, "waiting for " + jn.field());
     /* Connect to event queue */
     auto _eqcc(connectEQ(io));
     if (_eqcc.isfailure()) {
         res.set(_eqcc.failure());
         return; }
+    logmsg(loglevel::debug, "EQ connected");
     auto &eqcc(*_eqcc.success());
     /* Check for completion before we connected. */
     {   auto r(alreadyFinished(io));
@@ -177,16 +180,21 @@ public: void run(clientio io) {
             eqcc.destroy();
             if (r.isfailure()) res.set(r.failure());
             else res.set(r.success().just());
+            logmsg(loglevel::debug, "job already complete");
             return; } }
     /* Watch the event queue for completions. */
     auto r(watcheq(eqcc, io));
     eqcc.destroy();
     /* If we dropped events out of the queue then restart from the
      * beginning. */
-    if (r == error::eventsdropped) return run(io);
-    /* Otherwise, the result we get from the queue is the final
-     * result. */
-    res.set(r); }
+    if (r == error::eventsdropped) {
+        logmsg(loglevel::debug, "events dropped, restart");
+        return run(io); }
+    else {
+        /* Otherwise, the result we get from the queue is the final
+         * result. */
+        logmsg(loglevel::debug, "EQ gave result " + r.field());
+        res.set(r); } }
 public: impl(constoken ct,
              jobname _jn,
              class computeclient::impl &_owner)

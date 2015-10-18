@@ -117,6 +117,7 @@ private: void destroying(clientio); };
 
 void
 runningjob::run(clientio io) {
+    logmsg(loglevel::debug, "start job " + j.field());
     auto _pi(fd_t::pipe());
     if (_pi.isfailure()) {
         result.mkjust(_pi.failure());
@@ -143,6 +144,7 @@ runningjob::run(clientio io) {
     auto rr(p.success()->join(io));
     if (rr.isright()) jr = error::signalled;
     else if (rr.left() != shutdowncode::ok) jr = error::unknown;
+    logmsg(loglevel::debug, "job result " + jr.field());
     jr.warn("jobresult result");
     result.mkjust(Steal, jr); }
 
@@ -161,14 +163,18 @@ computeservice::maintenancethread::run(clientio io) {
         auto &f(owner.finishedjobs(muxtoken).append(
                     proto::compute::jobstatus::finished(
                         rj->j.name(), rj->tag, rj->result.just())));
+        auto eid(owner.eqq(muxtoken).queue(
+                     proto::compute::event::finish(f),
+                     rpcservice2::acquirestxlock(io)));
+        logmsg(loglevel::debug,
+               "queue finish event " + eid.field() + " for " +
+               rj->j.name().field() + " res " + rj->result.just().field());
         owner.runningjobs(muxtoken).drop(rj);
         rj->join(threadtoken.just());
-        owner.eqq(muxtoken).queue(
-            proto::compute::event::finish(f),
-            rpcservice2::acquirestxlock(io));
         owner.mux.unlock(&muxtoken); }
     /* Shut it down.  All jobs should be watching the shutdown box, so
      * this should terminate reasonably quickly. */
+    logmsg(loglevel::debug, "compute service terminating");
     while (true) {
         auto muxtoken(owner.mux.lock());
         if (owner.runningjobs(muxtoken).empty()) {
@@ -225,6 +231,7 @@ computeservice::called(clientio io,
     if (t == proto::compute::tag::start) {
         job j(ds);
         if (ds.isfailure()) return ds.failure();
+        logmsg(loglevel::debug, "starting job " + j.field());
         auto token(mux.lock());
         auto r(start(j, token, acquirestxlock(io)));
         mux.unlock(&token);
@@ -239,6 +246,7 @@ computeservice::called(clientio io,
         return Success; }
     else if (t == proto::compute::tag::enumerate) {
         if (ds.isfailure()) return ds.failure();
+        logmsg(loglevel::debug, "enumerating jobs");
         auto tok(mux.lock());
         pair<proto::eq::eventid, list<proto::compute::jobstatus> > res(
             eqq(tok).lastid(),
@@ -261,6 +269,7 @@ computeservice::called(clientio io,
     else if (t == proto::compute::tag::drop) {
         jobname jn(ds);
         if (ds.isfailure()) return ds.failure();
+        logmsg(loglevel::debug, "drop job " + jn.field());
         auto tok(mux.lock());
         for (auto job(finishedjobs(tok).start()); !job.finished(); job.next()) {
             if (job->name == jn) {
