@@ -117,11 +117,12 @@ testmodule::runtest(const string &what, maybe<timedelta> limit) const {
     if (limit != Nothing) alarm((unsigned)(limit.just() / 1_s));
     logmsg(loglevel::debug,
            "start test " + name().field() + "::" + what.field());
-    tests.get(what)
-        .fatal("no such test: " + name().field() + "::" + what.field())
-        ();
+    auto tt(tests.get(what)
+            .fatal("no such test: " + name().field() + "::" + what.field()));
+    auto timetaken(timedelta::time([&tt] { tt(); }));
     logmsg(loglevel::debug,
-           "pass test " + name().field() + "::" + what.field());
+           "pass test " + name().field() + "::" + what.field() +
+           " in " + timetaken.field());
     if (limit != Nothing) alarm(0); }
 
 static list<string>
