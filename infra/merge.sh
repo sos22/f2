@@ -33,6 +33,15 @@ findmodules() {
     done
 }
 
+checkextrafiles() {
+    if git status --porcelain | grep -v '^?? tmp/' | grep -q '^??'
+    then
+        echo "make testall generated extra files"
+        git status --porcelain
+        exit 1
+    fi
+}
+
 mkdir -p $t
 echo "merging $name into ${t}"
 git clone -b master -q ${repo} ${t}/work
@@ -52,15 +61,8 @@ do
     git show -s --format=oneline $commit
     echo "  $# commits left"
     git cherry-pick $commit
-    rm -rf tmp
     make -j8 -s testall
-    rm -rf tmp
-    if git status --porcelain | grep -q '^??'
-    then
-        echo "make testall generated extra files"
-        git status --porcelain
-        exit 1
-    fi
+    checkextrafiles "make testall"
     modules="meta $(git diff --name-only HEAD^ | findmodules -t | sort -u)"
     echo "test modules $modules"
     for x in $modules
@@ -70,12 +72,7 @@ do
         if ./test2-t | grep -q "Module: $x\$"
         then
             ./test2-t --fuzzsched $x '*'
-            if git status --porcelain | grep -q '^??'
-            then
-                echo "test2-t $x generated extra files"
-                git status --porcelain
-                exit 1
-            fi
+            checkextrafiles "test2-t"
         fi
     done
 done
@@ -87,12 +84,7 @@ git cherry-pick $1
 ./runtests.sh ../testdir
 # Check that gitignore is correct
 make -j8 -s covall
-if git status --porcelain | grep -v '^?? tmp/' | grep -q '^??'
-then
-    echo "make covall generated extra files"
-    git status --porcelain
-    exit 1
-fi
+checkextrafiles "make covall"
 # And check that make clean really works
 make -s clean
 rm -fr config tmp
