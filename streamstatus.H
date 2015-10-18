@@ -6,13 +6,9 @@
 
 class streamstatus;
 
-namespace fields {
-class field;
-const field &mk(const streamstatus &);
-}
+namespace fields { class field; }
 
 class streamstatus {
-    friend const fields::field &fields::mk(const streamstatus &);
 private: streamname name_;
 private: bool finished_;
 private: bytecount size_;
@@ -28,6 +24,7 @@ public:  bool operator==(const streamstatus &) const;
 public:  bool operator!=(const streamstatus &o) const {
     return !(*this == o); }
 public:  explicit streamstatus(deserialise1 &);
-public:  void serialise(serialise1 &) const; };
+public:  void serialise(serialise1 &) const;
+public:  const fields::field &field() const; };
 
 #endif /* !STREAMSTATUS_H__ */

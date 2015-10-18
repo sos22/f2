@@ -3,12 +3,6 @@
 #include "fields.H"
 #include "serialise.H"
 
-const fields::field &
-fields::mk(const streamstatus &sn) {
-    return "<streamstatus: name=" + sn.name_.field() +
-        " finished:" + mk(sn.finished_) +
-        " size:" + sn.size().field() + ">"; }
-
 streamstatus::streamstatus(const streamname &_streamname,
                            bool _finished,
                            bytecount _size)
@@ -43,3 +37,9 @@ streamstatus::serialise(serialise1 &s) const {
     s.push(name_);
     s.push(finished_);
     s.push(size_); }
+
+const fields::field &
+streamstatus::field() const {
+    return "<streamstatus: name=" + name_.field() +
+        " finished:" + fields::mk(finished_) +
+        " size:" + size().field() + ">"; }
