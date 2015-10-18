@@ -153,6 +153,8 @@ testmodule::prepare() const {
     if (!dependencies.empty()) {
         initpubsub();
         spawn::program p("/usr/bin/make");
+        p.addarg("-j");
+        p.addarg("8");
         for (auto it(dependencies.start()); !it.finished(); it.next()) {
             p.addarg(it->str()); }
         auto res(spawn::process::spawn(p)
