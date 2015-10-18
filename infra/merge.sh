@@ -36,7 +36,7 @@ findmodules() {
 checkextrafiles() {
     if git status --porcelain | grep -v '^?? tmp/' | grep -q '^??'
     then
-        echo "make testall generated extra files"
+        echo "$* generated extra files"
         git status --porcelain
         exit 1
     fi
