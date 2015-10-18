@@ -24,9 +24,14 @@ clean::
 %: %.gen config
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 
+gitversion.H: _does_not_exist_
+	@./mkgitversion
+clean::
+	rm -f gitversion.H
+
 # Specialise the .gen rule for config so that it doesn't induce a
 # circular dependency.
-config: config.gen
+config: config.gen gitversion.H
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 
 # Special target which is sometimes useful for forcing something to

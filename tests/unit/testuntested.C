@@ -26,6 +26,7 @@ static testmodule __testuntested(
                        "fundamentals.H",
                        "fuzzsched.C",
                        "fuzzsched.H",
+                       "gitversion.H",
                        "interfacetype.C",
                        "interfacetype.H",
                        "listenfd.C",

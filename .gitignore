@@ -24,6 +24,7 @@ coordinatorcli
 coordinatorservice
 filesystemcli
 filesystemservice
+gitversion.H
 /master
 runjob
 spawnservice
