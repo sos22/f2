@@ -19,6 +19,9 @@ walltime::now() {
     gettimeofday(&tv, NULL);
     return walltime(tv.tv_sec * 1000000000l + tv.tv_usec * 1000); }
 
+long
+walltime::asint() const { return v; }
+
 bool
 walltime::operator==(walltime o) const { return v == o.v; }
 

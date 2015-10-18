@@ -21,6 +21,7 @@ static testmodule __testwalltime(
         quickcheck q;
         serialise<walltime>(q); },
     "parser", [] { parsers::roundtrip(parsers::_walltime()); },
+    "asint", [] { assert(walltime::__testmk(23).asint() == 23); },
     "fixedfields", [] {
 #define simpletest(val, fmted)                                          \
         assert(!strcmp(fields::mk(walltime::__testmk(val)).c_str(), fmted))

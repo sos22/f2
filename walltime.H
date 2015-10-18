@@ -36,6 +36,6 @@ public:  explicit walltime(deserialise1 &);
 public:  void serialise(serialise1 &) const;
 public:  bool operator==(walltime) const;
 public:  static walltime now();
-};
+public:  long asint() const; };
 
 #endif /* !WALLTIME_H__ */
