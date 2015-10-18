@@ -31,7 +31,7 @@ static testmodule __testmeta(
     "meta",
     list<filename>::mk("test2.H", "test2.C", "test2.tmpl"),
     testmodule::LineCoverage(64_pc),
-    testmodule::BranchCoverage(49_pc),
+    testmodule::BranchCoverage(47_pc),
     "nodupes", [] {
         /* No file should be tested by multiple modules. */
         map<filename, string> covered;

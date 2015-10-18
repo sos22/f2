@@ -45,6 +45,7 @@ _basemode() {
     local outdir=$1
     local commit=$2
     set -e
+    export RESULTSDB=${results}/db
     git clone -q ${repo} ${outdir}/checkout
     cd ${outdir}/checkout
     git checkout $commit

@@ -19,15 +19,33 @@ else
     echo "Need either arguments (the test module and the output file) or just one (the output file)"
     exit 1
 fi
+
+mkdb() {
+    ./test2-c --database "$RESULTSDB" freshdatabase
+}
+
+if ! [ -n "$RESULTSDB" ]
+then
+    RESULTSDB=$(mktemp)
+    deleteresultsdb=$RESULTSDB
+    echo "invent a new results DB $RESULTSDB"
+    mkdb
+fi
+
+if ! [ -e "$RESULTSDB" ]
+then
+    mkdb
+fi
+
 base=$(pwd)
 t=$(mktemp -d ${TMPDIR}/testcov.XXXXXX)
 t2=$(mktemp -d ${TMPDIR}/testcov.report.XXXXXX)
 filelist=$(mktemp)
-trap "rm -rf $t $t2 ${filelist}" EXIT
+trap "rm -rf $t $t2 ${filelist} $deleteresultsdb" EXIT
 # Run the tests
 GCOV_PREFIX_STRIP=$(($(pwd | sed 's,[^/],,g' | wc -c) - 1))  \
     GCOV_PREFIX=${t}                                         \
-    ${base}/test2-c --verbose --fuzzsched "$module" "*"
+    ${base}/test2-c --database $RESULTSDB --verbose --fuzzsched "$module" "*"
 
 # Set up symlinks so that gcov can find source files.
 find ${base} -type f \( -name '*.[CHch]' -o -name '*.tmpl' \) |
