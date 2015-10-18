@@ -6,6 +6,9 @@ template <typename inner>
 expression<inner>::~expression() {}
 
 template <typename inner>
+val<inner>::~val() {}
+
+template <typename inner>
 val<inner>::val(const char *_label, const std::function<inner ()> &_calc)
     : label(_label),
       calc(_calc),
@@ -24,6 +27,9 @@ template <typename inner> inner
 val<inner>::eval() {
     if (value == Nothing) value = calc();
     return value.just(); }
+
+template <typename inner>
+cnst<inner>::~cnst() {}
 
 template <typename inner>
 cnst<inner>::cnst(inner _value) : value(_value) {}

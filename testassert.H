@@ -25,23 +25,30 @@
 
 namespace testassert {
 template <typename inner> class expression {
-public: virtual const fields::field &field() const = 0;
-public: virtual inner eval() = 0;
-public: virtual ~expression(); };
+private: void operator=(expression &) = delete;
+public:  virtual const fields::field &field() const = 0;
+public:  virtual inner eval() = 0;
+public:  virtual ~expression(); };
 
 template <typename inner> class val : public expression<inner> {
-public: const char *label;
-public: std::function<inner ()> calc;
-public: maybe<inner> value;
-public: val(const char *_label, const std::function<inner ()> &_calc);
-public: const fields::field &field() const;
-public: inner eval(); };
+private: val() = delete;
+private: void operator=(val &) = delete;
+public:  ~val();
+public:  const char *label;
+public:  std::function<inner ()> calc;
+public:  maybe<inner> value;
+public:  val(const char *_label, const std::function<inner ()> &_calc);
+public:  const fields::field &field() const;
+public:  inner eval(); };
 
 template <typename inner> class cnst : public expression<inner> {
-public: const inner value;
-public: cnst(inner _value);
-public: const fields::field &field() const;
-public: inner eval(); };
+private: cnst() = delete;
+private: void operator=(cnst &) = delete;
+public:  ~cnst();
+public:  const inner value;
+public:  cnst(inner _value);
+public:  const fields::field &field() const;
+public:  inner eval(); };
 
 #define binop(op)                                                       \
     template <typename a, typename b>                                   \

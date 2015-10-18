@@ -8,7 +8,6 @@
 static testmodule __testcomputeagent(
     "testassert",
     list<filename>::mk("testassert.H", "testassert.tmpl"),
-    testmodule::BranchCoverage(16_pc),
     "values", [] {
         {   auto &t(T(5));
             assert(!strcmp(t.field().c_str(), "5"));
