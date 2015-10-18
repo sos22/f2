@@ -54,6 +54,7 @@ do
     git cherry-pick $commit
     rm -rf tmp
     make -j8 -s testall
+    rm -rf tmp
     if git status --porcelain | grep -q '^??'
     then
         echo "make testall generated extra files"
