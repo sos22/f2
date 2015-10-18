@@ -183,11 +183,17 @@ computeservice::maintenancethread::run(clientio io) {
         auto j(owner.runningjobs(muxtoken).pophead());
         /* Not really necessary, because we've already shut down the
          * RPC interface, but easy, and makes the API cleaner. */
-        owner.finishedjobs(muxtoken).append(
-            proto::compute::jobstatus::finished(
-                j->j.name(),
-                j->tag,
-                error::shutdown));
+        auto &f(owner.finishedjobs(muxtoken).append(
+                    proto::compute::jobstatus::finished(
+                        j->j.name(),
+                        j->tag,
+                        error::shutdown)));
+        auto eid(owner.eqq(muxtoken).queue(
+                     proto::compute::event::finish(f),
+                     rpcservice2::acquirestxlock(io)));
+        logmsg(loglevel::debug,
+               "queue shutdown finish event " + eid.field() + " for " +
+               j->j.name().field() + " res " + j->result.field());
         owner.mux.unlock(&muxtoken);
         j->subsc = Nothing;
         j->join(io); } }
