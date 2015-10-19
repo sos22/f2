@@ -1,24 +1,24 @@
 #! /bin/bash
 
 cat <<EOF
-CPPFLAGS="${CPPFLAGS}"
-CPPFLAGS+=" -Wundef -I."
-CYYFLAGS="${CYYFLAGS}"
-CYYFLAGS+=" -O0 -g -fno-strict-aliasing"
-CYYFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
-CYYFLAGS+=" -Winit-self -Wswitch-enum"
-CXXFLAGS="${CXXFLAGS} -std=c++1y -include fundamentals.H"
-CXXFLAGS+=" \${CPPFLAGS}"
-CXXFLAGS+=" \${CYYFLAGS}"
-CXXFLAGS+=" -fno-operator-names -fno-exceptions"
-CFLAGS="${CFLAGS} -std=gnu99"
-CFLAGS+=" \${CPPFLAGS}"
-CFLAGS+=" \${CYYFLAGS}"
-CXX=g++-4.9
-CC=gcc
-LD=gcc-4.9
-GCOV=gcov-4.9
+F2_CPPFLAGS="${CPPFLAGS}"
+F2_CPPFLAGS+=" -Wundef -I."
+F2_CPPFLAGS+=" -DPREFIX=\\\\\"$(pwd)\\\\\""
+F2_CYYFLAGS="${CYYFLAGS}"
+F2_CYYFLAGS+=" -O0 -g -fno-strict-aliasing"
+F2_CYYFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
+F2_CYYFLAGS+=" -Winit-self -Wswitch-enum"
+F2_CXXFLAGS="${CXXFLAGS} -std=c++1y -include fundamentals.H"
+F2_CXXFLAGS+=" \${F2_CPPFLAGS}"
+F2_CXXFLAGS+=" \${F2_CYYFLAGS}"
+F2_CXXFLAGS+=" -fno-operator-names -fno-exceptions"
+F2_CFLAGS="${CFLAGS} -std=gnu99"
+F2_CFLAGS+=" \${F2_CPPFLAGS}"
+F2_CFLAGS+=" \${F2_CYYFLAGS}"
+F2_CXX=${CXX:-g++-4.9}
+F2_CC=${CC:-gcc}
+F2_LD=${LD:-gcc-4.9}
+F2_GCOV=${GCOV:-gcov-4.9}
 PREFIX="$(pwd)"
-CPPFLAGS+=" -DPREFIX=\\\\\"$(pwd)\\\\\""
 EOF
 

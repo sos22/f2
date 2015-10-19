@@ -25,13 +25,13 @@ function ld() {
     z=${z/%.a/-p.a}
     cat <<EOF
 $target: $* $mkfile
-	\$(LD) -Wl,-E -o \$@.tmp $* -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) -Wl,-E -o \$@.tmp $* -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-c: $x $mkfile
-	\$(LD) -Wl,-E --coverage -o \$@.tmp $x -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) -Wl,-E --coverage -o \$@.tmp $x -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-t: $y $mkfile
-	\$(LD) -Wl,-E -o \$@.tmp $y -ldl -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) -Wl,-E -o \$@.tmp $y -ldl -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-p: $z $mkfile
-	\$(LD) -Wl,-E -o \$@.tmp $z -pg -ldl -lstdc++ -lm -lrt -lpthread -lgcov && mv -f \$@.tmp \$@
+	\$(F2_LD) -Wl,-E -o \$@.tmp $z -pg -ldl -lstdc++ -lm -lrt -lpthread -lgcov && mv -f \$@.tmp \$@
 clean::
 	rm -f $target $target.tmp
 	rm -f ${target}-c.tmp ${target}-c
@@ -53,15 +53,15 @@ function cc() {
 	    cat <<EOF
 -include $dep
 $obj: $src config
-	ccache \$(CXX) $dashi -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -DEXESUFFIX="" -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+	ccache \$(F2_CXX) $dashi -DTESTING=0 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX="" -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
 ${obj/.o/-t.o}: $src config
-	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CXXFLAGS} -DEXESUFFIX=\"-t\" -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
+	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX=\"-t\" -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
-	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage -DEXESUFFIX=\"-c\" ${CPPFLAGS} ${CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage -DEXESUFFIX=\"-c\" ${F2_CPPFLAGS} ${F2_CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
 ${obj/.o/-p.o}: $src config
-	ccache \$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${CPPFLAGS} ${CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
+	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src config
-	\$(CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
+	\$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
@@ -75,15 +75,15 @@ EOF
 	    cat <<EOF
 -include $dep
 $obj: $src config
-	ccache \$(CC) $dashi -DTESTING=0 -DCOVERAGE=0 ${CPPFLAGS} ${CFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
+	ccache \$(F2_CC) $dashi -DTESTING=0 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
 ${obj/.o/-t.o}: $src config
-	ccache \$(CC) $dashi -DTESTING=1 -DCOVERAGE=0 ${CPPFLAGS} ${CFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
+	ccache \$(F2_CC) $dashi -DTESTING=1 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
 ${obj/.o/-c.o}: $src config
-	ccache \$(CC) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${CPPFLAGS} ${CFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+	ccache \$(F2_CC) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${F2_CPPFLAGS} ${F2_CFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
 ${obj/.o/-p.o}: $src config
-	ccache \$(CC) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${CPPFLAGS} ${CFLAGS} -O3 -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
+	ccache \$(F2_CC) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CFLAGS} -O3 -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src config
-	\$(CC) $dashi ${CFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
+	\$(F2_CC) $dashi ${F2_CFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
@@ -145,7 +145,7 @@ function testmodule()
     reports=$(echo $@ | sed "s/\(\$\| \)/.gcov\1/g;s,\(^\| \),\1${newprefix}/,g" )
     cat <<EOF
 ${targ}-cov-report: test-c
-	@rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.c ../*.gcno ../*.H ../*.tmpl . ; \$(GCOV) *.gcda) > /dev/null && cat ${reports} | fgrep -v ':/*EOF*/' | sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/s/#####/@@@@@/;s/#####\\(.*abort();\\)/@@@@@\\1/;/\.\.\./s/#####/@@@@@/'> \$@
+	@rm -rf ${newprefix} && mkdir ${newprefix} && GCOV_PREFIX_STRIP=${stripnr} GCOV_PREFIX="${newprefix}" ./test-c ${targ} '*' && (cd ${newprefix} ; ln -s ../*.C ../*.c ../*.gcno ../*.H ../*.tmpl . ; \$(F2_GCOV) *.gcda) > /dev/null && cat ${reports} | fgrep -v ':/*EOF*/' | sed '/:#ifndef COVERAGESKIP\$\$/,/:#endif\$\$/s/#####/@@@@@/;s/#####\\(.*abort();\\)/@@@@@\\1/;/\.\.\./s/#####/@@@@@/'> \$@
 .PHONY: ${targ}-cov
 ${targ}-cov: ${targ}-cov-report
 	@if grep -q '#####' ${targ}-cov-report; then echo "${targ} FAILED"; false; else echo "${targ} passed"; true; fi
@@ -175,9 +175,9 @@ function ccdyn()
 	    cat <<EOF
 -include $dep
 $obj: $src config
-	ccache \$(CXX) $dashi ${CPPFLAGS} ${CXXFLAGS} -fPIC -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+	ccache \$(F2_CXX) $dashi ${F2_CPPFLAGS} ${F2_CXXFLAGS} -fPIC -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
 $dep: $src config
-	\$(CXX) $dashi -std=gnu++11 ${CPPFLAGS} -M -MT "$obj" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
+	\$(F2_CXX) $dashi -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
 EOF
@@ -197,7 +197,7 @@ function lddyn()
     shift
     cat <<EOF
 $target: $* $mkfile
-	\$(LD) -shared -o \$@.tmp $* -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) -shared -o \$@.tmp $* -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
 clean::
 	rm -f $target $target.tmp
 EOF
