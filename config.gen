@@ -1,18 +1,22 @@
 #! /bin/bash
 
+escape() {
+    echo $* | sed 's/"/\\"/g'
+}
+
 cat <<EOF
-F2_CPPFLAGS="${CPPFLAGS}"
+F2_CPPFLAGS="$(escape ${CPPFLAGS})"
 F2_CPPFLAGS+=" -Wundef -I."
 F2_CPPFLAGS+=" -DPREFIX=\\\\\"$(pwd)\\\\\""
-F2_CYYFLAGS="${CYYFLAGS}"
+F2_CYYFLAGS="$(escape ${CYYFLAGS})"
 F2_CYYFLAGS+=" -O0 -g -fno-strict-aliasing"
 F2_CYYFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"
 F2_CYYFLAGS+=" -Winit-self -Wswitch-enum"
-F2_CXXFLAGS="${CXXFLAGS} -std=c++1y -include fundamentals.H"
+F2_CXXFLAGS="$(escape ${CXXFLAGS}) -std=c++1y -include fundamentals.H"
 F2_CXXFLAGS+=" \${F2_CPPFLAGS}"
 F2_CXXFLAGS+=" \${F2_CYYFLAGS}"
 F2_CXXFLAGS+=" -fno-operator-names -fno-exceptions"
-F2_CFLAGS="${CFLAGS} -std=gnu99"
+F2_CFLAGS="$(escape ${CFLAGS}) -std=gnu99"
 F2_CFLAGS+=" \${F2_CPPFLAGS}"
 F2_CFLAGS+=" \${F2_CYYFLAGS}"
 F2_CXX=${CXX:-g++-4.9}
