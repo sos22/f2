@@ -106,14 +106,8 @@ public:  class iterator {
     private: unsigned bucketnr;
     private: entry *cursor;
     private: explicit iterator(map *_owner);
-    public:  void next() {
-        cursor = cursor->next;
-        if (cursor != NULL) return;
-        for (bucketnr++;
-             bucketnr != owner->nrbuckets && owner->buckets[bucketnr] == NULL;
-             bucketnr++) { }
-        if (bucketnr != owner->nrbuckets) cursor = owner->buckets[bucketnr]; }
-    public:  bool finished() const { return cursor == NULL; }
+    public:  void next();
+    public:  bool finished() const;
     public:  const _key &key() const { return cursor->k; }
     public:  const _value &value() const { return cursor->v; }
     public:  _value &value() { return cursor->v; } };
