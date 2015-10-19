@@ -232,14 +232,18 @@ static testmodule __testcomputeagent(
          * agent, so that the tests are independent. */
         t.sc.append(io, j.name(), ss, buffer("Hello world"), 0_B)
             .fatal("append");
-        t.sc.finish(io, j.name(), ss)
-            .fatal("finish");
+        auto evt1(t.sc.finish(io, j.name(), ss)
+                  .fatal("finish"));
         /* Now create a job to consume it. */
         auto sss(streamname::mk("input").fatal("input name"));
         auto jj(job(filename("./testjob.so"),
                     "helloinput")
                 .addinput(sss, j.name(), ss));
-        t.sc.createjob(io, jj).fatal("creating second job");
+        auto evt2(t.sc.createjob(io, jj).fatal("creating second job"));
+        t.fsc.storagebarrier(io, t.storageagentname, evt1)
+            .fatal("synchronising finish to filesystem");
+        t.fsc.storagebarrier(io, t.storageagentname, evt2)
+            .fatal("synchronising create2 to filesystem");
         t.cc.start(io, jj).fatal("starting job");
         assert(t.cc.waitjob(io, jj.name())
                .flatten()
@@ -254,13 +258,21 @@ static testmodule __testcomputeagent(
         t.sc.createjob(io, j).fatal("creating storage for job");
         t.sc.append(io, j.name(), ss, buffer("Wrong world"), 0_B)
             .fatal("append");
-        t.sc.finish(io, j.name(), ss)
-            .fatal("finish");
+        t.fsc.storagebarrier(
+            io,
+            t.storageagentname,
+            t.sc.finish(io, j.name(), ss)
+                .fatal("finish")).
+            fatal("synchronise finish to filesystem");
         auto sss(streamname::mk("input").fatal("input name"));
         auto jj(job(filename("./testjob.so"),
                     "helloinput")
                 .addinput(sss, j.name(), ss));
-        t.sc.createjob(io, jj).fatal("creating second job");
+        t.fsc.storagebarrier(
+            io,
+            t.storageagentname,
+            t.sc.createjob(io, jj).fatal("creating second job"))
+            .fatal("synchronise create job 2 to filesystem");
         t.cc.start(io, jj).fatal("starting job");
         assert(t.cc.waitjob(io, jj.name())
                .flatten()
