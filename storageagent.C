@@ -457,6 +457,7 @@ storageagent::liststreams(
     nnp<incompletecall> ic,
     acquirestxlock atl,
     onconnectionthread oct) const {
+    logmsg(loglevel::debug, "liststreams " + jn.field());
     auto dir(config.poolpath + jn.asfilename());
     auto &parser(streamname::filenameparser());
     list<streamstatus> res;
@@ -496,6 +497,7 @@ storageagent::liststreams(
         res,
         [] (const streamstatus &a, const streamstatus &b) -> bool {
             return a.name() > b.name(); });
+    logmsg(loglevel::debug, "liststreams " + jn.field() + " -> " + res.field());
     ic->complete(
         [&res, this]
         (serialise1 &s, mutex_t::token /* txlock */, onconnectionthread) {

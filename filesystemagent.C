@@ -259,6 +259,9 @@ void
 job::startliststreams(connpool &pool,
                       subscriber &sub,
                       mutex_t::token tok) {
+    logmsg(loglevel::debug,
+           "start liststreams on " + sto.name.field() +
+           "::" + name.field());
     assert(liststreams(tok) == NULL);
     assert(liststreamssub(tok) == Nothing);
     liststreams(tok) = pool.call<void>(
@@ -271,6 +274,9 @@ job::startliststreams(connpool &pool,
             s.push(proto::storage::tag::liststreams);
             s.push(name); },
         [this] (deserialise1 &ds, connpool::connlock cl) {
+            logmsg(loglevel::debug,
+                   "finished listreams on " + sto.name.field() +
+                   "::" + name.field());
             assert(liststreamsres(cl) == Nothing);
             liststreamsres(cl).mkjust(ds);
             return ds.status(); });
@@ -286,6 +292,9 @@ job::endliststreamscall(mutex_t::token tok) {
     liststreamssub(tok) = Nothing;
     auto r(liststreams(tok)->pop(t.just()));
     liststreams(tok) = NULL;
+    logmsg(loglevel::debug,
+           "finished liststreams on " + sto.name.field() +
+           "::" + name.field() + " -> " + r.field());
     if (r.isfailure()) {
         logmsg(loglevel::failure,
                "LISTSTREAMS on " + fields::mk(sto.name) +
@@ -848,6 +857,7 @@ filesystem::run(clientio io) {
     bcsub.set();
     while (!shutdown.ready()) {
         auto s(sub.wait(io));
+        logmsg(loglevel::debug, "woke for " + fields::mkptr(s));
         if (s == &sssub) continue;
         auto token(mux.lock());
         if (s == &bcsub) {
