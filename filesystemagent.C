@@ -388,7 +388,8 @@ store::abortlistjobscall(onfilesystemthread oft) {
         assert(listjobssub(oft) != Nothing);
         listjobssub(oft) = Nothing;
         (void)listjobs(oft)->abort();
-        listjobs(oft) = NULL; }
+        listjobs(oft) = NULL;
+        logmsg(loglevel::debug, "aborted listjobs " + name.field()); }
     else assert(listjobssub(oft) == Nothing);
     /* No outstanding LISTJOBS -> can allocate an inlistjobs token. */
     return inlistjobscall::mk(oft); }
@@ -688,6 +689,9 @@ store::startlistjobs(connpool &pool,
         [this] (deserialise1 &ds, connpool::connlock cl) {
             assert(listjobsres(cl) == Nothing);
             listjobsres(cl).mkjust(ds);
+            logmsg(loglevel::debug,
+                   "completed listjobs on " + name.field() + " -> " +
+                   listjobsres(cl).just().field());
             return ds.status(); });
     listjobssub(oft).mkjust(sub, listjobs(oft)->pub(), SUBSCRIPTION_LISTJOBS); }
 
@@ -702,6 +706,7 @@ store::listjobswoken(connpool &pool,
                      onfilesystemthread oft) {
     assert(listjobssub(oft) != Nothing);
     assert(listjobs(oft) != NULL);
+    logmsg(loglevel::debug, "woke list jobs on " + name.field());
     {   auto t(listjobs(oft)->finished());
         if (t == Nothing) return Success;
         listjobssub(oft) = Nothing;
@@ -712,6 +717,7 @@ store::listjobswoken(connpool &pool,
                    "LISTJOBS on " + name.field() +
                    ": " + r.failure().field());
             return r.failure(); } }
+    logmsg(loglevel::debug, "picking up listjobs finish on " + name.field());
     /* Safe because we've stopped the call. */
     auto ijc(inlistjobscall::mk(oft));
     assert(listjobsres(ijc) != Nothing);
@@ -760,8 +766,6 @@ store::listjobswoken(connpool &pool,
     while (!deferredremove(oft).empty()) {
         auto r(deferredremove(oft).pophead());
         eqremovejob(r.first(), r.second(), tok, oft); }
-    /* If the server truncated the results then kick off another call
-     * to get the rest. */
     listjobsres(ijc) = Nothing;
     return Success; }
 
