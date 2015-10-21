@@ -8,6 +8,7 @@ function bits() {
         echo $1$suffix
     }
     _ agentname
+    _ backtrace
     _ beacon
     _ beaconclient
     _ beaconserver
