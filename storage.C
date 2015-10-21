@@ -72,9 +72,9 @@ proto::storage::listjobsres::serialise(serialise1 &s) const {
     s.push(res); }
 
 const fields::field &
-fields::mk(const proto::storage::listjobsres &a) {
-    return "<listjobsres: when:" + fields::mk(a.when) +
-        " res:" + fields::mk(a.res) +
+proto::storage::listjobsres::field() const {
+    return "<listjobsres: when:" + fields::mk(when) +
+        " res:" + fields::mk(res) +
         ">"; }
 
 proto::storage::liststreamsres::liststreamsres(proto::eq::eventid _when,
