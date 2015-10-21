@@ -1,6 +1,10 @@
 #include "mutex.H"
 
+#include "backtrace.H"
 #include "fuzzsched.H"
+#include "logging.H"
+#include "timedelta.H"
+#include "timestamp.H"
 
 #include "maybe.tmpl"
 
@@ -11,7 +15,20 @@ mutex_t::~mutex_t() { pthread_mutex_destroy(&mux); }
 mutex_t::token
 mutex_t::lock() {
     fuzzsched();
-    pthread_mutex_lock(&mux);
+    assert(!heldby.isjust() || heldby.__just() != tid::me());
+    auto start(timestamp::now());
+    while (true) {
+        struct timespec end;
+        int r = clock_gettime(CLOCK_REALTIME, &end);
+        assert(r == 0);
+        end.tv_sec++;
+        r = pthread_mutex_timedlock(&mux, &end);
+        if (r == 0) break;
+        assert(r == ETIMEDOUT);
+        logmsg(loglevel::info,
+               "waiting " + (timestamp::now() - start).field() +
+               " for a lock, held by " + heldby.__just().field());
+        logmsg(loglevel::info, backtrace().field()); }
     heldby.mkjust(tid::me());
     return token(); }
 
@@ -38,6 +55,7 @@ void
 mutex_t::unlock(token *tok) {
     tok->formux(*this);
     tok->release();
+    heldby = tid::nonexistent();
     heldby = Nothing;
     pthread_mutex_unlock(&mux);
     fuzzsched(); }

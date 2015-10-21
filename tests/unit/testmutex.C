@@ -1,12 +1,19 @@
+#include "logging.H"
 #include "mutex.H"
 #include "parsers.H"
+#include "spark.H"
+#include "test.H"
 #include "test2.H"
+#include "testassert.H"
 #include "thread.H"
 #include "timedelta.H"
 
 #include "mutex.tmpl"
 #include "parsers.tmpl"
+#include "spark.tmpl"
+#include "test.tmpl"
 #include "test2.tmpl"
+#include "testassert.tmpl"
 #include "thread.tmpl"
 
 static testmodule __testmutex(
@@ -96,6 +103,22 @@ static testmodule __testmutex(
         mutex_t mux;
         assert(mux.locked<int>([] { return 7; }) == 7);
         assert(mux.locked<int>([] (mutex_t::token) { return 8; }) == 8); },
+#if TESTING
+    "deadlockmsg", [] (clientio io) {
+        mutex_t mux;
+        unsigned nr = 0;
+        tests::eventwaiter< ::loglevel> waiter(
+            tests::logmsg,
+            [&nr] (loglevel level) { if (level >= loglevel::info) nr++; });
+        auto tok(mux.lock());
+        spark<void> ss([&mux] {
+                auto t(mux.lock());
+                mux.unlock(&t); });
+        (2_s).future().sleep(io);
+        mux.unlock(&tok);
+        tassert(T(nr) > T(0u));
+        tassert(T(nr) < T(4u)); },
+#endif
     "field", [] {
         mutex_t mux;
         assert(!strcmp(mux.field().c_str(), "<unheld>"));
