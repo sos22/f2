@@ -17,6 +17,9 @@ tid::me()
     return tid((unsigned)v);
 }
 
+tid
+tid::nonexistent() { return tid(-1); }
+
 bool
 tid::operator ==(const tid &o) const
 {

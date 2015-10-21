@@ -4,14 +4,14 @@
 namespace fields { class field; }
 
 class tid {
-    explicit tid(unsigned);
-    unsigned val;
-public:
-    tid() = delete;
-    static tid me();
-    unsigned os() const { return val; }
-    bool operator==(const tid &) const;
-public: const fields::field &field() const;
+private: explicit tid(unsigned);
+private: unsigned val;
+public:  tid() = delete;
+public:  static tid me();
+public:  static tid nonexistent();
+public:  unsigned os() const { return val; }
+public:  bool operator==(const tid &) const;
+public:  const fields::field &field() const;
 };
 
 #endif /* !TID_H__ */
