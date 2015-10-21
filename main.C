@@ -2,6 +2,8 @@
 
 #include <signal.h>
 
+#include "backtrace.H"
+#include "fields.H"
 #include "list.H"
 #include "logging.H"
 #include "string.H"
@@ -15,6 +17,8 @@ fatalsignal(int signr) {
        this could deadlock. We're crashing anyway, though, so it
        probably doesn't matter. */
     dumpmemlog();
+    logmsg(loglevel::emergency,
+           "signal " + fields::mk(signr) + " from " + backtrace().field());
     signal(signr, SIG_DFL);
     raise(signr); }
 
