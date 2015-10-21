@@ -173,16 +173,22 @@ rpcservice2::_initialise(clientio io) {
                                     port()));
     if (beacon.isfailure()) {
         root->initialisedone.set(beacon.failure());
+        logmsg(loglevel::error,
+               "cannot start rpcservice: beacon said " +
+               beacon.failure().field());
         destroy(io);
         return beacon.failure(); }
     auto res(initialise(io));
     if (res.isfailure()) {
         root->initialisedone.set(res);
         beacon.success()->destroy(io);
+        logmsg(loglevel::error,
+               "cannot start rpcservice: initialise said " + res.field());
         destroy(io);
         return res; }
     root->beacon = beacon.success();
     root->initialisedone.set(res);
+    logmsg(loglevel::debug, "initialised rpcservice");
     return res; }
 
 orerror<void>
