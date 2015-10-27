@@ -118,7 +118,10 @@ public: void removestream(stream &, mutex_t::token, onfilesystemthread);
 public: void startliststreams(connpool &pool,
                               subscriber &sub,
                               mutex_t::token);
-public: orerror<void> liststreamswoken(mutex_t::token, onfilesystemthread ofs);
+public: orerror<void> liststreamswoken(
+    subscriber &sub,
+    mutex_t::token,
+    onfilesystemthread ofs);
 
 public: ~job(); };
 
@@ -141,8 +144,9 @@ public: decltype(_eventqueue) &eventqueue(onfilesystemthread) {
 
     /* Connects the filesystem thread subscriber to the eqclient, if
      * we're ready to take events from it, or the asyncconnect, if
-     * we're still trying to connect.  Only ever Nothing transiently
-     * while we're switching state. */
+     * we're still trying to connect, or Nothing, if we have a queue
+     * but we don't want to suck out of it just now (e.g. there's
+     * still a listjobs or liststreams outstanding). */
 public: maybe<subscription> _eqsub;
 public: maybe<subscription> &eqsub(onfilesystemthread) { return _eqsub; }
 
@@ -161,6 +165,13 @@ public: maybe<proto::storage::listjobsres> _listjobsres;
 public: maybe<proto::storage::listjobsres> &listjobsres(
     inlistjobscall) { return _listjobsres; }
 
+    /* Check whether it's safe to consume events from the event queue,
+     * and, if it is, set up the subscriptions so that we start doing
+     * so. */
+public: void maybeconsumeevents(subscriber &,
+                                mutex_t::token,
+                                onfilesystemthread);
+    
 public: inlistjobscall abortlistjobscall(onfilesystemthread);
 
 public: list<job> _jobs;
@@ -179,13 +190,12 @@ public: store(
     const agentname &_name)
         : name(_name),
           _eventqueue(Right(), _nnp(_conn)),
-          _eqsub(Nothing),
+          _eqsub(Just(), sub, _conn.pub(), SUBSCRIPTION_EQ),
           _listjobs(NULL),
           _listjobssub(Nothing),
           _listjobsres(Nothing),
           _jobs(),
-          _deferredremove() {
-    _eqsub.mkjust(sub, _conn.pub(), SUBSCRIPTION_EQ); }
+          _deferredremove() { }
 
 public: void reconnect(connpool &pool,
                        subscriber &sub,
@@ -319,7 +329,9 @@ job::abortliststreamscall(mutex_t::token tok) {
 /* Called whenever a LISTSTREAMS call's state changes.  If this
  * returns an error then we'll give up on the job. */
 orerror<void>
-job::liststreamswoken(mutex_t::token tok, onfilesystemthread ofs) {
+job::liststreamswoken(subscriber &sub,
+                      mutex_t::token tok,
+                      onfilesystemthread ofs) {
     auto t(endliststreamscall(tok));
     if (t.isfailure()) return t.failure();
     if (t.success() == Nothing) return Success;
@@ -374,6 +386,7 @@ job::liststreamswoken(mutex_t::token tok, onfilesystemthread ofs) {
                    " at " + fields::mk(result.when));
             content(tok, ofs).append(result.when, *it); } }
     liststreamsres(isc) = Nothing;
+    sto.maybeconsumeevents(sub, tok, ofs);
     return Success; }
 
 job::~job() {
@@ -381,6 +394,30 @@ job::~job() {
         _liststreamssub = Nothing;
         _liststreams->abort(); }
     assert(_liststreamssub == Nothing); }
+
+
+void
+store::maybeconsumeevents(subscriber &sub,
+                          mutex_t::token tok,
+                          onfilesystemthread oft) {
+    /* No-op if we've already started taking events */
+    if (eqsub(oft) != Nothing) return;
+    /* Can't start consuming events if the queue isn't connected
+     * yet. */
+    if (eventqueue(oft).isright()) return;
+    /* Can't start consuming events if the LISTJOBS is still
+     * outstanding. */
+    if (listjobs(oft) != NULL) return;
+    /* Can't start consuming events if there are any LISTSTREAMS
+     * outstanding on any jobs. */
+    for (auto it(jobs(tok).start()); !it.finished(); it.next()) {
+        if (it->liststreams(tok) != NULL) return; }
+    logmsg(loglevel::debug, "ready to accept EQ events");
+    eqsub(oft).mkjust(sub,
+                      eventqueue(oft).left().first()->pub(),
+                      SUBSCRIPTION_EQ);
+    /* Avoid silly lost wakeups. */
+    eqsub(oft).just().set(); }
 
 store::inlistjobscall
 store::abortlistjobscall(onfilesystemthread oft) {
@@ -640,9 +677,6 @@ store::eqconnected(connpool &pool,
            "connected eventqueue on " + name.field() + " at " +
            res.success().second().field());
     eventqueue(oft).mkleft(res.success());
-    eqsub(oft).mkjust(sub,
-                      eventqueue(oft).left().first()->pub(),
-                      SUBSCRIPTION_EQ);
     
     /* We may have missed some newjob events.  Start a LISTJOBS
      * machine to regenerate them. */
@@ -767,6 +801,7 @@ store::listjobswoken(connpool &pool,
         auto r(deferredremove(oft).pophead());
         eqremovejob(r.first(), r.second(), tok, oft); }
     listjobsres(ijc) = Nothing;
+    maybeconsumeevents(sub, tok, oft);
     return Success; }
 
 /* Store destructor.  This can be called when the store is any state,
@@ -892,7 +927,7 @@ filesystem::run(clientio io) {
             auto j(containerof(static_cast<subscription *>(s),
                                filesystemimpl::job,
                                liststreamssub(token).__just()));
-            auto res(j->liststreamswoken(token, oft));
+            auto res(j->liststreamswoken(sub, token, oft));
             logmsg(loglevel::debug,
                    "woke for liststreams finish on " +
                    j->sto.name.field() + "::" +
