@@ -6,6 +6,8 @@
 #ifndef TIMESTAMP_H__
 #define TIMESTAMP_H__
 
+#include "fields.H"
+
 class clientio;
 class quickcheck;
 class timedelta;
@@ -13,8 +15,6 @@ struct timespec;
 class timestamp;
 struct timeval;
 class walltime;
-
-namespace fields { class field; }
 
 class timestamp {
     long v; /* nanoseconds since epoch */
@@ -42,7 +42,15 @@ public:
     void sleep(clientio) const;
 
     static timestamp now();
-public: const fields::field &field() const;
+public: class tsfield : public fields::field {
+        friend class timestamp;
+    private: long v;
+    private: bool isdense;
+    private: explicit tsfield(long, bool);
+    public:  const tsfield &dense() const;
+    public:  const tsfield &undense() const;
+    public:  void fmt(fields::fieldbuf &) const; };
+public: const tsfield &field() const;
 };
 
 #endif /* TIMESTAMP_H__ */

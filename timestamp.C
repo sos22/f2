@@ -54,7 +54,21 @@ timestamp::sleep(clientio) const {
         ts.tv_nsec = left % 1000000000;
         nanosleep(&ts, NULL); } }
 
-const fields::field &
+timestamp::tsfield::tsfield(long _v, bool _isdense) : v(_v), isdense(_isdense){}
+
+const timestamp::tsfield &
+timestamp::tsfield::dense() const { return *new tsfield(v, true); }
+
+const timestamp::tsfield &
+timestamp::tsfield::undense() const { return *new tsfield(v, false); }
+
+void
+timestamp::tsfield::fmt(fields::fieldbuf &buf) const {
+    if (!isdense) buf.push("<timestamp:");
+    fields::mk(v).fmt(buf);
+    if (!isdense) buf.push("ns>"); }
+
+const timestamp::tsfield &
 timestamp::field() const {
     static mutex_t basislock;
     static timestamp basis(0);
@@ -65,4 +79,4 @@ timestamp::field() const {
             basis = timestamp::now();
             storerelease(&havebasis, true); }
         basislock.unlock(&token); }
-    return "<timestamp:" + fields::mk(v - basis.v) + "ns>"; }
+    return *new tsfield(v - basis.v, false); }
