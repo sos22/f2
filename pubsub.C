@@ -187,7 +187,8 @@ subscription::subscription(subscriber &_sub, const publisher &_pub, void *_data)
       pub(&_pub) {
     auto pubtoken(pub->mux.lock());
     pub->subscriptions.pushtail(this);
-    pub->mux.unlock(&pubtoken); }
+    pub->mux.unlock(&pubtoken);
+    set(); }
 
 void
 subscription::detach() {

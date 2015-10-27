@@ -695,6 +695,7 @@ static testmodule __testeq(
         assert(conn->finished() == Nothing);
         {   subscriber sub;
             subscription ss(sub, conn->pub());
+            assert(sub.poll() == &ss);
             assert(sub.poll() == NULL);
             serverrelease.set();
             assert(timedelta::time([&] { assert(sub.wait(io) == &ss);  })

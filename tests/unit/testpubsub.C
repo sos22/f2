@@ -36,11 +36,14 @@ static testmodule __testpubsub(
         publisher p;
         subscriber s;
         subscription a(s, p);
+        assert(s.poll() == &a);
         assert(s.wait(_io, epsilon.future()) == NULL); },
     "nonconcurrentnotification", [] {
         publisher p;
         subscriber s;
         subscription a(s, p);
+        assert(s.poll() == &a);
+        assert(s.poll() == NULL);
         p.publish();
         assert(s.wait(_io, timestamp::now()) == &a);
         assert(s.wait(_io, epsilon.future()) == NULL); },
@@ -48,6 +51,7 @@ static testmodule __testpubsub(
         publisher p;
         subscriber s;
         subscription a(s, p);
+        assert(s.poll() == &a);
         p.publish();
         p.publish();
         assert(s.wait(_io, timestamp::now()) == &a);
@@ -113,7 +117,10 @@ static testmodule __testpubsub(
         publisher p2;
         subscriber s;
         subscription a(s, p1);
+        assert(s.poll() == &a);
+        assert(s.poll() == NULL);
         subscription b(s, p2);
+        assert(s.poll() == &b);
         assert(s.wait(_io, epsilon.future()) == NULL);
         p1.publish();
         assert(s.wait(_io, timestamp::now()) == &a);

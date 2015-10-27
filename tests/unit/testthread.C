@@ -57,6 +57,7 @@ static testmodule __testthread(
         maybe<thread::deathtoken> token(Nothing);
         {   subscriber sub;
             subscription ds(sub, thr2->pub());
+            assert(sub.poll() == &ds);
             (10_ms).future().sleep(io);
             assert(sub.wait(io, timestamp::now()) == NULL);
             assert(thr2->hasdied() == Nothing);
