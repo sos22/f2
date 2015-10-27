@@ -75,7 +75,7 @@ public: char what[]; };
 
 const fields::field &
 memlogentry::field() const {
-    return padright(when.field(), 24) + " " +
+    return padright(when.field().dense(), 20) + " " +
         padright(level.field(), 9) + " " +
         padright(who.field(), 7) +
         padright("p:" + fields::mk(getpid()).nosep(), 7) +
