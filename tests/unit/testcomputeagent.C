@@ -209,7 +209,7 @@ static testmodule __testcomputeagent(
             "helloworld",
             empty,
             list<streamname>::mk(ss));
-        t.sc.createjob(io, j).fatal("creating storage for job");
+        t.createjob(io, j);
         t.cc.start(io, j).fatal("starting job");
         assert(t.cc.waitjob(io, j.name())
                .flatten()
