@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include "fields.H"
 #include "filename.H"
@@ -77,6 +78,7 @@ memlogentry::field() const {
     return padright(when.field(), 24) + " " +
         padright(level.field(), 9) + " " +
         padright(who.field(), 7) +
+        padright("p:" + fields::mk(getpid()).nosep(), 7) +
         (module->name != file
          ? " m:" + padright(module->name.field(), 20)
          : fields::mk("")) +
