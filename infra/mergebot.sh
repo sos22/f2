@@ -87,6 +87,8 @@ mergefailmsg() {
 mergesuccmsg() {
     mailheader "Merge successful: $1"
     echo "$1 successfully merged into master"
+    echo
+    cat $2
 }
 
 ltime=$(stat --printf=%Y $0)
@@ -108,19 +110,21 @@ do
         cat $t | while read commit name
         do
             t=$(mktemp)
+            t2=$(mktemp)
+            git log --stat master^..merge/$name > $t2
             now=$(_now)
             echo "merging $name"
             if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1
             then
                 echo "merging $name successful"
                 echo "${now} MERGE $commit ($name) PASS" >> ${logs}
-                mergesuccmsg $name | sendemail
+                mergesuccmsg $name $t2 | sendemail
             else
                 echo "merging $name failed"
                 echo "${now} MERGE $commit ($name) FAIL" >> ${logs}
                 mergefailmsg $name $t | sendemail
             fi
-            rm -f $t
+            rm -f $t $t2
             # The merge branch gets deleted even if the merge fails.
             git push --delete ${repo} merge/${name}
         done
