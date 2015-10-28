@@ -2,6 +2,7 @@
 #include "beaconserver.H"
 #include "logging.H"
 #include "test.H"
+#include "testassert.H"
 #include "test2.H"
 #include "udpsocket.H"
 
@@ -9,6 +10,7 @@
 #include "parsers.tmpl"
 #include "serialise.tmpl"
 #include "test.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 
 static testmodule __beacontests(
@@ -288,9 +290,11 @@ static testmodule __beacontests(
                         assert(c->query(clientio::CLIENTIO, agent)
                                .name()
                                .getport() == port); }));
-        assert(errcount >= 3);
-        assert(tv >= timedelta::milliseconds(200));
-        assert(tv <= timedelta::milliseconds(400));
+        tassert(T(errcount) >= T(3u));
+        /* Because each error is supposed to involve backing off for
+         * 100 ms. */
+        tassert(T(tv) >= T(100_ms) * (T(errcount) - T(2)));
+        tassert(T(tv) <= T(100_ms) * (T(errcount) + T(2)));
         s->destroy(io);
         c->destroy(); },
     "clientbroadcastfailure", [] (clientio io) {
