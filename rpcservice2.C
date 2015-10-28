@@ -663,8 +663,13 @@ rpcservice2::connworker::complete(
              * by doing another one here, or they weren't, in which
              * case their send must have failed (or the buffer would
              * now be empty) and ours probably would as well. */
+            orerror<void> r(Success);
             if (oldavail == 0 && !call->abandoned().ready()) {
-                (void)txb.sendfast(fd); }
+                r = txb.sendfast(fd); }
+            if (txb.empty()) logmsg(loglevel::debug, "tx fast");
+            else {
+                logmsg(loglevel::debug,
+                       "tx slow: " + r.field() + " " + fields::mk(oldavail)); }
             /* Need to kick if either we've moved the TX to non-empty
              * (because TX sub might be disarmed), or if we've moved
              * sufficiently clear of the RX quota, or if we're

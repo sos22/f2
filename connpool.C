@@ -987,6 +987,7 @@ CONN::workphase(clientio io,
              * path. */
             if (!txbuffer.empty()) (void)txbuffer.sendfast(fd); }
         else if (ss == &outsub) {
+            logmsg(loglevel::debug, "woken by outsub " + agent.field());
             assert(outarmed);
             outarmed = false;
             if (txbuffer.empty()) continue;
@@ -1002,6 +1003,7 @@ CONN::workphase(clientio io,
                 while (processresponse(rxbuffer, calls, cl).issuccess()) { }
                 return; } }
         else if (ss == &insub) {
+            logmsg(loglevel::debug, "woken by insub " + agent.field());
             auto err(rxbuffer.receivefast(fd));
             if (err == error::wouldblock) continue;
             if (err.isfailure()) {
