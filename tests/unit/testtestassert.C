@@ -45,7 +45,7 @@ static testmodule __testcomputeagent(
         int &y(x);
         auto &t(T(y));
         assert(t.eval() == 5);
-        logmsg(loglevel::info, t.field().c_str());
+        assert(!strcmp(t.field().c_str(), "y{5}"));
         delete &t; },
     "expressions", [] {
         {   int y = 5;
@@ -67,6 +67,12 @@ static testmodule __testcomputeagent(
             assert(!strcmp(t.field().c_str(), "(x{...} > y{...})"));
             assert(t.eval() == true);
             assert(!strcmp(t.field().c_str(), "(x{7} > y{5})"));
+            delete &t; }
+        {   int y = 5;
+            auto &t(T(y) * T(7) == T(35));
+            assert(!strcmp(t.field().c_str(), "((y{...} * 7) == 35)"));
+            assert(t.eval() == true);
+            assert(!strcmp(t.field().c_str(), "((y{5} * 7) == 35)"));
             delete &t; }
         {   auto &t(T(5) >= T(5));
             assert(t.eval() == true);

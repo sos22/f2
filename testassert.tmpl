@@ -59,6 +59,7 @@ cnst<inner>::eval() { return value; }
     operator op(expression<a> &_a, expression<b> &_b) {                 \
         return *new expr##name<a, b>(_a, _b); }
 binop(plus, +)
+binop(times, *)
 binop(minus, -)
 binop(andand, &&)
 binop(oror, ||)

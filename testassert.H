@@ -56,6 +56,7 @@ public:  inner eval(); };
         expression<a> &,                                                \
         expression<b> &)
 binop(+);
+binop(*);
 binop(-);
 binop(&&);
 binop(||);
