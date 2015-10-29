@@ -17,18 +17,22 @@ make -s -j8 test2-c
 
 # Defined sort keys:
 #
-# 2 -- test passed
-# 1 -- coverage failure
-# 0 -- test really failed
+# 3 -- test passed
+# 2 -- coverage failure
+# 1 -- test really failed
+# 0 -- header
 
 function pass() {
-    printf "2 %-20s pass\n" $1 >> ${summary}
+    printf "3 %-20s pass\n" $1 >> ${summary}
 }
 function coverage() {
-    printf "1 %-20s coverage\n" $1 >> ${summary}
+    printf "2 %-20s coverage\n" $1 >> ${summary}
 }
 function fail() {
-    printf "0 %-20s fail\n" $1 >> ${summary}
+    printf "1 %-20s fail\n" $1 >> ${summary}
+}
+function header() {
+    printf "0 %s meta\n" $1 >> ${summary}
 }
 
 function captureoutput() {
@@ -47,6 +51,8 @@ function testmodule() {
 
 summary=${outdir}/summary1
 : > ${summary}
+sha=$(git rev-parse HEAD)
+header "testing $sha"
 # Run the unit tests.
 ./test2-c |
     sed 's/^Module: \(.*\)/\1/p;d' |
@@ -71,7 +77,7 @@ rm ${summary}
 
 trap "" EXIT
 
-if grep -vw pass ${outdir}/summary
+if grep -vw '\(pass\)\|\(meta\)' ${outdir}/summary
 then
     exit 1
 else

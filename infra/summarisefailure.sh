@@ -38,6 +38,8 @@ header() {
     echo "From: sos22@srcf.ucam.org"
     echo "To: sos22@srcf.ucam.org"
     echo
+    grep 'meta$' ${testdir}/summary | sed 's/[[:space:]]*meta$//'
+    echo
 }
 coveragesummary() {
     cat $coverage | while read cov
