@@ -525,6 +525,8 @@ SERVER::run(clientio io) {
             q = NULL;
             break; }
         if (q != NULL) {
+            mux.unlock(&st);
+            detachlock.unlock(&dt);
             /* Not a big thing, but probably worth a debug message. */
             logmsg(loglevel::debug,
                    "received poll abandonment notification on queue " +
