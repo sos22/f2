@@ -24,10 +24,10 @@ f2main(list<string> &args) {
     auto cluster(parsers::__clustername()
                  .match(args.idx(0))
                  .fatal("parsing cluster name " + fields::mk(args.idx(0))));
-    auto fsname(parsers::_agentname()
+    auto fsname(agentname::parser()
                 .match(args.idx(1))
                 .fatal("parsing filesystem name " + fields::mk(args.idx(1))));
-    auto name(parsers::_agentname()
+    auto name(agentname::parser()
               .match(args.idx(2))
               .fatal("parsing agent name " + fields::mk(args.idx(2))));
     

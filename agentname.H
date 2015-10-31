@@ -31,10 +31,6 @@ public:  bool operator==(const agentname &) const;
 public:  bool operator!=(const agentname &) const;
 public:  const fields::field &field() const {
     return fields::mk(*this); }
-};
-
-namespace parsers {
-extern const parser< ::agentname> &_agentname();
-}
+public:  static const ::parser<agentname> &parser(); };
 
 #endif /* !AGENTNAME_H__ */

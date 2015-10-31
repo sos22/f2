@@ -62,7 +62,7 @@ const parser<beaconclientconfig> &
 parsers::__beaconclientconfig() {
     return ("<beaconclientconfig: " + __clustername() +
             ~(" type:" + _maybe(interfacetype::parser())) +
-            ~(" name:" + _maybe(_agentname())) +
+            ~(" name:" + _maybe(agentname::parser())) +
             ~(" proto:" + beaconconfig::parser()) +
             ~(" queryinterval:" + _timedelta()) +
             ~(" broadcastinterval:" + _timedelta()) +

@@ -20,7 +20,7 @@ f2main(list<string> &args) {
                  .match(args.idx(0))
                  .fatal("parsing " + fields::mk(args.idx(0)) +
                         " as clustername"));
-    auto sn(parsers::_agentname()
+    auto sn(agentname::parser()
             .match(args.idx(1))
             .fatal("parsing " + fields::mk(args.idx(1)) +
                    " as agentname"));

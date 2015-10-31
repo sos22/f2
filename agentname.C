@@ -33,7 +33,7 @@ fields::mk(const agentname &s) {
     return "<agentname:" + mk(s.content).escape() + ">"; }
 
 const parser< ::agentname> &
-parsers::_agentname() {
-    return ("<agentname:" + strparser + ">").map< ::agentname>(
+agentname::parser() {
+    return ("<agentname:" + parsers::strparser + ">").map<agentname>(
         [] (const char *const&what) {
-            return ::agentname(what); }); }
+            return agentname(what); }); }

@@ -56,7 +56,7 @@ beaconserverconfig::parser() {
     return ("<beaconserverconfig:" +
             ~(" proto:" + beaconconfig::parser()) +
             " cluster:" + parsers::__clustername() +
-            " name:" + parsers::_agentname() +
+            " name:" + agentname::parser() +
             ~(" cachetime:" + parsers::_timedelta()) +
             ">")
         .map<beaconserverconfig>(

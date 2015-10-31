@@ -15,7 +15,7 @@ f2main(list<string> &args) {
     auto cluster(parsers::__clustername()
                  .match(args.idx(0))
                  .fatal("parsing cluser name " + fields::mk(args.idx(0))));
-    auto peer(parsers::_agentname()
+    auto peer(agentname::parser()
               .match(args.idx(1))
               .fatal("parsing agent name " + fields::mk(args.idx(1))));
     auto pool(connpool::build(cluster).fatal("building conn pool"));

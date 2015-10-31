@@ -30,7 +30,7 @@ f2main(list<string> &args) {
                  .match(args.idx(0))
                  .fatal("parsing " + fields::mk(args.idx(0)) +
                         " as clustername"));
-    auto sn(parsers::_agentname()
+    auto sn(agentname::parser()
             .match(args.idx(1))
             .fatal("parsing " + fields::mk(args.idx(1)) +
                    " as agentname"));
@@ -97,7 +97,7 @@ f2main(list<string> &args) {
     else if (args.idx(2) == "STORAGEBARRIER") {
         if (args.length() != 5) {
             errx(1, "STORAGEBARRIER needs agentname and event ID arguments"); }
-        auto an(parsers::_agentname()
+        auto an(agentname::parser()
                 .match(args.idx(3))
                 .fatal("parsing " + fields::mk(args.idx(3)) + " as agentname"));
         auto eid(parsers::eq::eventid()

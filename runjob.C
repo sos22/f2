@@ -94,7 +94,7 @@ f2main(list<string> &args) {
     auto cn(parsers::__clustername()
             .match(args.idx(0))
             .fatal("parsing cluster name " + fields::mk(args.idx(0))));
-    auto fsn(parsers::_agentname()
+    auto fsn(agentname::parser()
              .match(args.idx(1))
              .fatal("parsing agent name " + fields::mk(args.idx(1))));
     auto j(job::parser()
