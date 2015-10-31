@@ -21,6 +21,7 @@ class agentname {
     friend const fields::field &fields::mk(const agentname &);
 private: string content;
 private: agentname() = delete;
+public:  static const unsigned maxsize = 1000;
 public:  agentname(const agentname &);
 public:  agentname(deserialise1 &);
 public:  agentname(const string &s) : content(s) {}

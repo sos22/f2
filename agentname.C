@@ -11,7 +11,8 @@ agentname::agentname(const agentname &o)
     : content(o.content) {}
 
 agentname::agentname(deserialise1 &ds)
-    : content(ds) {}
+    : content(ds) {
+    if (content.len() > maxsize) ds.fail(error::overflowed); }
 
 void
 agentname::serialise(serialise1 &s) const {
@@ -26,7 +27,8 @@ agentname::operator!=(const agentname &o) const {
     return content != o.content; }
 
 agentname::agentname(const quickcheck &q)
-    : content(q) {}
+    : content(q) {
+    while (content.len() > maxsize) content = (const char *)q; }
 
 const fields::field &
 fields::mk(const agentname &s) {
