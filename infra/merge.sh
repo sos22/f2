@@ -94,6 +94,9 @@ then
     git status --porcelain --ignored
     exit 1
 fi
+
+git log --stat master^..merge-pending >&3
+
 # Merge successful. Push to master.
 git push ${repo} merge-pending:master
 

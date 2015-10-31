@@ -111,10 +111,9 @@ do
         do
             t=$(mktemp)
             t2=$(mktemp)
-            git log --stat master^..merge/$name > $t2
             now=$(_now)
             echo "merging $name"
-            if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1
+            if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1 3>$t2
             then
                 echo "merging $name successful"
                 echo "${now} MERGE $commit ($name) PASS" >> ${logs}
