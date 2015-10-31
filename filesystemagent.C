@@ -616,37 +616,38 @@ store::eqevent(connpool &pool,
                subscriber &sub,
                mutex_t::token tok,
                onfilesystemthread oft) {
-    auto ev(eventqueue(oft).left().first()->popid());
-    if (ev == Nothing) return;
-    logmsg(loglevel::debug, name.field() + " got event " + ev.field());
-    if (ev.just().isfailure()) {
-        /* Error on the event queue.  Tear it down, abort all
-         * outstanding calls, and restart the machinery from the
-         * beginning. */
-        logmsg(loglevel::failure,
-               "lost eq to " + fields::mk(name) +
-               ": " + fields::mk(ev.just().failure()) +
-               ". Reconnect.");
-        return reconnect(pool, sub, tok, oft); }
-    auto eid(ev.just().success().first());
-    auto &evt(ev.just().success().second());
-    switch (evt.typ) {
-    case proto::storage::event::t_newjob:
-        eqnewjob(pool, sub, eid, evt.job, tok);
-        break;
-    case proto::storage::event::t_removejob:
-        eqremovejob(eid, evt.job, tok, oft);
-        break;
-    case proto::storage::event::t_finishstream:
-        eqfinishstream(eid,
-                       evt.job,
-                       evt.stream.just(),
-                       evt.status.just(),
-                       tok,
-                       oft);
-        break; }
-    /* Advance our position in the event stream. */
-    eventqueue(oft).left().second() = eid; }
+    while (true) {
+        auto ev(eventqueue(oft).left().first()->popid());
+        if (ev == Nothing) return;
+        logmsg(loglevel::debug, name.field() + " got event " + ev.field());
+        if (ev.just().isfailure()) {
+            /* Error on the event queue.  Tear it down, abort all
+             * outstanding calls, and restart the machinery from the
+             * beginning. */
+            logmsg(loglevel::failure,
+                   "lost eq to " + fields::mk(name) +
+                   ": " + fields::mk(ev.just().failure()) +
+                   ". Reconnect.");
+            return reconnect(pool, sub, tok, oft); }
+        auto eid(ev.just().success().first());
+        auto &evt(ev.just().success().second());
+        switch (evt.typ) {
+        case proto::storage::event::t_newjob:
+            eqnewjob(pool, sub, eid, evt.job, tok);
+            break;
+        case proto::storage::event::t_removejob:
+            eqremovejob(eid, evt.job, tok, oft);
+            break;
+        case proto::storage::event::t_finishstream:
+            eqfinishstream(eid,
+                           evt.job,
+                           evt.stream.just(),
+                           evt.status.just(),
+                           tok,
+                           oft);
+            break; }
+        /* Advance our position in the event stream. */
+        eventqueue(oft).left().second() = eid; } }
 
 /* Check if a store's finished connecting to its event queue.  If the
  * EQ connect fails then we'll drop the store. */
