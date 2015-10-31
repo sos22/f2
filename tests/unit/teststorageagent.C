@@ -104,10 +104,7 @@ static testmodule __teststorageagent(
     "basicjob", [] (clientio io) {
         teststate t((io));
         auto sn(streamname::mk("X").fatal("X"));
-        job j(filename("dummy.so"),
-              string("dummyfn"),
-              map<streamname, job::inputsrc>(),
-              list<streamname>::mk(sn));
+        auto j(job(filename("dummy.so"), string("dummyfn")).addoutput(sn));
         auto jn(j.name());
         t.client.createjob(io, j).fatal("creating job");
         assert(t.client.read(io, jn, sn) == error::toosoon);
@@ -127,10 +124,7 @@ static testmodule __teststorageagent(
     "asyncstatjob", [] (clientio io) {
         teststate t((io));
         auto sn(streamname::mk("X").fatal("X"));
-        job j(filename("dummy.so"),
-              string("dummyfn"),
-              map<streamname, job::inputsrc>(),
-              list<streamname>::mk(sn));
+        auto j(job(filename("dummy.so"), string("dummyfn")).addoutput(sn));
         auto jn(j.name());
         t.client.createjob(io, j).fatal("creating job");
         auto pt(t.agent.pause(io));
@@ -154,10 +148,7 @@ static testmodule __teststorageagent(
     "statstream", [] (clientio io) {
         teststate t((io));
         auto sn(streamname::mk("X").fatal("X"));
-        job j(filename("dummy.so"),
-              "dummyfn",
-              empty,
-              list<streamname>(Immediate(), sn));
+        auto j(job(filename("dummy.so"), "dummyfn").addoutput(sn));
         t.client.createjob(io, j).fatal("creating job");
         assert(t.client
                .statjob(io, j.name())

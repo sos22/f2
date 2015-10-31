@@ -61,10 +61,7 @@ static testmodule __testfilesystemagent(
         auto &cp(*connpool::build(cluster).fatal("building connpool"));
         teststorage sa1(io, q, cluster, agentname("storageagent"), cp);
         teststorage sa2(io, q, cluster, agentname("storageagent2"), cp);
-        job j(filename("library"),
-              "function",
-              empty,
-              empty);
+        job j(filename("library"), "function");
         auto &fsclient(filesystemclient::connect(cp, fsagentname));
         assert(fsclient
                .findjob(io, j.name())
@@ -108,10 +105,7 @@ static testmodule __testfilesystemagent(
         int pat = -1; /* shut compiler up */
         int x;
         for (x = 0; !havemissing || !havepresent; x++) {
-            job j(filename("library"),
-                  ("function" + fields::mk(x)).c_str(),
-                  empty,
-                  empty);
+            job j(filename("library"), ("function" + fields::mk(x)).c_str());
             auto evt(sa1.storageclient.createjob(io, j).fatal("creating job"));
             if (fsclient
                 .findjob(io, j.name())
@@ -148,7 +142,7 @@ static testmodule __testfilesystemagent(
         auto &cp(*connpool::build(cluster).fatal("building connpool"));
         auto &fsclient(filesystemclient::connect(cp, fsagentname));
         teststorage sa(io, q, cluster, agentname("storageagent"), cp);
-        job j("library", "function", empty, empty);
+        job j("library", "function");
         {   auto evt(sa.storageclient.createjob(io, j).fatal("creating job"));
             fsclient.storagebarrier(io, sa.an, evt).fatal("barrier1"); }
         assert(!fsclient
@@ -179,10 +173,7 @@ static testmodule __testfilesystemagent(
         auto &fsclient(filesystemclient::connect(cp, fsagentname));
         teststorage sa(io, q, cluster, agentname("storageagent"), cp);
         auto sn(streamname::mk("output").fatal("make output streamname"));
-        job j("library",
-              "function",
-              empty,
-              list<streamname>(Immediate(), sn));
+        auto j(job("library", "function").addoutput(sn));
         {   auto n(fsclient
                    .findstream(io, j.name(), sn)
                    .fatal("findstream on non-existent job"));

@@ -122,11 +122,7 @@ static testmodule __testcomputeagent(
             .fatal("connecting to compute event queue")
             .first());
         assert(eqc.pop() == Nothing);
-        job j(
-            filename("./testjob.so"),
-            "testfunction",
-            empty,
-            empty);
+        job j(filename("./testjob.so"), "testfunction");
         t.createjob(io, j);
         auto startres(cc.start(io, j).fatal("starting job"));
         logmsg(loglevel::debug, "startres " + startres.field());
@@ -161,11 +157,7 @@ static testmodule __testcomputeagent(
         eqc.destroy(); },
     "waitforjob", [] (clientio io) {
         computetest t(io);
-        job j(
-            filename("./testjob.so"),
-            "waitonesecond",
-            empty,
-            empty);
+        job j(filename("./testjob.so"), "waitonesecond");
         t.createjob(io, j);
         assert(t.cc.waitjob(io, j.name()) == error::toosoon);
         auto startres(t.cc.start(io, j).fatal("starting job"));
@@ -181,11 +173,8 @@ static testmodule __testcomputeagent(
     "finishstreams", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("outstream").fatal("mkstreamname"));
-        job j(
-            filename("./testjob.so"),
-            "testfunction",
-            empty,
-            list<streamname>::mk(ss));
+        auto j(job(filename("./testjob.so"), "testfunction")
+               .addoutput(ss));
         agentname storageagentname("storageagent");
         filename storagedir(t.q);
         storageagent::format(storagedir).fatal("format storage agent");
@@ -204,11 +193,8 @@ static testmodule __testcomputeagent(
     "helloworld", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        job j(
-            filename("./testjob.so"),
-            "helloworld",
-            empty,
-            list<streamname>::mk(ss));
+        auto j(job(filename("./testjob.so"), "helloworld")
+               .addoutput(ss));
         t.createjob(io, j);
         t.cc.start(io, j).fatal("starting job");
         assert(t.cc.waitjob(io, j.name())
@@ -224,8 +210,7 @@ static testmodule __testcomputeagent(
     "helloinput", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job(filename("./testjob.so"),
-                   "helloworld")
+        auto j(job(filename("./testjob.so"), "helloworld")
                .addoutput(ss));
         t.sc.createjob(io, j).fatal("creating storage for job");
         /* Do it all through the storage client, not the compute
