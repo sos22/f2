@@ -23,16 +23,16 @@ make -s -j8 test2-c
 # 0 -- header
 
 function pass() {
-    printf "3 %-20s pass\n" $1 >> ${summary}
+    printf "3 %-40s pass\n" "$1" >> ${summary}
 }
 function coverage() {
-    printf "2 %-20s coverage\n" $1 >> ${summary}
+    printf "2 %-40s coverage\n" "$1" >> ${summary}
 }
 function fail() {
-    printf "1 %-20s fail\n" $1 >> ${summary}
+    printf "1 %-40s fail\n" "$1" >> ${summary}
 }
 function header() {
-    printf "0 %s meta\n" $1 >> ${summary}
+    printf "0 %-40s meta\n" "$1" >> ${summary}
 }
 
 function captureoutput() {
@@ -71,7 +71,7 @@ header "testing $sha"
         fi
     done
 
-sort -n ${summary} | sed 's/^[012] //' > ${outdir}/summary
+sort -n ${summary} | sed 's/^[0-9]* //' > ${outdir}/summary
 
 rm ${summary}
 
