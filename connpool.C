@@ -1014,11 +1014,13 @@ CONN::workphase(clientio io,
             if (err.isfailure()) {
                 err.failure().warn("receiving from " + fields::mk(agent));
                 return; }
-            insub.rearm();
             while (true) {
                 auto r(processresponse(rxbuffer, calls, cl));
-                if (r == error::underflowed) break;
-                else if (r.isfailure()) return; } }
+                if (r == error::underflowed) {
+                    r = rxbuffer.receivefast(fd);
+                    if (r == error::wouldblock) break; }
+                if (r.isfailure()) return; }
+            insub.rearm(); }
         else abort(); } }
 
 void
