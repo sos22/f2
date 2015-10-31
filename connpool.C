@@ -572,7 +572,9 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         c->dereference(); }
     /* If we queued up an abort then the caller needs to wake up
      * immediately to process it. */
-    if (quick) return timestamp::now();
+    if (quick) {
+        logmsg(loglevel::debug, "immediate wake to process an abort");
+        return timestamp::now(); }
     /* Zap anything which has already timed out. */
     list<nnp<CALL> > timeout;
     for (auto it(calls.start()); !it.finished(); /**/) {
@@ -606,6 +608,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         if (dying(cl)) {
             /* We're trying to shut down and have no outstanding calls
              * -> return immediately. */
+            logmsg(loglevel::debug, "wake quickly for shutdown");
             return timestamp::now(); }
         auto r(idledat.just() + pool.cfg.idletimeout);
         if (r.inpast()) {
@@ -619,6 +622,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
             if (raced) {
                 /* More calls arrived just in time to stop us timing
                  * out. Immediate retry. */
+                logmsg(loglevel::debug, "timout raced with new call");
                 r = timestamp::now(); }
             else {
                 logmsg(loglevel::debug,
@@ -633,7 +637,8 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         else if ((*it)->deadline != Nothing &&
                  res.just().after((*it)->deadline.just())) {
             res = (*it)->deadline; } }
-   return res; }
+    logmsg(loglevel::debug, "next timeout " + res.field());
+    return res; }
 
 orerror<void>
 CONN::socketerr(int sock, const peername &_peer) {

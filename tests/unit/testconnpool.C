@@ -1038,7 +1038,7 @@ static testmodule __testconnpool(
                     if (!stopclient) startnext(); }
                 pool->destroy(); });
         (100_ms).future().sleep(io);
-        assert(nrcalls > 10);
+        tassert(T(nrcalls) > T(10u));
         auto start(timestamp::now());
         auto pt(srv->pause(io));
         srv->paused = true;
