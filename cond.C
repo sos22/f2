@@ -6,6 +6,8 @@
 #include "clientio.H"
 #include "timestamp.H"
 
+#include "maybe.tmpl"
+
 cond_t::cond_t(mutex_t &_associated_mux)
     : associated_mux(_associated_mux),
       cond()
