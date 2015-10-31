@@ -50,7 +50,9 @@ tests::eventwaiter<t>::~eventwaiter() {
        either, so it's not completely unreasonable. */
     subscriber sub;
     subscription ss(sub, idle);
-    while (refcount != 0) sub.wait(clientio::CLIENTIO); }
+    mutex_t &mux(this->evt.mux);
+    while (mux.locked<int>([this] { return refcount; }) != 0) {
+        sub.wait(clientio::CLIENTIO); } }
 #endif /* !TESTING */
 
 template <typename rettype, typename ... args>
