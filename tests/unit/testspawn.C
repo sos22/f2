@@ -53,7 +53,7 @@ static testmodule __spawntest(
                .fatal("sleep 1"));
         int cntr(0);
         while (p->hasdied() == Nothing) cntr++;
-        assert(cntr >= 250);
+        tassert(T(cntr) >= T(200));
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "sleep", [] {
         auto start(timestamp::now());
