@@ -9,10 +9,12 @@
 #include "rpcservice2.H"
 #include "storageagent.H"
 #include "storageclient.H"
+#include "testassert.H"
 #include "test2.H"
 
 #include "either.tmpl"
 #include "parsers.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 
 class computetest {
@@ -98,8 +100,8 @@ static testmodule __testcomputeagent(
                        "jobresult.H",
                        "runjob.C",
                        "testjob.C"),
-    testmodule::LineCoverage(80_pc),
-    testmodule::BranchCoverage(50_pc),
+    testmodule::LineCoverage(85_pc),
+    testmodule::BranchCoverage(55_pc),
     testmodule::Dependency("testjob.so"),
     testmodule::Dependency("runjob" EXESUFFIX),
     "basics", [] (clientio io) {
@@ -160,7 +162,7 @@ static testmodule __testcomputeagent(
         job j(filename("./testjob.so"), "waitonesecond");
         t.createjob(io, j);
         assert(t.cc.waitjob(io, j.name()) == error::toosoon);
-        auto startres(t.cc.start(io, j).fatal("starting job"));
+        t.cc.start(io, j).fatal("starting job");
         auto taken(timedelta::time([&] {
                     assert(t.cc.waitjob(io, j.name())
                            .fatal("waitjob")
@@ -170,6 +172,15 @@ static testmodule __testcomputeagent(
         assert(taken < 1500_ms);
         t.cc.drop(io, j.name()).fatal("dropjob");
         assert(t.cc.waitjob(io, j.name()) == error::toosoon); },
+    "abortjob", [] (clientio io) {
+        computetest t(io);
+        job j(filename("./testjob.so"), "waitforever");
+        t.createjob(io, j);
+        t.cc.start(io, j).fatal("starting job");
+        tassert(T2(timedelta,
+                   timedelta::time([&] { t.computeagent->destroy(io); })) <
+                T(100_ms));
+        t.computeagent = NULL; },
     "finishstreams", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("outstream").fatal("mkstreamname"));

@@ -27,6 +27,7 @@
 #include "pair.tmpl"
 #include "rpcservice2.tmpl"
 #include "thread.tmpl"
+#include "waitbox.tmpl"
 
 namespace __computeagent {
 
@@ -135,18 +136,45 @@ runningjob::run(clientio io) {
         result.mkjust(p.failure());
         return; }
     pi.write.close();
-    auto jr(pi
-            .read
-            .read<orerror<jobresult> >(io)
-            .flatten()
-            .warn("getting job result from runjob"));
+    buffer b;
+    subscriber sub;
+    subscription abortsub(sub, shutdown.pub());
+    pi.read.nonblock(true).fatal("putting pipe read FD into non-block mode");
+    {   iosubscription iosub(sub, pi.read.poll(POLLIN));
+        while (true) {
+            auto ss(sub.wait(io));
+            if (shutdown.ready()) goto killchild;
+            if (ss == &iosub) {
+                iosub.rearm();
+                auto r(b.receivefast(pi.read));
+                if (r == error::wouldblock) continue;
+                if (r == error::disconnected) break;
+                r.fatal("reading from runjob pipe FD"); } } }
+    {   spawn::subscription spsub(sub, *p.success());
+        while (true) {
+            if (shutdown.ready()) goto killchild;
+            if (p.success()->hasdied() != Nothing) break;
+            sub.wait(io); } }
     pi.read.close();
-    auto rr(p.success()->join(io));
-    if (rr.isright()) jr = error::signalled;
-    else if (rr.left() != shutdowncode::ok) jr = error::unknown;
-    logmsg(loglevel::debug, "job result " + jr.field());
-    jr.warn("jobresult result");
-    result.mkjust(Steal, jr); }
+    b.queue("\0", 1);
+    {   auto jr(orerror<jobresult>::parser()
+                .match(string((const char *)b.linearise()))
+                .flatten()
+                .warn("gettin job result from runjob"));
+        auto rr(p.success()->join(io));
+        logmsg(loglevel::debug,
+               "runjob finished with " + jr.field() + " (" + rr.field() + ")");
+        if (rr.isright()) jr = error::signalled;
+        else if (rr.left() != shutdowncode::ok) jr = error::unknown;
+        jr.warn("jobresult result for " + j.field());
+        result.mkjust(Steal, jr);
+        return; }
+    {   killchild:
+        p.success()->kill();
+        pi.read.close();
+        result.mkjust(error::aborted);
+        return; } }
+
 
 void
 computeservice::maintenancethread::run(clientio io) {
