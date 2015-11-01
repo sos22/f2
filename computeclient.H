@@ -9,7 +9,6 @@
 class computeclient {
 private: class impl;
 private: class impl &impl();
-private: const class impl &impl() const;
     
 public:  static computeclient &connect(connpool &cp, const agentname &an);
     

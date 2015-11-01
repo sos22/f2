@@ -18,8 +18,6 @@ public: const agentname an;
 public: impl(connpool &_cp, const agentname &_an) : cp(_cp), an(_an) {} };
 class computeclient::impl &
 computeclient::impl() { return *containerof(this, class impl, api); }
-const class computeclient::impl &
-computeclient::impl() const { return *containerof(this, class impl, api); }
 
 computeclient &
 computeclient::connect(connpool &cp, const agentname &an) {
