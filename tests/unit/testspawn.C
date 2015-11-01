@@ -32,8 +32,8 @@ static testmodule __spawntest(
     /* Coverage looks quite low on these tests, partly because gcov
      * can't collect coverage for anything which calls exec() or dies
      * with a signal. */
-    testmodule::LineCoverage(70_pc),
-    testmodule::BranchCoverage(45_pc),
+    testmodule::LineCoverage(77_pc),
+    testmodule::BranchCoverage(50_pc),
     "truefalsebad", [] (clientio io) {
         {   auto p(process::spawn(program(filename("/bin/true")))
                    .fatal("spawning /bin/true"));
@@ -156,6 +156,9 @@ static testmodule __spawntest(
         (50_ms).future().sleep(io);
         p->signal(signalnr::kill);
         assert(p->join(io).right() == signalnr::abort); },
+    "internal", [] {
+        assert(signalnr::abort.internallygenerated());
+        assert(!signalnr::kill.internallygenerated()); },
     "pause", [] (clientio io) {
         auto p(process::spawn(program("/bin/sleep").addarg(".11"))
                .fatal("spawning sleep"));
