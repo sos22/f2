@@ -50,7 +50,8 @@ signalnr::internallygenerated() const {
 
 program::program(const filename &f)
     : exec(f),
-      args() {}
+      args(),
+      fds() {}
 
 program &
 program::addarg(const char *s) {
