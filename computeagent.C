@@ -262,8 +262,23 @@ computeservice::called(clientio io,
         job j(ds);
         if (ds.isfailure()) return ds.failure();
         logmsg(loglevel::debug, "starting job " + j.field());
+        orerror<pair<proto::eq::eventid, proto::compute::tasktag> > r(
+            error::unknown);
         auto token(mux.lock());
-        auto r(start(j, token, acquirestxlock(io)));
+        for (auto it(runningjobs(token).start());
+             r == error::unknown && !it.finished();
+             it.next()) {
+            if ((*it)->j.name() == j.name()) {
+                logmsg(loglevel::debug,
+                       "already started in " + (*it)->tag.field());
+                r = error::toolate; } }
+        for (auto it(finishedjobs(token).start());
+             r == error::unknown && !it.finished();
+             it.next()) {
+            if (it->name == j.name()) {
+                logmsg(loglevel::debug, "already finished: " + it->field());
+                r = error::toolate; } }
+        if (r == error::unknown) r = start(j, token, acquirestxlock(io));
         mux.unlock(&token);
         if (r.isfailure()) return r.failure();
         ic->complete(

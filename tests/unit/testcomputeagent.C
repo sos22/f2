@@ -323,6 +323,17 @@ static testmodule __testcomputeagent(
             auto &a(t.cc.waitjob(j.name()));
             timedelta::milliseconds(random()%5).future().sleep(io);
             a.abort(); } },
+    "starttwice", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        auto j(job("./jobtest.so", "helloworld").addoutput(ss));
+        t.createjob(io, j);
+        t.cc.start(io, j).fatal("starting job1");
+        tassert(T(t.cc.start(io, j)) == T(error::toolate));
+        t.cc.waitjob(io, j.name()).fatal("waiting for job1");
+        tassert(T(t.cc.start(io, j)) == T(error::toolate));
+        t.cc.drop(io, j.name()).fatal("dropping finished job");
+        t.cc.start(io, j).fatal("starting job2"); },
     "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
     "jobresulteq", [] {
         assert(jobresult::success() == jobresult::success());
