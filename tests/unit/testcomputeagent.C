@@ -314,6 +314,15 @@ static testmodule __testcomputeagent(
         auto r(t.sc.read(io, j.name(), ss).fatal("read"));
         assert(r.second().contenteq(buffer("hello")));
         assert(r.first() == 5_B); },
+    "abortwaitjob", [] (clientio io) {
+        computetest t(io);
+        job j(filename("./jobtest.so"), "waitforever");
+        t.createjob(io, j);
+        t.cc.start(io, j).fatal("starting job");
+        for (unsigned x = 0; x < 100; x++) {
+            auto &a(t.cc.waitjob(j.name()));
+            timedelta::milliseconds(random()%5).future().sleep(io);
+            a.abort(); } },
     "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
     "jobresulteq", [] {
         assert(jobresult::success() == jobresult::success());
