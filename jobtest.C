@@ -40,3 +40,13 @@ helloinput(jobapi &api, clientio io) {
            ->read(io));
     if (b.contenteq(buffer("Hello world"))) return jobresult::success();
     else return jobresult::failure(); }
+
+jobfunction echo;
+jobresult
+echo(jobapi &api, clientio io) {
+    api.output(streamname::mk("output").fatal("output name"))
+        .just()
+        ->append(io, buffer(api.immediate().get("val")
+                            .fatal("getting echo val")
+                            .c_str()));
+    return jobresult::success(); }

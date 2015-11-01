@@ -46,9 +46,15 @@ public: explicit impl(storageclient &_sc, const job &_self)
 jobapi::impl &
 jobapi::implementation() { return *containerof(this, impl, api); }
 
+const jobapi::impl &
+jobapi::implementation() const { return *containerof(this, impl, api); }
+
 jobapi::jobapi() {}
 
 jobapi::~jobapi() {}
+
+const map<string, string> &
+jobapi::immediate() const { return implementation().self.immediate; }
 
 maybe<nnp<jobapi::outputstream> >
 jobapi::output(const streamname &sn) {

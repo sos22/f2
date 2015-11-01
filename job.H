@@ -25,18 +25,21 @@ public:  map<streamname, inputsrc> inputs;
     /* Private because it must be kept sorted. */
 private: list<streamname> _outputs;
 public:  const list<streamname> &outputs() const { return _outputs; }
+public:  map<string, string> immediate;
 public:  void serialise(serialise1 &) const;
 public:  explicit job(deserialise1 &);
 public:  job(
     const filename &_library,
     const string &_function,
     const map<streamname, inputsrc> &_inputs,
-    const list<streamname> &_outputs);
+    const list<streamname> &_outputs,
+    const map<string, string> &_immediate);
 public:  job(
     const filename &_library,
     const string &_function);
 public: job &addoutput(const streamname &);
 public: job &addinput(const streamname &, const jobname &, const streamname &);
+public: job &addimmediate(const string &, const string &);
 public: jobname name() const;
 public: bool operator==(const job &) const;
 public: bool operator!=(const job &j) const { return !(*this == j); }

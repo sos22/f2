@@ -19,13 +19,15 @@ job::serialise(serialise1 &s) const {
     s.push(library);
     s.push(function);
     s.push(inputs);
-    s.push(_outputs); }
+    s.push(_outputs);
+    s.push(immediate); }
 
 job::job(deserialise1 &ds)
     : library(ds),
       function(ds),
       inputs(ds),
-      _outputs(ds) {
+      _outputs(ds),
+      immediate(ds) {
     if (ds.random()) {
         sort(_outputs);
         auto it(_outputs.start());
@@ -45,11 +47,13 @@ job::job(deserialise1 &ds)
 job::job(const filename &_library,
          const string &_function,
          const map<streamname, inputsrc> &_inputs,
-         const list<streamname> &__outputs)
+         const list<streamname> &__outputs,
+         const map<string, string> &_immediate)
     : library(_library),
       function(_function),
       inputs(_inputs),
-      _outputs(__outputs) {
+      _outputs(__outputs),
+      immediate(_immediate) {
       sort(_outputs); }
 
 job::job(const filename &_library,
@@ -57,7 +61,8 @@ job::job(const filename &_library,
     : library(_library),
       function(_function),
       inputs(empty),
-      _outputs(empty) {}
+      _outputs(empty),
+      immediate(empty) {}
 
 job &
 job::addoutput(const streamname &sn) {
@@ -72,6 +77,11 @@ job::addinput(const streamname &inpname,
     inputs.set(inpname, inputsrc(jn, outname));
     return *this; }
 
+job &
+job::addimmediate(const string &key, const string &val) {
+    immediate.set(key, val);
+    return *this; }
+
 jobname
 job::name() const { return jobname(digest(fields::mk(*this))); }
 
@@ -80,7 +90,8 @@ job::operator==(const job &o) const {
     return library == o.library &&
         function == o.function &&
         inputs == o.inputs &&
-        outputs() == o.outputs(); }
+        outputs() == o.outputs() &&
+        immediate == o.immediate; }
 
 const fields::field &
 job::field() const {
@@ -95,6 +106,12 @@ job::field() const {
         acc = &(*acc + fields::mk(it->c_str())); }
     for (auto it(outputs().start()); !it.finished(); it.next()) {
         acc = &(*acc + " ->" + it->field()); }
+    list<pair<string, string> > imm;
+    for (auto it(immediate.start()); !it.finished(); it.next()) {
+        imm.append(it.key(), it.value()); }
+    sort(imm);
+    for (auto it(imm.start()); !it.finished(); it.next()) {
+        acc = &(*acc + " " + it->first().field() +"="+ it->second().field()); }
     return *acc + ">"; }
 
 const parser<job> &
@@ -102,30 +119,37 @@ job::parser() {
     auto &stream(
         ("-<" + streamname::parser() + ":" + job::inputsrc::parser()) |
         ("->" + streamname::parser()));
+    auto &imm(string::parser() + "=" + string::parser());
     return ("<job:" + filename::parser() + ":" + string::parser() +
-            ~strmatcher(" ") + parsers::sepby(stream, strmatcher(" ")) +
+            ~strmatcher(" ") + parsers::sepby((stream|imm), strmatcher(" ")) +
             ">")
         .maperr<job>(
             [] (const pair<pair<pair<filename, string>,
                                 maybe<void> >,
-                           list<either<pair<streamname, job::inputsrc>,
-                                       streamname> > > &what) {
-                orerror<job> res(
+                           list<either<either<pair<streamname, job::inputsrc>,
+                                              streamname>,
+                                       pair<string, string> > > > &what) {
+                orerror<job> _res(
                     Success,
                     what.first().first().first(),
-                    what.first().first().second(),
-                    map<streamname, inputsrc>(),
-                    list<streamname>());
+                    what.first().first().second());
+                auto &res(_res.success());
                 for (auto it(what.second().start()); !it.finished(); it.next()){
                     if (it->isleft()) {
-                        if (res.success().inputs.get(it->left().first())
-                                != Nothing) {
-                            res = error::duplicate;
-                            return res; }
-                        res.success().inputs.set(it->left().first(),
-                                                 it->left().second()); }
-                    else res.success()._outputs.append(it->right()); }
-                sort(res.success()._outputs);
-                if (res.success().outputs().hasdupes()) {
-                    res = error::noparse; }
-                return res; }); }
+                        auto &str(it->left());
+                        if (str.isleft()) {
+                            auto &input(str.left());
+                            if (res.inputs.haskey(input.first())) {
+                                _res = error::duplicate;
+                                return _res; }
+                            res.inputs.set(input.first(), input.second()); }
+                        else res._outputs.append(str.right()); }
+                    else {
+                        auto &imme(it->right());
+                        if (res.immediate.haskey(imme.first())) {
+                            _res = error::duplicate;
+                            return _res; }
+                        res.immediate.set(imme.first(), imme.second()); } }
+                sort(res._outputs);
+                if (res.outputs().hasdupes()) _res = error::noparse;
+                return _res; }); }

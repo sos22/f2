@@ -43,12 +43,14 @@ static testmodule __testjob(
         assert(j == job(filename("a"),
                         string("b"),
                         empty,
-                        list<streamname>::mk(ss1)));
+                        list<streamname>::mk(ss1),
+                        empty));
         j.addoutput(ss2);
         assert(j == job(filename("a"),
                         string("b"),
                         empty,
-                        list<streamname>::mk(ss1, ss2)));
+                        list<streamname>::mk(ss1, ss2),
+                        empty));
         quickcheck q;
         auto jj(mkrandom<job>(q));
         j.addinput(ss1, jj.name(), ss2);
@@ -57,7 +59,8 @@ static testmodule __testjob(
                         map<streamname, job::inputsrc>(
                             ss1,
                             job::inputsrc(jj.name(), ss2)),
-                        list<streamname>::mk(ss1, ss2)));
+                        list<streamname>::mk(ss1, ss2),
+                        empty));
         auto jj2(mkrandom<job>(q));
         j.addinput(ss2, jj2.name(), ss1);
         assert(j == job(filename("a"),
@@ -65,7 +68,38 @@ static testmodule __testjob(
                         map<streamname, job::inputsrc>(
                             ss1, job::inputsrc(jj.name(), ss2),
                             ss2, job::inputsrc(jj2.name(), ss1)),
-                        list<streamname>::mk(ss1, ss2))); },
+                        list<streamname>::mk(ss1, ss2),
+                        empty));
+        assert(j != job(filename("a"),
+                        string("b"),
+                        map<streamname, job::inputsrc>(
+                            ss1, job::inputsrc(jj.name(), ss2),
+                            ss2, job::inputsrc(jj2.name(), ss1)),
+                        list<streamname>::mk(ss1, ss2),
+                        map<string, string>("imm1", "val1")));
+        j.addimmediate("imm1", "val1");
+        assert(j == job(filename("a"),
+                        string("b"),
+                        map<streamname, job::inputsrc>(
+                            ss1, job::inputsrc(jj.name(), ss2),
+                            ss2, job::inputsrc(jj2.name(), ss1)),
+                        list<streamname>::mk(ss1, ss2),
+                        map<string, string>("imm1", "val1")));
+        j.addimmediate("imm2", "val2");
+        assert(j == job(filename("a"),
+                        string("b"),
+                        map<streamname, job::inputsrc>(
+                            ss1, job::inputsrc(jj.name(), ss2),
+                            ss2, job::inputsrc(jj2.name(), ss1)),
+                        list<streamname>::mk(ss1, ss2),
+                        map<string, string>("imm1", "val1", "imm2", "val2")));
+        assert(j == job(filename("a"),
+                        string("b"),
+                        map<streamname, job::inputsrc>(
+                            ss1, job::inputsrc(jj.name(), ss2),
+                            ss2, job::inputsrc(jj2.name(), ss1)),
+                        list<streamname>::mk(ss1, ss2),
+                        map<string, string>("imm2", "val2", "imm1", "val1")));},
     "serialisename", [] {
         /* serialising and deserialising must produce something with
          * the same name.  We've had problems in the past with it

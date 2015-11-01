@@ -296,6 +296,17 @@ static testmodule __testcomputeagent(
                .flatten()
                .fatal("waitjob")
                .isfailure()); },
+    "immediate", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        auto j(job(filename("./jobtest.so"), "echo")
+               .addoutput(ss)
+               .addimmediate("val", "hello"));
+        t.createjob(io, j);
+        t.cc.runjob(io, j).flatten().fatal("running echo");
+        auto r(t.sc.read(io, j.name(), ss).fatal("read"));
+        assert(r.second().contenteq(buffer("hello")));
+        assert(r.first() == 5_B); },
     "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
     "jobresulteq", [] {
         assert(jobresult::success() == jobresult::success());

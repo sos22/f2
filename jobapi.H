@@ -5,6 +5,7 @@
 #include "bytecount.H"
 #include "clientio.H"
 #include "jobresult.H"
+#include "map.H"
 #include "maybe.H"
 #include "nnp.H"
 #include "streamname.H"
@@ -25,10 +26,13 @@ class jobapi final {
 public:  class impl;
     friend class impl;
 private: impl &implementation();
+private: const impl &implementation() const;
 private: jobapi();
 private: jobapi(const jobapi &) = delete;
 private: void operator=(const jobapi &) = delete;
 private: ~jobapi();
+    /* Access the job's simple string arguments. */
+public:  virtual const map<string, string> &immediate() const;
     /* A wrapper for an output stream, exposing all of the operations
      * which a job can perform against it. */
 public:  class outputstream {
