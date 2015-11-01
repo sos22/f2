@@ -224,6 +224,10 @@ static testmodule __testcomputeagent(
         auto r(t.sc.read(io, j.name(), ss).fatal("read"));
         assert(r.second().contenteq(buffer("Hello world")));
         assert(r.first() == 11_B); },
+    "runbad", [] (clientio io) {
+        computetest t(io);
+        job j(filename("doesntexist"), "bad");
+        assert(t.cc.runjob(io, j).success() == error::toosoon); },
     "helloinput", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
