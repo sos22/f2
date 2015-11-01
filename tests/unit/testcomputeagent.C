@@ -228,6 +228,11 @@ static testmodule __testcomputeagent(
         computetest t(io);
         job j(filename("doesntexist"), "bad");
         assert(t.cc.runjob(io, j).success() == error::toosoon); },
+    "runbad2", [] (clientio io) {
+        computetest t(io);
+        job j(filename("doesntexist"), "bad");
+        t.createjob(io, j);
+        assert(t.cc.runjob(io, j).success() == error::dlopen); },
     "helloinput", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
