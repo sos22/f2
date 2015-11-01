@@ -1,0 +1,7 @@
+#! /bin/bash
+
+. shutil
+
+ccdyn jobexec.C
+lddyn jobexec.so jobexec.po
+echo 'realall:: jobexec.so'

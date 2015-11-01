@@ -6,6 +6,7 @@
 #include "util.H"
 
 #include "either.tmpl"
+#include "map.tmpl"
 #include "maybe.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"
@@ -41,7 +42,8 @@ public: const job self;
 public: explicit impl(storageclient &_sc, const job &_self)
     : api(),
       sc(_sc),
-      self(_self) {} };
+      self(_self) {
+    logmsg(loglevel::info, "job is " + self.field()); } };
 
 jobapi::impl &
 jobapi::implementation() { return *containerof(this, impl, api); }
@@ -54,7 +56,9 @@ jobapi::jobapi() {}
 jobapi::~jobapi() {}
 
 const map<string, string> &
-jobapi::immediate() const { return implementation().self.immediate; }
+jobapi::immediate() const {
+    logmsg(loglevel::info, "immediate args " + implementation().self.immediate.field());
+    return implementation().self.immediate; }
 
 maybe<nnp<jobapi::outputstream> >
 jobapi::output(const streamname &sn) {

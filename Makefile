@@ -5,6 +5,7 @@ all: realall
 .SUFFIXES:
 
 include binaries.mk
+include jobexec.mk
 include lib.mk
 include spawnservice.mk
 include test2.mk

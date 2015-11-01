@@ -53,6 +53,7 @@ runjob(clientio io,
        const clustername &cn,
        const agentname &fsn,
        const job &j) {
+    logmsg(loglevel::info, "running job " + j.field());
     auto cp(connpool::build(cn));
     if (cp.isfailure()) {
         cp.failure().warn("building connpool");
