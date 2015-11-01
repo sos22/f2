@@ -323,6 +323,23 @@ static testmodule __testcomputeagent(
             auto &a(t.cc.waitjob(j.name()));
             timedelta::milliseconds(random()%5).future().sleep(io);
             a.abort(); } },
+    "abortwaitjob2", [] (clientio io) {
+        computetest t(io);
+        job j("./jobtest.so", "testfunction");
+        auto j2(job("./jobtest.so", "testfunction")
+                .addimmediate("ignore", "just for diffing"));
+        t.createjob(io, j);
+        t.createjob(io, j2);
+        for (unsigned x = 0; x < 100; x++) {
+            t.cc.start(io, j).fatal("starting job");
+            t.cc.start(io, j2).fatal("starting job2");
+            auto &a(t.cc.waitjob(j.name()));
+            timedelta::milliseconds(random()%5).future().sleep(io);
+            a.abort();
+            t.cc.waitjob(io, j.name()).fatal("waiting for real");
+            t.cc.drop(io, j.name()).fatal("dropping job");
+            t.cc.waitjob(io, j2.name()).fatal("waiting for real 2");
+            t.cc.drop(io, j2.name()).fatal("dropping job2"); } },
     "starttwice", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
