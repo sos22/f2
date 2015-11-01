@@ -79,6 +79,12 @@ program::addfd(fd_t inparent, int inchild) {
     fds.set(inchild, inparent);
     return *this; }
 
+orerror<either<shutdowncode, signalnr> >
+program::run(clientio io) const {
+    auto p(process::spawn(*this));
+    if (p.isfailure()) return p.failure();
+    else return p.success()->join(io); }
+
 /* XXX acquiring a lock from a constructor is usually a bad sign. */
 subscription::subscription(subscriber &ss, const process &p)
     : iosubscription(ss, p.fromchild.poll(POLLIN)),

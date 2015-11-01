@@ -32,7 +32,7 @@ static testmodule __spawntest(
     /* Coverage looks quite low on these tests, partly because gcov
      * can't collect coverage for anything which calls exec() or dies
      * with a signal. */
-    testmodule::LineCoverage(65_pc),
+    testmodule::LineCoverage(70_pc),
     testmodule::BranchCoverage(45_pc),
     "truefalsebad", [] (clientio io) {
         {   auto p(process::spawn(program(filename("/bin/true")))
@@ -214,6 +214,27 @@ static testmodule __spawntest(
         assert(!memcmp(buf, "hello", 5));
         assert(p->join(io).left() == shutdowncode::ok);
         outpipe.read.close(); },
+    "run", [] (clientio io) {
+        assert(program("/bin/true")
+               .run(io)
+               .fatal("true")
+               .left() == shutdowncode::ok);
+        assert(program("/bin/false")
+               .run(io)
+               .fatal("false")
+               .left() != shutdowncode::ok);
+        auto p(fd_t::pipe().fatal("mkpipe"));
+        assert(program("/bin/echo")
+               .addarg("hello")
+               .addfd(p.write, 1)
+               .run(io)
+               .fatal("echo")
+               .left() == shutdowncode::ok);
+        p.write.close();
+        char buf[7];
+        assert(p.read.read(io, buf, 7).fatal("reading back") == 6);
+        assert(!memcmp(buf, "hello\n", 6));
+        p.read.close(); },
     "fdleak", [] (clientio io) {
         /* Check that we're not leaking any unexpected FDs into the
          * child. */
