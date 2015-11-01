@@ -890,19 +890,20 @@ static testmodule __testconnpool(
                      peername::all(peername::port::any))
                  .fatal("starting slow service"));
         auto pool(connpool::build(cn).fatal("building pool"));
+        auto startc1(timestamp::now());
         auto c1(pool->call(
                     sn,
                     interfacetype::test,
-                    timedelta::milliseconds(100).future(),
+                    timedelta::milliseconds(200).future(),
                     [] (serialise1 &s, connpool::connlock) {
                         s.push(timedelta::hours(1));
                         s.push(1u); }));
-        spark<void> s1([c1] {
-                auto t(
-                    timedelta::time(
-                        [c1] { c1->pop(clientio::CLIENTIO); }));
-                assert(t >= timedelta::milliseconds(50));
-                assert(t <= timedelta::milliseconds(150)); });
+        spark<void> s1([c1, startc1] {
+                assert(c1->pop(clientio::CLIENTIO) == error::timeout);
+                auto endc1(timestamp::now());
+                tassert(T(endc1) - T(startc1) >= T(200_ms));
+                tassert(T(endc1) - T(startc1) <= T(300_ms)); });
+        auto startc2(timestamp::now());
         auto c2(pool->call(
                     sn,
                     interfacetype::test,
@@ -910,9 +911,10 @@ static testmodule __testconnpool(
                     [] (serialise1 &s, connpool::connlock) {
                         s.push(timedelta::hours(1));
                         s.push(1u); }));
-        auto t(timedelta::time([c2, io] { c2->pop(io); }));
-        tassert(T(t) >= T(timedelta::milliseconds(40)));
-        tassert(T(t) < T(timedelta::milliseconds(100)));
+        assert(c2->pop(io) == error::timeout);
+        auto endc2(timestamp::now());
+        tassert(T(endc2) - T(startc2) >= T(50_ms));
+        tassert(T(endc2) - T(startc2) <= T(200_ms));
         s1.get();
         pool->destroy();
         srv->destroy(io); },
