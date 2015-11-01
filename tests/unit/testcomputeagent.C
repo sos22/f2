@@ -162,14 +162,15 @@ static testmodule __testcomputeagent(
         job j(TESTJOB, "waitonesecond");
         t.createjob(io, j);
         assert(t.cc.waitjob(io, j.name()) == error::toosoon);
+        auto start(timestamp::now());
         t.cc.start(io, j).fatal("starting job");
-        auto taken(timedelta::time([&] {
-                    assert(t.cc.waitjob(io, j.name())
-                           .fatal("waitjob")
-                           .fatal("waitjob inner")
-                           .issuccess()); }));
-        assert(taken > 900_ms);
-        assert(taken < 1500_ms);
+        assert(t.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        auto end(timestamp::now());
+        tassert(T(end) - T(start) > T(1_s));
+        tassert(T(end) - T(start) < T(1500_ms));
         t.cc.drop(io, j.name()).fatal("dropjob");
         assert(t.cc.waitjob(io, j.name()) == error::toosoon); },
     "abortjob", [] (clientio io) {
