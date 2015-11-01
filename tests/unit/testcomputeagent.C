@@ -101,7 +101,7 @@ static testmodule __testcomputeagent(
                        "runjob.C",
                        "jobtest.C"),
     testmodule::LineCoverage(85_pc),
-    testmodule::BranchCoverage(55_pc),
+    testmodule::BranchCoverage(60_pc),
     testmodule::Dependency("jobtest.so"),
     testmodule::Dependency("runjob" EXESUFFIX),
     "basics", [] (clientio io) {
@@ -181,6 +181,13 @@ static testmodule __testcomputeagent(
                    timedelta::time([&] { t.computeagent->destroy(io); })) <
                 T(100_ms));
         t.computeagent = NULL; },
+    "dropbad", [] (clientio io) {
+        computetest t(io);
+        job j(filename("./jobtest.so"), "waitforever");
+        t.createjob(io, j);
+        assert(t.cc.drop(io, j.name()) == error::notfound);
+        t.cc.start(io, j).fatal("starting job");
+        assert(t.cc.drop(io, j.name()) == error::toosoon); },
     "finishstreams", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("outstream").fatal("mkstreamname"));
