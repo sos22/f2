@@ -20,6 +20,7 @@ computeservice
 computespy
 computestate
 config
+config.H
 coordinatorcli
 coordinatorservice
 filesystemcli

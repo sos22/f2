@@ -10,6 +10,7 @@ static testmodule __testuntested(
                        "agentname.H",
                        "bytecount.C",
                        "bytecount.H",
+                       "config.H",
                        "config.tmpl", /* Not even a C++ file */
                        "computecli.C",
                        "computefmt.C",

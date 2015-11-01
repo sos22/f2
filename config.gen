@@ -7,7 +7,6 @@ escape() {
 cat <<EOF
 F2_CPPFLAGS="$(escape ${CPPFLAGS})"
 F2_CPPFLAGS+=" -Wundef -I."
-F2_CPPFLAGS+=" -DPREFIX=\\\\\"$(pwd)\\\\\""
 F2_CYYFLAGS="$(escape ${CYYFLAGS})"
 F2_CYYFLAGS+=" -O0 -g -fno-strict-aliasing"
 F2_CYYFLAGS+=" -Wmissing-declarations -Wconversion -Wshadow -Wall -Wextra -Werror"

@@ -2,6 +2,8 @@
 #ifndef FUNDAMENTALS_H__
 #define FUNDAMENTALS_H__
 
+#include "config.H"
+
 /* Tag type indicating that a constructor should steal the content of
  * a buffer rather than copying it.  This is pretty much just a more
  * explicit way of getting rvalue semantics. */

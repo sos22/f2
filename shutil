@@ -3,6 +3,7 @@
 set -e
 
 mkfile=$1
+allsrcdeps="config config.H"
 
 . config
 
@@ -52,15 +53,15 @@ function cc() {
 	    local dep=${src%.C}.d
 	    cat <<EOF
 -include $dep
-$obj: $src config
+$obj: $src $allsrcdeps
 	ccache \$(F2_CXX) $dashi -DTESTING=0 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX="" -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
-${obj/.o/-t.o}: $src config
+${obj/.o/-t.o}: $src $allsrcdeps
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX=\"-t\" -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
-${obj/.o/-c.o}: $src config
+${obj/.o/-c.o}: $src $allsrcdeps
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage -DEXESUFFIX=\"-c\" ${F2_CPPFLAGS} ${F2_CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
-${obj/.o/-p.o}: $src config
+${obj/.o/-p.o}: $src $allsrcdeps
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
-$dep: $src config
+$dep: $src $allsrcdeps
 	\$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
@@ -74,15 +75,15 @@ EOF
 	    local dep=${src%.c}.d
 	    cat <<EOF
 -include $dep
-$obj: $src config
+$obj: $src $allsrcdeps
 	ccache \$(F2_CC) $dashi -DTESTING=0 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CFLAGS} -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp \$@
-${obj/.o/-t.o}: $src config
+${obj/.o/-t.o}: $src $allsrcdeps
 	ccache \$(F2_CC) $dashi -DTESTING=1 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CFLAGS} -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
-${obj/.o/-c.o}: $src config
+${obj/.o/-c.o}: $src $allsrcdeps
 	ccache \$(F2_CC) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs -ftest-coverage ${F2_CPPFLAGS} ${F2_CFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
-${obj/.o/-p.o}: $src config
+${obj/.o/-p.o}: $src $allsrcdeps
 	ccache \$(F2_CC) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CFLAGS} -O3 -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
-$dep: $src config
+$dep: $src $allsrcdeps
 	\$(F2_CC) $dashi ${F2_CFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp
@@ -174,9 +175,9 @@ function ccdyn()
 	    local dep=${src%.C}.d
 	    cat <<EOF
 -include $dep
-$obj: $src config
+$obj: $src $allsrcdeps
 	ccache \$(F2_CXX) $dashi ${F2_CPPFLAGS} ${F2_CXXFLAGS} -fPIC -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
-$dep: $src config
+$dep: $src $allsrcdeps
 	\$(F2_CXX) $dashi -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
 clean::
 	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ

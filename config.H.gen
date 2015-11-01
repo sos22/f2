@@ -1,0 +1,14 @@
+#! /bin/bash
+
+escape() {
+    echo $* | sed 's/"/\\"/g'
+}
+
+. config
+
+cat <<EOF
+#ifndef CONFIG_H__
+#define CONFIG_H__
+#define PREFIX "$(escape $PREFIX)"
+#endif /* !CONFIG_H__ */
+EOF

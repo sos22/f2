@@ -26,7 +26,7 @@ clean::
 gitversion.H: _does_not_exist_
 	@./mkgitversion
 clean::
-	rm -f gitversion.H
+	rm -f gitversion.H config.H
 
 # Specialise the .gen rule for config so that it doesn't induce a
 # circular dependency.
