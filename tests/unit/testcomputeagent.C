@@ -100,8 +100,8 @@ static testmodule __testcomputeagent(
                        "jobresult.H",
                        "runjob.C",
                        "jobtest.C"),
-    testmodule::LineCoverage(85_pc),
-    testmodule::BranchCoverage(60_pc),
+    testmodule::LineCoverage(90_pc),
+    testmodule::BranchCoverage(65_pc),
     testmodule::Dependency("jobtest.so"),
     testmodule::Dependency("runjob" EXESUFFIX),
     "basics", [] (clientio io) {
@@ -183,10 +183,23 @@ static testmodule __testcomputeagent(
         t.computeagent = NULL; },
     "dropbad", [] (clientio io) {
         computetest t(io);
-        job j(filename("./jobtest.so"), "waitforever");
+        job j("./jobtest.so", "waitforever");
         t.createjob(io, j);
         assert(t.cc.drop(io, j.name()) == error::notfound);
         t.cc.start(io, j).fatal("starting job");
+        assert(t.cc.drop(io, j.name()) == error::toosoon); },
+    "dropbad2", [] (clientio io) {
+        computetest t(io);
+        auto j(job("./jobtest.so", "waitforever"));
+        auto j2(job("./jobtest.so", "waitforever").addimmediate("foo", "bar"));
+        t.createjob(io, j);
+        t.createjob(io, j2);
+        assert(t.cc.drop(io, j.name()) == error::notfound);
+        t.cc.start(io, j).fatal("starting job");
+        assert(t.cc.drop(io, j2.name()) == error::notfound);
+        assert(t.cc.drop(io, j.name()) == error::toosoon);
+        t.cc.start(io, j2).fatal("starting job2");
+        assert(t.cc.drop(io, j2.name()) == error::toosoon);
         assert(t.cc.drop(io, j.name()) == error::toosoon); },
     "finishstreams", [] (clientio io) {
         computetest t(io);
@@ -350,6 +363,25 @@ static testmodule __testcomputeagent(
         t.cc.waitjob(io, j.name()).fatal("waiting for job1");
         tassert(T(t.cc.start(io, j)) == T(error::toolate));
         t.cc.drop(io, j.name()).fatal("dropping finished job");
+        t.cc.start(io, j).fatal("starting job2"); },
+    "starttwice2", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        auto j(job("./jobtest.so", "helloworld").addoutput(ss));
+        auto j2(job("./jobtest.so", "helloworld")
+                .addoutput(ss)
+                .addimmediate("ignore", "whatever"));
+        t.createjob(io, j);
+        t.cc.start(io, j).fatal("starting job1");
+        t.createjob(io, j2);
+        t.cc.start(io, j2).fatal("starting job1");
+        tassert(T(t.cc.start(io, j)) == T(error::toolate));
+        tassert(T(t.cc.start(io, j2)) == T(error::toolate));
+        t.cc.waitjob(io, j.name()).fatal("waiting for job1");
+        t.cc.waitjob(io, j2.name()).fatal("waiting for job2");
+        tassert(T(t.cc.start(io, j)) == T(error::toolate));
+        t.cc.drop(io, j.name()).fatal("dropping finished job");
+        tassert(T(t.cc.start(io, j2)) == T(error::toolate));
         t.cc.start(io, j).fatal("starting job2"); },
     "jobresultparse", [] { parsers::roundtrip<jobresult>(); },
     "jobresulteq", [] {
