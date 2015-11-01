@@ -103,42 +103,32 @@ proto::compute::event::event(deserialise1 &ds) : content(ds) {}
 
 proto::compute::event
 proto::compute::event::start(const jobname &jn, const tasktag &tag) {
-    return contentT(Just(), Left(), Left(), mkpair(jn, tag)); }
+    return contentT(Left(), Left(), mkpair(jn, tag)); }
 maybe<pair<jobname, proto::compute::tasktag> >
 proto::compute::event::start() const {
-    if (content == Nothing ||
-        content.just().isright() ||
-        content.just().left().isright()) return Nothing;
-    else return content.just().left().left(); }
+    if (content.isright() || content.left().isright()) return Nothing;
+    else return content.left().left(); }
 
 proto::compute::event
 proto::compute::event::finish(const jobstatus &js) {
-    return contentT(Just(), Left(), Right(), js); }
+    return contentT(Left(), Right(), js); }
 maybe<pair<jobname, pair<orerror<jobresult>, proto::compute::tasktag> > >
 proto::compute::event::finish() const {
-    if (content == Nothing ||
-        content.just().isright() ||
-        content.just().left().isleft()) return Nothing;
-    auto &js(content.just().left().right());
+    if (content.isright() || content.left().isleft()) return Nothing;
+    auto &js(content.left().right());
     return mkpair(js.name, mkpair(js.result.just(), js.tag)); }
 
 proto::compute::event
 proto::compute::event::removed(const jobstatus &js) {
-    return contentT(Just(), Right(), js); }
-
-proto::compute::event
-proto::compute::event::flushed() {
-    return contentT(Nothing); }
+    return contentT(Right(), js); }
 
 const fields::field &
 proto::compute::event::field() const {
-    if (content == Nothing) {
-        return fields::mk("<flushed>"); }
-    else if (content.just().isright()) {
-        return "<removed:" + fields::mk(content.just().right()) + ">"; }
-    else if (content.just().left().isright()) {
-        return "<finish:" + fields::mk(content.just().left().right()) + ">"; }
+    if (content.isright()) {
+        return "<removed:" + fields::mk(content.right()) + ">"; }
+    else if (content.left().isright()) {
+        return "<finish:" + fields::mk(content.left().right()) + ">"; }
     else {
-        return "<start:" + fields::mk(content.just().left().left().first()) +
-            "::" + fields::mk(content.just().left().left().second()) +
+        return "<start:" + fields::mk(content.left().left().first()) +
+            "::" + fields::mk(content.left().left().second()) +
             ">"; } }

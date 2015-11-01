@@ -240,10 +240,6 @@ computeservice::build(clientio io,
         eqs.destroy();
         cp.success()->destroy();
         return eqq.failure(); }
-    /* Start the queue with a flushed event, because all jobs have now
-     * been lost. */
-    eqq.success()->queue(proto::compute::event::flushed(),
-                         rpcservice2::acquirestxlock(io));
     return rpcservice2::listen<computeservice>(
         io,
         cn,
