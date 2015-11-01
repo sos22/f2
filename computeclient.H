@@ -67,6 +67,10 @@ public:  class asyncwaitjob {
 public:  asyncwaitjob &waitjob(jobname);
 public:  orerror<orerror<jobresult> > waitjob(clientio, jobname);
     
+    /* Wrapper around start(), waitjob(), and drop(): kick off a job,
+     * wait for it to complete, and then drop it from the table. */
+public:  orerror<orerror<jobresult> > runjob(clientio, const job &);
+    
 public:  void destroy(); };
 
 #endif /* !COMPUTECLIENT_H__ */

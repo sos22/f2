@@ -207,6 +207,23 @@ static testmodule __testcomputeagent(
         auto r(t.sc.read(io, j.name(), ss).fatal("read"));
         assert(r.second().contenteq(buffer("Hello world")));
         assert(r.first() == 11_B); },
+    "runjob", [] (clientio io) {
+        computetest t(io);
+        auto ss(streamname::mk("output").fatal("output name"));
+        auto j(job(filename("./testjob.so"), "helloworld")
+               .addoutput(ss));
+        t.createjob(io, j);
+        assert(t.cc
+               .runjob(io, j)
+               .fatal("running job")
+               .fatal("job failed")
+               .issuccess());
+        assert(t.sc.statstream(io, j.name(), ss)
+               .fatal("statstream2")
+               .isfinished());
+        auto r(t.sc.read(io, j.name(), ss).fatal("read"));
+        assert(r.second().contenteq(buffer("Hello world")));
+        assert(r.first() == 11_B); },
     "helloinput", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));

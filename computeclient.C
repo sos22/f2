@@ -252,5 +252,19 @@ orerror<orerror<jobresult> >
 computeclient::waitjob(clientio io, jobname jn) {
     return waitjob(jn).pop(io); }
 
+orerror<orerror<jobresult> >
+computeclient::runjob(clientio io, const job &j) {
+    {   auto t(start(io, j));
+        if (t.isfailure()) return t.failure();
+        logmsg(loglevel::debug, j.field() + " started as " + t.field()); }
+    auto t(waitjob(io, j.name()));
+    /* Drop even when the waitjob reports an error, lacking any better
+     * ideas. */
+    logmsg(loglevel::debug, j.field() + " completed: " + t.field());
+    drop(io, j.name())
+        .warn("dropping " + j.field() + " from " + impl().an.field() +
+              ": " + t.field());
+    return t; }
+
 void
 computeclient::destroy() { delete &impl(); }
