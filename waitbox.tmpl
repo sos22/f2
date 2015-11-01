@@ -49,4 +49,12 @@ waitbox<t>::set(const t &v) {
     pub_.publish();
     mux.unlock(&token); }
 
+template <typename t> const fields::field &
+waitbox<t>::field() const {
+    auto token(mux.trylock());
+    if (token == Nothing) return "<locked:" + mux.field() + ">";
+    const fields::field &res(content.field());
+    mux.unlock(&token.just());
+    return res; }
+
 #endif /* !WAITBOX_TMPL__ */

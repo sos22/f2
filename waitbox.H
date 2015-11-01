@@ -7,6 +7,8 @@
 
 class clientio;
 
+namespace fields { class field; }
+
 /* A box you can put a value in, and some gubbins to wait until
    someone puts a value in it.  */
 template <typename t>
@@ -33,7 +35,9 @@ public:  t get(_Steal, clientio);
 public:  maybe<t> poll() const;
     /* Check whether the waitbox is set, returning true if it is and
        false otherwise. */
-public:  bool ready() const; };
+public:  bool ready() const;
+    /* Field representation of the box's contents. */
+public:  const fields::field &field() const; };
 
 /* Special case for void. */
 template <>
