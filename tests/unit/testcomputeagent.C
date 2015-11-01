@@ -98,11 +98,11 @@ static testmodule __testcomputeagent(
                        "jobname.H",
                        "jobresult.C",
                        "jobresult.H",
-                       "runjob.C",
-                       "jobtest.C"),
+                       "runjob.C"),
     testmodule::LineCoverage(90_pc),
     testmodule::BranchCoverage(65_pc),
-    testmodule::Dependency("jobtest.so"),
+#define TESTJOB "tests/lib/testjobs.so"
+    testmodule::Dependency(TESTJOB),
     testmodule::Dependency("runjob" EXESUFFIX),
     "basics", [] (clientio io) {
         computetest t(io);
@@ -124,7 +124,7 @@ static testmodule __testcomputeagent(
             .fatal("connecting to compute event queue")
             .first());
         assert(eqc.pop() == Nothing);
-        job j(filename("./jobtest.so"), "testfunction");
+        job j(TESTJOB, "testfunction");
         t.createjob(io, j);
         auto startres(cc.start(io, j).fatal("starting job"));
         logmsg(loglevel::debug, "startres " + startres.field());
@@ -159,7 +159,7 @@ static testmodule __testcomputeagent(
         eqc.destroy(); },
     "waitforjob", [] (clientio io) {
         computetest t(io);
-        job j(filename("./jobtest.so"), "waitonesecond");
+        job j(TESTJOB, "waitonesecond");
         t.createjob(io, j);
         assert(t.cc.waitjob(io, j.name()) == error::toosoon);
         t.cc.start(io, j).fatal("starting job");
@@ -174,7 +174,7 @@ static testmodule __testcomputeagent(
         assert(t.cc.waitjob(io, j.name()) == error::toosoon); },
     "abortjob", [] (clientio io) {
         computetest t(io);
-        job j(filename("./jobtest.so"), "waitforever");
+        job j(TESTJOB, "waitforever");
         t.createjob(io, j);
         t.cc.start(io, j).fatal("starting job");
         tassert(T2(timedelta,
@@ -183,15 +183,15 @@ static testmodule __testcomputeagent(
         t.computeagent = NULL; },
     "dropbad", [] (clientio io) {
         computetest t(io);
-        job j("./jobtest.so", "waitforever");
+        job j(TESTJOB, "waitforever");
         t.createjob(io, j);
         assert(t.cc.drop(io, j.name()) == error::notfound);
         t.cc.start(io, j).fatal("starting job");
         assert(t.cc.drop(io, j.name()) == error::toosoon); },
     "dropbad2", [] (clientio io) {
         computetest t(io);
-        auto j(job("./jobtest.so", "waitforever"));
-        auto j2(job("./jobtest.so", "waitforever").addimmediate("foo", "bar"));
+        auto j(job(TESTJOB, "waitforever"));
+        auto j2(job(TESTJOB, "waitforever").addimmediate("foo", "bar"));
         t.createjob(io, j);
         t.createjob(io, j2);
         assert(t.cc.drop(io, j.name()) == error::notfound);
@@ -204,7 +204,7 @@ static testmodule __testcomputeagent(
     "finishstreams", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("outstream").fatal("mkstreamname"));
-        auto j(job(filename("./jobtest.so"), "testfunction").addoutput(ss));
+        auto j(job(TESTJOB, "testfunction").addoutput(ss));
         agentname storageagentname("storageagent");
         filename storagedir(t.q);
         storageagent::format(storagedir).fatal("format storage agent");
@@ -223,7 +223,7 @@ static testmodule __testcomputeagent(
     "helloworld", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job(filename("./jobtest.so"), "helloworld").addoutput(ss));
+        auto j(job(TESTJOB, "helloworld").addoutput(ss));
         t.createjob(io, j);
         t.cc.start(io, j).fatal("starting job");
         assert(t.cc.waitjob(io, j.name())
@@ -239,7 +239,7 @@ static testmodule __testcomputeagent(
     "runjob", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job(filename("./jobtest.so"), "helloworld").addoutput(ss));
+        auto j(job(TESTJOB, "helloworld").addoutput(ss));
         t.createjob(io, j);
         assert(t.cc
                .runjob(io, j)
@@ -264,7 +264,7 @@ static testmodule __testcomputeagent(
     "helloinput", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job(filename("./jobtest.so"), "helloworld").addoutput(ss));
+        auto j(job(TESTJOB, "helloworld").addoutput(ss));
         t.sc.createjob(io, j).fatal("creating storage for job");
         /* Do it all through the storage client, not the compute
          * agent, so that the tests are independent. */
@@ -274,9 +274,7 @@ static testmodule __testcomputeagent(
                   .fatal("finish"));
         /* Now create a job to consume it. */
         auto sss(streamname::mk("input").fatal("input name"));
-        auto jj(job(filename("./jobtest.so"),
-                    "helloinput")
-                .addinput(sss, j.name(), ss));
+        auto jj(job(TESTJOB, "helloinput").addinput(sss, j.name(), ss));
         auto evt2(t.sc.createjob(io, jj).fatal("creating second job"));
         t.fsc.storagebarrier(io, t.storageagentname, evt1)
             .fatal("synchronising finish to filesystem");
@@ -290,9 +288,7 @@ static testmodule __testcomputeagent(
     "helloinputfail", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job(filename("./jobtest.so"),
-                   "helloworld")
-               .addoutput(ss));
+        auto j(job(TESTJOB, "helloworld").addoutput(ss));
         t.sc.createjob(io, j).fatal("creating storage for job");
         t.sc.append(io, j.name(), ss, buffer("Wrong world"), 0_B)
             .fatal("append");
@@ -303,9 +299,7 @@ static testmodule __testcomputeagent(
                 .fatal("finish")).
             fatal("synchronise finish to filesystem");
         auto sss(streamname::mk("input").fatal("input name"));
-        auto jj(job(filename("./jobtest.so"),
-                    "helloinput")
-                .addinput(sss, j.name(), ss));
+        auto jj(job(TESTJOB, "helloinput").addinput(sss, j.name(), ss));
         t.fsc.storagebarrier(
             io,
             t.storageagentname,
@@ -319,7 +313,7 @@ static testmodule __testcomputeagent(
     "immediate", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job(filename("./jobtest.so"), "echo")
+        auto j(job(TESTJOB, "echo")
                .addoutput(ss)
                .addimmediate("val", "hello"));
         t.createjob(io, j);
@@ -329,7 +323,7 @@ static testmodule __testcomputeagent(
         assert(r.first() == 5_B); },
     "abortwaitjob", [] (clientio io) {
         computetest t(io);
-        job j(filename("./jobtest.so"), "waitforever");
+        job j(TESTJOB, "waitforever");
         t.createjob(io, j);
         t.cc.start(io, j).fatal("starting job");
         for (unsigned x = 0; x < 100; x++) {
@@ -338,8 +332,8 @@ static testmodule __testcomputeagent(
             a.abort(); } },
     "abortwaitjob2", [] (clientio io) {
         computetest t(io);
-        job j("./jobtest.so", "testfunction");
-        auto j2(job("./jobtest.so", "testfunction")
+        job j(TESTJOB, "testfunction");
+        auto j2(job(TESTJOB, "testfunction")
                 .addimmediate("ignore", "just for diffing"));
         t.createjob(io, j);
         t.createjob(io, j2);
@@ -356,7 +350,7 @@ static testmodule __testcomputeagent(
     "starttwice", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job("./jobtest.so", "helloworld").addoutput(ss));
+        auto j(job(TESTJOB, "helloworld").addoutput(ss));
         t.createjob(io, j);
         t.cc.start(io, j).fatal("starting job1");
         tassert(T(t.cc.start(io, j)) == T(error::toolate));
@@ -367,8 +361,8 @@ static testmodule __testcomputeagent(
     "starttwice2", [] (clientio io) {
         computetest t(io);
         auto ss(streamname::mk("output").fatal("output name"));
-        auto j(job("./jobtest.so", "helloworld").addoutput(ss));
-        auto j2(job("./jobtest.so", "helloworld")
+        auto j(job(TESTJOB, "helloworld").addoutput(ss));
+        auto j2(job(TESTJOB, "helloworld")
                 .addoutput(ss)
                 .addimmediate("ignore", "whatever"));
         t.createjob(io, j);

@@ -8,7 +8,6 @@ include binaries.mk
 include lib.mk
 include spawnservice.mk
 include test2.mk
-include jobtest.mk
 include tests.mk
 include tests/mk
 
