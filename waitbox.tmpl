@@ -19,6 +19,14 @@ waitbox<t>::get(clientio io) const {
     while (!ready()) sub.wait(io);
     return content.just(); }
 
+template <typename t> maybe<t>
+waitbox<t>::get(clientio io, timestamp deadline) const {
+    subscriber sub;
+    subscription s(sub, pub_);
+    while (!ready()) {
+        if (sub.wait(io, deadline) == NULL) return Nothing; }
+    return content.just(); }
+
 template <typename t> t
 waitbox<t>::get(_Steal s, clientio io) {
     subscriber sub;

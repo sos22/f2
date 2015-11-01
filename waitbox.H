@@ -22,6 +22,9 @@ public:  const publisher &pub() const { return pub_; }
 public:  void set(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
 public:  const t &get(clientio) const;
+    /* Wait for the waitbox to be set and return its contents, or
+     * Nothing if we hit the timeout. */
+public:  maybe<t> get(clientio, timestamp deadline) const;
     /* Wait for the waitbox to be set and return its contents using a
      * steal constructor. */
 public:  t get(_Steal, clientio);
@@ -34,16 +37,7 @@ public:  bool ready() const; };
 
 /* Special case for void. */
 template <>
-class waitbox<void> {
-private: mutable mutex_t mux;
-private: maybe<void> content;
-private: publisher pub_;
-public:  waitbox() : mux(), content(Nothing) {}
-public:  const publisher &pub() const { return pub_; }
-public:  void set();
-public:  void get(clientio) const;
-public:  maybe<void> get(clientio, timestamp) const;
-public:  maybe<void> poll() const;
-public:  bool ready() const; };
+class waitbox<void> : public waitbox<Void> {
+public:  void set(); };
 
 #endif
