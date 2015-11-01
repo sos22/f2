@@ -66,8 +66,12 @@ pair<a, b>::operator==(const pair &o) const {
     return fst == o.fst && snd == o.snd; }
 
 template <typename a, typename b> bool
-pair<a, b>::operator!=(const pair &o) const {
-    return fst != o.fst || snd != o.snd; }
+pair<a, b>::operator>=(const pair &o) const {
+    return fst > o.fst || (fst == o.fst && snd >= o.snd); }
+
+template <typename a, typename b> bool
+pair<a, b>::operator>(const pair &o) const {
+    return fst > o.fst || (fst == o.fst && snd > o.snd); }
 
 template <typename a, typename b> const fields::field &
 pair<a, b>::field() const {

@@ -35,7 +35,8 @@ public:  const a &first() const;
 public:  b &second();
 public:  const b &second() const;
 public:  bool operator==(const pair &o) const;
-public:  bool operator!=(const pair &o) const;
+public:  bool operator>=(const pair &o) const;
+public:  bool operator>(const pair &o) const;
 public:  const fields::field &field() const;
 public:  static const ::parser<pair<a, b> > &parser(
     const parser<a> & = parsers::defaultparser<a>(),

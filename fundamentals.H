@@ -11,5 +11,10 @@ static const _Steal Steal;
 /* x != y should always be !(x == y) */
 template <typename a, typename b> bool
 operator != (const a &_a, const b &_b) { return !(_a == _b); }
+/* And some similar rules about < and <= */
+template <typename a, typename b> bool
+operator <(const a &_a, const b &_b) { return !(_a >= _b); }
+template <typename a, typename b> bool
+operator <=(const a &_a, const b &_b) { return !(_a > _b); }
 
 #endif /* !FUNDAMENTALS_H__ */

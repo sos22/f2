@@ -9,7 +9,7 @@
 static testmodule __testpair(
     "pair",
     list<filename>::mk("pair.H", "pair.tmpl"),
-    testmodule::LineCoverage(65_pc),
+    testmodule::LineCoverage(75_pc),
     "parser", [] {
         parsers::roundtrip<pair<int, int> >();
         parsers::roundtrip<pair<string, string> >(); },
@@ -17,6 +17,13 @@ static testmodule __testpair(
         quickcheck q;
         serialise<pair<int, int> >(q);
         serialise<pair<int, string> >(q); },
+    "operators", [] {
+        assert((pair<int, int>(5, 7) == pair<int, int>(5, 7)));
+        assert((pair<int, int>(5, 7) != pair<int, int>(5, 8)));
+        assert((pair<int, int>(5, 7) != pair<int, int>(6, 7)));
+        assert((pair<int, int>(1, 2) < pair<int, int>(1, 3)));
+        assert((pair<int, int>(1, 100) < pair<int, int>(2, 0)));
+        assert((pair<int, int>(1, 100) <= pair<int, int>(1, 100))); },
     "steal", [] {
         class cons {
         public: int &nrsteals;
