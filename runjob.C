@@ -59,27 +59,36 @@ runjob(clientio io,
         return cp.failure(); }
     auto &fs(filesystemclient::connect(cp.success(), fsn));
     auto storageagents(fs.findjob(io, j.name()));
-    fs.destroy();
     if (storageagents.issuccess() && storageagents.success().length() == 0) {
         storageagents = error::toosoon; }
     if (storageagents.isfailure()) {
         cp.success()->destroy();
         storageagents.failure().warn("getting storage agent for job");
+        fs.destroy();
         return storageagents.failure(); }
-    auto &sc(storageclient::connect(
-                 cp.success(), storageagents.success().pophead()));
+    auto scn(storageagents.success().pophead());
+    auto &sc(storageclient::connect(cp.success(), scn));
     auto r(runjob(io, sc, j));
     if (r.issuccess() && r.success().issuccess()) {
-        list<nnp<storageclient::asyncfinish> > pending;
+        list<nnp<storageclient::asyncfinish> > pendingfinish;
+        list<nnp<filesystemclient::asyncstoragebarrier> > pendingbarrier;
         for (auto it(j.outputs().start()); !it.finished(); it.next()) {
-            pending.append(sc.finish(j.name(), *it)); }
+            pendingfinish.append(sc.finish(j.name(), *it)); }
         orerror<void> failure(error::unknown);
         failure = Success; /* Don't use the one-stop init because of
                             * spurious compiler warnings. */
-        while (failure == Success && !pending.empty()) {
-            failure = pending.pophead()->pop(io); }
-        while (!pending.empty()) pending.pophead()->abort();
+        while (failure == Success && !pendingfinish.empty()) {
+            auto t(pendingfinish.pophead()->pop(io)
+                   .warn("finish on " + j.name().field()));
+            if (t.isfailure()) failure = t.failure();
+            else pendingbarrier.append(fs.storagebarrier(scn, t.success())); }
+        while (failure == Success && !pendingbarrier.empty()) {
+            failure = pendingbarrier.pophead()->pop(io)
+                .warn("barrier on " + j.name().field()); }
+        while (!pendingfinish.empty()) pendingfinish.pophead()->abort();
+        while (!pendingbarrier.empty()) pendingbarrier.pophead()->abort();
         if (failure != Success) r = failure.failure(); }
+    fs.destroy();
     sc.destroy();
     cp.success()->destroy();
     return r; }
