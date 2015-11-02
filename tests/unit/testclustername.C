@@ -16,7 +16,12 @@ static testmodule __testclustername(
     "serialise", [] {
         quickcheck q;
         serialise<clustername>(q); },
+    "==", [] {
+        assert(clustername::mk("a") == clustername::mk("a"));
+        assert(clustername::mk("a") != clustername::mk("b")); },
     "badparse", [] {
+        assert(parsers::__clustername()
+               .match(string("<gjdkgdjl>")) == error::noparse);
         string s = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         while (s.len() < clustername::maxsize) s = s + s;
         assert(parsers::__clustername()

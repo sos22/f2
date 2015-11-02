@@ -35,8 +35,11 @@ clustername::field() const {
 
 const parser<clustername> &
 parsers::__clustername() {
-    return ("<clustername:" + strparser + ">")
-        .maperr<clustername>([] (const string &str) -> orerror<clustername> {
-                auto r(clustername::mk(str));
-                if (r.isjust()) return r.just();
-                else return error::overflowed; }); }
+    class inner : public parser<clustername> {
+    public: orerror<result> parse(const char *what) const {
+        auto r(("<clustername:" + strparser + ">").parse(what));
+        if (r.isfailure()) return r.failure();
+        auto rr(clustername::mk(r.success().res));
+        if (rr.isjust()) return result(r.success().left, rr.just());
+        else return error::overflowed; } };
+    return *new inner(); }
