@@ -60,14 +60,20 @@ orerror<t>::field() const {
 
 template <typename t> const ::parser<orerror<t> > &
 orerror<t>::parser(const ::parser<t> &inner) {
-    std::function<orerror<t> (const either<error, t> &)> iff(
-        [] (const either<error, t> &i) -> orerror<t> {
-            if (i.isleft()) return i.left();
-            else return i.right(); });
-    return
-        (("<failed:" + error::parser() + ">") |
-         ("<" + inner + ">"))
-        . map(iff); }
+    class innerP : public ::parser<orerror<t> > {
+    public: typedef typename ::parser<orerror<t> >::result result;
+    public: const ::parser<t> &inner;
+    public: innerP(const ::parser<t> &_inner) : inner(_inner) {}
+    public: orerror<result> parse(const char *what) const {
+        auto r((("<failed:" + error::parser() + ">") |
+                ("<" + inner + ">"))
+               .parse(what));
+        if (r.isfailure()) return r.failure();
+        else if (r.success().res.isleft()) {
+            return result(r.success().left, r.success().res.left()); }
+        else {
+            return result(r.success().left, r.success().res.right()); } } };
+    return *new innerP(inner); }
 
 template <typename t> const ::parser<orerror<t> > &
 orerror<t>::parser() { return orerror<t>::parser(parsers::defaultparser<t>()); }
