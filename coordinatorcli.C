@@ -16,7 +16,7 @@ f2main(list<string> &args) {
         errx(1,
              "need at least three arguments: "
              "clustername, agentname, and mode"); }
-    auto cluster(parsers::__clustername()
+    auto cluster(clustername::parser()
                  .match(args.idx(0))
                  .fatal("parsing " + fields::mk(args.idx(0)) +
                         " as clustername"));

@@ -33,11 +33,11 @@ const fields::field &
 clustername::field() const {
     return "<clustername:" + value.field().escape() + ">"; }
 
-const parser<clustername> &
-parsers::__clustername() {
+const ::parser<clustername> &
+clustername::parser() {
     class inner : public parser<clustername> {
     public: orerror<result> parse(const char *what) const {
-        auto r(("<clustername:" + strparser + ">").parse(what));
+        auto r(("<clustername:" + parsers::strparser + ">").parse(what));
         if (r.isfailure()) return r.failure();
         auto rr(clustername::mk(r.success().res));
         if (rr.isjust()) return result(r.success().left, rr.just());

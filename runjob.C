@@ -100,7 +100,7 @@ f2main(list<string> &args) {
             1,
             "need three arguments: cluster name, "
             "FS agent name, job, and optionally output FD"); }
-    auto cn(parsers::__clustername()
+    auto cn(clustername::parser()
             .match(args.idx(0))
             .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto fsn(agentname::parser()

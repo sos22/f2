@@ -12,7 +12,7 @@ f2main(list<string> &args) {
     initpubsub();
     if (args.length() < 3) {
         errx(1, "need at least three arguments: a cluster, a peer and a mode");}
-    auto cluster(parsers::__clustername()
+    auto cluster(clustername::parser()
                  .match(args.idx(0))
                  .fatal("parsing cluser name " + fields::mk(args.idx(0))));
     auto peer(agentname::parser()

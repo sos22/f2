@@ -17,7 +17,7 @@ f2main(list<string> &args) {
     
     if (args.length() != 2) {
         errx(1, "need two arguments, the cluster to join and our own name"); }
-    auto cluster(parsers::__clustername()
+    auto cluster(clustername::parser()
                  .match(args.idx(0))
                  .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto name(agentname::parser()

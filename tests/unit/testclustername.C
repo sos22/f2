@@ -12,7 +12,7 @@ static testmodule __testclustername(
     list<filename>::mk("clustername.C", "clustername.H"),
     testmodule::LineCoverage(100_pc),
     testmodule::BranchCoverage(80_pc),
-    "parsers", [] { parsers::roundtrip(parsers::__clustername()); },
+    "parsers", [] { parsers::roundtrip(clustername::parser()); },
     "serialise", [] {
         quickcheck q;
         serialise<clustername>(q); },
@@ -20,11 +20,11 @@ static testmodule __testclustername(
         assert(clustername::mk("a") == clustername::mk("a"));
         assert(clustername::mk("a") != clustername::mk("b")); },
     "badparse", [] {
-        assert(parsers::__clustername()
+        assert(clustername::parser()
                .match(string("<gjdkgdjl>")) == error::noparse);
         string s = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         while (s.len() < clustername::maxsize) s = s + s;
-        assert(parsers::__clustername()
+        assert(clustername::parser()
                .match(string("<clustername:") + s + string(">"))
                == error::overflowed); },
     "baddeserialise", [] {

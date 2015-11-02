@@ -6,7 +6,7 @@
 class clustername;
 namespace fields { class field; }
 template <typename> class maybe;
-
+template <typename> class parser;
 
 class clustername {
 public:  explicit clustername(deserialise1 &);
@@ -18,10 +18,7 @@ private: ::string value;
 private: clustername(const string &s) : value(s) {}
 public:  bool operator==(const clustername &) const;
 public:  static maybe<clustername> mk(const string &);
-public:  const fields::field &field() const; };
-
-template <typename> class parser;
-namespace parsers {
-const parser<clustername> &__clustername(); }
+public:  const fields::field &field() const;
+public:  static const ::parser<clustername> &parser(); };
 
 #endif /* !CLUSTERNAME_H__ */

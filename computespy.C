@@ -15,7 +15,7 @@ f2main(list<string> &args) {
     initpubsub();
     if (args.length() != 2) {
         errx(1, "need two arguments, the cluster and the agent name"); }
-    auto cluster(parsers::__clustername()
+    auto cluster(clustername::parser()
                  .match(args.idx(0))
                  .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto peer(agentname::parser()

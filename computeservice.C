@@ -21,7 +21,7 @@ f2main(list<string> &args) {
         errx(1,
              "need three arguments: a cluster name, the filesystem "
              "agent name, and the compute agent name"); }
-    auto cluster(parsers::__clustername()
+    auto cluster(clustername::parser()
                  .match(args.idx(0))
                  .fatal("parsing cluster name " + fields::mk(args.idx(0))));
     auto fsname(agentname::parser()
