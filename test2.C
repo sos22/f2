@@ -217,7 +217,7 @@ testmodule::runtest(const string &what,
     printf("%s\n",
            (fields::padright(name().field(), 20) +
             fields::padright(what.field(), 20)).c_str());
-    if (limit != Nothing) alarm((unsigned)(limit.just() / 1_s));
+    if (limit != Nothing) alarm((unsigned)((TIMEDILATE * limit.just()) / 1_s));
     logmsg(loglevel::debug,
            "start test " + name().field() + "::" + what.field());
     auto tt(tests.get(what)
