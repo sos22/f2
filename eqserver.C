@@ -319,10 +319,12 @@ geneventqueue::lastid() const {
             return i.usedto(t); }); }
 
 proto::eq::eventid
-geneventqueue::allocid() {
+geneventqueue::allocdummyid() {
     auto &i(implementation());
-    return i.mux.locked<proto::eq::eventid>([&] (mutex_t::token t) {
-            return i.allocid(t); }); }
+    auto r(i.mux.locked<proto::eq::eventid>([&] (mutex_t::token t) {
+                return i.allocid(t); }));
+    logmsg(loglevel::debug, "alloc dummy event id " + r.field());
+    return r; }
 
 void
 geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
@@ -601,6 +603,9 @@ SERVER::get(clientio io,
     auto token(_q.success().second());
     
     if (q->lastdropped(token) >= eid) {
+        logmsg(loglevel::debug,
+               "try to fetch " + eid.field() + ", which has been dropped "
+               "(drop to " + q->lastdropped(token).field() + ")");
         q->mux.unlock(&token);
         return error::eventsdropped; }
     for (auto it(q->subscriptions(token).start());

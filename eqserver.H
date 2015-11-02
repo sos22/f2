@@ -67,7 +67,7 @@ protected: class queuectxt {
     friend class queuectxt;
 
 protected: proto::eq::eventid lastid() const;
-protected: proto::eq::eventid allocid();
+protected: proto::eq::eventid allocdummyid();
 protected: void destroy(rpcservice2::acquirestxlock);
 protected: ~geneventqueue();
 public:    static tests::hookpoint<void> finishingpush; };
@@ -90,7 +90,7 @@ private: void operator=(const eventqueue &) = delete;
 public:  proto::eq::eventid queue(const t &what,
                                   rpcservice2::acquirestxlock atl) {
         queuectxt ctxt(*this);
-        if (ctxt.serialiser.isnothing()) return geneventqueue::allocid();
+        if (ctxt.serialiser.isnothing()) return geneventqueue::allocdummyid();
         ctxt.serialiser.just().push(what);
         return ctxt.finish(*this, atl); }
 
