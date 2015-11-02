@@ -642,12 +642,20 @@ SERVER::get(clientio io,
             logmsg(loglevel::verbose,
                    "get " + eid.field() + " which is ready");
             maybe<pair<proto::eq::eventid, nnp<buffer> > > buf(Nothing);
-            /* Must eventually hit the desired thing, because it's in
-             * range. */
             for (auto it2(q->events(token).start());
-                 buf == Nothing;
+                 !it2.finished() && buf == Nothing;
                  it2.next()) {
                 if (it2->id == eid) buf.mkjust(eid, it2->content); }
+            if (buf == Nothing) {
+                /* This can happen if we used a dummy ID
+                 * somewhere. Counts as having dropped the event. */
+                logmsg(loglevel::debug,
+                       "try to fetch " + eid.field()+ ", which is in held range"
+                       " (" + q->usedto(token).field() + " to " +
+                       q->lastdropped(token).field() + "), "
+                       "but couldn't find it");
+                q->mux.unlock(&token);
+                return error::eventsdropped; }
             /* Note that we're acquiring the service TX lock while
              * holding the queue lock, which is a little bit
              * skanky. */
