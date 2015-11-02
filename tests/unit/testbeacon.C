@@ -380,21 +380,19 @@ static testmodule __beacontests(
                 return error::pastend; });
         /* Poll to see when it drops out. */
         auto start(timestamp::now());
-        while (c->poll(agent) != Nothing) {
-            (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
+        while (c->poll(agent) != Nothing) (10_ms).future().sleep(io);
         auto drop(timestamp::now());
         /* Should be near the expiry time. */
-        assert(drop - start >= timedelta::milliseconds(400));
-        assert(drop - start <= timedelta::milliseconds(600));
+        tassert(T(drop) - T(start) >= T(400_ms));
+        tassert(T(drop) - T(start) <= T(600_ms));
         /* Should have made about 5 attempts. */
-        assert(cntr >= 3);
-        assert(cntr <= 7);
+        tassert(T(cntr) >= T(3u));
+        tassert(T(cntr) <= T(7u));
         /* Poll to see when it comes back. */
-        while (c->poll(agent) == Nothing) {
-            (timestamp::now() + timedelta::milliseconds(10)).sleep(io); }
+        while (c->poll(agent) == Nothing) (10_ms).future().sleep(io);
         auto recover(timestamp::now());
-        assert(recover - start >= timedelta::milliseconds(900));
-        assert(recover - start <= timedelta::milliseconds(1100));
+        tassert(T(recover) - T(start) >= T(900_ms));
+        tassert(T(recover) - T(start) <= T(1200_ms));
         c->destroy();
         s->destroy(io); },
 #if TESTING
