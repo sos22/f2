@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <valgrind/valgrind.h>
+
 #include <sqlite3.h>
 
 #include "filename.H"
@@ -23,6 +25,14 @@
 #include "orerror.tmpl"
 #include "pair.tmpl"
 #include "test2.tmpl"
+
+bool
+running_on_valgrind() {
+    class __running_on_vgrind {
+    public: const bool val;
+    public: __running_on_vgrind() : val(RUNNING_ON_VALGRIND) {} };
+    __running_on_vgrind inner;
+    return inner.val; }
 
 static map<string, nnp<testmodule> > *
 modules;

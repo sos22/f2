@@ -60,7 +60,7 @@ static testmodule __testasynccall(
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
         auto &c((new slowcallimpl(pool, sn, 100_ms, 5))->api);
-        tassert(T(timestamp::now()) - T(start) < T(40_ms));
+        tassert(T(timestamp::now()) - T(start) < T(40_ms * TIMEDILATE));
         auto t(c.finished());
         assert(t == Nothing);
         {   subscriber sub;
@@ -86,7 +86,7 @@ static testmodule __testasynccall(
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
         auto &c((new slowcallimpl(pool, sn, 200_ms, 5))->api);
-        tassert(T(timestamp::now()) - T(start) < T(40_ms));
+        tassert(T(timestamp::now()) - T(start) < T(40_ms * TIMEDILATE));
         tassert(T(c.pop(io)) == T(5));
         tassert(T(timestamp::now()) - T(start) > T(200_ms));
         pool.destroy();
@@ -104,12 +104,12 @@ static testmodule __testasynccall(
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
         auto &c((new slowcallimpl(pool, sn, 3600_s, 5))->api);
-        tassert(T(timestamp::now()) - T(start) < T(40_ms));
-        (50_ms).future().sleep(io);
+        tassert(T(timestamp::now()) - T(start) < T(40_ms * TIMEDILATE));
+        (50_ms * TIMEDILATE).future().sleep(io);
         assert(srv.nrabandoned == 0);
         c.abort();
-        tassert(T(timestamp::now()) - T(start) < T(100_ms));
-        (50_ms).future().sleep(io);
-        assert(srv.nrabandoned == 1);
+        tassert(T(timestamp::now()) - T(start) < T(100_ms * TIMEDILATE));
+        (50_ms * TIMEDILATE).future().sleep(io);
+        tassert(T(srv.nrabandoned) == T(1u));
         srv.destroy(io);
         pool.destroy(); });
