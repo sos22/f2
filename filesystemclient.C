@@ -112,7 +112,9 @@ public: asyncstoragebarrierimpl(class filesystemclient::impl &owner,
                  s.push(eid); })) {} };
 template <> orerror<filesystemclient::asyncstoragebarrierdescr::_resT>
 filesystemclient::asyncstoragebarrier::pop(token t) {
-    return impl().cl.pop(t.inner); }
+    auto res(impl().cl.pop(t.inner));
+    delete this;
+    return res; }
 filesystemclient::asyncstoragebarrier &
 filesystemclient::storagebarrier(const agentname &an, proto::eq::eventid eid) {
     return (new asyncstoragebarrierimpl(impl(), an, eid))->api; }
