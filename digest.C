@@ -46,6 +46,11 @@ digest::field() const {
 
 const ::parser<digest> &
 digest::parser() {
-    auto &p(parsers::intparser<unsigned long>());
-    return (("<digest:" + p + ">") || p)
-        .map<digest>([] (unsigned long what) { return digest(what); }); }
+    class inner : public ::parser<digest> {
+    public: const ::parser<unsigned long> &p;
+    public: inner() : p(parsers::intparser<unsigned long>()) {}
+    public: orerror<result> parse(const char *what) const {
+        auto i((("<digest:" + p + ">") || p).parse(what));
+        if (i.isfailure()) return i.failure();
+        else return result(i.success().left, digest(i.success().res)); } };
+    return *new inner(); }
