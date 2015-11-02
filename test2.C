@@ -227,7 +227,8 @@ testmodule::runtest(const string &what,
            "pass test " + name().field() + "::" + what.field() +
            " in " + timetaken.field());
     if (limit != Nothing) alarm(0);
-    results.result(*this, what, timetaken); }
+    results.result(*this, what, timetaken);
+    tmpheap::release(); }
 
 static list<string>
 shuffle(_Steal s, list<string> &what) {
