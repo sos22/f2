@@ -305,13 +305,18 @@ operator+(const parser<t> &w, const char *suffix) {
 
 template <typename typ> const parser<typ> &
 operator||(const parser<typ> &a, const parser<typ> &b) {
-    const std::function<typ(const either<typ,typ> &)> &r(
-        [] (const either<typ, typ> &what) -> typ {
-                if (what.isleft()) return what.left();
-                else return what.right();
-            });
-    return (a|b).map(r);
-}
+    class inner : public ::parser<typ> {
+    public: typedef typename ::parser<typ>::result result;
+    public: const parser<either<typ, typ> > &d;
+    public: inner(const parser<either<typ, typ> > &_d) : d(_d) {}
+    public: orerror<result> parse(const char *what) const {
+        auto res(d.parse(what));
+        if (res.isfailure()) return res.failure();
+        else if (res.success().res.isleft()) {
+            return result(res.success().left, res.success().res.left()); }
+        else {
+            return result(res.success().left, res.success().res.right()); } } };
+    return *new inner(a | b); }
 
 namespace parsers {
 template <typename a> class _sepby final : public parser<list<a> > {
