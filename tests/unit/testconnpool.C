@@ -3,6 +3,7 @@
 #include "rpcservice2.H"
 #include "socket.H"
 #include "spark.H"
+#include "spawn.H"
 #include "test.H"
 #include "testassert.H"
 #include "test2.H"
@@ -935,9 +936,20 @@ static testmodule __testconnpool(
             rpcservice2::listen<echoservice>(io, cn, sn,peername::all(port))
             == error::from_errno(EADDRINUSE));
         srv->destroy(io);
-        srv = rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port))
-            .fatal("restarting echo service");
-        srv->destroy(io); },
+        auto e(rpcservice2::listen<echoservice>(io,cn,sn,peername::all(port)));
+        if (e.isfailure()) {
+            e.failure().warn("restarting echo service on " + port.field());
+            logmsg(loglevel::failure,
+                   "netstat res " +
+                   spawn::program("/bin/netstat")
+                   .addarg("-a")
+                   .addarg("-t")
+                   .addarg("-n")
+                   .addarg("-p")
+                   .run(io)
+                   .field());
+            e.failure().fatal("failed"); }
+        e.success()->destroy(io); },
     "faildeserialiseclient", [] (clientio io) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
