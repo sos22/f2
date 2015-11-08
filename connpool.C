@@ -239,7 +239,8 @@ public:  unsigned _refcount;
 public:  void reference() { atomicinc(_refcount); }
 public:  void dereference() {
     if (atomicloaddec(_refcount) == 1) delete this; }
-private: ~impl() {}
+private: ~impl() {
+    logmsg(loglevel::debug, "release " + fields::mkptr(this)); }
 
     /* Sequence number is only allocated when we transmit, and is
      * reset if we abandon an attempt to do the call. */
@@ -569,6 +570,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
                     logmsg(loglevel::debug,
                            "abort finished call " + fields::mk(c)); }); }
         if (found) failcall(c, error::aborted, cl);
+        logmsg(loglevel::debug, "call timed out " + fields::mkptr(&*c));
         c->dereference(); }
     /* If we queued up an abort then the caller needs to wake up
      * immediately to process it. */
@@ -1150,7 +1152,8 @@ CALL::finished(clientio io) const {
 
 orerror<void>
 CALL::pop(token t) {
-    logmsg(loglevel::verbose, "release call " + fields::mk(this));
+    logmsg(loglevel::verbose,
+           "release call " + fields::mk(this) + " " + fields::mkptr(this));
     auto r(res(t).just());
     dereference();
     return r; }
