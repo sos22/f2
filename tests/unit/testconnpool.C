@@ -738,7 +738,7 @@ static testmodule __testconnpool(
         tassert(T2(timestamp, finished.just())-T(start) > T(200_ms));
         /* But not too far past it. */
         tassert(T(end) - T(finished.just()) < T(timedelta::milliseconds(20)));
-        tassert(T(end) - T(start) < T(timedelta::milliseconds(250)));
+        tassert(T(end) - T(start) < T(timedelta::milliseconds(350)));
         pool->destroy();
         srv->destroy(io); },
     "abort1", [] (clientio io) {
