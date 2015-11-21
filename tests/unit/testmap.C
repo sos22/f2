@@ -268,6 +268,14 @@ static testmodule __testmap(
         m.flush();
         assert(!m.haskey(5));
         assert(!m.haskey(8)); },
+    "varconst", [] {
+        map<int, pair<double, char> > m;
+        m.set(5, 1.0, 'a');
+        m.set(7, 2.5, 'b');
+        assert(m.get(5).just().first() == 1.0);
+        assert(m.get(5).just().second() == 'a');
+        assert(m.get(7).just().first() == 2.5);
+        assert(m.get(7).just().second() == 'b'); },
     "quickcheck", [] {
         unsigned nrempty(0);
         unsigned zerokey(0);

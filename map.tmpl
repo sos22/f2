@@ -44,7 +44,8 @@ map<key, value, hash>::map(deserialise1 &ds)
     rehash(nb);
     /* Deserialise the entries. */
     for (unsigned x = 0; x < nr; x++) {
-        auto e(new entry(key(ds), value(ds)));
+        key k(ds);
+        auto e(new entry(hash(k), k, value(ds)));
         if (get(e->k) != Nothing) {
             if (!ds.random()) ds.fail(error::duplicate);
             delete e; }
@@ -91,15 +92,17 @@ map<key, value, hash>::~map() {
     assert(nritems == 0);
     delete [] buckets; }
 
-template <typename key, typename value, unsigned long hash(const key &)> void
-map<key, value, hash>::set(const key &k, const value &v) {
+template <typename key, typename value, unsigned long hash(const key &)>
+template <typename ... args> value &
+map<key, value, hash>::set(const key &k, args && ... params) {
     assert(get(k) == Nothing);
     if (nrbuckets == 0 || nritems > nrbuckets * 8) rehash(nextsize(nrbuckets));
     assert(nrbuckets != 0);
-    auto b(new entry(k, v));
+    auto b(new entry(hash(k), k, std::forward<args>(params)...));
     b->next = buckets[b->h % nrbuckets];
     buckets[b->h % nrbuckets] = b;
-    nritems++; }
+    nritems++;
+    return b->v; }
 
 template <typename key, typename value, unsigned long hash(const key &)>
 maybe<value>

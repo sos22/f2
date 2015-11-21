@@ -45,10 +45,11 @@ private: class entry {
     public: unsigned long h;
     public: _key k;
     public: _value v;
-    public: entry(unsigned long _h, const _key &_k, const _value &_v)
-        : next(NULL), h(_h), k(_k), v(_v) {}
-    public: entry(const _key &_k, const _value &_v)
-        : next(NULL), h(hash(_k)), k(_k), v(_v) {} };
+    public: template <typename ... args> entry(
+        unsigned long _h,
+        const _key &_k,
+        args && ... params)
+        : next(NULL), h(_h), k(_k), v(std::forward<args>(params)...) {} };
     /* It's important that these fields don't themselves use the key or
      * value parameters so that rehash() works. */
 private: unsigned nrbuckets;
@@ -84,7 +85,7 @@ public: map(const map &what);
     /* Default destructor. */
 public: ~map();
     /* Set an entry in the map.  It must not already be set. */
-public:  void set(const _key &, const _value &);
+public:  template <typename...args> _value &set(const _key &, args &&...params);
     /* Get an entry in the map, or Nothing if it isn't set. */
 public:  maybe<_value> get(const _key &) const;
     /* true if the key is present in the map and false
