@@ -19,4 +19,14 @@ operator <(const a &_a, const b &_b) { return !(_a >= _b); }
 template <typename a, typename b> bool
 operator <=(const a &_a, const b &_b) { return !(_a > _b); }
 
+/* +=, -=, *=, /= */
+template <typename a, typename b> void
+operator+=(a &_a, const b &_b) { _a = _a + _b; }
+template <typename a, typename b> void
+operator-=(a &_a, const b &_b) { _a = _a - _b; }
+template <typename a, typename b> void
+operator*=(a &_a, const b &_b) { _a = _a * _b; }
+template <typename a, typename b> void
+operator/=(a &_a, const b &_b) { _a = _a / _b; }
+
 #endif /* !FUNDAMENTALS_H__ */
