@@ -220,6 +220,17 @@ static testmodule __testfilename(
         f.mkdir().fatal("mkdir " + f.field());
         assert(f.isdir() == true);
         f.rmdir().fatal("rmdir " + f.field()); },
+    "openro", [] (clientio io) {
+        filename f("somefile");
+        f.createfile(fields::mk("hello")).fatal("creating test file");
+        if (::chmod("somefile", S_IRUSR) < 0) {
+            error::from_errno().fatal("chmod"); }
+        auto fd(f.openro().fatal("opening read-only file"));
+        buffer b;
+        b.receive(io, fd);
+        assert(b.contenteq(buffer("hello")));
+        fd.close();
+        f.unlink().fatal("deletign somefile"); },
     "serialise", [] {
         quickcheck q;
         serialise<filename>(q); } );

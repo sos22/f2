@@ -202,6 +202,12 @@ filename::openappend(bytecount oldsize) const {
         else return error::toolate; }
     else return fd_t(fd); }
 
+orerror<fd_t>
+filename::openro() const {
+    int fd(::open(content.c_str(), O_RDONLY));
+    if (fd < 0) return error::from_errno();
+    else return fd_t(fd); }
+
 orerror<bytecount>
 filename::size() const {
     struct stat st;

@@ -98,6 +98,9 @@ public:  orerror<bool> isdir() const;
      * with error::toosoon; if it's too big, fail with
      * error::toolate. */
 public:  orerror<fd_t> openappend(bytecount size) const;
+    /* Open a file in read-only mode mode. The file must alrady
+     * exist. */
+public:  orerror<fd_t> openro() const;
     /* Get the size of a file.  The file must exist. */
 public:  orerror<bytecount> size() const;
     /* Read some bytes out of a file.  start is inclusive, end
