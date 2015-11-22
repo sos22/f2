@@ -69,10 +69,7 @@ static testmodule __testuntested(
                        "util.C",
                        "util.H",
                        "version.C",
-                       "version.H",
-                       "waitbox.C",
-                       "waitbox.H",
-                       "waitbox.tmpl"
+                       "version.H"
         ),
     testmodule::LineCoverage(17_pc),
     testmodule::BranchCoverage(12_pc));

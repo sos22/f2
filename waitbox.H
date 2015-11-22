@@ -22,6 +22,8 @@ public:  const publisher &pub() const { return pub_; }
 
     /* Set the waitbox.  Must be called at most once. */
 public:  void set(const t &what);
+    /* Set the waitbox if it's currently empty. */
+public:  void setif(const t &what);
     /* Wait for the waitbox to be set and return its contents. */
 public:  const t &get(clientio) const;
     /* Wait for the waitbox to be set and return its contents, or

@@ -49,6 +49,13 @@ waitbox<t>::set(const t &v) {
     pub_.publish();
     mux.unlock(&token); }
 
+template <typename t> void
+waitbox<t>::setif(const t &v) {
+    mux.locked([&] {
+            if (content != Nothing) return;
+            content = v;
+            pub_.publish(); }); }
+
 template <typename t> const fields::field &
 waitbox<t>::field() const {
     auto token(mux.trylock());
