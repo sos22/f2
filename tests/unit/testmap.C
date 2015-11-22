@@ -135,6 +135,26 @@ static testmodule __testmap(
         assert(m.get(5) == 6);
         assert(m.get(10) == 11);
         assert(m.get(11) == Nothing); },
+    "remove", [] {
+        testmap<int, int> m(1,2, 5,6, 7,8);
+        bool found1 = false;
+        bool found5 = false;
+        bool found7 = false;
+        for (auto it(m.start()); !it.finished(); it.remove()) {
+            if (it.key() == 1) {
+                assert(!found1);
+                found1 = true; }
+            else if (it.key() == 5) {
+                assert(!found5);
+                found5 = true; }
+            else if (it.key() == 7) {
+                assert(!found7);
+                found7 = true; }
+            else abort(); }
+        assert(found1);
+        assert(found5);
+        assert(found7);
+        assert(m.start().finished()); },
     "haskey", [] {
         typedef testmap<int, int> T;
         assert(!T().haskey(1));

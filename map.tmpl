@@ -169,6 +169,24 @@ map<key, value, hash>::iterator::next() {
          bucketnr++) { }
     if (bucketnr != owner->nrbuckets) cursor = owner->buckets[bucketnr]; }
 
+template <typename key, typename value, unsigned long hash(const key &)> void
+map<key, value, hash>::iterator::remove() {
+    auto tokill = cursor;
+    auto bn = bucketnr;
+    next();
+    if (owner->buckets[bn] == tokill) owner->buckets[bn] = tokill->next;
+    else {
+        /* Need the prev pointer. */
+        /* Ick. */
+        auto c(owner->buckets[bn]);
+        while (c->next != tokill) c = c->next;
+        c->next = c->next->next; }
+    delete tokill;
+    /* XXX not rehashing after shrinking the table -> you can tell the
+     * difference between a five entry table created straight off and
+     * one created by deleting 100 items from a 105 entry table. */
+    owner->nritems--; }
+
 template <typename key, typename value, unsigned long hash(const key &)> bool
 map<key, value, hash>::iterator::finished() const { return cursor == NULL; }
 

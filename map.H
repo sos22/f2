@@ -109,6 +109,7 @@ public:  class iterator {
     private: entry *cursor;
     private: explicit iterator(map *_owner);
     public:  void next();
+    public:  void remove();
     public:  bool finished() const;
     public:  const _key &key() const { return cursor->k; }
     public:  const _value &value() const { return cursor->v; }
