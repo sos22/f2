@@ -130,6 +130,11 @@ static testmodule __testmap(
         assert(m.get(5) == 6);
         assert(m.get(10) == 11);
         assert(m.get(11) == Nothing); },
+    "uintkey", [] {
+        testmap<unsigned, int> m(5u,6, 10u,11);
+        assert(m.get(5) == 6);
+        assert(m.get(10) == 11);
+        assert(m.get(11) == Nothing); },
     "haskey", [] {
         typedef testmap<int, int> T;
         assert(!T().haskey(1));

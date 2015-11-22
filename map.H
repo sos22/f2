@@ -25,6 +25,7 @@ namespace tests { void _map(); }
 
 template <typename key> unsigned long default_hashfn(const key &);
 template <> unsigned long default_hashfn<int>(const int &);
+template <> unsigned long default_hashfn<unsigned int>(const unsigned int &);
 template <> unsigned long default_hashfn<unsigned long>(const unsigned long &);
 template <> unsigned long default_hashfn<const char *>(const char *const &);
 template <> unsigned long default_hashfn<char *>(char *const &);

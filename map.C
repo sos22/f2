@@ -6,6 +6,9 @@ template <> unsigned long
 default_hashfn<int>(const int &what) { return what; }
 
 template <> unsigned long
+default_hashfn<unsigned int>(const unsigned int &what) { return what; }
+
+template <> unsigned long
 default_hashfn<unsigned long>(const unsigned long &what) { return what; }
 
 template <> unsigned long
