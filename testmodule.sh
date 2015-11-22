@@ -136,7 +136,7 @@ fi
 echo module=${module} branchcoverage=${branchcov} linecoverage=${linecov} > ${outfile}
 echo ------ >> ${outfile}
 cd ${t2}
-gcov -o ${t} -s ${base} $(find ${t} -type f -name '*.gcda') > /dev/null
+gcov -b --object-directory ${t} --source-prefix ${base} $(find ${t} -type f -name '*.gcda') > /dev/null
 cd - > /dev/null
 cat ${filelist} | while read fname
 do
