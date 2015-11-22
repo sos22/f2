@@ -1241,12 +1241,17 @@ static testmodule __testconnpool(
                 if (c->pinged(samples)) x++; } }
         pool.destroy();
         srv.destroy(io);
-        ::sort(samples);
-        s = Nothing;
         /* Not much point in doing this if we don't have at least a
          * few hundred samples. */
         unsigned nrsamples(samples.length());
-        tassert(T(nrsamples) > T(500u));
+        tassert(T(nrsamples) > T(1500u));
+        /* Drop the first and last few, because they're more likely to
+         * have odd results. */
+        for (unsigned x = 0; x < 500; x++) samples.drophead();
+        for (unsigned x = 0; x < 500; x++) samples.droptail();
+        nrsamples -= 1000;
+        ::sort(samples);
+        s = Nothing;
         timedelta total(0_s);
         for (auto it(samples.start()); !it.finished(); it.next()) total += *it;
         double mean(total / (1_s * nrsamples));
