@@ -6,6 +6,7 @@
 #include "jobname.H"
 #include "storageagent.H"
 #include "storageclient.H"
+#include "testassert.H"
 #include "test2.H"
 
 #include "either.tmpl"
@@ -13,6 +14,7 @@
 #include "orerror.tmpl"
 #include "pair.tmpl"
 #include "serialise.tmpl"
+#include "testassert.tmpl"
 #include "test2.tmpl"
 
 class teststate {
@@ -142,9 +144,8 @@ static testmodule __teststorageagent(
         start = timestamp::now();
         auto res(statjob.pop(io));
         end = timestamp::now();
-        assert(end - start < 10_ms);
-        assert(res.issuccess());
-        assert(res.success() == j); },
+        tassert(T(end) - T(start) < T(50_ms));
+        assert(res.fatal("statjob") == j); },
     "statstream", [] (clientio io) {
         teststate t((io));
         auto sn(streamname::mk("X").fatal("X"));
