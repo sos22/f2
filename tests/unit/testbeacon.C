@@ -569,12 +569,14 @@ static testmodule __beacontests(
                        sn,
                        timedelta::seconds(1)),
                    mklist(interfacetype::test),
-                   port)
-               .fatal("starting beacon server"));
-        assert(c->query(io, sn).name().getport() == port);
+                   port));
+        if (s.isfailure() && s != error::from_errno(EADDRINUSE)) {
+            s.fatal("starting beacon server on " + port.field()); }
+        if (s.issuccess()) {
+            assert(c->query(io, sn).name().getport() == port);
+            s.success()->destroy(io); }
         c->status(loglevel::emergency);
         assert(loudmsgs > 0);
-        s->destroy(io);
         c->destroy(); },
     "badclient", [] (clientio io) {
         quickcheck q;
