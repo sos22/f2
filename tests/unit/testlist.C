@@ -332,4 +332,13 @@ static testmodule __listtest(
         assert(l.peektail() == 3);
         assert(l.peektail() == 3);
         assert(l.poptail() == 3);
-        assert(l.peektail() == 2); } );
+        assert(l.peektail() == 2); },
+    "droptail", [] {
+        list<int> l(Immediate(), 1, 2, 3);
+        assert(l == list<int>(Immediate(), 1, 2, 3));
+        l.droptail();
+        assert(l == list<int>(Immediate(), 1, 2));
+        l.droptail();
+        assert(l == list<int>(Immediate(), 1));
+        l.droptail();
+        assert(l == list<int>(Immediate())); } );

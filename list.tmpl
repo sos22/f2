@@ -163,6 +163,9 @@ list<t>::poptail()
     return res;
 }
 
+template <typename t> void
+list<t>::droptail() { reverse().remove(); }
+
 template <typename t> const t &
 list<t>::peekhead() const {
     assert(!empty());

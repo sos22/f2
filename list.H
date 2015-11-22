@@ -103,6 +103,8 @@ public:
     void drophead();
     /* Remove the last item from the list and return a copy of it. */
     t poptail();
+    /* Remove the last element and discard it. */
+    void droptail();
     /* Peek at the first item in the list. */
     const t &peekhead() const;
     t &peekhead();
