@@ -1207,8 +1207,13 @@ static testmodule __testconnpool(
             : inner(pool.call(sn,
                               interfacetype::test,
                               Nothing,
+                              /* Adding just a tiny little bit of fuzz
+                               * increases the SD, but decreases skew
+                               * and kurtosis, because there's less of
+                               * a thundering herd problem. */
                               [] (serialise1 &s, connpool::connlock) {
-                                  (100_ms).serialise(s);
+                                  timedelta::milliseconds(95 + random() % 10)
+                                      .serialise(s);
                                   s.push(1u); })),
               started(timestamp::now()),
               ss(Just(), sub, inner->pub(), this) {}
