@@ -4,4 +4,4 @@
 
 ccdyn tests/lib/testjobs.C
 lddyn tests/lib/testjobs.so tests/lib/testjobs.po
-echo 'realall:: jobtest.so'
+echo 'realall:: tests/lib/testjobs.so'
