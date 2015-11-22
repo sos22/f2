@@ -30,6 +30,9 @@ loglevel::debug(10);
 const loglevel
 loglevel::verbose(11);
 
+static unsigned
+silencecount;
+
 /* loglevel interface says >= means more serious, but internally
    levels are in descending order. */
 bool
@@ -116,6 +119,7 @@ _logmsg(const logmodule &module,
         const char *func,
         loglevel level,
         const fields::field &what) {
+    if (silencecount != 0) return;
     tests::logmsg.trigger(level);
     auto cstr(what.c_str());
     auto len(strlen(cstr));
@@ -219,6 +223,14 @@ _initlogging(const char *_ident, list<string> &args) {
     if (logfile == NULL) err(1, "opening %s", ident);
     free(ident);
     on_exit(_logging_exit, NULL); }
+
+logging::silence::silence(void) {
+    logmsg(loglevel::info, "silence logging: " + fields::mk(silencecount));
+    __sync_fetch_and_add(&silencecount, 1); }
+
+logging::silence::~silence(void) {
+    if (__sync_fetch_and_sub(&silencecount, 1) == 1) {
+        logmsg(loglevel::info, "re-enabled logging"); } }
 
 void
 mkverbose(const filename &fn) {

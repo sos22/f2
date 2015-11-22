@@ -77,6 +77,13 @@ void dumpmemlog(void);
 void _initlogging(const char *ident, list<string> &args);
 #define initlogging(args) _initlogging(__BASE_FILE__, args);
 
+/* Any instance of logging::silence turns off all logging, across all
+ * threads, which is occasionally useful for performance work. */
+namespace logging {
+class silence {
+public: silence();
+public: ~silence(); }; }
+
 class filename;
 void mkverbose(const filename &);
 
