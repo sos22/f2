@@ -1185,7 +1185,7 @@ static testmodule __testconnpool(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         agentname sn(q);
-        static unsigned nroutstanding = 500;
+        static unsigned nroutstanding = 200;
         auto &srv(*rpcservice2::listen<slowservice>(
                       io,
                       rpcservice2config(
@@ -1239,6 +1239,7 @@ static testmodule __testconnpool(
                 auto c((call *)ss->data);
                 assert(ss == &c->ss.just());
                 if (c->pinged(samples)) x++; } }
+        s = Nothing;
         pool.destroy();
         srv.destroy(io);
         /* Not much point in doing this if we don't have at least a
@@ -1254,6 +1255,9 @@ static testmodule __testconnpool(
         s = Nothing;
         timedelta total(0_s);
         for (auto it(samples.start()); !it.finished(); it.next()) total += *it;
+        /* Not much point in doing this if we don't have at least a
+         * few hundred samples. */
+        tassert(T(nrsamples) > T(500u));
         double mean(total / (1_s * nrsamples));
         double moments[3];
         double p1;
@@ -1274,6 +1278,7 @@ static testmodule __testconnpool(
         double sd = pow(var, 0.5);
         double skew = moments[1] / (nrsamples * pow(var, 1.5));
         double kurtosis = moments[2] / (nrsamples * var * var) - 3;
+        logmsg(loglevel::info, "nrsamples: " + fields::mk(nrsamples));
         logmsg(loglevel::info, "mean: " + fields::mk(mean));
         logmsg(loglevel::info,
                "1-50-99:" + fields::mk(p1) +
@@ -1285,15 +1290,22 @@ static testmodule __testconnpool(
                "-" + fields::mk(kurtosis));
         /* A few simple checks that we're not too far from the
          * distribution we expect. */
-        /* Relatively few extreme outliers */
-        tassert(T(p1) >= T(mean) - T(sd) * T(4.0));
-        tassert(T(p99) <= T(mean) + T(sd) * T(4.0));
-        /* Median close to mean */
-        tassert(T(p50) <= T(mean) + T(sd));
-        tassert(T(p50) >= T(mean) - T(sd));
-        /* Positive skew */
-        tassert(T(skew) >= T(0.0));
-        /* But not too skewed */
-        tassert(T(skew) <= T(2.0));
-        /* Vaguely reasonable kurtosis. */
-        tassert(T(kurtosis) <= T(1.0)); });
+        testassert::expression<bool> &res(
+            /* Few extreme outliers */
+            (T(p1) >= T(mean) - T(sd) * T(5.0)) &&
+            (T(p99) <= T(mean) + T(sd) * T(5.0)) &&
+            /* Median close to mean */
+            (T(p50) <= T(mean) + T(sd)) &&
+            (T(p50) >= T(mean) - T(sd)) &&
+            /* Positive skew */
+            (T(skew) >= T(0.0)) &&
+            /* But not too skewed */
+            (T(skew) <= T(2.0)) &&
+            /* Vaguely reasonable kurtosis. */
+            (T(kurtosis) <= T(1.0)));
+        if (!res.eval()) {
+            logmsg(loglevel::emergency, "poor distribution:" + res.field());
+            for (auto it(samples.start()); !it.finished(); it.next()) {
+                logmsg(loglevel::info, "sample " + it->field()); }
+            abort(); }
+        delete &res; });
