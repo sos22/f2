@@ -1175,4 +1175,120 @@ static testmodule __testconnpool(
         done.set();
         cp.destroy();
         bs.destroy(io);
-        l.close(); } );
+        l.close(); },
+    "predictability", [] (clientio io) {
+        /* We don't just need to be fast, we also need to be
+         * predictable. The median and mean latency should be similar,
+         * and the 99th percentile should be reasonably close. */
+        /* Easier to get predictability with logging turned off. */
+        maybe<logging::silence> s((Just()));
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname sn(q);
+        static unsigned nroutstanding = 500;
+        auto &srv(*rpcservice2::listen<slowservice>(
+                      io,
+                      rpcservice2config(
+                          beaconserverconfig::dflt(cn, sn),
+                          nroutstanding+1,
+                          10000000),
+                      peername::all(peername::port::any))
+                  .fatal("starting slow service"));
+        auto &pool(*connpool::build(cn).fatal("building connpool"));
+        list<timedelta> samples;
+        subscriber sub;
+        class call {
+        public: nnp<connpool::asynccall> inner;
+        public: timestamp started;
+        public: maybe<subscription> ss;
+        public: call(connpool &pool,
+                     agentname sn,
+                     subscriber &sub)
+            : inner(pool.call(sn,
+                              interfacetype::test,
+                              Nothing,
+                              [] (serialise1 &s, connpool::connlock) {
+                                  (100_ms).serialise(s);
+                                  s.push(1u); })),
+              started(timestamp::now()),
+              ss(Just(), sub, inner->pub(), this) {}
+        public: bool pinged(list<timedelta> &samples) {
+            auto t(inner->finished());
+            if (t == Nothing) return false;
+            samples.append(timestamp::now() - started);
+            ss = Nothing;
+            inner->pop(t.just()).fatal("getting call results");
+            delete this;
+            return true; } };
+        /* Start off with 100 outstanding */
+        for (unsigned x = 0; x < nroutstanding; x++) {
+            new call(pool, sn, sub); }
+        /* Run for 5 seconds. */
+        auto deadline((5_s).future());
+        while (deadline.infuture()) {
+            auto ss(sub.wait(io, deadline));
+            if (ss == NULL) continue;
+            auto c((call *)ss->data);
+            assert(c->ss.isjust());
+            assert(ss == &c->ss.just());
+            if (c->pinged(samples)) new call(pool, sn, sub); }
+        /* Drain the outstanding calls. */
+        {   unsigned x = 0;
+            while (x < nroutstanding) {
+                auto ss(sub.wait(io));
+                auto c((call *)ss->data);
+                assert(ss == &c->ss.just());
+                if (c->pinged(samples)) x++; } }
+        pool.destroy();
+        srv.destroy(io);
+        ::sort(samples);
+        s = Nothing;
+        /* Not much point in doing this if we don't have at least a
+         * few hundred samples. */
+        unsigned nrsamples(samples.length());
+        tassert(T(nrsamples) > T(500u));
+        timedelta total(0_s);
+        for (auto it(samples.start()); !it.finished(); it.next()) total += *it;
+        double mean(total / (1_s * nrsamples));
+        double moments[3];
+        double p1;
+        double p50;
+        double p99;
+        {   unsigned x = 0;
+            auto it(samples.start());
+            while (!it.finished()) {
+                double s = *it / 1_s;
+                for (unsigned y = 0; y < ARRAYSIZE(moments); y++) {
+                    moments[y] += pow(s - mean, y + 2); }
+                if (x == nrsamples / 100) p1 = s;
+                else if (x == nrsamples / 2) p50 = s;
+                else if (x == (nrsamples / 100) * 99) p99 = s;
+                it.next();
+                x++; } }
+        double var = moments[0] / nrsamples;
+        double sd = pow(var, 0.5);
+        double skew = moments[1] / (nrsamples * pow(var, 1.5));
+        double kurtosis = moments[2] / (nrsamples * var * var) - 3;
+        logmsg(loglevel::info, "mean: " + fields::mk(mean));
+        logmsg(loglevel::info,
+               "1-50-99:" + fields::mk(p1) +
+               " " + fields::mk(p50) +
+               " " + fields::mk(p99));
+        logmsg(loglevel::info,
+               "sd-skew-kurt: " + fields::mk(sd) +
+               "-" + fields::mk(skew) +
+               "-" + fields::mk(kurtosis));
+        /* A few simple checks that we're not too far from the
+         * distribution we expect. */
+        /* Relatively few extreme outliers */
+        tassert(T(p1) >= T(mean) - T(sd) * T(4.0));
+        tassert(T(p99) <= T(mean) + T(sd) * T(4.0));
+        /* Median close to mean */
+        tassert(T(p50) <= T(mean) + T(sd));
+        tassert(T(p50) >= T(mean) - T(sd));
+        /* Positive skew */
+        tassert(T(skew) >= T(0.0));
+        /* But not too skewed */
+        tassert(T(skew) <= T(2.0));
+        /* Vaguely reasonable kurtosis. */
+        tassert(T(kurtosis) <= T(1.0)); });
