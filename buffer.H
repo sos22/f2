@@ -82,7 +82,7 @@ public:  void serialise(serialise1 &) const;
                                      fd_t,
                                      subscriber &sub,
                                      maybe<timestamp> deadline = Nothing);
-    /* Send with blocking.  The FD must be in non-blocking mode. */
+    /* Send without blocking.  The FD must be in non-blocking mode. */
     orerror<void> sendfast(fd_t);
 
     /* Grab some bytes from the fd and put them at the end of the
