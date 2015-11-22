@@ -15,7 +15,7 @@ val<inner>::val(const char *_label, const std::function<inner ()> &_calc)
       value(Nothing) {}
 
 template <typename inner> const fields::field &
-val<inner>::field() const {
+val<inner>::field(unsigned, bool) const {
     return fields::mk(label) +
         "{" +
             *(value == Nothing
@@ -35,12 +35,12 @@ template <typename inner>
 cnst<inner>::cnst(inner _value) : value(_value) {}
 
 template <typename inner> const fields::field &
-cnst<inner>::field() const { return fields::mk(value); }
+cnst<inner>::field(unsigned, bool) const { return fields::mk(value); }
 
 template <typename inner> inner
 cnst<inner>::eval() { return value; }
 
-#define binop(name, op)                                                 \
+#define binop(name, op, prec, assoc)                                    \
     template <typename a, typename b> class expr##name                  \
         : public expression<decltype(*(a *)1ul op *(b *)2ul)> {         \
       public: typedef decltype(*(a *)1ul op *(b *)2ul) resT;            \
@@ -52,22 +52,31 @@ cnst<inner>::eval() { return value; }
       public: ~expr##name() {                                           \
             delete &_a;                                                 \
             delete &_b; }                                               \
-      public: const fields::field &field() const {                      \
-            return "(" + _a.field() + " "#op" " + _b.field() + ")"; }   \
+      public: const fields::field &field(unsigned _prec, bool isleft) const { \
+            bool needbrackets;                                          \
+            if (_prec > prec) needbrackets = true;                      \
+            else if (_prec < prec) needbrackets = false;                \
+            else if (assoc == 0) needbrackets = true;                   \
+            else if (assoc == -1) needbrackets = isleft;                \
+            else needbrackets = !isleft;                                \
+            auto &inner(_a.field(prec, true) + " "#op" " +              \
+                        _b.field(prec, false));                         \
+            if (needbrackets) return "(" + inner + ")";                 \
+            else return inner; }                                        \
       public: resT eval() { return _a.eval() op _b.eval(); } };         \
     template <typename a, typename b> expression<decltype(*(a *)1ul op *(b *)2ul)> & \
     operator op(expression<a> &_a, expression<b> &_b) {                 \
         return *new expr##name<a, b>(_a, _b); }
-binop(plus, +)
-binop(times, *)
-binop(minus, -)
-binop(andand, &&)
-binop(oror, ||)
-binop(greater, >)
-binop(greatereq, >=)
-binop(equal, ==)
-binop(lessereq, <=)
-binop(lesser, <)
+binop(andand, &&, 1, 1)
+binop(oror, ||, 1, 1)
+binop(greater, >, 2, 0)
+binop(greatereq, >=, 2, 0)
+binop(equal, ==, 2, 0)
+binop(lessereq, <=, 2, 0)
+binop(lesser, <, 2, 0)
+binop(plus, +, 3, 1)
+binop(minus, -, 3, 1)
+binop(times, *, 4, 1)
 #undef binop
 }
 
