@@ -28,7 +28,8 @@ public:  program &addarg(const string &);
 public:  program &addarg(string &&);
 public:  program &addarg(const fields::field &);
 public:  program &addfd(fd_t in_parent, int in_child);
-public:  orerror<either<shutdowncode, signalnr> > run(clientio) const; };
+public:  orerror<either<shutdowncode, signalnr> > run(clientio) const;
+public:  const fields::field &field() const; };
 
 /* Ideally, this would inherit privately from iosubscription and
    re-expose the inheritance from subscriptionbase publically, but C++

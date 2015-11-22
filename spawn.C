@@ -80,6 +80,20 @@ program::addfd(fd_t inparent, int inchild) {
     fds.set(inchild, inparent);
     return *this; }
 
+const fields::field &
+program::field() const {
+    auto acc(&("{" + exec.str().field()));
+    for (auto it(args.start()); !it.finished(); it.next()) {
+        acc= &(*acc + " " + it->field()); }
+    list<pair<int, int> > redirects;
+    for (auto it(fds.start()); !it.finished(); it.next()) {
+        redirects.append(it.key(), it.value().fd); }
+    ::sort(redirects);
+    for (auto it(redirects.start()); !it.finished(); it.next()) {
+        acc = &(*acc + " " +
+                fields::mk(it->first()) + "->" + fields::mk(it->second())); }
+    return *acc + "}"; }
+
 orerror<either<shutdowncode, signalnr> >
 program::run(clientio io) const {
     auto p(process::spawn(*this));

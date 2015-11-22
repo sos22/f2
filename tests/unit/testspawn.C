@@ -276,5 +276,34 @@ static testmodule __spawntest(
         assert(!strcmp((char *)pipe2r.linearise(), "pipe1\n"));
         pipe1.read.close();
         pipe2.read.close();
-        assert(p->join(io).left() == shutdowncode::ok); }
-);
+        assert(p->join(io).left() == shutdowncode::ok); },
+    "progfield", [] {
+#define tt(pp, expected) do {                                           \
+            auto c((pp).field().c_str());                               \
+            if (strcmp(c, expected)) {                                  \
+                logmsg(loglevel::emergency,                             \
+                       fields::mk(c) + " != " + fields::mk(expected));  \
+                abort();                                                \
+            };                                                          \
+        } while (0)
+        tt(spawn::program("hello"), "{hello}");
+        tt(spawn::program("hello")
+           .addarg("goodbye"),
+           "{hello goodbye}");
+        tt(spawn::program("hello")
+           .addarg("goodbye")
+           .addarg("world"),
+           "{hello goodbye world}");
+        tt(spawn::program("hello")
+           .addarg("goodbye")
+           .addarg("world")
+           .addarg(fields::mk(5)),
+           "{hello goodbye world 5}");
+        tt(spawn::program("hello")
+           .addarg("goodbye")
+           .addarg("world")
+           .addarg(fields::mk(5))
+           .addfd(fd_t(7), 8),
+           "{hello goodbye world 5 8->7}");
+#undef tt
+    } );
