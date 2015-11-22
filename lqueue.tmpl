@@ -1,0 +1,53 @@
+#ifndef LQUEUE_TMPL__
+#define LQUEUE_TMPL__
+
+template <typename evt>
+evtsrc<evt>::evtsrc(timedelta _maxwait) : genevtsrc(sizeof(evt), _maxwait) {}
+
+template <typename evt> void
+evtsrc<evt>::push(const evt &_evt) {
+    if (dests.empty_unsafe()) return;
+    auto slt((slot *)malloc(sizeof(slot) + sizeof(evt)));
+    new (slt->inner) evt(_evt);
+    if (!genevtsrc::push(*slt)) {
+        (*(evt *)slt->inner).~evt();
+        free(slt); } };
+
+template <typename evt>
+evtdest<evt>::evtdest(evtsrc<evt> &d) : genevtdest(d) {}
+
+template <typename evt> const publisher &
+evtdest<evt>::pub() const { return src.pub; }
+
+template <typename evt> maybe<evt>
+evtdest<evt>::pop() {
+    auto s(genevtdest::startpop());
+    if (s == NULL) return Nothing;
+    auto res(*(evt *)s->inner);
+    if (genevtdest::finishpop(*s)) {
+        (*(evt *)s->inner).~evt();
+        free(s); }
+    return res; }
+
+template <typename evt> evt
+evtdest<evt>::pop(clientio io) {
+    auto r(pop());
+    if (r == Nothing) {
+        subscriber sub;
+        subscription ss(sub, pub());
+        r = pop();
+        while (r == Nothing) {
+            sub.wait(io);
+            r = pop(); } }
+    return r.just(); }
+
+template <typename evt>
+evtdest<evt>::~evtdest() {
+    auto it(unsubscribe());
+    while (it != NULL) {
+        auto n(it->next);
+        (*(evt *)it->inner).~evt();
+        free(it);
+        it = n; } }
+
+#endif /* !LQUEUE_TMPL__ */

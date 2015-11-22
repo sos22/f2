@@ -4,13 +4,14 @@
 #include "test.H"
 #include "test2.H"
 
+#include "lqueue.tmpl"
 #include "spark.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testlqueue(
     "lqueue",
-    list<filename>::mk("lqueue.H", "lqueue.C"),
+    list<filename>::mk("lqueue.H", "lqueue.C", "lqueue.tmpl"),
     testmodule::BranchCoverage(80_pc),
     "basics", [] (clientio) {
         evtsrc<int> src(1.0_s);

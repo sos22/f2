@@ -47,17 +47,10 @@ public: ~genevtsrc(); };
  * type must have a simple copy constructor. */
 template <typename evt> class evtsrc : private genevtsrc {
     friend class evtdest<evt>;
-public:  explicit evtsrc(timedelta _maxwait)
-    : genevtsrc(sizeof(evt), _maxwait) {}
+public:  explicit evtsrc(timedelta _maxwait);
     /* Add an event to the queue.  It gets removed again as soon as
      * all of the queues have pop()ed it out. */
-public:  void push(const evt &_evt) {
-    if (dests.empty_unsafe()) return;
-    auto slt((slot *)malloc(sizeof(slot) + sizeof(evt)));
-    new (slt->inner) evt(_evt);
-    if (!genevtsrc::push(*slt)) {
-        (*(evt *)slt->inner).~evt();
-        free(slt); } } };
+public:  void push(const evt &_evt); };
 
 /* Implementation detail of evtdest */
 class genevtdest {
@@ -77,33 +70,11 @@ public:  genevtsrc::slot *unsubscribe(); };
  * the source. */
 template <typename evt> class evtdest : private genevtdest {
     friend class evtsrc<evt>;
-public: explicit evtdest(evtsrc<evt> &d) : genevtdest(d) {}
-public: const publisher &pub() const { return src.pub; }
-public: maybe<evt> pop() {
-    auto s(genevtdest::startpop());
-    if (s == NULL) return Nothing;
-    auto res(*(evt *)s->inner);
-    if (genevtdest::finishpop(*s)) {
-        (*(evt *)s->inner).~evt();
-        free(s); }
-    return res; }
-public: evt pop(clientio io) {
-    auto r(pop());
-    if (r == Nothing) {
-        subscriber sub;
-        subscription ss(sub, pub());
-        r = pop();
-        while (r == Nothing) {
-            sub.wait(io);
-            r = pop(); } }
-    return r.just(); }
-public: ~evtdest() {
-    auto it(unsubscribe());
-    while (it != NULL) {
-        auto n(it->next);
-        (*(evt *)it->inner).~evt();
-        free(it);
-        it = n; } } };
+public: explicit evtdest(evtsrc<evt> &d);
+public: const publisher &pub() const;
+public: maybe<evt> pop();
+public: evt pop(clientio io);
+public: ~evtdest(); };
 
 namespace tests { void _lqueue(); }
 
