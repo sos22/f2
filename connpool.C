@@ -778,7 +778,10 @@ CONN::connectphase(
         logmsg(loglevel::debug, "waiting for beacon");
         _beaconres = pool.beacon.poll(agent);
         if (_beaconres == Nothing) {
-            sub.wait(io, checktimeouts(calls, cl, idledat, false, NULL));
+            auto dl(checktimeouts(calls, cl, idledat, false, NULL));
+            auto s(sub.wait(io, dl));
+            while (s == &beaconsub && pool.beacon.poll(agent) == Nothing) {
+                s = sub.wait(io, dl); }
             return Nothing; } }
     auto &peer(_beaconres.just().name());
 
@@ -793,7 +796,9 @@ CONN::connectphase(
             deadline.just().after(debounceconnect.just().second()))
             deadline = debounceconnect.just().second();
         assert(deadline.isjust());
-        sub.wait(io, deadline);
+        auto s(sub.wait(io, deadline));
+        while (s == &beaconsub && pool.beacon.poll(agent) == Nothing) {
+            s = sub.wait(io, deadline); }
         return Nothing; }
 
     /* Know where we're supposed to be connecting to -> do it. */
