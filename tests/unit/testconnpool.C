@@ -1302,8 +1302,8 @@ static testmodule __testconnpool(
             /* Median close to mean */
             (T(p50) <= T(mean) + T(sd)) &&
             (T(p50) >= T(mean) - T(sd)) &&
-            /* Positive skew */
-            (T(skew) >= T(0.0)) &&
+            /* Positive skew, give or take some margin of error. */
+            (T(skew) >= T(-0.5)) &&
             /* But not too skewed */
             (T(skew) <= T(2.0)) &&
             /* Vaguely reasonable kurtosis. */
