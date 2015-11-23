@@ -97,6 +97,8 @@ public:  bool haskey(const _key &) const;
 public:  _value *get_mutate(const _key &);
     /* Clear an entry in the map.  It must be set. */
 public:  void clear(const _key &);
+    /* Check whether the map is empty. */
+public:  bool isempty() const;
     /* Clear every entry in the map. */
 public:  void flush();
     /* Equality tests. */

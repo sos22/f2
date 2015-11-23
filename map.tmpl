@@ -151,6 +151,9 @@ map<key, value, hash>::clear(const key &k) {
         prev = &b->next; }
     abort(); }
 
+template <typename key, typename value, unsigned long hash(const key &)> bool
+map<key, value, hash>::isempty() const { return nritems == 0; }
+
 template <typename key, typename value, unsigned long hash(const key &)> void
 map<key, value, hash>::flush() {
     for (unsigned x = 0; x < nrbuckets; x++) {

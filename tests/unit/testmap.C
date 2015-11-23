@@ -155,6 +155,9 @@ static testmodule __testmap(
         assert(found5);
         assert(found7);
         assert(m.start().finished()); },
+    "isempty", [] {
+        assert((testmap<int, int>().isempty()));
+        assert((!testmap<int, int>(5, 7).isempty())); },
     "haskey", [] {
         typedef testmap<int, int> T;
         assert(!T().haskey(1));
