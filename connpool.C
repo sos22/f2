@@ -514,7 +514,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
     if (!connected) {
         mux.locked([this, &calls] (mutex_t::token tok) {
                 calls.transfer(newcalls(tok)); }); }
-
+    
     bool quick = false;
     list<nnp<CALL> > aborts;
     mux.locked([this, &aborts] (mutex_t::token tok) {
@@ -594,7 +594,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         calls.transfer(_newcalls /* No lock: we're dying. */);
         harderror(calls, error::disconnected, cl);
         assert(calls.empty()); }
-
+    
     /* If we've gone idle then set idledat.  If we've gone non-idle
      * then clear it.  That's not perfect (there might be a lag
      * between idling and setting the time), but it'll be a short lag,
@@ -603,7 +603,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
         if (calls.empty()) idledat = timestamp::now();
         else idledat = Nothing; }
     assert(idledat.isjust() == calls.empty());
-
+    
     /* If we're currently idle then the only (and therefore next)
      * timeout is the idle timeout. */
     if (idledat.isjust()) {
@@ -629,6 +629,7 @@ CONN::checktimeouts(list<nnp<CALL> > &calls,
             else {
                 logmsg(loglevel::debug,
                        "connection to " + fields::mk(agent) + " timed out"); } }
+        else logmsg(loglevel::debug, "conn will idle at " + r.field());
         /* Waiting for idle timeout. */
         return r; }
     /* Otherwise, take the soonest call timeout. */
@@ -796,9 +797,11 @@ CONN::connectphase(
             deadline.just().after(debounceconnect.just().second()))
             deadline = debounceconnect.just().second();
         assert(deadline.isjust());
+        logmsg(loglevel::debug, "debounce connect to " + deadline.field());
         auto s(sub.wait(io, deadline));
         while (s == &beaconsub && pool.beacon.poll(agent) == Nothing) {
             s = sub.wait(io, deadline); }
+        sub.wait(io, deadline);
         return Nothing; }
 
     /* Know where we're supposed to be connecting to -> do it. */
@@ -838,6 +841,7 @@ CONN::connectphase(
                 ::close(sock);
                 /* No debounce this time: the connect timeout achieves the
                  * same thing. */
+                logmsg(loglevel::debug, "undebounced connect failure");
                 return Nothing; }
             auto _deadline(checktimeouts(calls, cl, idledat, false, NULL));
             if (_deadline == Nothing || _deadline.just().after(deadline)) {
@@ -845,6 +849,7 @@ CONN::connectphase(
             auto ss(sub.wait(io, _deadline));
             if (finished(calls, cl)) {
                 ::close(sock);
+                logmsg(loglevel::debug, "connected but already dying");
                 return Nothing; }
             /* Other subscriptions handled by checktimeouts() */
             if (ss != &connectsub) continue;
@@ -888,6 +893,7 @@ CONN::connectphase(
             auto res(txbuf.sendfast(fd_t(sock)));
             if (res.isfailure() && res != error::wouldblock) {
                 ::close(sock);
+                logmsg(loglevel::debug, "connect followed by TX failure");
                 return Nothing; }
             if (txbuf.empty()) break;
             if (deadline.inpast()) {
@@ -901,6 +907,7 @@ CONN::connectphase(
             auto ss(sub.wait(io, _deadline));
             if (finished(calls, cl)) {
                 ::close(sock);
+                logmsg(loglevel::debug, "connect followed by dying");
                 return Nothing; }
             if (ss == &out) out.rearm(); } }
 
@@ -925,10 +932,12 @@ CONN::connectphase(
                         io, checktimeouts(calls, cl, idledat, false, NULL)));
                 if (finished(calls, cl)) {
                     ::close(sock);
+                    logmsg(loglevel::debug, "dying receiving fast hello");
                     return Nothing; }
                 if (ss == &in) in.rearm(); }
             else if (err.isfailure()) {
                 ::close(sock);
+                logmsg(loglevel::debug, "error receiving fast hello");
                 return Nothing; }
             continue; }
         if (hdr.status.isfailure()) ds.fail(hdr.status.failure());
@@ -942,6 +951,7 @@ CONN::connectphase(
             /* Getting an error back from HELLO is a hard failure. */
             harderror(calls, ds.failure(), cl);
             ::close(sock);
+            logmsg(loglevel::debug, "HELLO failure");
             return Nothing; }
         /* XXX we discard the server's advertised interface list.  Is
          * there much point in having it? */
