@@ -287,6 +287,8 @@ CLIENT::startgetter(onqueuethread oqt) {
             c.serialise(s); },
         [this, c] (deserialise1 &ds, connpool::connlock cl) -> orerror<bool> {
             maybe<pair<proto::eq::eventid, buffer> > res(ds);
+            logmsg(loglevel::debug,
+                   "getter res " + res.field() + " ds " + ds.status().field());
             if (res == Nothing) return true;
             else {
                 buffer b(Steal, res.just().second());
@@ -396,7 +398,8 @@ CLIENT::run(clientio io) {
                                         subid.serialise(s);
                                         trim.just().serialise(s); }))); }
                 if (getterres.isfailure()) {
-                    logmsg(loglevel::verbose, "getter failed");
+                    logmsg(loglevel::verbose,
+                           "getter failed " + getterres.failure().field());
                     failqueue(getterres.failure());
                     break; }
                 if (getterres.success()) {
