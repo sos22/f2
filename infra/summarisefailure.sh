@@ -89,7 +89,7 @@ cat $fail | while read fail
                 fi
                 cat ${testdir}/logs/${fail}
                 echo "BACKTRACES:"
-                ./infra/backtraces.sh ${testdir}/logs/${fail}
+                ./infra/backtrace.sh ${testdir}/logs/${fail}
                 echo
             done
 
