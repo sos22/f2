@@ -235,7 +235,7 @@ logging::silence::~silence(void) {
 void
 mkverbose(const filename &fn) {
     auto m(modules().get(fn.str()));
-    if (m==Nothing) logmsg(loglevel::error, "no logging module " + fn.field());
+    if (m==Nothing) logmsg(loglevel::debug, "no logging module " + fn.field());
     else m.just()->noisy = true; }
 
 namespace tests { event<loglevel> logmsg; }
