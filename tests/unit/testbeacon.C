@@ -334,9 +334,9 @@ static testmodule __beacontests(
         /* First three broadcasts fail, and we do one every 100ms,
          * so it should take at least 200ms to complete
          * (fencepost). */
-        assert(tv >= timedelta::milliseconds(200));
+        tassert(T(tv) >= T(200_ms));
         /* Should complete fairly quickly after that. */
-        assert(tv <= timedelta::milliseconds(400));
+        tassert(T(tv) <= T(500_ms));
         s->destroy(io);
         c->destroy(); },
     "clientdirectfailure", [] (clientio io) {
