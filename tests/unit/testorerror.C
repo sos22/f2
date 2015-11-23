@@ -8,9 +8,8 @@
 static testmodule __testorerror(
     "orerror",
     list<filename>::mk("orerror.C", "orerror.H", "orerror.tmpl"),
-    /* A test with lousy coverage is still better than no test at all... */
     testmodule::LineCoverage(80_pc),
-    testmodule::BranchCoverage(10_pc),
+    testmodule::BranchCoverage(75_pc),
     "constructsucc", [] {
         class cons {
         public: const int x;

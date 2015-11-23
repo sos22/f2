@@ -24,9 +24,8 @@ public: orerror(const t &x);
 public: orerror(_Steal s, t &x);
 public: orerror(_Steal s, orerror &o);
 public: explicit orerror(deserialise1 &ds);
-public: template <typename ... args> orerror(_Success, args &&...params)
-    : either<error, t>(Right(), std::forward<args>(params)...) {}
-public: orerror(_Failure, error e) : either<error, t>(Left(), e) {}
+public: template <typename ... args> orerror(_Success, args &&...params);
+public: orerror(_Failure, error e);
 public: bool operator==(const error &e) const;
 public: bool operator==(const t &o) const;
 public: bool operator==(const orerror &o) const;
@@ -37,33 +36,21 @@ public: error failure() const;
 public: const t &fatal(const fields::field &f) const;
 public: const t &fatal(const char *f) const;
 public: const fields::field &field() const;
-public: void mkfailure(error e) { this->mkleft(e); }
-public: template <typename ... args> void mksuccess(args &&...params) {
-    this->mkright(std::forward<args>(params)...); }
-public: bool isfailure() const { return this->isleft(); }
-public: bool issuccess() const { return this->isright(); }
-public: const t &success() const {
-    assert(this->issuccess());
-    return this->right(); }
-public: t &success() {
-    assert(this->issuccess());
-    return this->right(); }
-public: const orerror &warn(const fields::field &f) const {
-    if (this->isfailure()) this->failure().warn(f);
-    return *this; }
-public: const orerror &warn(const char *f) const {
-    if (this->isfailure()) this->failure().warn(f);
-    return *this; }
+public: void mkfailure(error e);
+public: template <typename ... args> void mksuccess(args &&...params);
+public: bool isfailure() const;
+public: bool issuccess() const;
+public: const t &success() const;
+public: t &success();
+public: const orerror &warn(const fields::field &f) const;
+public: const orerror &warn(const char *f) const;
 public: static const ::parser<orerror<t> > &parser();
 public: static const ::parser<orerror<t> > &parser(const ::parser<t> &inner);
 public: const t flatten() const; };
 
-template <typename t> orerror<t>
-success(const t &x) { return x; }
-template <typename t> bool
-operator==(error a, const orerror<t> &b) { return b == a; }
-template <typename t> bool
-operator==(const t &a, const orerror<t> &b) { return b == a; }
+template <typename t> orerror<t> success(const t &x);
+template <typename t> bool operator==(error a, const orerror<t> &b);
+template <typename t> bool operator==(const t &a, const orerror<t> &b);
 
 template <> class orerror<void> : public orerror<Void> {
 public: using orerror<Void>::orerror;

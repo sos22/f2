@@ -16,6 +16,13 @@ orerror<t>::orerror(_Steal s, t &x) : either<error, t>(s, Right(), x) {}
 template <typename t>
 orerror<t>::orerror(_Steal s, orerror &o) : either<error, t>(s, o) {}
 
+template <typename t> template <typename ... args>
+orerror<t>::orerror(_Success, args &&...params)
+    : either<error, t>(Right(), std::forward<args>(params)...) {}
+
+template <typename t>
+orerror<t>::orerror(_Failure, error e) : either<error, t>(Left(), e) {}
+
 template <typename t>
 orerror<t>::orerror(deserialise1 &ds) : either<error, t>(ds) {}
 
@@ -28,6 +35,39 @@ template <typename t> const t &
 orerror<t>::fatal(const fields::field &f) const {
     if (this->isfailure()) this->failure().fatal(f);
     else return this->success(); }
+
+template <typename t> void
+orerror<t>::mkfailure(error e) { this->mkleft(e); }
+
+template <typename t> template <typename ... args> void
+orerror<t>::mksuccess(args && ... params) {
+    this->mkright(std::forward<args>(params)...); }
+
+template <typename t> bool
+orerror<t>::isfailure() const { return this->isleft(); }
+
+template <typename t> bool
+orerror<t>::issuccess() const { return this->isright(); }
+
+template <typename t> const t &
+orerror<t>::success() const {
+    assert(this->issuccess());
+    return this->right(); }
+
+template <typename t> t &
+orerror<t>::success() {
+    assert(this->issuccess());
+    return this->right(); }
+
+template <typename t> const orerror<t> &
+orerror<t>::warn(const fields::field &f) const {
+    if (this->isfailure()) this->failure().warn(f);
+    return *this; }
+
+template <typename t> const orerror<t> &
+orerror<t>::warn(const char *f) const {
+    if (this->isfailure()) this->failure().warn(f);
+    return *this; }
 
 template <typename t> const t &
 orerror<t>::fatal(const char *f) const {
@@ -83,5 +123,12 @@ orerror<t>::flatten() const {
     if (isfailure()) return failure();
     else if (success().isfailure()) return success().failure();
     else return success().success(); }
+
+template <typename t> orerror<t>
+success(const t &x) { return x; }
+template <typename t> bool
+operator==(error a, const orerror<t> &b) { return b == a; }
+template <typename t> bool
+operator==(const t &a, const orerror<t> &b) { return b == a; }
 
 #endif /* !ORERROR_TMPL__ */
