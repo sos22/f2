@@ -1307,7 +1307,7 @@ static testmodule __testconnpool(
             /* But not too skewed */
             (T(skew) <= T(2.0)) &&
             /* Vaguely reasonable kurtosis. */
-            (T(kurtosis) <= T(1.0)));
+            (T(kurtosis) <= T(2.0)));
         if (!res.eval()) {
             logmsg(loglevel::emergency, "poor distribution:" + res.field());
             for (auto it(samples.start()); !it.finished(); it.next()) {
