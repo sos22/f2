@@ -1225,9 +1225,13 @@ static testmodule __testconnpool(
             inner->pop(t.just()).fatal("getting call results");
             delete this;
             return true; } };
-        /* Start off with 100 outstanding */
-        for (unsigned x = 0; x < nroutstanding; x++) {
-            new call(pool, sn, sub); }
+        /* Start off with @nroutstanding outstanding. Try to stagger
+         * the start points a little to avoid thundering herd
+         * effects. */
+        {   auto stagger(100_ms / (double)nroutstanding);
+            for (unsigned x = 0; x < nroutstanding; x++) {
+                new call(pool, sn, sub);
+                stagger.future().sleep(io); } }
         /* Run for 5 seconds. */
         auto deadline((5_s).future());
         while (deadline.infuture()) {
