@@ -414,4 +414,52 @@ static testmodule __testpubsub(
                 pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
             (timestamp::now() + timedelta::milliseconds(100)).sleep(_io);
             assert(sub.poll() == &writing); }
-        deinitpubsub(_io); });
+        deinitpubsub(_io); },
+    "publots", [] {
+        /* A single subscriber which subscribes to lots of publishers
+         * should produce some warning messages (and also work). */
+        initpubsub();
+        const unsigned nrpubs = 2000;
+        {   publisher pubs[nrpubs];
+            subscriber sub;
+            auto ss = (subscription *)calloc(nrpubs, sizeof(subscriber));
+            for (auto x = 0; x < nrpubs; x++) {
+                new (&ss[x]) subscription(sub, pubs[x]); }
+            unsigned nrmsgs = 0;
+            tests::eventwaiter< ::loglevel> waiter(
+                tests::logmsg,
+                [&nrmsgs] (loglevel level) {
+                    if (level >= loglevel::error) nrmsgs++; });
+            for (auto x = 0; x < nrpubs; x++) assert(sub.wait(_io) != NULL);
+            assert(nrmsgs > 0);
+            nrmsgs = 0;
+            for (auto x = 0; x < nrpubs; x++) {
+                pubs[x].publish();
+                assert(sub.poll() == &ss[x]); }
+            assert(nrmsgs > 0);
+            for (auto x = 0; x < nrpubs; x++) ss[x].~subscription();
+            free(ss); }
+        deinitpubsub(_io); },
+    "sublots", [] {
+        /* Lots of subscribers which all subscribe to the same
+         * publisher. */
+        initpubsub();
+        const unsigned nrsubs = 20000;
+        {   publisher pub;
+            subscriber subs[nrsubs];
+            auto ss = (subscription *)calloc(nrsubs, sizeof(subscriber));
+            for (auto x = 0; x < nrsubs; x++) {
+                new (&ss[x]) subscription(subs[x], pub); }
+            unsigned nrmsgs = 0;
+            tests::eventwaiter< ::loglevel> waiter(
+                tests::logmsg,
+                [&nrmsgs] (loglevel level) {
+                    if (level >= loglevel::error) nrmsgs++; });
+            for (auto x = 0; x < nrsubs; x++) assert(subs[x].wait(_io)==&ss[x]);
+            nrmsgs = 0;
+            pub.publish();
+            assert(nrmsgs > 0);
+            for (auto x = 0; x < nrsubs; x++) assert(subs[x].wait(_io)==&ss[x]);
+            for (auto x = 0; x < nrsubs; x++) ss[x].~subscription();
+            free(ss); }
+        deinitpubsub(_io); } );

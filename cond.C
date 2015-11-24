@@ -4,6 +4,8 @@
 #include <errno.h>
 
 #include "clientio.H"
+#include "logging.H"
+#include "timedelta.H"
 #include "timestamp.H"
 
 #include "maybe.tmpl"
@@ -50,6 +52,8 @@ cond_t::wait(clientio io,
         res.token = wait(io, tok);
         return res; }
     
+    auto dd(deadline.just() - timestamp::now());
+    if (dd > 86400_s) logmsg(loglevel::error, "long timeout "+deadline.field());
     tok->formux(associated_mux);
     tok->release();
     struct timespec ts(deadline.just().as_timespec());

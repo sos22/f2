@@ -144,8 +144,11 @@ publisher::publisher()
 
 void
 publisher::publish() {
+    unsigned cntr = 0;
     auto tok(mux.lock());
     for (auto it(subscriptions.start()); !it.finished(); it.next()) {
+        if (++cntr % 10000 == 0) {
+            logmsg(loglevel::error, "wake lots of subs " + fields::mk(cntr));}
         (*it)->set(); }
     mux.unlock(&tok); }
 
@@ -261,6 +264,7 @@ subscriber::wait(clientio io, maybe<timestamp> deadline) {
     auto token(mux.lock());
     while (1) {
         notified = false;
+        unsigned cntr = 0;
         for (auto it(subscriptions.start()); !it.finished(); it.next()) {
             auto r(*it);
             assert(r->sub == this);
@@ -268,7 +272,10 @@ subscriber::wait(clientio io, maybe<timestamp> deadline) {
                 r->notified = false;
                 mux.unlock(&token);
                 fuzzsched();
-                return r; } }
+                return r; }
+            if (++cntr % 1000 == 0) {
+                logmsg(loglevel::error,
+                       "very long subs list " + fields::mk(cntr)); } }
         while (!notified) {
             auto r(cond.wait(io, &token, deadline));
             token = r.token;
