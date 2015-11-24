@@ -153,6 +153,7 @@ static testmodule __testeq(
                 q.queue(2, rpcservice2::acquirestxlock(_io));
                 q.queue(3, rpcservice2::acquirestxlock(_io));
                 q.queue(4, rpcservice2::acquirestxlock(_io));
+                q.queue(5, rpcservice2::acquirestxlock(_io));
                 auto t(timedelta::time<orerror<unsigned> >(
                            [&] { return c.pop(_io); }));
                 tassert(T(t.v) == T(error::eventsdropped));
