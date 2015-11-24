@@ -1176,6 +1176,44 @@ static testmodule __testconnpool(
         cp.destroy();
         bs.destroy(io);
         l.close(); },
+    "destroybusy", [] (clientio io) {
+        /* Should be able to destroy a connpool even when there are
+         * calls outstanding. */
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname an(q);
+        auto &srv(*rpcservice2::listen<slowservice>(
+                      io,
+                      cn,
+                      an,
+                      peername::all(peername::port::any))
+                  .fatal("starting slow service"));
+        auto &pool(*connpool::build(cn).fatal("building connpool"));
+        bool completed(false);
+        auto c(pool.call<void>(
+                   an,
+                   interfacetype::test,
+                   Nothing,
+                   [] (serialise1 &s, connpool::connlock) {
+                       (10000_s).serialise(s);
+                       s.push(1u); },
+                   [&completed]
+                   (connpool::asynccall &ac,
+                    orerror<nnp<deserialise1> > d,
+                    connpool::connlock) {
+                       tassert(T(d.failure()) == T(error::disconnected));
+                       assert(!completed);
+                       completed = true;
+                       return d.failure(); }));
+        assert(!completed);
+        tassert(T2(timedelta,
+                   timedelta::time([&] { pool.destroy(); })) < T(1_s));
+        auto t(timedelta::time([&] {
+                    tassert(T(c->pop(clientio::CLIENTIO)) ==
+                            T(error::disconnected)); }));
+        tassert(T(t) < T(1_s));
+        assert(completed);
+        srv.destroy(io); },
     "predictability", [] (clientio io) {
         /* We don't just need to be fast, we also need to be
          * predictable. The median and mean latency should be similar,
@@ -1275,12 +1313,12 @@ static testmodule __testconnpool(
         {   unsigned x = 0;
             auto it(samples.start());
             while (!it.finished()) {
-                double s = *it / 1_s;
+                double ss = *it / 1_s;
                 for (unsigned y = 0; y < ARRAYSIZE(moments); y++) {
-                    moments[y] += pow(s - mean, y + 2); }
-                if (x == nrsamples / 100) p1 = s;
-                else if (x == nrsamples / 2) p50 = s;
-                else if (x == (nrsamples / 100) * 99) p99 = s;
+                    moments[y] += pow(ss - mean, y + 2); }
+                if (x == nrsamples / 100) p1 = ss;
+                else if (x == nrsamples / 2) p50 = ss;
+                else if (x == (nrsamples / 100) * 99) p99 = ss;
                 it.next();
                 x++; } }
         double var = moments[0] / nrsamples;
