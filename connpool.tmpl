@@ -7,6 +7,42 @@
 
 #include "maybe.tmpl"
 
+template <typename t>
+connpool::deserialiserT<t>::deserialiserT(const decltype(inner) &_inner)
+    : inner(_inner) {}
+
+template <typename t>
+connpool::deserialiserT<t>::deserialiserT(
+    const std::function<
+        orerror<t> (orerror<nnp<deserialise1> > e, connlock) > &f)
+    : inner([f] (asynccallT<t> &,
+                 orerror<nnp<deserialise1> > ds,
+                 connlock cl) -> orerror<t> {
+                return f(ds, cl); }) {}
+
+template <typename t>
+connpool::deserialiserT<t>::deserialiserT(
+    const std::function<orerror<t> (deserialise1 &, connlock)> &f)
+    : inner([f] (asynccallT<t> &,
+                 orerror<nnp<deserialise1> > ds,
+                 connlock cl) -> orerror<t> {
+                if (ds.isfailure()) return ds.failure();
+                else return f(ds.success(), cl); }) {}
+
+template <typename t>
+connpool::deserialiserT<t>::deserialiserT()
+    : inner([] (asynccallT<t> &,
+                orerror<nnp<deserialise1> > ds,
+                connlock) -> orerror<t> {
+                if (ds.isfailure()) return ds.failure();
+                else return Success; }) {}
+
+template <typename t> orerror<t>
+connpool::deserialiserT<t>::operator()(asynccallT<t> &ac,
+                                       orerror<nnp<deserialise1> > ds,
+                                       connlock cl) const {
+    return inner(ac, ds, cl); }
+
 template <typename t, typename u> orerror<t>
 connpool::call(clientio io,
                const agentname &sn,

@@ -45,32 +45,16 @@ public:  template <typename t> class deserialiserT {
             asynccallT<t> &,
             orerror<nnp<deserialise1> >,
             connlock)> inner;
-    public:  deserialiserT(const decltype(inner) &_inner) : inner(_inner) {}
+    public:  deserialiserT(const decltype(inner) &_inner);
     public:  deserialiserT(
         const std::function<
-            orerror<t> (orerror<nnp<deserialise1> > e, connlock) > &f)
-        : inner([f] (asynccallT<t> &,
-                     orerror<nnp<deserialise1> > ds,
-                     connlock cl) -> orerror<t> {
-                    return f(ds, cl); }) {}
+            orerror<t> (orerror<nnp<deserialise1> > e, connlock) > &f);
     public:  deserialiserT(
-        const std::function<orerror<t> (deserialise1 &, connlock)> &f)
-        : inner([f] (asynccallT<t> &,
-                     orerror<nnp<deserialise1> > ds,
-                     connlock cl) -> orerror<t> {
-                    if (ds.isfailure()) return ds.failure();
-                    else return f(ds.success(), cl); }) {}
-
-    public:  deserialiserT()
-        : inner([] (asynccallT<t> &,
-                    orerror<nnp<deserialise1> > ds,
-                    connlock) -> orerror<t> {
-                    if (ds.isfailure()) return ds.failure();
-                    else return Success; }) {}
+        const std::function<orerror<t> (deserialise1 &, connlock)> &f);
+    public:  deserialiserT();
     public:  orerror<t> operator()(asynccallT<t> &ac,
                                    orerror<nnp<deserialise1> > ds,
-                                   connlock cl) const {
-        return inner(ac, ds, cl); } };
+                                   connlock cl) const; };
 
 private: connpool(const connpool &) = delete;
 private: connpool() {};
