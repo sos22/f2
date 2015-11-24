@@ -2,6 +2,7 @@
 #include "eqserver.H"
 #include "rpcservice2.H"
 #include "test2.H"
+#include "testassert.H"
 
 #include "either.tmpl"
 #include "fields.tmpl"
@@ -11,6 +12,8 @@
 #include "rpcservice2.tmpl"
 #include "test.tmpl"
 #include "test2.tmpl"
+#include "testassert.tmpl"
+#include "timedelta.tmpl"
 
 class eqtestserver : public rpcservice2 {
 public: eqserver &eqs;
@@ -150,9 +153,10 @@ static testmodule __testeq(
                 q.queue(2, rpcservice2::acquirestxlock(_io));
                 q.queue(3, rpcservice2::acquirestxlock(_io));
                 q.queue(4, rpcservice2::acquirestxlock(_io));
-                assert(timedelta::time([&] {
-                            assert(c.pop(_io) == error::eventsdropped); })
-                    < timedelta::milliseconds(200));
+                auto t(timedelta::time<orerror<unsigned> >(
+                           [&] { return c.pop(_io); }));
+                tassert(T(t.v) == T(error::eventsdropped));
+                tassert(T(t.td) < T(200_ms));
                 assert(c.pop().just() == error::eventsdropped); },
             qconf); },
     "multiclient", [] (clientio io) {
