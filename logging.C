@@ -9,7 +9,9 @@
 #include "fields.H"
 #include "filename.H"
 #include "test.H"
+#include "thread.H"
 #include "map.H"
+#include "util.H"
 
 #include "list.tmpl"
 #include "map.tmpl"
@@ -123,7 +125,10 @@ _logmsg(const logmodule &module,
     tests::logmsg.trigger(level);
     auto cstr(what.c_str());
     auto len(strlen(cstr));
-    auto mle = (memlogentry *)malloc(sizeof(memlogentry) + len + 1);
+    auto name(thread::myname());
+    auto nl(strlen(name));
+    auto mle = (memlogentry *)malloc(
+        sizeof(memlogentry) + len + max(nl, 20u) + 1);
     mle->when = timestamp::now();
     mle->who = tid::me();
     mle->module = &module;
@@ -131,7 +136,9 @@ _logmsg(const logmodule &module,
     mle->line = line;
     mle->func = func;
     mle->level = level;
-    memcpy(mle->what, cstr, len + 1);
+    memcpy(mle->what, name, nl);
+    if (nl < 20) memset(mle->what + nl, ' ', 20 - nl);
+    memcpy(mle->what + max(nl, 20u), cstr, len + 1);
     const char *mlestr(NULL);
     if (level >= loglevel::error) {
         mlestr = mle->field().c_str();
