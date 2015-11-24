@@ -110,6 +110,9 @@ thread::field() const {
 const char *
 thread::myname() { return this_name ?: "<unknown thread>"; }
 
+void
+thread::initialthread() { this_name = "main"; }
+
 namespace {
 class exitchecks {
 public: static void doit(int code, void *) {

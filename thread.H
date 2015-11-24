@@ -113,6 +113,10 @@ public:    const fields::field &field() const;
      * name.  The returned pointer remains valid for at least as long
      * as the thread is running. */
 public:    static const char *myname();
+
+    /* Special interface to initialise the program's initial
+     * thread. */
+public:    static void initialthread();
 };
 
 namespace tests {

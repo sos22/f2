@@ -7,6 +7,7 @@
 #include "list.H"
 #include "logging.H"
 #include "string.H"
+#include "thread.H"
 
 #include "list.tmpl"
 #include "orerror.tmpl"
@@ -34,6 +35,7 @@ main(int argc, char *argv[]) {
     signal(SIGABRT, fatalsignal);
     signal(SIGFPE, fatalsignal);
     signal(SIGBUS, fatalsignal);
+    thread::initialthread();
     f2main(args).fatal("error from f2main");
     return 0; }
 

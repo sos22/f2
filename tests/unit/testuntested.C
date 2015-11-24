@@ -71,5 +71,5 @@ static testmodule __testuntested(
                        "version.C",
                        "version.H"
         ),
-    testmodule::LineCoverage(17_pc),
-    testmodule::BranchCoverage(12_pc));
+    testmodule::LineCoverage(18_pc),
+    testmodule::BranchCoverage(13_pc));

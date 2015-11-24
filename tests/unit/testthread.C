@@ -82,7 +82,7 @@ static testmodule __testthread(
         assert(tt > 100_ms);
         assert(tt < 700_ms); },
     "field", [] (clientio io) {
-        assert(!strcmp(thread::myname(), "<unknown thread>"));
+        assert(!strcmp(thread::myname(), "main"));
         class testthr : public thread {
         public: explicit testthr(constoken token) : thread(token) {}
         public: void run(clientio io) { (200_ms).future().sleep(io); } };
@@ -101,6 +101,12 @@ static testmodule __testthread(
                .match(m)
                .success() > 0);
         tt->join(io); },
+    "alien", [] {
+        pthread_t thr;
+        auto startfn([] (void *) -> void * {
+                assert(!strcmp(thread::myname(), "<unknown thread>")); });
+        assert(pthread_create(&thr, NULL, startfn, NULL) == 0);
+        assert(pthread_join(thr, NULL) == 0); },
     "start", [] (clientio io) {
         class testthr : public thread {
         public: bool &go;
