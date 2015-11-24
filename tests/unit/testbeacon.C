@@ -457,7 +457,7 @@ static testmodule __beacontests(
         assert(c->query(io, agent).name().getport() == port);
         fail = true;
         /* Wait long enough for it to drop out of the cache. */
-        (timestamp::now() + timedelta::milliseconds(400)).sleep(io);
+        (500_ms).future().sleep(io);
         assert(c->poll(agent) == Nothing);
         /* Failures should produce a plausible but not excessive
          * number of log messages. */
