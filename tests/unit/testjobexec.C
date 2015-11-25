@@ -18,4 +18,15 @@ static testmodule __testjob(
         assert(ct.cc.waitjob(io, j.name())
                .fatal("waitjob")
                .fatal("waitjob inner")
-               .issuccess()); });
+               .issuccess()); },
+    "false", [] (clientio io) {
+        computetest ct(io);
+        auto j(job("./jobexec.so", "exec")
+               .addimmediate("program", "/bin/false"));
+        logmsg(loglevel::info, "job is " + j.field());
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .isfailure()); });
