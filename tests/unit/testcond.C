@@ -58,7 +58,9 @@ static testmodule __condtest(
                          timestamp::now() + timedelta::milliseconds(100)));
         assert(r.timedout);
         mux.unlock(&r.token);
-        notify.get(); },
+        notify.get(); }
+#if TESTING
+    ,
     "longtimeout", [] {
         unsigned nr = 0;
         tests::eventwaiter< ::loglevel> waiter(
@@ -74,4 +76,6 @@ static testmodule __condtest(
                 mux.locked([&] (mutex_t::token tok) { cond.broadcast(tok);});});
         cond.wait(clientio::CLIENTIO, &t, ((86400_s) * 10).future());
         assert(nr == 1);
-        mux.unlock(&t); } );
+        mux.unlock(&t); }
+#endif
+);

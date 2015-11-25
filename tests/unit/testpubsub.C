@@ -414,7 +414,9 @@ static testmodule __testpubsub(
                 pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
             (timestamp::now() + timedelta::milliseconds(100)).sleep(_io);
             assert(sub.poll() == &writing); }
-        deinitpubsub(_io); },
+        deinitpubsub(_io); }
+#if TESTING
+    ,
     "publots", [] {
         /* A single subscriber which subscribes to lots of publishers
          * should produce some warning messages (and also work). */
@@ -462,4 +464,6 @@ static testmodule __testpubsub(
             for (auto x = 0; x < nrsubs; x++) assert(subs[x].wait(_io)==&ss[x]);
             for (auto x = 0; x < nrsubs; x++) ss[x].~subscription();
             free(ss); }
-        deinitpubsub(_io); } );
+        deinitpubsub(_io); }
+#endif
+    );
