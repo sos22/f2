@@ -8,6 +8,7 @@
 #include "timedelta.H"
 #include "timestamp.H"
 
+#include "fields.tmpl"
 #include "maybe.tmpl"
 
 cond_t::cond_t(mutex_t &_associated_mux)

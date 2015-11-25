@@ -2,6 +2,7 @@
 #include "test2.H"
 
 #include "either.tmpl"
+#include "orerror.tmpl"
 #include "serialise.tmpl"
 #include "test2.tmpl"
 

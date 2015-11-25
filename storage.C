@@ -7,6 +7,7 @@
 #include "fields.tmpl"
 #include "list.tmpl"
 #include "maybe.tmpl"
+#include "orerror.tmpl"
 #include "serialise.tmpl"
 
 const proto::storage::tag

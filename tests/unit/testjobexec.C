@@ -1,6 +1,7 @@
 #include "tests/lib/testctxt.H"
 #include "test2.H"
 
+#include "orerror.tmpl"
 #include "test2.tmpl"
 
 static testmodule __testjob(
