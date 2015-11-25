@@ -174,7 +174,7 @@ exec(jobapi &api, clientio io) {
         proc.kill(); }
     else {
         auto r(proc.join(tok.fatal("job un-exited?")));
-        logmsg(loglevel::debug, "job exited with " + fields::mk(r.left()));
+        logmsg(loglevel::debug, "job exited with " + fields::mk(r));
         earlyexit.setif(
             r.isleft() && r.left() == shutdowncode::ok
             ? jobresult::success()
