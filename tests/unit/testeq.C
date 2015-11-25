@@ -449,7 +449,7 @@ static testmodule __testeq(
                             [&startedwaiter] {
                                 startedwaiter.set(); });
         auto cconfig(eqclientconfig::dflt());
-        cconfig.get = timedelta::milliseconds(100);
+        cconfig.get = timedelta::milliseconds(500);
         cconfig.wait = timedelta::milliseconds(100);
         auto c(eqclient<unsigned>::connect(
                    io,
