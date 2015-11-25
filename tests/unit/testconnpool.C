@@ -85,11 +85,9 @@ public: orerror<void> called(
 class raceservice : public rpcservice2 {
 public: list<spark<void> > outstanding;
 public: bool paused;
-public: unsigned nrpostpause;
 public: raceservice(const rpcservice2::constoken &t)
     : rpcservice2(t, interfacetype::test),
-      paused(false),
-      nrpostpause(0) {}
+      paused(false) {}
 public: orerror<void> called(
     clientio,
     deserialise1 &ds,
@@ -104,8 +102,7 @@ public: orerror<void> called(
             assert(!paused);
             ic->complete(
                 [] (serialise1 &, mutex_t::token) { },
-                acquirestxlock(clientio::CLIENTIO));
-            if (paused) nrpostpause++; });
+                acquirestxlock(clientio::CLIENTIO)); });
     return Success; } };
 
 class largerespservice : public rpcservice2 {
@@ -1058,7 +1055,6 @@ static testmodule __testconnpool(
         srv->paused = true;
         auto end(timestamp::now());
         assert((end - start) < 100_ms);
-        assert(srv->nrpostpause == 0);
         auto prepause(nrcalls);
         (100_ms).future().sleep(io);
         srv->paused = false;
