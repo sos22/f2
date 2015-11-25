@@ -173,14 +173,20 @@ function ccdyn()
 	C)
 	    local obj=${src%.C}.po
 	    local dep=${src%.C}.d
-	    cat <<EOF
+            cat <<EOF
 -include $dep
-$obj: $src $allsrcdeps
-	ccache \$(F2_CXX) $dashi ${F2_CPPFLAGS} ${F2_CXXFLAGS} -fPIC -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
 $dep: $src $allsrcdeps
-	\$(F2_CXX) $dashi -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
+	\$(F2_CXX) $dashi -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
+$obj: $src $allsrcdeps
+	ccache \$(F2_CXX) -fPIC $dashi ${F2_CPPFLAGS} ${F2_CXXFLAGS} -c -MD -MT "$obj" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
+${obj/.po/-t.po}: $src $allsrcdeps
+	ccache \$(F2_CXX) -fPIC $dashi -DTESTING=1 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX=\"-t\" -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
+${obj/.po/-c.po}: $src $allsrcdeps
+	ccache \$(F2_CXX) -fPIC $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage -DEXESUFFIX=\"-c\" ${F2_CPPFLAGS} ${F2_CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
+${obj/.po/-p.po}: $src $allsrcdeps
+	ccache \$(F2_CXX) -fPIC $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 clean::
-	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
+	rm -f ${dep} ${dep}.tmp $obj ${obj}.tmp ${obj/.po/-t.po} ${obj/.po/-c.po} ${obj/.po/-p.po}
 EOF
 	    ;;
 	*)
@@ -196,10 +202,17 @@ function lddyn()
 {
     local target=$1
     shift
-    cat <<EOF
-$target: $* $mkfile
-	\$(F2_LD) -shared -o \$@.tmp $* -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+cat <<EOF
+${target}: $@ $mkfile
+	\$(F2_LD) -shared -o \$@.tmp ${@/.po/${code}.po} -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+${target/%.so/-t.so}: ${@/%.po/-t.po} $mkfile
+	\$(F2_LD) -shared -o \$@.tmp ${@/%.po/-t.po} -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+${target/%.so/-c.so}: ${@/%.po/-c.po} $mkfile
+	\$(F2_LD) --coverage -shared -o \$@.tmp ${@/%.po/-c.po} -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
 clean::
-	rm -f $target $target.tmp
+	rm -f ${target} ${target/%.so/-t.so} ${target/%.so/-c.so}
+realall:: ${target}
+covall:: ${target/%.so/-c.so}
+testall:: ${target/%.so/-t.so}
 EOF
 }
