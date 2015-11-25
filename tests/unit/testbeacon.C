@@ -462,7 +462,7 @@ static testmodule __beacontests(
         /* Failures should produce a plausible but not excessive
          * number of log messages. */
         assert(nr >= 3);
-        assert(nr < 10);
+        assert(nr < 20);
         /* If the failure clears then we should be able to use the
          * server normally again. */
         fail = false;
