@@ -7,12 +7,15 @@
 static testmodule __testjob(
     "jobexec",
     list<filename>::mk("jobexec.C"),
-    testmodule::Dependency("jobexec.so"),
+#define JOBEXEC "./jobexec" EXESUFFIX ".so"
+    testmodule::Dependency(JOBEXEC),
     testmodule::Dependency("runjob" EXESUFFIX),
     testmodule::Dependency("tests/abort/abort"),
+    testmodule::BranchCoverage(35_pc),
+    testmodule::LineCoverage(50_pc),
     "true", [] (clientio io) {
         computetest ct(io);
-        auto j(job("./jobexec.so", "exec")
+        auto j(job(JOBEXEC, "exec")
                .addimmediate("program", "/bin/true"));
         logmsg(loglevel::info, "job is " + j.field());
         ct.createjob(io, j);
@@ -23,7 +26,7 @@ static testmodule __testjob(
                .issuccess()); },
     "false", [] (clientio io) {
         computetest ct(io);
-        auto j(job("./jobexec.so", "exec")
+        auto j(job(JOBEXEC, "exec")
                .addimmediate("program", "/bin/false"));
         ct.createjob(io, j);
         ct.cc.start(io, j).fatal("starting job");
@@ -33,7 +36,7 @@ static testmodule __testjob(
                .isfailure()); },
     "abort", [] (clientio io) {
         computetest ct(io);
-        auto j(job("./jobexec.so", "exec")
+        auto j(job(JOBEXEC, "exec")
                .addimmediate("program", "./tests/abort/abort"));
         ct.createjob(io, j);
         ct.cc.start(io, j).fatal("starting job");
