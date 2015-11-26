@@ -900,7 +900,7 @@ static testmodule __testconnpool(
                 assert(c1->pop(clientio::CLIENTIO) == error::timeout);
                 auto endc1(timestamp::now());
                 tassert(T(endc1) - T(startc1) >= T(200_ms));
-                tassert(T(endc1) - T(startc1) <= T(300_ms)); });
+                tassert(T(endc1) - T(startc1) <= T(400_ms)); });
         auto startc2(timestamp::now());
         auto c2(pool->call(
                     sn,
@@ -912,7 +912,7 @@ static testmodule __testconnpool(
         assert(c2->pop(io) == error::timeout);
         auto endc2(timestamp::now());
         tassert(T(endc2) - T(startc2) >= T(50_ms));
-        tassert(T(endc2) - T(startc2) <= T(200_ms));
+        tassert(T(endc2) - T(startc2) <= T(250_ms));
         s1.get();
         pool->destroy();
         srv->destroy(io); },
