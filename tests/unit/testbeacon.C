@@ -582,18 +582,26 @@ static testmodule __beacontests(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         auto underlying(mkrandom<beaconconfig>(q));
-        while (underlying.privileged()) underlying = mkrandom<beaconconfig>(q);
         peername::port port(q);
         agentname sn(q);
-        auto s(beaconserver::build(
-                   beaconserverconfig(
-                       underlying,
-                       cn,
-                       sn,
-                       timedelta::seconds(1)),
-                   mklist(interfacetype::test),
-                   port)
-               .fatal("starting beacon server"));
+        beaconserver *s;
+        while (true) {
+            while (underlying.privileged()) {
+                underlying = mkrandom<beaconconfig>(q); }
+            auto ss(beaconserver::build(
+                        beaconserverconfig(
+                            underlying,
+                            cn,
+                            sn,
+                            timedelta::seconds(1)),
+                        mklist(interfacetype::test),
+                        port));
+            if (ss == error::from_errno(EADDRINUSE)) {
+                underlying = mkrandom<beaconconfig>(q);
+                continue; }
+            else {
+                s = ss.fatal("starting beacon server");
+                break; } }
         unsigned msgs = 0;
         tests::eventwaiter< ::loglevel> waiter(
             tests::logmsg,
