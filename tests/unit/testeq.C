@@ -332,9 +332,9 @@ static testmodule __testeq(
         server->destroy();
         auto t(timedelta::time(
                    [&] { assert(c->pop(io) == error::timeout); }));
-        assert(t >= cconfig.wait);
-        assert(t <=
-               cconfig.get + cconfig.wait + timedelta::milliseconds(100));
+        tassert(T(t) >= T(cconfig.wait));
+        tassert(T(t) <=
+                T(cconfig.get + cconfig.wait + 500_ms));
         c->destroy();
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
