@@ -767,8 +767,12 @@ static testmodule __testeq(
 
         /* Server restarts always carry a risk of events being
          * dropped, so for safety clients should all report that
-         * events were potentially dropped. */
-        assert(c->pop(io) == error::eventsdropped);
+         * events were potentially dropped. They can also report
+         * badqueue if they happened to look at the queue in the
+         * interval when it wasn't registered. */
+        auto rr(c->pop(io));
+        tassert(T(rr) == T(error::eventsdropped) ||
+                T(rr) == T(error::badqueue));
         c->destroy();
         c = eqclient<unsigned>::connect(
             io,
