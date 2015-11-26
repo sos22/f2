@@ -27,8 +27,8 @@ namespace testassert {
 template <typename inner> class expression {
 private: void operator=(expression &) = delete;
 public:  virtual const fields::field &field(
-    unsigned prec, bool isleft) const = 0;
-public:  const fields::field &field() const { return field(0, true); }
+    unsigned prec, bool isleft, const char *parentop) const = 0;
+public:  const fields::field &field() const { return field(0, true, NULL); }
 public:  virtual inner eval() = 0;
 public:  virtual ~expression(); };
 
@@ -40,7 +40,7 @@ public:  const char *label;
 public:  std::function<inner ()> calc;
 public:  maybe<inner> value;
 public:  val(const char *_label, const std::function<inner ()> &_calc);
-public:  const fields::field &field(unsigned prec, bool isleft) const;
+public:  const fields::field &field(unsigned, bool, const char *) const;
 public:  inner eval(); };
 
 template <typename inner> class cnst : public expression<inner> {
@@ -49,7 +49,7 @@ private: void operator=(cnst &) = delete;
 public:  ~cnst();
 public:  const inner value;
 public:  cnst(inner _value);
-public:  const fields::field &field(unsigned prec, bool isleft) const;
+public:  const fields::field &field(unsigned, bool, const char *) const;
 public:  inner eval(); };
 
 #define binop(op)                                                       \

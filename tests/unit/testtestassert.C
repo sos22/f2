@@ -141,4 +141,30 @@ static testmodule __testcomputeagent(
             assertstr(tt, "t{...} && f{...}");
             assert(tt.eval() == false);
             assertstr(tt, "t{TRUE} && f{FALSE}");
+            delete &tt; }
+        {   bool f = false;
+            bool t = true;
+            auto &tt(T(f) || T(t));
+            assertstr(tt, "f{...} || t{...}");
+            assert(tt.eval() == true);
+            assertstr(tt, "f{FALSE} || t{TRUE}");
+            delete &tt; }
+        {   bool f = false;
+            bool t = true;
+            auto &tt(T(t) || T(f));
+            assertstr(tt, "t{...} || f{...}");
+            assert(tt.eval() == true);
+            assertstr(tt, "t{TRUE} || f{...}");
+            delete &tt; }
+        {   auto &tt((T(true) || T(false)) && T(false));
+            assertstr(tt, "(TRUE || FALSE) && FALSE");
+            assert(tt.eval() == false);
+            delete &tt; }
+        {   auto &tt(T(true) || T(false) || T(false));
+            assertstr(tt, "TRUE || FALSE || FALSE");
+            assert(tt.eval() == true);
+            delete &tt; }
+        {   auto &tt(T(true) || (T(false) && T(false)));
+            assertstr(tt, "TRUE || (FALSE && FALSE)");
+            assert(tt.eval() == true);
             delete &tt; } } );
