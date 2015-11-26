@@ -186,8 +186,8 @@ static testmodule __testeq(
         auto q(server->openqueue(proto::eq::names::testunsigned, state)
                .fatal("opening test queue"));
         auto cconfig1(eqclientconfig::dflt());
-        cconfig1.get = timedelta::milliseconds(100);
-        cconfig1.wait = timedelta::milliseconds(100);
+        cconfig1.get = timedelta::milliseconds(300);
+        cconfig1.wait = timedelta::milliseconds(300);
         auto c1(eqclient<unsigned>::connect(
                     io,
                     *pool,
@@ -289,7 +289,7 @@ static testmodule __testeq(
                                timedelta::milliseconds(100).future()) ==
                            error::timeout); }));
         assert(t >= timedelta::milliseconds(100));
-        assert(t < timedelta::milliseconds(200));
+        assert(t < timedelta::milliseconds(300));
         pool->destroy(); },
     "failwaiter1", [] (clientio io) {
         quickcheck qc;
@@ -315,8 +315,8 @@ static testmodule __testeq(
                             [&startedwaiter] {
                                 startedwaiter.set(); });
         auto cconfig(eqclientconfig::dflt());
-        cconfig.get = timedelta::milliseconds(100);
-        cconfig.wait = timedelta::milliseconds(100);
+        cconfig.get = timedelta::milliseconds(300);
+        cconfig.wait = timedelta::milliseconds(300);
         auto c(eqclient<unsigned>::connect(
                    io,
                    *pool,
@@ -361,8 +361,8 @@ static testmodule __testeq(
         tests::hook<void> h(geneqclient::startingwaiter,
                             [&startedwaiter] { startedwaiter.set(); });
         auto cconfig(eqclientconfig::dflt());
-        cconfig.get = timedelta::milliseconds(100);
-        cconfig.wait = timedelta::milliseconds(100);
+        cconfig.get = timedelta::milliseconds(300);
+        cconfig.wait = timedelta::milliseconds(300);
         auto c(eqclient<unsigned>::connect(
                    io,
                    *pool,
@@ -376,7 +376,7 @@ static testmodule __testeq(
         q->destroy(io);
         auto t(timedelta::time(
                    [&] { assert(c->pop(io) == error::badqueue); }));
-        assert(t <= cconfig.wait + timedelta::milliseconds(100));
+        assert(t <= cconfig.wait + timedelta::milliseconds(300));
         s->destroy(io);
         server->destroy();
         c->destroy();
@@ -405,8 +405,8 @@ static testmodule __testeq(
         tests::hook<void> h(geneqclient::startingwaiter,
                             [&startedwaiter] { startedwaiter.set(); });
         auto cconfig(eqclientconfig::dflt());
-        cconfig.get = timedelta::milliseconds(100);
-        cconfig.wait = timedelta::milliseconds(100);
+        cconfig.get = timedelta::milliseconds(300);
+        cconfig.wait = timedelta::milliseconds(300);
         auto c(&*eqclient<unsigned>::connect(
                    io,
                    *pool,
@@ -534,16 +534,12 @@ static testmodule __testeq(
                 .fatal("open queue 1"));
         auto q2(server->openqueue(proto::eq::names::teststring, state2)
                 .fatal("open queue 2"));
-        auto cconfig(eqclientconfig::dflt());
-        cconfig.get = timedelta::milliseconds(100);
-        cconfig.wait = timedelta::milliseconds(100);
         auto c1(eqclient<unsigned>::connect(
                     io,
                     *pool,
                     sn,
                     proto::eq::names::testunsigned,
-                    timedelta::seconds(3).future(),
-                    cconfig)
+                    timedelta::seconds(3).future())
                 .fatal("connecting eqclient")
                 .first());
         auto c2(eqclient<string>::connect(
@@ -551,18 +547,13 @@ static testmodule __testeq(
                     *pool,
                     sn,
                     proto::eq::names::teststring,
-                    timedelta::seconds(3).future(),
-                    cconfig)
+                    timedelta::seconds(3).future())
                 .fatal("connecting eqclient")
                 .first());
         q1->queue(99, rpcservice2::acquirestxlock(io));
         q2->queue("Hello", rpcservice2::acquirestxlock(io));
-        {   auto r(c1->pop(io));
-            if (r != 99) {
-                ::logmsg(loglevel::emergency,
-                         "expected 99, got " + fields::mk(r));
-                abort(); } }
-        assert(c2->pop(io) == "Hello");
+        tassert(T(c1->pop(io)) == T(99u));
+        tassert(T(c2->pop(io)) == T(string("Hello")));
         c1->destroy();
         q2->destroy(io);
         s->destroy(io);
@@ -694,9 +685,9 @@ static testmodule __testeq(
                       *pool,
                       sn,
                       proto::eq::names::testunsigned));
-        assert(timestamp::now() - start < timedelta::milliseconds(100));
+        assert(timestamp::now() - start < timedelta::milliseconds(300));
         servercaptured.get(io);
-        assert(timestamp::now() - start < timedelta::milliseconds(100));
+        assert(timestamp::now() - start < timedelta::milliseconds(300));
         assert(conn->finished() == Nothing);
         {   subscriber sub;
             subscription ss(sub, conn->pub());
@@ -711,7 +702,7 @@ static testmodule __testeq(
         /* Quick check that it vaguely works. */
         q->queue(52, io);
         assert(timedelta::time([&] { assert(c->pop(io) == 52); })
-               < timedelta::milliseconds(200));
+               < timedelta::milliseconds(500));
         c->destroy();
         s->destroy(io);
         server->destroy();
