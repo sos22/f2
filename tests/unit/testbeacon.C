@@ -386,7 +386,7 @@ static testmodule __beacontests(
         tassert(T(drop) - T(start) >= T(400_ms));
         tassert(T(drop) - T(start) <= T(600_ms));
         /* Should have made about 5 attempts. */
-        tassert(T(cntr) >= T(3u));
+        tassert(T(cntr) >= T(2u));
         tassert(T(cntr) <= T(7u));
         /* Poll to see when it comes back. */
         while (c->poll(agent) == Nothing) (10_ms).future().sleep(io);
