@@ -11,8 +11,8 @@ static testmodule __testjob(
     testmodule::Dependency(JOBEXEC),
     testmodule::Dependency("runjob" EXESUFFIX),
     testmodule::Dependency("tests/abort/abort"),
-    testmodule::BranchCoverage(35_pc),
-    testmodule::LineCoverage(50_pc),
+    testmodule::BranchCoverage(50_pc),
+    testmodule::LineCoverage(65_pc),
     "true", [] (clientio io) {
         computetest ct(io);
         auto j(job(JOBEXEC, "exec")
@@ -44,6 +44,18 @@ static testmodule __testjob(
                .fatal("waitjob")
                .fatal("waitjob inner")
                .isfailure()); },
+    "missingarg", [] (clientio io) {
+        computetest ct(io);
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/true")
+               .addimmediate("arg1", "missing0"));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        /* Returning error::unknown here isn't really ideal, but then
+         * neither is anything else. It isn't strictly incorrect, at
+         * any rate. */
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob") == error::unknown); },
     "badstdout", [] (clientio io) {
         computetest ct(io);
         auto j(job(JOBEXEC, "exec")
