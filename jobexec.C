@@ -106,8 +106,7 @@ exec(jobapi &api, clientio io) {
                .match(it.key())
                .fatal("bad argument " + it.key().field()));
         params.set(p, it.value());
-        if (maxarg < 0 || p >= (unsigned)maxarg) maxarg = p;
-        it.remove(); }
+        if (maxarg < 0 || p >= (unsigned)maxarg) maxarg = p; }
     if (!args.isempty()) {
         error::invalidparameter.fatal(
             "unrecognised arguments " + args.field()); }
