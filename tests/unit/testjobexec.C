@@ -43,4 +43,36 @@ static testmodule __testjob(
         assert(ct.cc.waitjob(io, j.name())
                .fatal("waitjob")
                .fatal("waitjob inner")
-               .isfailure()); });
+               .isfailure()); },
+    "badstdout", [] (clientio io) {
+        computetest ct(io);
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/echo")
+               .addimmediate("arg0", "goes nowhere"));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .isfailure()); },
+    "stdout", [] (clientio io) {
+        computetest ct(io);
+        auto sn(streamname::mk("stdout").fatal("stdout"));
+        const char *str = "goes somewhere";
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/echo")
+               .addimmediate("arg0", str)
+               .addoutput(sn));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        auto b(ct.sc.read(io, j.name(), sn)
+               .fatal("reading stdout")
+               .second());
+        buffer bb;
+        bb.queue(str, strlen(str));
+        bb.queue("\n", 1);
+        assert(b.contenteq(bb)); } );
