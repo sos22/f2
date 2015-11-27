@@ -99,28 +99,30 @@ exec(jobapi &api, clientio io) {
     auto progname(args
                   .get("program")
                   .fatal("program arg missing"));
-    unsigned maxarg = 0;
+    int maxarg = -1;
     for (auto it(args.start()); !it.finished(); it.remove()) {
         if (it.key() == "program") continue;
         auto p(("arg" + parsers::intparser<unsigned>())
                .match(it.key())
                .fatal("bad argument " + it.key().field()));
         params.set(p, it.value());
-        if (p >= maxarg) maxarg = p;
+        if (maxarg < 0 || p >= (unsigned)maxarg) maxarg = p;
         it.remove(); }
     if (!args.isempty()) {
         error::invalidparameter.fatal(
             "unrecognised arguments " + args.field()); }
     spawn::program prog((filename(progname)));
     /* Arguments must be dense */
-    for (unsigned x = 0; x < maxarg; x++) {
-        auto p(params.get(x));
-        if (p == Nothing) {
-            error::invalidparameter
-                .fatal(
-                    "argument " + fields::mk(x) + " missing; "
-                    "args: " + params.field()); }
-        prog.addarg(p.just()); }
+    if (maxarg >= 0) {
+        for (unsigned x = 0; x <= (unsigned)maxarg; x++) {
+            auto p(params.get(x));
+            if (p == Nothing) {
+                error::invalidparameter
+                    .fatal(
+                        "argument " + fields::mk(x) + " missing; "
+                        "args: " + params.field()); }
+            prog.addarg(p.just()); } }
+    logmsg(loglevel::info, "program is " + prog.field());
     waitbox<jobresult> earlyexit;
     /* stdin is either a pipe which we fill with an input stream, or
      * /dev/null. */
