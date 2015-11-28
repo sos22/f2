@@ -1,8 +1,10 @@
 #include "tests/lib/testctxt.H"
 #include "test2.H"
+#include "testassert.H"
 
 #include "orerror.tmpl"
 #include "test2.tmpl"
+#include "testassert.tmpl"
 
 static testmodule __testjob(
     "jobexec",
@@ -87,4 +89,24 @@ static testmodule __testjob(
         buffer bb;
         bb.queue(str, strlen(str));
         bb.queue("\n", 1);
-        assert(b.contenteq(bb)); } );
+        assert(b.contenteq(bb)); },
+    "bigstdout", [] (clientio io) {
+        computetest ct(io);
+        auto sn(streamname::mk("stdout").fatal("stdout"));
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/sh")
+               .addimmediate("arg0", "-c")
+               .addimmediate(
+                   "arg1",
+                   "dd if=/dev/urandom bs=4k count=256 2> /dev/null")
+               .addoutput(sn));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        auto b(ct.sc.read(io, j.name(), sn, 0_B, 100_B)
+               .fatal("reading stdout"));
+        tassert(T(b.second().avail()) == T(100u));
+        tassert(T(b.first()) == T(1_MiB)); } );
