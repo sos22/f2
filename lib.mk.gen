@@ -20,7 +20,6 @@ function bits() {
     _ computeclient
     _ cond
     _ connpool
-    _ coordinator
     _ digest
     _ enumerate
     _ eq

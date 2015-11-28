@@ -6,8 +6,6 @@ BINS="computecli                     \
     computefmt                       \
     computeservice                   \
     computespy                       \
-    coordinatorcli                   \
-    coordinatorservice               \
     filesystemcli                    \
     filesystemservice                \
     runjob                           \
