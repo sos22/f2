@@ -193,5 +193,59 @@ static testmodule __testjob(
         assert(ct.cc.waitjob(io, j.name())
                .fatal("waitjob")
                .fatal("waitjob inner")
-               .issuccess()); }
+               .issuccess()); },
+    "stdinslow", [] (clientio io) {
+        computetest ct(io);
+        auto s1(streamname::mk("s1").fatal("s1"));
+        auto inp(job("dummy", "dummy").addoutput(s1));
+        ct.createjob(io, inp);
+        ct.filloutput(io, inp.name(), s1, "hello");
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/sh")
+               .addimmediate("arg0", "-c")
+               .addimmediate("arg1",
+                             "read inp; sleep 1; [ $inp = hello ]")
+               .addinput(streamname::mk("stdin").fatal("stdin"),
+                         inp.name(),
+                         s1));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess()); },
+    "catbig", [] (clientio io) {
+        computetest ct(io);
+        auto s1(streamname::mk("s1").fatal("s1"));
+        auto s2(streamname::mk("stdout").fatal("s2"));
+        auto inp(job("dummy", "dummy").addoutput(s1));
+        auto inpn(inp.name());
+        ct.createjob(io, inp);
+        for (unsigned x = 0; x < 1000; x++) {
+            buffer b;
+            char buf[4096];
+            memset(buf, x, sizeof(buf));
+            b.queue(buf, sizeof(buf));
+            ct.sc.append(io, inpn, s1, b, 4096_B * x)
+                .fatal("append " + fields::mk(x)); }
+        ct.sc.finish(io, inp.name(), s1).fatal("finishing output");
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/cat")
+               .addinput(streamname::mk("stdin").fatal("stdin"), inpn, s1)
+               .addoutput(s2));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        for (unsigned x = 0; x < 1000; x++) {
+            auto r(ct.sc.read(io, j.name(), s2, 4096_B*x, 4096_B*(x+1))
+                   .fatal("read " + fields::mk(x)));
+            tassert(T(r.first()) == T(4096_B * 1000));
+            buffer b;
+            char buf[4096];
+            memset(buf, x, sizeof(buf));
+            b.queue(buf, sizeof(buf));
+            assert(r.second().contenteq(b)); } }
  );

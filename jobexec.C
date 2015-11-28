@@ -44,9 +44,8 @@ public: void run(clientio io) {
             logmsg(loglevel::debug,
                    fields::mk(b.avail()) + " avail, read more stdin from " +
                    fields::mk(b.offset()));
-            auto b2(readfrom.read(io,
-                                  bytecount::bytes(b.offset() + b.avail()),
-                                  4096_B));
+            auto s(bytecount::bytes(b.offset() + b.avail()));
+            auto b2(readfrom.read(io, s, s + 4096_B));
             b.transfer(b2); } }
     writeto.close(); } };
 class stdouterrthread : public thread {
