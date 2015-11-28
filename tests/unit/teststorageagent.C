@@ -123,6 +123,19 @@ static testmodule __teststorageagent(
         auto r(t.client.read(io, jn, sn).fatal("read"));
         assert(r.first() == 6_B);
         assert(r.second().contenteq(buffer("foobar"))); },
+    "truncread", [] (clientio io) {
+        teststate t((io));
+        auto sn(streamname::mk("X").fatal("X"));
+        auto j(job("dummy.so", "dummyfn").addoutput(sn));
+        auto jn(j.name());
+        t.client.createjob(io, j).fatal("creating job");
+        t.client
+            .append(io, jn, sn, buffer("1234567890"), 0_B)
+            .fatal("appending");
+        t.client.finish(io, jn, sn).fatal("finishing stream");
+        auto r(t.client.read(io, jn, sn, 2_B, 7_B).fatal("read"));
+        assert(r.first() == 10_B);
+        assert(r.second().contenteq(buffer("34567"))); },
     "asyncstatjob", [] (clientio io) {
         teststate t((io));
         auto sn(streamname::mk("X").fatal("X"));
