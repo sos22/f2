@@ -13,8 +13,8 @@ static testmodule __testjob(
     testmodule::Dependency(JOBEXEC),
     testmodule::Dependency("runjob" EXESUFFIX),
     testmodule::Dependency("tests/abort/abort"),
-    testmodule::BranchCoverage(50_pc),
-    testmodule::LineCoverage(65_pc),
+    testmodule::BranchCoverage(58_pc),
+    testmodule::LineCoverage(68_pc),
     "true", [] (clientio io) {
         computetest ct(io);
         auto j(job(JOBEXEC, "exec")
@@ -84,6 +84,20 @@ static testmodule __testjob(
                .fatal("waitjob")
                .fatal("waitjob inner")
                .isfailure()); },
+    "slowbadstdout", [] (clientio io) {
+        computetest ct(io);
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/sh")
+               .addimmediate("arg0", "-c")
+               .addimmediate("arg1", "echo foo; sleep 3600"));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        auto t(timedelta::time([&] {
+                    assert(ct.cc.waitjob(io, j.name())
+                           .fatal("waitjob")
+                           .fatal("waitjob inner")
+                           .isfailure()); } ));
+        tassert(T(t) < T(5_s)); },
     "stdout", [] (clientio io) {
         computetest ct(io);
         auto sn(streamname::mk("stdout").fatal("stdout"));
