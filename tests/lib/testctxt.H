@@ -65,6 +65,16 @@ public:  void createjob(clientio io, const job &j) {
     auto createevt(sc.createjob(io, j).fatal("creating job"));
     fsc.storagebarrier(io, storageagentname, createevt)
         .fatal("awaiting job creation"); }
+    /* Fill a job's output with a particular string and then finish
+     * it. */
+public:  void filloutput(clientio io,
+                         jobname jn,
+                         const streamname &sn,
+                         const char *content) {
+    buffer ib;
+    ib.queue(content, strlen(content));
+    sc.append(io, jn, sn, ib, 0_B).fatal("filling output");
+    sc.finish(io, jn, sn).fatal("finishing output"); }
 public:  ~computetest() {
     cc.destroy();
     fsc.destroy();

@@ -13,8 +13,8 @@ static testmodule __testjob(
     testmodule::Dependency(JOBEXEC),
     testmodule::Dependency("runjob" EXESUFFIX),
     testmodule::Dependency("tests/abort/abort"),
-    testmodule::BranchCoverage(58_pc),
-    testmodule::LineCoverage(68_pc),
+    testmodule::BranchCoverage(70_pc),
+    testmodule::LineCoverage(95_pc),
     "true", [] (clientio io) {
         computetest ct(io);
         auto j(job(JOBEXEC, "exec")
@@ -174,4 +174,24 @@ static testmodule __testjob(
         auto b(ct.sc.read(io, j.name(), sn, 0_B, 100_B)
                .fatal("reading stdout"));
         tassert(T(b.second().avail()) == T(100u));
-        tassert(T(b.first()) == T(1_MiB)); } );
+        tassert(T(b.first()) == T(1_MiB)); },
+    "stdin", [] (clientio io) {
+        computetest ct(io);
+        auto s1(streamname::mk("s1").fatal("s1"));
+        auto inp(job("dummy", "dummy").addoutput(s1));
+        ct.createjob(io, inp);
+        ct.filloutput(io, inp.name(), s1, "hello");
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/sh")
+               .addimmediate("arg0", "-c")
+               .addimmediate("arg1", "read inp; [ $inp = hello ]")
+               .addinput(streamname::mk("stdin").fatal("stdin"),
+                         inp.name(),
+                         s1));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess()); }
+ );
