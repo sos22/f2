@@ -119,6 +119,42 @@ static testmodule __testjob(
         bb.queue(str, strlen(str));
         bb.queue("\n", 1);
         assert(b.contenteq(bb)); },
+    "stderr", [] (clientio io) {
+        computetest ct(io);
+        auto sn(streamname::mk("stderr").fatal("stderr"));
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/sh")
+               .addimmediate("arg0", "-c")
+               .addimmediate("arg1", "echo foo >&2")
+               .addoutput(sn));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        auto b(ct.sc.read(io, j.name(), sn)
+               .fatal("reading stderr")
+               .second());
+        buffer bb;
+        bb.queue("foo\n", 4);
+        assert(b.contenteq(bb)); },
+    "catempty", [] (clientio io) {
+        computetest ct(io);
+        auto sn(streamname::mk("stdout").fatal("stdout"));
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/cat")
+               .addoutput(sn));
+        ct.createjob(io, j);
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        tassert(T(ct.sc.read(io, j.name(), sn)
+                  .fatal("reading stdout")
+                  .first())
+                == T(0_B)); },
     "bigstdout", [] (clientio io) {
         computetest ct(io);
         auto sn(streamname::mk("stdout").fatal("stdout"));
