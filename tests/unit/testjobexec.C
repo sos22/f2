@@ -26,6 +26,21 @@ static testmodule __testjob(
                .fatal("waitjob")
                .fatal("waitjob inner")
                .issuccess()); },
+    "sleep", [] (clientio io) {
+        computetest ct(io);
+        auto j(job(JOBEXEC, "exec")
+               .addimmediate("program", "/bin/sleep")
+               .addimmediate("arg0", "1"));
+        ct.createjob(io, j);
+        auto start(timestamp::now());
+        ct.cc.start(io, j).fatal("starting job");
+        assert(ct.cc.waitjob(io, j.name())
+               .fatal("waitjob")
+               .fatal("waitjob inner")
+               .issuccess());
+        auto end(timestamp::now());
+        tassert(T(end) - T(start) >= T(1_s));
+        tassert(T(end) - T(start) < T(2_s)); },
     "false", [] (clientio io) {
         computetest ct(io);
         auto j(job(JOBEXEC, "exec")
