@@ -277,6 +277,23 @@ static testmodule __spawntest(
         pipe1.read.close();
         pipe2.read.close();
         assert(p->join(io).left() == shutdowncode::ok); },
+    "forked", [] (clientio io) {
+        /* Make sure that killing process groups works as expected. */
+        auto pipe1(fd_t::pipe().fatal("pipe1"));
+        auto pipe2(fd_t::pipe().fatal("pipe2"));
+        auto &p(*process::spawn(program("/bin/sh")
+                                .addarg("-c")
+                                .addarg("/bin/cat")
+                                .addfd(pipe1.read, 0)
+                                .addfd(pipe2.write, 1))
+                .fatal("spawn sh"));
+        pipe1.read.close();
+        pipe2.write.close();
+        p.kill();
+        char buf[16];
+        assert(pipe2.read.read(io, buf, sizeof(buf)) == error::disconnected);
+        pipe2.read.close();
+        pipe1.write.close(); },
     "progfield", [] {
 #define tt(pp, expected) do {                                           \
             auto c((pp).field().c_str());                               \

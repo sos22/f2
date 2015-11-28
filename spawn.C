@@ -149,6 +149,7 @@ process::spawn(const program &p) {
     if (pid == 0) {
         fromchild.success().read.close();
         tochild.success().write.close();
+        if (::setsid() < 0) error::from_errno().fatal("setsid");
         auto childread = tochild.success().read;
         auto childwrite = fromchild.success().write;
         /* We are the child. */
@@ -385,7 +386,7 @@ process::join(token) {
     assert(res != Nothing);
     assert(nrsubs == 0);
     auto rr(res.just());
-    if (::kill(pid, SIGKILL) < 0) error::from_errno().fatal("kill controller");
+    if (::kill(-pid, SIGKILL) < 0) error::from_errno().fatal("kill controller");
     if (::waitpid(pid, NULL, 0) < 0) error::from_errno().fatal("waitpid()");
     tochild.close();
     fromchild.close();
