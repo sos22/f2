@@ -70,6 +70,8 @@ static inline bytecount
 operator"" _B(unsigned long long x) { return bytecount::bytes(x); }
 static inline bytecount
 operator"" _MB(unsigned long long x) { return bytecount::megabytes(x); }
+static inline bytecount
+operator"" _MiB(unsigned long long x) { return bytecount::mebibytes(x); }
 
 template <typename> class parser;
 namespace parsers {
