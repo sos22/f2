@@ -13,24 +13,20 @@ SETVERSION;
 
 namespace {
 class stdinthread : public thread {
-public: waitbox<jobresult> &earlyexit;
 public: fd_t writeto;
 public: jobapi::inputstream &readfrom;
 public: stdinthread(constoken t,
-                    waitbox<jobresult> &_earlyexit,
                     fd_t _writeto,
                     jobapi::inputstream &_readfrom)
     : thread(t),
-      earlyexit(_earlyexit),
       writeto(_writeto),
       readfrom(_readfrom) {}
 public: void run(clientio io) {
     writeto.nonblock(true).fatal("nonblock stdin");
     subscriber sub;
-    subscription ee(sub, earlyexit.pub());
     iosubscription ios(sub, writeto.poll(POLLOUT));
     auto b(readfrom.read(io, 0_B, 4096_B));
-    while (!earlyexit.ready()) {
+    while (true) {
         logmsg(loglevel::debug,
                fields::mk(b.avail()) + " to send to stdin, from " +
                fields::mk(b.offset()));
@@ -38,7 +34,6 @@ public: void run(clientio io) {
             logmsg(loglevel::debug, "reached end of stdin");
             break; }
         auto scc = sub.wait(io);
-        if (scc == &ee) continue;
         assert(scc == &ios);
         auto f(b.sendfast(writeto));
         ios.rearm();
@@ -69,11 +64,9 @@ public: stdouterrthread(constoken t,
 public: void run(clientio io) {
     readfrom.nonblock(true).fatal("nonblock output");
     subscriber sub;
-    subscription ee(sub, earlyexit.pub());
     iosubscription ios(sub, readfrom.poll(POLLIN));
-    while (!earlyexit.ready()) {
+    while (true) {
         auto scc = sub.wait(io);
-        if (scc == &ee) continue;
         assert(scc == &ios);
         buffer b;
         auto e(b.receivefast(readfrom));
@@ -89,6 +82,15 @@ public: void run(clientio io) {
             earlyexit.setif(jobresult::failure());
             break; }
         else writeto.just()->append(io, b); }
+    /* Drain the pipe. */
+    if (writeto != Nothing) {
+        while (true) {
+            buffer b;
+            auto e(b.receivefast(readfrom));
+            if (e == error::disconnected) break;
+            e.fatal("reading child std{out,err}");
+            if (b.empty()) continue;
+            writeto.just()->append(io, b); } }
     readfrom.close(); } }; }
 
 jobfunction exec;
@@ -138,7 +140,6 @@ exec(jobapi &api, clientio io) {
         stdinread = p.read;
         stdinthr = thread::start<stdinthread>(
             fields::mk("stdin"),
-            earlyexit,
             p.write,
             *stdinstream.just()); }
     /* stdout and stderr can be redirected. */
@@ -173,7 +174,10 @@ exec(jobapi &api, clientio io) {
         logmsg(loglevel::debug, "kill job because of stdio stuff");
         assert(earlyexit.ready());
         proc.kill(); }
-    else {
+    stderrthr.join(io);
+    stdoutthr.join(io);
+    if (stdinthr != NULL) stdinthr->join(io);
+    if (tok != Nothing) {
         auto r(proc.join(tok.fatal("job un-exited?")));
         logmsg(loglevel::debug, "job exited with " + fields::mk(r));
         earlyexit.setif(
@@ -181,7 +185,4 @@ exec(jobapi &api, clientio io) {
             ? jobresult::success()
             : jobresult::failure()); }
     assert(earlyexit.ready());
-    stderrthr.join(io);
-    stdoutthr.join(io);
-    if (stdinthr != NULL) stdinthr->join(io);
     return earlyexit.get(io); }
