@@ -20,10 +20,7 @@ public:  static bytecount kibibytes(unsigned long x) { return bytes(x * 1024); }
 public:  static bytecount mebibytes(unsigned long x) {
     return bytes(x * 1048576); }
 
-public:  bool operator<(bytecount o) const { return b < o.b; }
-public:  bool operator<=(bytecount o) const { return b <= o.b; }
 public:  bool operator==(bytecount o) const { return b == o.b; }
-public:  bool operator!=(bytecount o) const { return b != o.b; }
 public:  bool operator>=(bytecount o) const { return b >= o.b; }
 public:  bool operator>(bytecount o) const { return b > o.b; }
 
@@ -35,17 +32,11 @@ public:  bytecount operator+(bytecount o) const {
     return bytecount(b + o.b); }
 public:  bytecount operator/(unsigned long o) const {
     return bytecount(b / o); }
-public:  void operator +=(bytecount o) {
-    unsigned long n = b + o.b;
-    assert(n >= b);
-    b = n; }
-public:  void operator *=(unsigned long o) {
-    if (o == 0) {
-        b = 0;
-        return; }
+public:  bytecount operator *(unsigned long o) const {
+    if (o == 0) return bytes(0);
     unsigned long n = b * o;
     assert(n / o == b);
-    b = n; }
+    return bytes(n); }
 
 public:  const fields::field &field() const { return fields::mk(b) + "B"; }
 
