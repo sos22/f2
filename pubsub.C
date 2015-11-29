@@ -167,11 +167,11 @@ subscriptionbase::subscriptionbase(
 void
 subscriptionbase::set() {
     assert(sub);
+    auto tok(sub->mux.lock());
     if (!notified) {
-        auto tok(sub->mux.lock());
         notified = true;
-        sub->set(tok);
-        sub->mux.unlock(&tok); } }
+        sub->set(tok); }
+    sub->mux.unlock(&tok); }
 
 subscriptionbase::~subscriptionbase() {
     if (!sub) return;
