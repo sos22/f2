@@ -144,12 +144,10 @@ static testmodule __beacontests(
         /* Should drop out within the beaconserver liveness time,
          * plus a bit of fuzz, but not too much sooner. */
         auto destroyed(timestamp::now());
-        (destroyed + timedelta::seconds(1) - timedelta::milliseconds(100))
-            .sleep(io);
-        assert(c->poll(agent) != Nothing);
-        (destroyed + timedelta::seconds(1) + timedelta::milliseconds(100))
-            .sleep(io);
-        assert(c->poll(agent) == Nothing);
+        (destroyed + 800_ms).sleep(io);
+        tassert(T(c->poll(agent)) != T(Nothing));
+        (destroyed + 1400_ms).sleep(io);
+        tassert(T(c->poll(agent)) == T(Nothing));
         /* Should come back almost immediately when we re-create
          * the server. */
         s = beaconserver::build(
@@ -160,9 +158,11 @@ static testmodule __beacontests(
             mklist(interfacetype::test),
             port)
             .fatal("restarting beacon server");
-        assert(timedelta::time([c, io, port, &agent] {
-                    assert(c->query(io, agent).name().getport() == port); })
-            < timedelta::milliseconds(100));
+        tassert(
+            T2(timedelta,
+               timedelta::time([c, io, port, &agent] {
+                       assert(c->query(io, agent).name().getport() == port); }))
+            < T(200_ms));
         s->destroy(io);
         c->destroy(); },
     "clientfilter", [] (clientio io) {
