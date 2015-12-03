@@ -179,8 +179,8 @@ public: class partial : private member {
 public: template <typename ... args> static nnp<partial> mkpartial(args &&...);
 public: t &pushtail(nnp<partial>);
 
-public: static const parser<list<t> > &parse(const parser<t> &);
-};
+public: static const ::parser<list<t> > &parser(const parser<t> &);
+public: static const ::parser<list<t> > &parser(); };
 
 template <typename t, typename ... args> list<t> mklist(const t &, args &&...);
 

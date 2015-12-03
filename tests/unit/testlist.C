@@ -11,6 +11,15 @@
 #include "spark.tmpl"
 #include "test2.tmpl"
 
+namespace {
+class withparser {
+public: int val;
+public: withparser(int what) : val(what) {}
+public: bool operator==(withparser o) const { return val == o.val; }
+public: static const ::parser<withparser> &parser() {
+    return strmatcher("foo", withparser(1)) ||
+        strmatcher("bar", withparser(2)); } }; }
+
 static testmodule __listtest(
     "list",
     list<filename>::mk("list.H", "list.tmpl"),
@@ -267,7 +276,7 @@ static testmodule __listtest(
             l.pophead(); }
         done = true; },
     "parser", [] {
-        auto &p(list<int>::parse(parsers::intparser<int>()));
+        auto &p(list<int>::parser(parsers::intparser<int>()));
         assert(p.match("{}") == list<int>());
         assert(p.match("{1}") == list<int>::mk(1));
         assert(p.match("{1 2}") == list<int>::mk(1, 2));
@@ -278,13 +287,18 @@ static testmodule __listtest(
         auto r((p+parsers::strparser).match("{1 2 3}abc").fatal("dead"));
         assert(r.first() == list<int>::mk(1, 2, 3));
         assert(!strcmp(r.second(), "abc"));
-        auto &p2(list<const char *>::parse(parsers::strparser));
+        auto &p2(list<const char *>::parser(parsers::strparser));
         auto r2(p2.match("{abc def hij}").fatal("dood"));
         assert(!strcmp(r2.idx(0), "abc"));
         assert(!strcmp(r2.idx(1), "def"));
         assert(!strcmp(r2.idx(2), "hij")); },
+    "parserobj", [] {
+        auto &p(list<::withparser>::parser());
+        assert(p.match("{}") == list<::withparser>());
+        assert(p.match("{foo}") == list<::withparser>(Immediate(), 1));
+        assert(p.match("{foo bar}") == list<::withparser>(Immediate(), 1, 2));},
     "field", [] {
-        auto &p(list<int>::parse(parsers::intparser<int>()));
+        auto &p(list<int>::parser(parsers::intparser<int>()));
         quickcheck q;
         for (unsigned x = 0; x < 100; x++) {
             list<int> l(q);

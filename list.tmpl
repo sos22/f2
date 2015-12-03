@@ -602,7 +602,10 @@ listparser<t>::parse(const char *what) const {
         if (!isspace(cursor[0])) return error::noparse;
         while (isspace(cursor[0])) cursor++; } }
 
-template <typename t> const parser<list<t> > &
-list<t>::parse(const parser<t> &inner) { return *new listparser<t>(inner); }
+template <typename t> const ::parser<list<t> > &
+list<t>::parser(const ::parser<t> &inner) { return *new listparser<t>(inner); }
+
+template <typename t> const ::parser<list<t> > &
+list<t>::parser() { return parser(t::parser()); }
 
 #endif /* !LIST_TMPL__ */
