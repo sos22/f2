@@ -70,7 +70,8 @@ eqtestcase(clientio io,
            const std::function<void (clientio,
                                      eqclient<unsigned> &,
                                      eventqueue<unsigned> &)> &f,
-           const eventqueueconfig &qconf = eventqueueconfig::dflt()) {
+           const eventqueueconfig &qconf = eventqueueconfig::dflt(),
+           const eqclientconfig &qcconfig = eqclientconfig::dflt()) {
     quickcheck qc;
     auto cn(mkrandom<clustername>(qc));
     agentname sn(qc);
@@ -94,7 +95,8 @@ eqtestcase(clientio io,
                *pool,
                sn,
                proto::eq::names::testunsigned,
-               timestamp::now() + timedelta::seconds(10))
+               timestamp::now() + timedelta::seconds(10),
+               qcconfig)
            .fatal("connecting eqclient")
            .first());
     f(io, *c, *q);
@@ -136,6 +138,8 @@ static testmodule __testeq(
     "overflow", [] (clientio io) {
         auto qconf(eventqueueconfig::dflt());
         qconf.queuelimit = 2;
+        auto qcconf(eqclientconfig::dflt());
+        qcconf.maxqueue = 2;
         eqtestcase(
             io,
             [] (clientio _io,
@@ -154,12 +158,17 @@ static testmodule __testeq(
                 q.queue(3, rpcservice2::acquirestxlock(_io));
                 q.queue(4, rpcservice2::acquirestxlock(_io));
                 q.queue(5, rpcservice2::acquirestxlock(_io));
-                auto t(timedelta::time<orerror<unsigned> >(
-                           [&] { return c.pop(_io); }));
-                tassert(T(t.v) == T(error::eventsdropped));
-                tassert(T(t.td) < T(200_ms));
+                list<orerror<unsigned> > results;
+                for (auto x = 0; x < 4; x++) {
+                    auto td(timedelta::time(
+                                [&] { results.pushtail(c.pop(_io)); }));
+                    tassert(T(td) < T(200_ms));
+                    tassert(T(results.peektail().isfailure()) ||
+                            T(results.peektail()) == T(x + 2)); }
+                tassert(T(results.peektail()) == T(error::eventsdropped));
                 assert(c.pop().just() == error::eventsdropped); },
-            qconf); },
+            qconf,
+            qcconf); },
     "multiclient", [] (clientio io) {
         auto qconf(eventqueueconfig::dflt());
         qconf.queuelimit = 2;
