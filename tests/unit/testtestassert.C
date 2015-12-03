@@ -134,6 +134,16 @@ static testmodule __testcomputeagent(
                       "string(\"foo\"){foo} == "
                       "string(\"foo\"){foo}");
             delete &t; }
+        {   auto &t(T(string("foo")) != T(string("bar")));
+            assert(t.eval() == true);
+            assertstr(t,
+                      "string(\"foo\"){foo} != "
+                      "string(\"bar\"){bar}");
+            delete &t; }
+        {   auto &t(T(false) != (T(5) != T(7)));
+            assert(t.eval() == true);
+            assertstr(t, "FALSE != (5 != 7)");
+            delete &t; }
         {   bool f = false;
             bool t = true;
             auto &tt(T(f) && T(t));
