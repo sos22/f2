@@ -37,8 +37,8 @@ beaconconfig::field() const {
 const parser<beaconconfig> &
 beaconconfig::parser() {
     return ("<beaconconfig:"
-            " reqport:" + parsers::_peernameport() +
-            " respport:" + parsers::_peernameport() +
+            " reqport:" + peernameport::parser() +
+            " respport:" + peernameport::parser() +
             ">")
         .map<beaconconfig>([] (pair<peernameport, peernameport> w) {
                 return beaconconfig(w.first(), w.second()); }); }

@@ -14,7 +14,7 @@ static testmodule __testpeername(
     list<filename>::mk("peername.C", "peername.H"),
     testmodule::LineCoverage(95_pc),
     testmodule::BranchCoverage(65_pc),
-    "parser", [] { parsers::roundtrip(parsers::_peername()); },
+    "parser", [] { parsers::roundtrip(peername::parser()); },
     "status", [] {
         peername p((quickcheck()));
         assert(p.status() == p); },
@@ -47,12 +47,12 @@ static testmodule __testpeername(
         p = q;
         assert(p == q); },
     "parseedge", [] {
-        assert(parsers::_peername().match("ip://99999.1.2.3/")
+        assert(peername::parser().match("ip://99999.1.2.3/")
                == error::noparse);
-        assert(parsers::_peername().match("ip6://[::]:99999/")
+        assert(peername::parser().match("ip6://[::]:99999/")
                == error::noparse); },
     "peernameport", [] {
-        parsers::roundtrip(parsers::_peernameport());
+        parsers::roundtrip(peernameport::parser());
         quickcheck q;
         serialise<peername::port>(q);
         {   auto p(peername::loopback(peername::port(q)));

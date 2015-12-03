@@ -9,6 +9,7 @@ class deserialise1;
 namespace fields { class field; }
 class filename;
 template <typename> class orerror;
+template <typename> class parser;
 class peername;
 class quickcheck;
 class serialise1;
@@ -28,9 +29,10 @@ public:  void serialise(serialise1 &) const;
 public:  bool operator==(const peernameport &o) const { return p == o.p; }
 public:  bool privileged() const { return p < 1024; }
 public:  const fields::field &field() const;
+public:  static const ::parser<peernameport> &parser();
     /* Special port which can be used to get the OS to allocate an
        arbitrary port for you. */
-    const static peernameport any;
+public:  const static peernameport any;
 };
 
 class peername {
@@ -85,21 +87,6 @@ public: typedef peername status_t;
 public: status_t status() const { return *this; }
 
 public: const fields::field &field() const;
-};
-
-namespace fields {
-class field;
-const field &mk(const peername &p);
-};
-
-template <typename> class parser;
-namespace parsers {
-const parser<peername> &_peername();
-const parser<peername::port> &_peernameport();
-}
-
-namespace tests {
-void _peername();
-}
+public: static const ::parser<peername> &parser(); };
 
 #endif /* !PEERNAME_H__ */

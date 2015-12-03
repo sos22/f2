@@ -162,11 +162,8 @@ peername::operator==(const peername &o) const {
         !memcmp(sockaddr_, o.sockaddr_, sockaddrsize_); }
 
 const fields::field &
-peername::field() const { return fields::mk(*this); }
-
-const fields::field &
-fields::mk(const peername &p) {
-    auto sa(p.sockaddr());
+peername::field() const {
+    auto sa(sockaddr());
     switch (sa->sa_family) {
     case AF_INET: {
         auto addr((const struct sockaddr_in *)sa);
@@ -311,9 +308,10 @@ _ip6litparser::parse(const char *what) const {
     if (inet_pton(AF_INET6, buf, &res) != 1) return error::noparse;
     else return result(end + 1, res); }
 
-const parser<peername> &
-parsers::_peername() {
-    auto parseip([] () -> const parser<peername> & {
+const ::parser<peername> &
+peername::parser() {
+    using namespace parsers;
+    auto parseip([] () -> const ::parser<peername> & {
         return ("ip://" +
                 ~(intparser<unsigned>() + "." +
                   intparser<unsigned>() + "." +
@@ -348,7 +346,7 @@ parsers::_peername() {
                         sin.sin_port = htons((uint16_t)x.second().just()); }
                     return peername((const struct sockaddr *)&sin,
                                     sizeof(sin)); }); });
-    auto parseip6([] () -> const parser<peername> & {
+    auto parseip6([] () -> const ::parser<peername> & {
             return ("ip6://" + ~ip6litparser +
                     ~(":" + intparser<unsigned>()) + "/")
                 .maperr<peername>(
@@ -370,7 +368,7 @@ parsers::_peername() {
     return parseip() || parseip6(); }
 
 const parser<peername::port> &
-parsers::_peernameport() {
-    return ("<port:" + intparser<unsigned short>() + ">")
+peernameport::parser() {
+    return ("<port:" + parsers::intparser<unsigned short>() + ">")
         .map<peername::port>([] (const unsigned short x) {
                 return peername::port(x); }); }
