@@ -69,6 +69,18 @@ binop(<);
 binop(<=);
 #undef binop
 
+template <> class cnst<_Nothing> : public expression<_Nothing> {
+private: cnst() = delete;
+private: void operator=(const cnst &) = delete;
+public:  cnst(_Nothing);
+public:  const fields::field &field(unsigned, bool, const char *) const;
+public:  _Nothing eval(); };
+template <> class val<_Nothing> : public expression<_Nothing> {
+private: val() = delete;
+private: void operator=(const val &) = delete;
+public:  val(const char *, const std::function<_Nothing ()> &);
+public:  const fields::field &field(unsigned, bool, const char *) const;
+public:  _Nothing eval(); };
 }
 
 template <typename t> t __remove_referenceness__(const t &x) { return x; }

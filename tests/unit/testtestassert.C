@@ -17,7 +17,7 @@
 
 static testmodule __testcomputeagent(
     "testassert",
-    list<filename>::mk("testassert.H", "testassert.tmpl"),
+    list<filename>::mk("testassert.C", "testassert.H", "testassert.tmpl"),
     "values", [] {
         {   auto &t(T(5));
             assertstr(t, "5");
@@ -45,6 +45,12 @@ static testmodule __testcomputeagent(
             x = 93;
             assertstr(t, "x{97}");
             delete &t; } },
+    "maybe", [] {
+        maybe<int> x(Nothing);
+        auto &e(T(x));
+        assert(e.eval() == Nothing);
+        assertstr(e, "x{Nothing}");
+        delete &e; },
     "T2", [] {
         auto &t(T2(int,  ([] { return 3; })()));
         assert(t.eval() == 3);

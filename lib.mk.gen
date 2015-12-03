@@ -68,6 +68,7 @@ function bits() {
     _ string
     _ tcpsocket
     _ test
+    _ testassert
     _ tid
     _ timedelta
     _ timestamp
