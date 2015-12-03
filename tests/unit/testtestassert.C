@@ -144,6 +144,10 @@ static testmodule __testcomputeagent(
             assert(t.eval() == true);
             assertstr(t, "FALSE != (5 != 7)");
             delete &t; }
+        {   auto &t((T(5) == T(7)) == T(false));
+            assert(t.eval() == true);
+            assertstr(t, "(5 == 7) == FALSE");
+            delete &t; }
         {   bool f = false;
             bool t = true;
             auto &tt(T(f) && T(t));
