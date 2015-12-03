@@ -18,6 +18,7 @@
 static testmodule __testcomputeagent(
     "testassert",
     list<filename>::mk("testassert.C", "testassert.H", "testassert.tmpl"),
+    testmodule::BranchCoverage(50_pc),
     "values", [] {
         {   auto &t(T(5));
             assertstr(t, "5");
@@ -46,11 +47,13 @@ static testmodule __testcomputeagent(
             assertstr(t, "x{97}");
             delete &t; } },
     "maybe", [] {
+        auto &e(T(Nothing));
+        assertstr(e, "Nothing");
+        delete &e;
         maybe<int> x(Nothing);
-        auto &e(T(x));
-        assert(e.eval() == Nothing);
-        assertstr(e, "x{Nothing}");
-        delete &e; },
+        tassert(T(x) == T(Nothing));
+        x = 5;
+        tassert(T(x) != T(Nothing)); },
     "T2", [] {
         auto &t(T2(int,  ([] { return 3; })()));
         assert(t.eval() == 3);
