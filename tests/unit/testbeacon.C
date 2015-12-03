@@ -83,6 +83,36 @@ static testmodule __beacontests(
             assert(c->poll(agent) != Nothing); }
         c->destroy();
         s->destroy(io); },
+    "field", [] (clientio io) {
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent("testagent");
+        peername::port port(q);
+        auto s(beaconserver::build(
+                   beaconserverconfig::dflt(cluster, agent),
+                   mklist(interfacetype::test),
+                   port)
+               .fatal("starting beacon server"));
+        auto c(beaconclient::build(beaconclientconfig(cluster,
+                                                      interfacetype::test,
+                                                      agent))
+               .fatal("starting beacon client"));
+        auto cres(c->query(io, agent));
+        auto &f(cres.field());
+        auto pres(
+            ("{" + peername::parser() + "::" +
+             list<interfacetype>::parser() + "}")
+            .match(f.c_str())
+            .fatal("cannot parse " + f));
+        if (pres.first() != cres.name() ||
+            pres.second() != list<interfacetype>(
+                Immediate(), interfacetype::test)) {
+            logmsg(loglevel::emergency,
+                   "field not working: " + f + " " +
+                   pres.field() + " " + cres.name().field());
+            abort(); }
+        c->destroy();
+        s->destroy(io); },
     "dropserver", [] (clientio io) {
         /* Do dead servers drop out of the client cache reasonably
          * promptly? */

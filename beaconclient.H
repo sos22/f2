@@ -130,7 +130,8 @@ public:  class result {
     private: peername _name;
     public:  const peername &name() const { return _name; }
     private: list<interfacetype> _type;
-    public:  const list<interfacetype> &type() const { return _type; } };
+    public:  const list<interfacetype> &type() const { return _type; }
+    public:  const fields::field &field() const; };
     /* Query the client's current knowledge of a particular agent,
      * returning its peername and actortype if we have one or Nothing
      * if we don't. */

@@ -282,6 +282,10 @@ beaconclient::handletimeouts(mutex_t::token tok) {
            be covered by the usual retry logic anyway. */
         it->lastbeaconrequest = timestamp::now(); } }
 
+const fields::field &
+beaconclient::result::field() const {
+    return "{" + name().field() + "::" + type().field() + "}"; }
+
 /* Must shut down quickly once shutdown is set. */
 void
 beaconclient::run(clientio io) {
