@@ -734,8 +734,8 @@ static testmodule __testconnpool(
          * idle timeout on the pool is only 50ms. */
         tassert(T2(timestamp, finished.just())-T(start) > T(200_ms));
         /* But not too far past it. */
-        tassert(T(end) - T(finished.just()) < T(timedelta::milliseconds(20)));
-        tassert(T(end) - T(start) < T(timedelta::milliseconds(350)));
+        tassert(T(end) - T(finished.just()) < T(timedelta::milliseconds(100)));
+        tassert(T(end) - T(start) < T(timedelta::milliseconds(500)));
         pool->destroy();
         srv->destroy(io); },
     "abort1", [] (clientio io) {
