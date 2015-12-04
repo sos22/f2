@@ -384,7 +384,7 @@ static testmodule __beacontests(
         auto drop(timestamp::now());
         /* Should be near the expiry time. */
         tassert(T(drop) - T(start) >= T(400_ms));
-        tassert(T(drop) - T(start) <= T(600_ms));
+        tassert(T(drop) - T(start) <= T(700_ms));
         /* Should have made about 5 attempts. */
         tassert(T(cntr) >= T(2u));
         tassert(T(cntr) <= T(7u));
