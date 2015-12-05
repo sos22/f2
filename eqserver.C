@@ -570,7 +570,9 @@ SERVER::subscribe(clientio io,
                   deserialise1 &ds,
                   nnp<rpcservice2::incompletecall> ic,
                   rpcservice2::onconnectionthread oct) {
-    auto _q(getlockedqueue(proto::eq::genname(ds)));
+    proto::eq::genname gn(ds);
+    logmsg(loglevel::debug, "attempt connect on " + gn.field());
+    auto _q(getlockedqueue(gn));
     if (_q.isfailure()) return _q.failure();
     auto q(_q.success().first());
     auto token(_q.success().second());
@@ -580,10 +582,13 @@ SERVER::subscribe(clientio io,
     auto next(s->val().next);
     q->subscriptions(token).pushtail(s);
     q->mux.unlock(&token);
+    logmsg(loglevel::debug, "connect1 -> " + next.field() + "::" + sid.field());
     ic->complete(
         [next, sid] (serialise1 &ser,
                      mutex_t::token /* txlock */,
                      rpcservice2::onconnectionthread /* oct */) {
+            logmsg(loglevel::debug,
+                   "connect2 -> " + next.field() + "::" + sid.field());
             sid.serialise(ser);
             next.serialise(ser); },
         io,

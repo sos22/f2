@@ -14,6 +14,7 @@
 #include "list.tmpl"
 #include "maybe.tmpl"
 #include "mutex.tmpl"
+#include "nnp.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"
 #include "test.tmpl"
@@ -174,8 +175,14 @@ geneqclient::connect(connpool &pool,
                [&name] (serialise1 &s, connpool::connlock) {
                    tag::subscribe.serialise(s);
                    name.serialise(s); },
-               [] (deserialise1 &ds, connpool::connlock) {
+               [=] (deserialise1 &ds, connpool::connlock) {
+                   logmsg(loglevel::debug,
+                          "done eq connect to " +
+                          sn.field() + "::" + name.field());
                    return success(CONNECT::callres_t(ds)); }));
+    logmsg(loglevel::debug,
+           "connect eq on " + sn.field() + "::" + name.field() +
+           " via " + r.field());
     return _nnp((new CONNECT(*r, pool, sn, name, config))->api); }
 
 orerror<pair<nnp<geneqclient>, proto::eq::eventid> >

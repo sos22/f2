@@ -463,6 +463,7 @@ POOL::call(const agentname &sn,
                    sn,
                    *this,
                    &tok));
+        logmsg(loglevel::debug, "connect to " + sn.field() + " in "+w->field());
         assert(tok != Nothing);
         /* Dying starts off clear, and the lock has never been
          * released, so it can't be set now. */
