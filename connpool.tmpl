@@ -71,6 +71,10 @@ connpool::asynccallT<t>::pop(token tok) {
     delete this;
     return r; }
 
+template <typename t> const fields::field &
+connpool::asynccallT<t>::field() const {
+    return inner->field() + "->" + res.field(); }
+
 template <typename t> const publisher &
 connpool::asynccallT<t>::pub() const { return inner->pub(); }
 

@@ -377,6 +377,9 @@ connpool::asynccall::token
 connpool::asynccall::finished(clientio io) const {
     return implementation().finished(io); }
 
+const fields::field &
+connpool::asynccall::field() const { return implementation().field(); }
+
 connpool::asynccall::~asynccall() {}
 
 /* ----------------------- connpool implementation --------------------- */

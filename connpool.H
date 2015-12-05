@@ -273,6 +273,8 @@ public:  token finished(clientio) const;
     /* Convenience wrapper: wait for finished() to become non-Nothing
      * and then pop() and return the result of the call. */
 public:  orerror<void> pop(clientio io) { return pop(finished(io)); }
+    /* Thing for identify calls, for debug. */
+public:  const fields::field &field() const;
     /* Use abort() or pop() */
 private: ~asynccallT(); };
 
@@ -291,6 +293,7 @@ public:  const publisher &pub() const;
 public:  orerror<t> abort();
 public:  token finished(clientio io) const;
 public:  orerror<t> pop(clientio io);
+public:  const fields::field &field() const;
 private: ~asynccallT() { } };
 
 #endif /* !CONNPOOL_H__ */
