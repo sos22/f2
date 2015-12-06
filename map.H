@@ -87,14 +87,18 @@ public: map(const map &what);
 public: ~map();
     /* Set an entry in the map.  It must not already be set. */
 public:  template <typename...args> _value &set(const _key &, args &&...params);
+    /* Get an entry in the map, or NULL if it isn't set. */
+public:  const _value *getptr(const _key &) const;
+public:  _value *getptr(const _key &);
     /* Get an entry in the map, or Nothing if it isn't set. */
 public:  maybe<_value> get(const _key &) const;
+    /* Get an entry in the map, or fail if it isn't set. */
+public:  const _value &getval(const _key &) const;
+public:  _value &getval(const _key &);
     /* true if the key is present in the map and false
      * otherwise. Equivalent to get() != Nothing, but a little bit
      * faster if the value has a non-trivial copy constructor. */
 public:  bool haskey(const _key &) const;
-    /* Get an entry in the map, or NULL if it isn't set. */
-public:  _value *get_mutate(const _key &);
     /* Clear an entry in the map.  It must be set. */
 public:  void clear(const _key &);
     /* Check whether the map is empty. */

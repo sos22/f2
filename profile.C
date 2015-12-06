@@ -105,7 +105,7 @@ integratethread(threadstate *ts, mutex_t::token /* profile lock */) {
         if (ts->samples[x].cntr != 0) {
             cntr += atomicswap(*(unsigned *)&ts->samples[x].cntr, 0u); }
         /* <<< end racey bit >>> */
-        auto m(secondlevel.get_mutate(rip));
+        auto m(secondlevel.getptr(rip));
         if (m == NULL) secondlevel.set(rip, cntr);
         else *m += cntr; }
     discards += atomicswap(ts->discards, 0ul); }

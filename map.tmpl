@@ -105,29 +105,13 @@ map<key, value, hash>::set(const key &k, args && ... params) {
     return b->v; }
 
 template <typename key, typename value, unsigned long hash(const key &)>
-maybe<value>
-map<key, value, hash>::get(const key &k) const {
-    if (nrbuckets == 0) return Nothing;
-    auto h(hash(k));
-    auto b(buckets[h % nrbuckets]);
-    while (b != NULL) {
-        if (b->h == h && b->k == k) return b->v;
-        else b = b->next; }
-    return Nothing; }
-
-template <typename key, typename value, unsigned long hash(const key &)> bool
-map<key, value, hash>::haskey(const key &k) const {
-    if (nrbuckets == 0) return false;
-    auto h(hash(k));
-    auto b(buckets[h % nrbuckets]);
-    while (b != NULL) {
-        if (b->h == h && b->k == k) return true;
-        else b = b->next; }
-    return false; }
+const value *
+map<key, value, hash>::getptr(const key &k) const {
+    return const_cast<map *>(this)->getptr(k); }
 
 template <typename key, typename value, unsigned long hash(const key &)>
 value *
-map<key, value, hash>::get_mutate(const key &k) {
+map<key, value, hash>::getptr(const key &k) {
     if (nrbuckets == 0) return NULL;
     auto h(hash(k));
     auto b(buckets[h % nrbuckets]);
@@ -135,6 +119,28 @@ map<key, value, hash>::get_mutate(const key &k) {
         if (b->h == h && b->k == k) return &b->v;
         else b = b->next; }
     return NULL; }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+maybe<value>
+map<key, value, hash>::get(const key &k) const {
+    auto e(getptr(k));
+    if (e == NULL) return Nothing;
+    else return *e; }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+const value &
+map<key, value, hash>::getval(const key &k) const {
+    return const_cast<map *>(this)->getval(k); }
+
+template <typename key, typename value, unsigned long hash(const key &)>
+value &
+map<key, value, hash>::getval(const key &k) {
+    auto e(getptr(k));
+    assert(e != NULL);
+    return *e; }
+
+template <typename key, typename value, unsigned long hash(const key &)> bool
+map<key, value, hash>::haskey(const key &k) const { return getptr(k) != NULL; }
 
 template <typename key, typename value, unsigned long hash(const key &)> void
 map<key, value, hash>::clear(const key &k) {
