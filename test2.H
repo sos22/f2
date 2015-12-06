@@ -34,6 +34,13 @@ public:  class BranchCoverage {
 public:  class Dependency {
     public: filename fn;
     public: explicit Dependency(const filename &_fn) : fn(_fn) {} };
+public:  class TestCase {
+    private: TestCase() = delete;
+    private: TestCase(const TestCase &) = delete;
+    private: void operator=(const TestCase &) = delete;
+    public:  TestCase(const string &, const std::function<void ()> &);
+    public:  string name;
+    public:  std::function<void ()> work; };
 private: string _name;
 public:  const string &name() const { return _name; }
 private: list<filename> _files;
@@ -41,7 +48,7 @@ public:  const list<filename> &files() const { return _files; }
 private: list<filename> dependencies;
 private: LineCoverage linecoverage;
 private: BranchCoverage branchcoverage;
-private: map<string, std::function<void ()> > tests;
+private: map<string, TestCase> tests;
 private: void applyinit();
 private: template <typename ... argsT> void applyinit(
     LineCoverage,

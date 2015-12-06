@@ -31,7 +31,7 @@ template <typename ... argsT> void
 testmodule::applyinit(
     const string &s, const std::function<void ()> &f,
     argsT &&...args) {
-    tests.set(s, f);
+    tests.set(s, s, f);
     applyinit(std::forward<argsT>(args)...); }
 
 template <typename ... argsT> void

@@ -183,6 +183,11 @@ testresultaccumulator::dump(const maybe<filename> &df) const {
         if (r != SQLITE_OK) {
             error::sqlite.fatal("close database: " + fields::mk(r)); } } }
 
+testmodule::TestCase::TestCase(const string &_name,
+                               const std::function<void ()> &_work)
+    : name(_name),
+      work(_work) {}
+
 void
 testmodule::applyinit() {
     if (modules == NULL) modules = new map<string, nnp<testmodule> >();
@@ -220,9 +225,11 @@ testmodule::runtest(const string &what,
     if (limit != Nothing) alarm((unsigned)((TIMEDILATE * limit.just()) / 1_s));
     logmsg(loglevel::debug,
            "start test " + name().field() + "::" + what.field());
-    auto tt(tests.get(what)
-            .fatal("no such test: " + name().field() + "::" + what.field()));
-    auto timetaken(timedelta::time([&tt] { tt(); }));
+    auto tt(tests.getptr(what));
+    if (tt == NULL) {
+        error::notfound.fatal(
+            "no such test: " + name().field() + "::" + what.field()); }
+    auto timetaken(timedelta::time([tt] { tt->work(); }));
     logmsg(loglevel::debug,
            "pass test " + name().field() + "::" + what.field() +
            " in " + timetaken.field());
