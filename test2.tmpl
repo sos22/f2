@@ -29,22 +29,35 @@ testmodule::applyinit(
 
 template <typename ... argsT> void
 testmodule::applyinit(
-    const string &s, const std::function<void ()> &f,
+    TestFlags fl, const string &s, const std::function<void ()> &f,
     argsT &&...args) {
-    tests.set(s, s, f);
+    tests.set(s, fl, s, f);
     applyinit(std::forward<argsT>(args)...); }
 
 template <typename ... argsT> void
 testmodule::applyinit(
-    const string &s, const std::function<void (clientio)> &f,
+    TestFlags fl, const string &s, const std::function<void (clientio)> &f,
     argsT &&...args) {
     applyinit(
+        fl,
         s,
         [f] {
             initpubsub();
             f(clientio::CLIENTIO);
             deinitpubsub(clientio::CLIENTIO); },
         std::forward<argsT>(args)...); }
+
+template <typename ... argsT> void
+testmodule::applyinit(
+    const string &s, const std::function<void ()> &f,
+    argsT &&...args) {
+    applyinit(TestFlags::dflt(), s, f, std::forward<argsT>(args)...); }
+
+template <typename ... argsT> void
+testmodule::applyinit(
+    const string &s, const std::function<void (clientio)> &f,
+    argsT &&...args) {
+    applyinit(TestFlags::dflt(), s, f, std::forward<argsT>(args)...); }
 
 template <typename ... argsT>
 testmodule::testmodule(

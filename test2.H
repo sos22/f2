@@ -34,11 +34,17 @@ public:  class BranchCoverage {
 public:  class Dependency {
     public: filename fn;
     public: explicit Dependency(const filename &_fn) : fn(_fn) {} };
+public:  class TestFlags {
+    private: TestFlags() = delete;
+    private: unsigned flags;
+    private: explicit TestFlags(unsigned _flags);
+    public:  static TestFlags dflt(); };
 public:  class TestCase {
     private: TestCase() = delete;
     private: TestCase(const TestCase &) = delete;
     private: void operator=(const TestCase &) = delete;
-    public:  TestCase(const string &, const std::function<void ()> &);
+    public:  TestCase(TestFlags,const string &, const std::function<void ()> &);
+    public:  TestFlags flags;
     public:  string name;
     public:  std::function<void ()> work; };
 private: string _name;
@@ -58,6 +64,12 @@ private: template <typename ... argsT> void applyinit(
     argsT &&...args);
 private: template <typename ... argsT> void applyinit(
     const Dependency &,
+    argsT &&...args);
+private: template <typename ... argsT> void applyinit(
+    TestFlags, const string &s, const std::function<void ()> &f,
+    argsT &&...args);
+private: template <typename ... argsT> void applyinit(
+    TestFlags, const string &s, const std::function<void (clientio)> &f,
     argsT &&...args);
 private: template <typename ... argsT> void applyinit(
     const string &s, const std::function<void ()> &f,

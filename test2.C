@@ -183,9 +183,18 @@ testresultaccumulator::dump(const maybe<filename> &df) const {
         if (r != SQLITE_OK) {
             error::sqlite.fatal("close database: " + fields::mk(r)); } } }
 
-testmodule::TestCase::TestCase(const string &_name,
+testmodule::TestFlags::TestFlags(unsigned _flags) : flags(_flags) {}
+
+testmodule::TestFlags
+testmodule::TestFlags::dflt() {
+    const testmodule::TestFlags res(0);
+    return res; }
+
+testmodule::TestCase::TestCase(TestFlags _flags,
+                               const string &_name,
                                const std::function<void ()> &_work)
-    : name(_name),
+    : flags(_flags),
+      name(_name),
       work(_work) {}
 
 void
