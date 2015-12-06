@@ -6,4 +6,5 @@ cat <<EOF
 include tests/beacon/client.mk
 include tests/beacon/server.mk
 include tests/lib/lib.mk
+include tests/perf/perf.mk
 EOF
