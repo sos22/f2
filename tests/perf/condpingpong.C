@@ -7,6 +7,7 @@
 #include "list.H"
 #include "logging.H"
 #include "main.H"
+#include "profile.H"
 #include "spark.H"
 #include "string.H"
 #include "timedelta.H"
@@ -58,8 +59,10 @@ takesample(clientio io) {
 orerror<void>
 f2main(list<string> &) {
     list<unsigned long> samples;
+    startprofiling();
     for (unsigned cntr = 0; cntr < 5; cntr++) {
         auto s(takesample(clientio::CLIENTIO));
         logmsg(loglevel::info, "sample " + fields::mk(s));
         samples.pushtail(s); }
+    stopprofiling();
     return Success; }
