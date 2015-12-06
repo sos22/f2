@@ -5,3 +5,7 @@
 cc tests/perf/condpingpong.C
 ld tests/perf/condpingpong tests/perf/condpingpong.o lib.a
 target tests/perf/condpingpong
+
+cc tests/perf/pubsubpingpong.C
+ld tests/perf/pubsubpingpong tests/perf/pubsubpingpong.o lib.a
+target tests/perf/pubsubpingpong
