@@ -95,7 +95,7 @@ map<key, value, hash>::~map() {
 template <typename key, typename value, unsigned long hash(const key &)>
 template <typename ... args> value &
 map<key, value, hash>::set(const key &k, args && ... params) {
-    assert(get(k) == Nothing);
+    assert(getptr(k) == NULL);
     if (nrbuckets == 0 || nritems > nrbuckets * 8) rehash(nextsize(nrbuckets));
     assert(nrbuckets != 0);
     auto b(new entry(hash(k), k, std::forward<args>(params)...));

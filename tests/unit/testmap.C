@@ -22,6 +22,11 @@ public: static unsigned nextsize(unsigned x) { return base::nextsize(x); }
 public: static unsigned prevsize(unsigned x) { return base::prevsize(x); }
 public: void rehash(unsigned x) { base::rehash(x); } };
 
+class nocopy {
+private: nocopy(const nocopy &) = delete;
+public:  unsigned v;
+public:  explicit nocopy(unsigned _v) : v(_v) {} };
+
 static testmodule __testmap(
     "map",
     list<filename>::mk("map.C", "map.H", "map.tmpl"),
@@ -315,4 +320,10 @@ static testmodule __testmap(
         assert(nrempty != 0);
         assert(nrempty < 1200);
         assert(zerokey > 10);
-        assert(zerokey < 900); });
+        assert(zerokey < 900); },
+    "nocopy", [] {
+        map<int, nocopy> foo;
+        foo.set(99, 12);
+        foo.set(100, 13);
+        assert(foo.getval(99).v == 12);
+        assert(foo.getval(100).v == 13); } );
