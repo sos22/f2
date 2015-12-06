@@ -38,7 +38,12 @@ public:  class TestFlags {
     private: TestFlags() = delete;
     private: unsigned flags;
     private: explicit TestFlags(unsigned _flags);
-    public:  static TestFlags dflt(); };
+    public:  bool intersects(TestFlags) const;
+    public:  const fields::field &field() const;
+    public:  static TestFlags dflt();
+        /* Run the test only when it's explicitly requested, not as
+         * part of the usual routine testing. */
+    public:  static TestFlags noauto(); };
 public:  class TestCase {
     private: TestCase() = delete;
     private: TestCase(const TestCase &) = delete;

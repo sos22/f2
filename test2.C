@@ -185,9 +185,24 @@ testresultaccumulator::dump(const maybe<filename> &df) const {
 
 testmodule::TestFlags::TestFlags(unsigned _flags) : flags(_flags) {}
 
+bool
+testmodule::TestFlags::intersects(TestFlags o) const {
+    return (flags & o.flags) != 0; }
+
+const fields::field &
+testmodule::TestFlags::field() const {
+    if (flags == dflt().flags) return fields::mk("");
+    else if (flags == noauto().flags) return fields::mk("noauto");
+    else return "<badflags:"+fields::mk(flags)+">"; }
+
 testmodule::TestFlags
 testmodule::TestFlags::dflt() {
     const testmodule::TestFlags res(0);
+    return res; }
+
+testmodule::TestFlags
+testmodule::TestFlags::noauto() {
+    const testmodule::TestFlags res(1);
     return res; }
 
 testmodule::TestCase::TestCase(TestFlags _flags,
@@ -212,7 +227,8 @@ testmodule::listtests() const {
     for (auto it(tests.start()); !it.finished(); it.next()) {
         printf("%s\n",
                (fields::padright(fields::mk(name()), 20) +
-                fields::padright(it.key().field(), 20)).c_str()); } }
+                fields::padright(it.key().field(), 20) +
+                fields::padright(it.value().flags.field(), 20)).c_str()); } }
 
 void
 testmodule::printmodule() const {
@@ -264,7 +280,8 @@ testmodule::runtests(maybe<timedelta> limit,
                      testresultaccumulator &results) const {
     list<string> schedule;
     for (auto it(tests.start()); !it.finished(); it.next()) {
-        schedule.pushtail(it.key()); }
+        if (!it.value().flags.intersects(TestFlags::noauto())) {
+            schedule.pushtail(it.key()); } }
     list<string> shuffled(shuffle(Steal, schedule));
     for (auto it(shuffled.start()); !it.finished(); it.next()) {
         runtest(*it, limit, results); } }
