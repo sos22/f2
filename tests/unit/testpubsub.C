@@ -509,5 +509,47 @@ static testmodule __testpubsub(
         for (unsigned cntr = 0; cntr < 5; cntr++) {
             auto s(takesample(clientio::CLIENTIO));
             logmsg(loglevel::info, "sample " + fields::mk(s));
+            samples.pushtail(s); } },
+    testmodule::TestFlags::noauto(), "pubsubpingpong", [] {
+        auto takesample([] (clientio io) {
+                unsigned long cntr = 0;
+                bool done = false;
+                unsigned phase = 0;
+                publisher phase1;
+                publisher phase2;
+                unsigned long start;
+                unsigned long end;
+                {   spark<void> thr1([&] {
+                            assert(phase == 0);
+                            subscriber sub;
+                            subscription ss(sub, phase2);
+                            while (!done) {
+                                cntr++;
+                                phase = 1;
+                                phase1.publish();
+                                while (phase == 1 && !done) {
+                                    sub.wait(clientio::CLIENTIO); } } } );
+                    spark<void> thr2([&] {
+                            subscriber sub;
+                            subscription ss(sub, phase1);
+                            while (!done) {
+                                while (phase != 1 && !done) {
+                                    sub.wait(clientio::CLIENTIO); }
+                                phase = 2;
+                                phase2.publish(); } } );
+                    /* Give it a second to get started. */
+                    (1_s).future().sleep(io);
+                    start = __sync_fetch_and_add(&cntr, 0);
+                    /* And then let it run for a bit. */
+                    (10_s).future().sleep(io);
+                    end = __sync_fetch_and_add(&cntr, 0);
+                    done = true;
+                    phase1.publish();
+                    phase2.publish(); }
+                return end - start; });
+        list<unsigned long> samples;
+        for (unsigned cntr = 0; cntr < 5; cntr++) {
+            auto s(takesample(clientio::CLIENTIO));
+            logmsg(loglevel::info, "sample " + fields::mk(s));
             samples.pushtail(s); } }
     );

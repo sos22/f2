@@ -1,7 +1,0 @@
-#! /bin/bash
-
-. shutil
-
-cc tests/perf/pubsubpingpong.C
-ld tests/perf/pubsubpingpong tests/perf/pubsubpingpong.o lib.a
-target tests/perf/pubsubpingpong
