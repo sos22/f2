@@ -157,7 +157,7 @@ static testmodule __teststorageagent(
         start = timestamp::now();
         auto res(statjob.pop(io));
         end = timestamp::now();
-        tassert(T(end) - T(start) < T(50_ms));
+        tassert(T(end) - T(start) < T(200_ms));
         assert(res.fatal("statjob") == j); },
     "statstream", [] (clientio io) {
         teststate t((io));
