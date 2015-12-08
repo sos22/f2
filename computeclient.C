@@ -5,6 +5,7 @@
 
 #include "asynccall.tmpl"
 #include "list.tmpl"
+#include "map.tmpl"
 #include "maybe.tmpl"
 #include "orerror.tmpl"
 #include "pair.tmpl"

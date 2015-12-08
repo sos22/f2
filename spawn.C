@@ -20,6 +20,7 @@
 #include "either.tmpl"
 #include "list.tmpl"
 #include "map.tmpl"
+#include "mutex.tmpl"
 #include "orerror.tmpl"
 
 namespace spawn {

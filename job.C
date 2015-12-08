@@ -153,3 +153,5 @@ job::parser() {
                 sort(res._outputs);
                 if (res.outputs().hasdupes()) _res = error::noparse;
                 return _res; }); }
+
+template class map<streamname, pair<jobname, streamname> >;
