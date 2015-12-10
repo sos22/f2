@@ -112,6 +112,22 @@ static testmodule __testpubsub(
         p.publish();
         assert(s1.wait(_io, timestamp::now()) == &a);
         assert(s1.wait(_io, epsilon.future()) == NULL); },
+    "notifymulti", [] {
+        publisher p1;
+        publisher p2;
+        subscriber s;
+        subscription s1(s, p1);
+        subscription s2(s, p2);
+        while (s.poll() != NULL) ;
+        p1.publish();
+        p2.publish();
+        auto ss1(s.poll());
+        auto ss2(s.poll());
+        assert(ss1 != ss2);
+        assert(ss1 != NULL);
+        assert(ss2 != NULL);
+        assert(ss1 == &s1 || ss1 == &s2);
+        assert(ss2 == &s1 || ss2 == &s2); },
     "2pub1sub", [] {
         publisher p1;
         publisher p2;
