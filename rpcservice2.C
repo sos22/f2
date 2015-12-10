@@ -263,6 +263,10 @@ rpcservice2::incompletecall::fail(
 
 rpcservice2::incompletecall::~incompletecall() {}
 
+const fields::field &
+rpcservice2::incompletecall::field() const {
+    return "seqnr: " + seqnr.field() + " abandoned: " + _abandoned.field(); }
+
 rpcservice2::pausetoken
 rpcservice2::pause(clientio io) { return root->pause(io); }
 

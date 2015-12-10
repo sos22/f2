@@ -231,7 +231,9 @@ public:    class incompletecall {
                      oct); } }
 
         /* Use complete() or fail() instead. */
-    private: ~incompletecall(); };
+    private: ~incompletecall();
+
+    public:  const fields::field &field() const; };
 
     /* Support for pausing an RPC service. pause() stops any further
      * connections from being accepted and stops any more calls from

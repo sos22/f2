@@ -205,6 +205,19 @@ public: orerror<void> called(clientio,
                              rpcservice2::onconnectionthread) {
     abort(); } };
 
+class incompletecallfield : public rpcservice2 {
+public: list<string> msgs;
+public: explicit incompletecallfield(const constoken &t)
+    : rpcservice2(t, interfacetype::test) {}
+public: orerror<void> called(
+    clientio,
+    deserialise1 &,
+    interfacetype,
+    nnp<incompletecall> ic,
+    onconnectionthread) final {
+    msgs.append(ic->field().c_str());
+    return error::toosoon; } };
+
 static testmodule __testconnpool(
     "connpool",
     list<filename>::mk("connpool.C",
@@ -1136,6 +1149,39 @@ static testmodule __testconnpool(
                        return Success; }) == error::timeout);
         pool->destroy();
         srv->destroy(io); },
+    "inccallfield", [] (clientio io) {
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname sn(q);
+        auto srv(rpcservice2::listen<incompletecallfield>(
+                     io,
+                     cn,
+                     sn,
+                     peername::all(peername::port::any))
+                 .fatal("starting echo service"));
+        auto pool(connpool::build(cn).fatal("starting conn pool"));
+        assert(srv->msgs.length() == 0);
+        pool->call<void>(io,
+                         sn,
+                         interfacetype::test,
+                         Nothing,
+                         [] (serialise1 &, connpool::connlock) {},
+                         [] (deserialise1 &, connpool::connlock) ->
+                             orerror<void> {
+                             return Success; });
+        assert(srv->msgs.length() == 1);
+        pool->call<void>(io,
+                         sn,
+                         interfacetype::test,
+                         Nothing,
+                         [] (serialise1 &, connpool::connlock) {},
+                         [] (deserialise1 &, connpool::connlock) ->
+                             orerror<void> {
+                             return Success; });
+        assert(srv->msgs.length() == 2);
+        assert(srv->msgs.idx(0) != srv->msgs.idx(1));
+        srv->destroy(io);
+        pool->destroy(); },
     "connbad", [] (clientio io) {
         /* Connect to something which isn't an rpcservice */
         auto l(socket_t::listen(peername::all(peernameport::any))
