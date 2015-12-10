@@ -21,6 +21,7 @@
 #include "parsers.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
+#include "waitbox.tmpl"
 
 beaconserverconfig::beaconserverconfig(const beaconconfig &_proto,
                                        const clustername &_cluster,
@@ -228,3 +229,15 @@ beaconserver::destroy(clientio io) {
     join(io); }
 
 beaconserver::~beaconserver() {}
+
+void
+beaconserver::status() {
+    logmsg(loglevel::info, "beacon server");
+    logmsg(loglevel::info, "config: " + config.field());
+    logmsg(loglevel::info, "advertise: " + advertisetype.field());
+    logmsg(loglevel::info, "port: " + advertiseport.field());
+    logmsg(loglevel::info, "listenfd: " + listenfd.asfd().field());
+    logmsg(loglevel::info, "clientfd: " + listenfd.asfd().field());
+    logmsg(loglevel::info, "shutdown: " + shutdown.field());
+    logmsg(loglevel::info, "errors: " + fields::mk(errors));
+    logmsg(loglevel::info, "ignored: " + fields::mk(ignored)); }

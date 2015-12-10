@@ -76,6 +76,9 @@ public: void destroy(clientio);
     /* Use destroy() instead */
 private: ~beaconserver();
 
+    /* Debug interface */
+public: void status();
+
 public: typedef beaconserverconfig config_t; };
 
 #endif /* !BEACONSERVER_H__ */

@@ -546,6 +546,27 @@ static testmodule __beacontests(
         s->destroy(io); }
 #if TESTING
     ,
+    "status", [] (clientio io) {
+        /* Noddy test on the status method: make sure it at least
+         * produces *something* (without crashing). */
+        quickcheck q;
+        auto cluster(mkrandom<clustername>(q));
+        agentname agent(q);
+        peername::port port(q);
+        auto s(beaconserver::build(
+                   beaconserverconfig::dflt(cluster, agent),
+                   mklist(interfacetype::test),
+                   port)
+               .fatal("starting beacon server"));
+        unsigned msgs = 0;
+        tests::eventwaiter< ::loglevel> waiter(
+            tests::logmsg,
+            [&msgs] (loglevel level) {
+                if (level > loglevel::debug) msgs++; });
+        assert(msgs == 0);
+        s->status();
+        assert(msgs > 0);
+        s->destroy(io); },
     "badserver", [] (clientio io) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
