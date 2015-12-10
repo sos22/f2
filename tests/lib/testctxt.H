@@ -63,8 +63,21 @@ public:  explicit computetest(clientio io)
      * to pick it up. */
 public:  void createjob(clientio io, const job &j) {
     auto createevt(sc.createjob(io, j).fatal("creating job"));
-    fsc.storagebarrier(io, storageagentname, createevt)
-        .fatal("awaiting job creation"); }
+    auto &asc(fsc.storagebarrier(storageagentname, createevt));
+    subscriber sub;
+    auto tok(asc.finished());
+    {   subscription ss(sub, asc.pub());
+        auto deadline((5_s).future());
+        while (tok == Nothing && deadline.infuture()) {
+            sub.wait(io, deadline);
+            tok = asc.finished(); } }
+    if (tok == Nothing) {
+        logmsg(loglevel::info, "having trouble with createjob barrier");
+        logmsg(loglevel::info, "wanted " + createevt.field());
+        cp.status();
+        storageagent.status();
+        filesystemagent.status(); }
+    asc.pop(io).fatal("awaiting job creation"); }
     /* Fill a job's output with a particular string and then finish
      * it. */
 public:  void filloutput(clientio io,
