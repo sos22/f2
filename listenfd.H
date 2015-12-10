@@ -4,21 +4,15 @@
 #include "peername.H"
 #include "socket.H"
 
+namespace fields { class field; }
 struct pollfd;
 
 class listenfd;
 class listenfdstatus;
 
-namespace fields {
-class field;
-const field &mk(const listenfd &);
-const field &mk(const listenfdstatus &);
-};
-
 /* A file descriptor for listening on, rather than performing normal
    IO on. */
 class listenfd {
-    friend const fields::field &fields::mk(const listenfd &);
     friend class socket_t;
     int fd;
 public:
@@ -41,11 +35,10 @@ public:
     /* Debug status interface */
     typedef listenfdstatus status_t;
     status_t status() const;
-};
+public:  const fields::field &field() const; };
 
 class listenfdstatus {
     friend class listenfd;
-    friend const fields::field &fields::mk(const listenfdstatus &);
 private: maybe<peername> listenon;
 private: int fd;
 private: maybe<int> domain;
@@ -59,6 +52,7 @@ private: listenfdstatus(const maybe<peername> &,
                         maybe<int>,
                         maybe<int>);
 public:  listenfdstatus(quickcheck &q);
-public:  bool operator==(const listenfdstatus &o) const; };
+public:  bool operator==(const listenfdstatus &o) const;
+public:  const fields::field &field() const; };
 
 #endif /* !LISTENFD_H__ */

@@ -81,9 +81,9 @@ listenfd::close() const
 }
 
 const fields::field &
-fields::mk(const listenfd &fd)
+listenfd::field() const
 {
-    return "listen:" + fields::mk(fd.fd).nosep();
+    return "listen:" + fields::mk(fd).nosep();
 }
 
 listenfd::status_t
@@ -147,11 +147,11 @@ listenfdstatus::operator==(const listenfdstatus &o) const {
         revents == o.revents; }
 
 const fields::field &
-fields::mk(const listenfd::status_t &o) {
-    return "<listenfd: listenon:" + mk(o.listenon) +
-        " fd:" + mk(o.fd) +
-        " domain:" + mk(o.domain) +
-        " protocol:" + mk(o.protocol) +
-        " flags:" + mk(o.flags) +
-        " revents:" + mk(o.revents) +
+listenfd::status_t::field() const {
+    return "<listenfd: listenon:" + fields::mk(listenon) +
+        " fd:" + fields::mk(fd) +
+        " domain:" + fields::mk(domain) +
+        " protocol:" + fields::mk(protocol) +
+        " flags:" + fields::mk(flags) +
+        " revents:" + fields::mk(revents) +
         ">"; }
