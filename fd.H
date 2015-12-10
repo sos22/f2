@@ -57,9 +57,8 @@ public: fd_tstatus(
 #undef doparam1
         {}
 public: fd_tstatus(const quickcheck &);
-public: bool operator==(const fd_tstatus &o) const; };
-namespace fields {
-const field &mk(const fd_tstatus &); }
+public: bool operator==(const fd_tstatus &o) const;
+public: const fields::field &field() const; };
 
 class fd_t {
 public:

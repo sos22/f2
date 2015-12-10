@@ -198,10 +198,10 @@ fd_tstatus::operator==(const fd_tstatus &o) const {
     return true; }
 
 const fields::field &
-fields::mk(const fd_t::status_t &o) {
-    return "<fd:" + mk(o.fd) +
+fd_t::status_t::field() const {
+    return "<fd:" + fields::mk(fd) +
 #define doparam(name)                           \
-        " " #name ":" + mk(o.name) +
+        " " #name ":" + fields::mk(name) +
         fd_tstatus_params(doparam)
 #undef doparam
         ">"; }
