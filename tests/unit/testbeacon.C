@@ -21,7 +21,7 @@ static testmodule __beacontests(
                        "beaconclient.H",
                        "beaconserver.C",
                        "beaconserver.H"),
-    testmodule::BranchCoverage(78_pc),
+    testmodule::BranchCoverage(77_pc),
     "serialise", [] {
         quickcheck q;
         serialise<proto::beacon::req>(q);
@@ -397,6 +397,7 @@ static testmodule __beacontests(
         c->query(io, agent);
         bool blocksends = true;
         unsigned cntr = 0;
+        logmsg(loglevel::debug, "block direct client requests");
         tests::hook<orerror<void>, const udpsocket &, const peername &> h(
             udpsocket::_send,
             [&blocksends, c, &cntr]

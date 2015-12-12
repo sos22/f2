@@ -418,7 +418,16 @@ beaconclient::poll(const agentname &sn) const {
         [this, &sn]
         (mutex_t::token) -> maybe<result> {
             for (auto it(cache.start()); !it.finished(); it.next()) {
-                if (it->name == sn) return result(it->server, it->type); }
+                if (it->name == sn) {
+                    /* Checking the expiry here is a little bit
+                     * redundant, because the maintenance thread will
+                     * kill the expired ones eventually anyway, and
+                     * expiry is only ever supposed to be
+                     * best-effort. There's no harm in giving
+                     * ourselves a bit more insulation from scheduler
+                     * weirdness, though. */
+                    if (it->expiry.inpast()) return Nothing;
+                    else return result(it->server, it->type); } }
             return Nothing; }); }
 
 beaconclient::result
@@ -443,7 +452,8 @@ beaconclient::iterator::iterator(const beaconclient &what,
       it(Nothing) {
     what.cachelock.locked([this, _type, &what] (mutex_t::token) {
             for (auto e(what.cache.start()); !e.finished(); e.next()) {
-                if (_type == Nothing || e->type.contains(_type.just())) {
+                if ((_type == Nothing || e->type.contains(_type.just())) &&
+                    e->expiry.infuture()) {
                     content.append(e->name, e->type, e->server); } } } );
     it.mkjust(const_cast<const list<entry> *>(&content)->start()); }
 

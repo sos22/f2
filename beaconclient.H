@@ -40,7 +40,9 @@ private: maybe<agentname> _name;
 private: beaconconfig _proto;
 public:  const beaconconfig &proto() const { return _proto; }
     /* How long should we wait after making a query before sending
-     * another one? */
+     * another one? This is only when we're looking for someone we
+     * don't know about; refresh of existing entries is always halfway
+     * through the expiry time. */
 private: timedelta _queryinterval;
 public:  timedelta queryinterval() const { return _queryinterval; }
     /* How often should we send broadcast queries to discover new
