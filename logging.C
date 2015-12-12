@@ -82,10 +82,10 @@ const fields::field &
 memlogentry::field() const {
     return padright(when.field().dense(), 20) + " " +
         padright(level.field(), 9) + " " +
-        padright(who.field(), 7) +
-        padright("p:" + fields::mk(getpid()).nosep(), 7) +
+        padright(who.field(), 8) +
+        padright("p:" + fields::mk(getpid()).nosep(), 8) +
         (module->name != file
-         ? " m:" + padright(module->name.field(), 20)
+         ? "m:" + padright(module->name.field(), 20)
          : fields::mk("")) +
         " " + padright(fields::mk(file) +
                        ":" + fields::mk(func) +
