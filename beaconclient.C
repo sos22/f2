@@ -479,8 +479,10 @@ beaconclient::changed() const { return _changed; }
 void
 beaconclient::status(loglevel level) const {
     cachelock.locked([this, level] (mutex_t::token tok) {
-            for (auto it(cache.start()); !it.finished(); it.next()) {
-                it->status(tok, level); } }); }
+            if (cache.empty()) logmsg(level, "cache is empty");
+            else {
+                for (auto it(cache.start()); !it.finished(); it.next()) {
+                    it->status(tok, level); } } }); }
 
 void
 beaconclient::destroy() {
