@@ -27,6 +27,7 @@
 #include "pair.tmpl"
 #include "test.tmpl"
 #include "thread.tmpl"
+#include "waitbox.tmpl"
 
 /* Because I got bored typing the same thing over and over again. */
 #define POOL connpool::impl
@@ -76,7 +77,9 @@ public: nnp<connpool::asynccall> call(const agentname &sn,
                                       interfacetype type,
                                       maybe<timestamp> deadline,
                                       const std::function<serialiser> &s,
-                                      const deserialiser &ds); };
+                                      const deserialiser &ds);
+
+public: void status(); };
 
 class CONN : public thread {
 public: POOL &pool;
@@ -204,7 +207,10 @@ public: conn(const constoken &,
              const agentname &,
              POOL &,
              maybe<mutex_t::token> *);
-public: void run(clientio io); };
+public: void run(clientio io);
+
+    /* Called under pool lock */
+public: void status(mutex_t::token); };
 
 
 /* Note that these can survive after the connection drops (and in fact
@@ -252,6 +258,9 @@ public:  impl(CONN &_conn,
               interfacetype _type,
               const std::function<connpool::serialiser> &_serialiser,
               const deserialiser &_deserialise);
+
+    /* Called holding both the pool and conn locks */
+public:  void status(mutex_t::token pool, mutex_t::token conn);
 
     /* Implementations of the public API. */
 public:  maybe<token> finished() const;
@@ -350,6 +359,9 @@ connpool::destroy() {
     i->join(clientio::CLIENTIO); }
 
 connpool::~connpool() {}
+
+void
+connpool::status() { implementation().status(); }
 
 /* ------------------------ asynccall API proxies ----------------------- */
 CALL &
@@ -480,6 +492,19 @@ POOL::call(const agentname &sn,
      * the lock. */
     w.first()->mux.unlock(&w.second());
     return res; }
+
+void
+POOL::status() {
+    logmsg(loglevel::info, "pool status:");
+    logmsg(loglevel::info, "shutdown: " + shutdown.field());
+    logmsg(loglevel::info, "mux: " + mux.field());
+    mux.trylocked([this] (maybe<mutex_t::token> tok) {
+            if (tok == Nothing) return;
+            for (auto it(connections(tok.just()).start());
+                 !it.finished();
+                 it.next()) {
+                (*it)->status(tok.just()); } });
+    beacon.status(loglevel::info); }
 
 /* ------------------------ Connection implementation ---------------------- */
 bool
@@ -1131,6 +1156,24 @@ CONN::run(clientio io) {
     assert(_newcalls.empty());
     assert(_aborted.empty()); }
 
+void
+CONN::status(mutex_t::token ptok) {
+    logmsg(loglevel::info, "connection to " + agent.field());
+    logmsg(loglevel::info, "lock: " + mux.field());
+    logmsg(loglevel::info, "dying: " + fields::mk(_dying));
+    mux.trylocked([this, ptok] (maybe<mutex_t::token> tok) {
+            if (tok == Nothing) return;
+            logmsg(loglevel::info, "new:");
+            for (auto it(newcalls(tok.just()).start());
+                 !it.finished();
+                 it.next()) {
+                (*it)->status(ptok, tok.just()); }
+            logmsg(loglevel::info, "aborted:");
+            for (auto it(aborted(tok.just()).start());
+                 !it.finished();
+                 it.next()) {
+                (*it)->status(ptok, tok.just()); } }); }
+
 /* --------------------------- Call implementation ------------------------ */
 CALL::impl(CONN &_conn,
            maybe<timestamp> _deadline,
@@ -1149,6 +1192,17 @@ CALL::impl(CONN &_conn,
       _aborted(false),
       _refcount(1),
       _seqnr(Nothing) {}
+
+void
+CALL::status(mutex_t::token, mutex_t::token) {
+    logmsg(loglevel::info, "call to " + type.field() + "@" + deadline.field());
+    logmsg(loglevel::info, "mux " + mux.field());
+    logmsg(loglevel::info, "aborted: " + fields::mk(_aborted));
+    logmsg(loglevel::info, "refcount: " + fields::mk(_refcount));
+    logmsg(loglevel::info, "seq: " + _seqnr.field());
+    mux.trylocked([this] (maybe<mutex_t::token> tok) {
+            if (tok == Nothing) return;
+            logmsg(loglevel::info, "result: " + res(tok.just()).field()); }); }
 
 maybe<connpool::asynccall::token>
 CALL::finished() const {

@@ -220,6 +220,9 @@ public:  void destroy();
     /* Use destroy(). */
 private: ~connpool();
 
+    /* Debug interface: dump a load of interesting state to the logs. */
+public:  void status();
+
 public:  static tests::hookpoint<void> reapedconnthread;
 };
 
