@@ -415,13 +415,14 @@ static testmodule __beacontests(
         /* Should be near the expiry time. */
         tassert(T(drop) - T(start) >= T(400_ms));
         tassert(T(drop) - T(start) <= T(700_ms));
-        /* Should have made about 5 attempts. */
-        tassert(T(cntr) >= T(2u));
+        /* Should have made at least one attempt to refresh. */
+        tassert(T(cntr) >= T(1u));
+        /* But not too many. */
         tassert(T(cntr) <= T(7u));
         /* Poll to see when it comes back. */
         while (c->poll(agent) == Nothing) (10_ms).future().sleep(io);
         auto recover(timestamp::now());
-        tassert(T(recover) - T(start) >= T(900_ms));
+        tassert(T(recover) - T(start) >= T(800_ms));
         tassert(T(recover) - T(start) <= T(1200_ms));
         c->destroy();
         s->destroy(io); },
