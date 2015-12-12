@@ -39,6 +39,8 @@ public: unsigned &pausecount(mutex_t::token) { return _pausecount; }
     /* Are we currently paused? */
 public: bool _paused;
 public: bool &paused(mutex_t::token) { return _paused; }
+    /* Dump status if this is setand the pausepub gets kicked. */
+public: bool dumpstatus;
     /* Notified if pausecount goes 0->+ve or paused goes
      * false->true. */
 public: publisher pausepub;
@@ -61,7 +63,8 @@ public: rootthread(const constoken &token,
     type.pushtail(interfacetype::meta); }
 public: void run(clientio) final;
 public: rpcservice2::pausetoken pause(clientio);
-public: void unpause(rpcservice2::pausetoken); };
+public: void unpause(rpcservice2::pausetoken);
+public: void status(); };
 
 class rpcservice2::connworker final : public thread {
     /* Acquired from the const quotaavail() method */
@@ -135,7 +138,9 @@ public: void calledhello(proto::sequencenr snr,
     /* Check whether we have tx buffer and outstanding call quota left
      * to accept another call from the peer. */
 public: bool quotaavail(acquirestxlock) const;
-public: bool quotaavail(mutex_t::token) const; };
+public: bool quotaavail(mutex_t::token) const;
+
+public: void status(); };
 
 rpcservice2config::rpcservice2config(const beaconserverconfig &_beacon,
                                      unsigned _maxoutstandingcalls,
@@ -312,6 +317,12 @@ rpcservice2::rootthread::run(clientio io) {
         auto s(sub.wait(io));
         if (s == &ss) continue;
         else if (s == &ps) {
+            if (dumpstatus) {
+                dumpstatus = false;
+                logmsg(loglevel::info, "root thread status");
+                for (auto it(workers.start()); !it.finished(); it.next()) {
+                    auto w(static_cast<connworker *>(it->data));
+                    w->status(); } }
             if (!pauselock.locked<bool>([this] (mutex_t::token t) {
                         return pausecount(t) != 0; })) {
                 continue; }
@@ -425,6 +436,20 @@ rpcservice2::rootthread::unpause(pausetoken) {
                 pausecount(t)--;
                 return pausecount(t) == 0; })) {
         pausepub.publish(); } }
+
+void
+rpcservice2::rootthread::status() {
+    logmsg(loglevel::info, "root thread");
+    logmsg(loglevel::info, "fd: " + fd.status().field());
+    logmsg(loglevel::info, "shutdown: " + shutdown.field());
+    logmsg(loglevel::info, "initialisedone: " + initialisedone.field());
+    logmsg(loglevel::info, "type: " + type.field());
+    beacon->status();
+    logmsg(loglevel::info, "pauselock: " + pauselock.field());
+    logmsg(loglevel::info, "pausecount: " + fields::mk(_pausecount));
+    logmsg(loglevel::info, "paused: " + fields::mk(_paused));
+    dumpstatus = true;
+    pausepub.publish(); }
 
 void
 rpcservice2::connworker::run(clientio io) {
@@ -854,3 +879,22 @@ rpcservice2::connworker::quotaavail(mutex_t::token tok) const {
             return wantpause(t); }) &&
         outstandingcalls(tok).length() < config.maxoutstandingcalls &&
         txbuffer(tok).avail() < config.txbufferlimit; }
+
+void
+rpcservice2::connworker::status() {
+    logmsg(loglevel::info, "connworker");
+    logmsg(loglevel::info, "fd: " + fd.status().field());
+    logmsg(loglevel::info, "pauselock: " + pauselock.field());
+    logmsg(loglevel::info, "wantpause: " + fields::mk(_wantpause));
+    logmsg(loglevel::info, "paused: " + fields::mk(_paused));
+    logmsg(loglevel::info, "txlock: " + _txlock.field());
+    _txlock.trylocked([this] (maybe<mutex_t::token> tok) {
+            if (tok == Nothing) return;
+            logmsg(loglevel::info, "txbuffer: " + txbuffer(tok.just()).field());
+            for (auto it(outstandingcalls(tok.just()).start());
+                 !it.finished();
+                 it.next()) {
+                logmsg(loglevel::info, "outstanding: " + (*it)->field()); } });}
+
+void
+rpcservice2::status() const { root->status(); }

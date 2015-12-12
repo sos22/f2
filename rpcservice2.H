@@ -268,6 +268,9 @@ private:   virtual void destroying(clientio);
      * protected to keep gcc happy. */
 protected: virtual ~rpcservice2();
 
+    /* Debug interface: dump some state in the logs */
+public:    virtual void status() const;
+
     /* Test interface. */
 public:    static tests::hookpoint<void> clientdisconnected;
 };

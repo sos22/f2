@@ -1256,6 +1256,57 @@ static testmodule __testconnpool(
         tassert(T(t) < T(1_s));
         assert(completed);
         srv.destroy(io); },
+#if TESTING
+    "status", [] (clientio io) {
+        /* Noddy test that a couple of simple cases don't outright
+         * crash and actually generate some status messages. */
+        unsigned nrmessages;
+        nrmessages = 0;
+        tests::eventwaiter< ::loglevel> waiter(
+            tests::logmsg,
+            [&nrmessages] (loglevel level) {
+                if (level >= loglevel::info) nrmessages++; });
+        auto _mustlog([&] (unsigned line,
+                           const char *msg,
+                           const std::function<void ()> &f) {
+                logmsg(loglevel::info, fields::mk(line) + ":" + msg);
+                nrmessages = 0;
+                f();
+                assert(nrmessages != 0); } );
+#define mustlog(x) _mustlog(__LINE__, #x, [&] { x; })
+        quickcheck q;
+        auto cn(mkrandom<clustername>(q));
+        agentname sn(q);
+        auto srv(rpcservice2::listen<slowservice>(
+                     io,
+                     cn,
+                     sn,
+                     peername::all(peername::port::any))
+                 .fatal("starting slow service"));
+        mustlog(srv->status());
+        auto pool(connpool::build(cn).fatal("building connpool"));
+        mustlog(pool->status());
+        auto ac(pool->call<void>(
+                    sn,
+                    interfacetype::test,
+                    Nothing,
+                    [] (serialise1 &s, connpool::connlock) {
+                        (3600_s).serialise(s);
+                        s.push((unsigned)12345678); },
+                    []
+                    (deserialise1 &d, connpool::connlock)
+                    -> orerror<void> {
+                        (unsigned)d;
+                        return Success; }));
+        mustlog(pool->status());
+        mustlog(srv->status());
+        ac->abort();
+        mustlog(pool->status());
+        mustlog(srv->status());
+        srv->destroy(io);
+        mustlog(pool->status());
+        pool->destroy(); },
+#endif
     "predictability", [] (clientio io) {
         /* We don't just need to be fast, we also need to be
          * predictable. The median and mean latency should be similar,
