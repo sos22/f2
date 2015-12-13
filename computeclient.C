@@ -223,7 +223,7 @@ orerror<orerror<jobresult> >
 computeclient::asyncwaitjob::pop(token) {
     /* tokens are supposed to enforce this. */
     assert(impl().res.ready());
-    auto res(impl().res.get(Steal, clientio::CLIENTIO));
+    auto res(impl().res.get(clientio::CLIENTIO));
     impl().join(clientio::CLIENTIO);
     return res; }
 

@@ -27,13 +27,6 @@ waitbox<t>::get(clientio io, timestamp deadline) const {
         if (sub.wait(io, deadline) == NULL) return Nothing; }
     return content.just(); }
 
-template <typename t> t
-waitbox<t>::get(_Steal s, clientio io) {
-    subscriber sub;
-    {   subscription ss(sub, pub_);
-        while (!ready()) sub.wait(io); }
-    return content.just(s); }
-
 template <typename t> maybe<t>
 waitbox<t>::poll() const {
     auto token(mux.lock());

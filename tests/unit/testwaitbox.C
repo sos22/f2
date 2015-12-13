@@ -13,7 +13,6 @@ static testmodule __testwaitbox(
     "waitbox",
     list<filename>::mk("waitbox.C", "waitbox.H", "waitbox.tmpl"),
     testmodule::BranchCoverage(50_pc),
-    testmodule::LineCoverage(80_pc),
     "setif", [] (clientio io) {
         waitbox<unsigned> wb;
         wb.set(5);
