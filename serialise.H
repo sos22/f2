@@ -30,7 +30,7 @@ public:  explicit deserialise1(const buffer &_src);
 public:  explicit deserialise1(quickcheck &_src);
     /* False if we're deserialising a buffer, true if we're generating
      * a random instance. */
-public:  bool random() const;
+public:  bool random() const { return src.isright(); }
     /* Deserialisers for fundamental types.  Other types have unary
      * constructors which do similar conversions.  Note that on error
      * these return 0 or false, as appropriate, rather than returning

@@ -16,9 +16,6 @@ deserialise1::deserialise1(quickcheck &_src)
       error(Success),
       _offset(0) {}
 
-bool
-deserialise1::random() const { return src.isright(); }
-
 deserialise1::operator bool() {
     if (random()) return *src.right();
     char c(*this);
