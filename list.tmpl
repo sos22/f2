@@ -21,10 +21,6 @@ list<t>::list(deserialise1 &ds)
       tail(NULL) {
     unsigned len(ds);
     if (ds.random()) len %= 100;
-    else if (len > 1000000) {
-        /* Arbitrary limit. */
-        ds.fail(error::overflowed);
-        return; }
     while (!ds.isfailure() && len != 0) {
         append(ds);
         len--; } }
@@ -231,13 +227,8 @@ template <typename t> template <typename ... args> t &
 list<t>::append(args &&... params)
 {
     auto m(new member(NULL, tail, 73, std::forward<args>(params)...));
-    if (tail) {
-        assert(head);
-        tail->next = m;
-    } else {
-        assert(!head);
-        head = m;
-    }
+    if (tail) tail->next = m;
+    else head = m;
     tail = m;
     return m->value;
 }
@@ -246,13 +237,8 @@ template <typename t> template <typename ... args> t &
 list<t>::prepend(args &&... params)
 {
     auto m(new member(head, NULL, 73, std::forward<args>(params)...));
-    if (head) {
-        assert(tail);
-        head->prev = m;
-    } else {
-        assert(!tail);
-        tail = m;
-    }
+    if (head) head->prev = m;
+    else tail = m;
     head = m;
     return m->value;
 }

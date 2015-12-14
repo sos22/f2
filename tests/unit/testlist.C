@@ -99,15 +99,7 @@ static testmodule __listtest(
         assert(l.empty()); },
     "serialise", [] {
         quickcheck q;
-        ::serialise<list<int> >(q);
-        ::buffer b;
-        /* Check it doesn't blow up with implausibly large
-         * lists. */
-        serialise1 s(b);
-        s.push((unsigned)~0u);
-        deserialise1 ds(b);
-        list<int> fail(ds);
-        assert(ds.failure() == error::overflowed); },
+        ::serialise<list<int> >(q); },
     "copy", [] {
         quickcheck q;
         for (unsigned x = 0; x < 100; x++) {
