@@ -203,19 +203,17 @@ list<t>::pushhead(const t &what)
 template <typename t> void
 list<t>::pushtail() {}
 
-template <typename t> template <typename ... args> void
-list<t>::pushtail(const t &first, args &&...rest)
-{
+template <typename t> void
+list<t>::pushtail(const t &first) {
     auto m(new member(NULL, tail, false, first));
-    if (tail) {
-        assert(head);
-        tail->next = m;
-    } else {
-        assert(!head);
-        head = m;
-    }
-    tail = m;
-    pushtail(std::forward<args>(rest)...); }
+    if (tail) tail->next = m;
+    else head = m;
+    tail = m; }
+
+template <typename t> template <typename ... args> void
+list<t>::pushtail(const t &first, const t &second, args &&...rest) {
+    pushtail(first);
+    pushtail(second, std::forward<args>(rest)...); }
 
 template <typename t> t &
 list<t>::idx(unsigned x) {

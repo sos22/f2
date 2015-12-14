@@ -118,7 +118,8 @@ public:
      * pushes a sequence of t's taken from its varargs, whereas append
      * constructs a single t from its varargs. */
     void pushtail();
-    template <typename ... args> void pushtail(const t &, args &&...);
+    void pushtail(const t &);
+    template <typename ... args> void pushtail(const t &, const t &,args &&...);
 
     /* Remove an element from the list by value.  It must be present
      * precisely once, and the type must have an == operator. */
