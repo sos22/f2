@@ -975,7 +975,7 @@ static testmodule __testconnpool(
                    io,
                    sn,
                    interfacetype::test,
-                   timedelta::milliseconds(100).future(),
+                   Nothing,
                    [] (serialise1 &s, connpool::connlock) {
                        s.push(string("foo")); },
                    [] (orerror<nnp<deserialise1> > ds, connpool::connlock) {
