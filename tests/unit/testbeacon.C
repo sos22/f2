@@ -366,7 +366,7 @@ static testmodule __beacontests(
          * (fencepost). */
         tassert(T(tv) >= T(200_ms));
         /* Should complete fairly quickly after that. */
-        tassert(T(tv) <= T(500_ms));
+        tassert(T(tv) <= T(1_s));
         s->destroy(io);
         c->destroy(); },
     "clientdirectfailure", [] (clientio io) {
