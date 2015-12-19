@@ -90,8 +90,8 @@ static testmodule __spawntest(
                .fatal("spawning /bin/sleep"));
         assert(p->join(clientio::CLIENTIO).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
-        assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(200))); },
+        tassert(T(t) >= T(0_s));
+        tassert(T(t) <= T(300_ms)); },
     "sleep4", [] (clientio io) {
         auto p(process::spawn(program("/bin/sleep")
                               .addarg(std::move(string("1"))))
