@@ -535,7 +535,7 @@ static testmodule __beacontests(
                    .fatal("beaconclientconfig::mk"))
                .fatal("beaconclient::build"));
         assert(c->poll(agent) == Nothing);
-        (timestamp::now() + timedelta::milliseconds(200)).sleep(io);
+        (300_ms).future().sleep(io);
         assert(c->poll(agent) == Nothing);
         /* Stop injecting errors and make sure server starts working. */
         fail = false;
