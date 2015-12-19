@@ -292,7 +292,7 @@ static testmodule __testconnpool(
         start = end;
         assert(c->pop(io) == error::dlopen);
         end = timestamp::now();
-        tassert(T(end) - T(start) < T(timedelta::milliseconds(10))); },
+        tassert(T(end) - T(start) < T(timedelta::milliseconds(50))); },
     "getconfig", [] (clientio) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
