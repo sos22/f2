@@ -77,7 +77,7 @@ rm ${summary}
 
 trap "" EXIT
 
-if grep -vw '\(pass\)\|\(meta\)' ${outdir}/summary
+if grep -vw '\(pass\)\|\(meta\)$' ${outdir}/summary
 then
     exit 1
 else
