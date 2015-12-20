@@ -131,5 +131,4 @@ template const publisher &filesystemclient::asyncfindjob::pub() const;
 template maybe<filesystemclient::asyncfindjob::token>
     filesystemclient::asyncfindjob::finished() const;
 template void filesystemclient::asyncfindjob::abort();
-template void filesystemclient::asyncstoragebarrier::abort();
-template const publisher &filesystemclient::asyncstoragebarrier::pub() const;
+template class asynccall<filesystemclient::asyncstoragebarrierdescr>;
