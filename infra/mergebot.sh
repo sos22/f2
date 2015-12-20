@@ -38,7 +38,7 @@ logs=${results}/logs
 mkdir -p ${results}/routine
 
 sendemail() {
-    /usr/sbin/sendmail sos22@srcf.ucam.org
+    /usr/sbin/sendmail sos22@archy.org.uk
 }
 
 _basemode() {
@@ -74,8 +74,8 @@ basemode() {
 mailheader() {
     cat <<EOF
 Subject: $1
-From: sos22@srcf.ucam.org
-To: sos22@srcf.ucam.org
+From: sos22@archy.org.uk
+To: sos22@archy.org.uk
 
 EOF
 }

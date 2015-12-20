@@ -35,8 +35,8 @@ nrcoverage=$(wc -l < ${coverage})
 header() {
     local subject="$*"
     echo "Subject: $when: $subject"
-    echo "From: sos22@srcf.ucam.org"
-    echo "To: sos22@srcf.ucam.org"
+    echo "From: sos22@archy.org.uk"
+    echo "To: sos22@archy.org.uk"
     echo
     grep 'meta$' ${testdir}/summary | sed 's/[[:space:]]*meta$//'
     echo
