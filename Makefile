@@ -31,7 +31,7 @@ clean::
 
 # Specialise the .gen rule for config so that it doesn't induce a
 # circular dependency.
-config: config.gen gitversion.H
+config: config.gen
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
 
 # Special target which is sometimes useful for forcing something to
