@@ -151,12 +151,8 @@ class subscriber {
     friend class subscription;
 private: mutex_t mux;
 private: cond_t cond;
-private: bool notified;
+private: unsigned nrnotified;
 private: list<subscriptionbase *> subscriptions;
-    /* One of the subscriptions in the list was notified.  Update the
-       subscriber, unblocking if necessary.  Caller must have acquired
-       the subscriber lock. */
-private: void set(mutex_t::token);
     /* Construct a subscriber with no subscriptions. */
 public: subscriber();
     /* Wait for at least one of our subscriptions to get notified with

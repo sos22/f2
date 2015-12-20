@@ -170,7 +170,8 @@ subscriptionbase::set() {
     auto tok(sub->mux.lock());
     if (!notified) {
         notified = true;
-        sub->set(tok); }
+        sub->nrnotified++;
+        if (sub->nrnotified == 1) sub->cond.broadcast(tok); }
     sub->mux.unlock(&tok); }
 
 subscriptionbase::~subscriptionbase() {
@@ -182,6 +183,7 @@ subscriptionbase::~subscriptionbase() {
             found = true;
             it.remove();
             break; } }
+    if (notified) sub->nrnotified--;
     sub->mux.unlock(&token);
     assert(found); }
 
@@ -247,42 +249,37 @@ iosubscription::detach() {
 iosubscription::~iosubscription() {
     detach(); }
 
-void
-subscriber::set(mutex_t::token tok) {
-    if (!notified) {
-        notified = true;
-        cond.broadcast(tok); } }
-
 subscriber::subscriber()
     : mux(),
       cond(mux),
-      notified(false),
+      nrnotified(0),
       subscriptions() {}
 
 subscriptionbase *
 subscriber::wait(clientio io, maybe<timestamp> deadline) {
     auto token(mux.lock());
     while (1) {
-        notified = false;
-        unsigned cntr = 0;
-        for (auto it(subscriptions.start()); !it.finished(); it.next()) {
-            auto r(*it);
-            assert(r->sub == this);
-            if (r->notified) {
-                r->notified = false;
-                mux.unlock(&token);
-                fuzzsched();
-                return r; }
-            if (++cntr % 1000 == 0) {
-                logmsg(loglevel::error,
-                       "very long subs list " + fields::mk(cntr)); } }
-        while (!notified) {
+        while (nrnotified == 0) {
             auto r(cond.wait(io, &token, deadline));
             token = r.token;
             if (r.timedout) {
                 mux.unlock(&token);
                 fuzzsched();
-                return NULL; } } } }
+                return NULL; } }
+        unsigned cntr = 0;
+        for (auto it(subscriptions.start()); true; it.next()) {
+            assert(!it.finished());
+            auto r(*it);
+            assert(r->sub == this);
+            if (r->notified) {
+                r->notified = false;
+                nrnotified--;
+                mux.unlock(&token);
+                fuzzsched();
+                return r; }
+            if (++cntr % 1000 == 0) {
+                logmsg(loglevel::error,
+                       "very long subs list " + fields::mk(cntr)); } } } }
 
 subscriptionbase *
 subscriber::poll() {
@@ -294,8 +291,10 @@ subscriber::~subscriber() {
     while (!subscriptions.empty()) {
         auto r(subscriptions.pophead());
         assert(r->sub == this);
+        if (r->notified) nrnotified--;
         r->detach();
-        r->sub = NULL; } }
+        r->sub = NULL; }
+    assert(nrnotified == 0); }
 
 void
 initpubsub() {
