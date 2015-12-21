@@ -53,13 +53,13 @@ function cc() {
 	    local dep=${src%.C}.d
 	    cat <<EOF
 -include $dep
-$obj: $src $allsrcdeps
+$obj: $src $allsrcdeps gitversion.H
 	ccache \$(F2_CXX) $dashi -DTESTING=0 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX="" -c -MD -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${dep}" -MF ${dep}.tmp -o ${obj}.tmp \$< && mv ${dep}.tmp ${dep} && mv ${obj}.tmp ${obj}
-${obj/.o/-t.o}: $src $allsrcdeps
+${obj/.o/-t.o}: $src $allsrcdeps gitversion.H
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=0 ${F2_CPPFLAGS} ${F2_CXXFLAGS} -DEXESUFFIX=\"-t\" -c -o ${obj}-t.tmp \$< && mv ${obj}-t.tmp \$@
-${obj/.o/-c.o}: $src $allsrcdeps
+${obj/.o/-c.o}: $src $allsrcdeps gitversion.H
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -fprofile-arcs --coverage -DEXESUFFIX=\"-c\" ${F2_CPPFLAGS} ${F2_CXXFLAGS} -c -o ${obj}-c.tmp \$< && mv ${obj}-c.tmp \$@
-${obj/.o/-p.o}: $src $allsrcdeps
+${obj/.o/-p.o}: $src $allsrcdeps gitversion.H
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src $allsrcdeps
 	\$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o} ${dep}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
