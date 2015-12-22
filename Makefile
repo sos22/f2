@@ -19,7 +19,7 @@ everything: realall covall testall profall
 clean::
 	find . -name '*.log' -o -name '*~' -o -name '*.gcov' -o -name   \
 		'*-c.gcda' -o -name '*-c.gcno'                        | \
-		xargs rm
+		xargs -r rm
 
 %: %.gen config
 	@./$< $@ > $@.tmp && mv -f $@.tmp $@
