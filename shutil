@@ -51,6 +51,9 @@ function cc() {
 	C)
 	    local obj=${src%.C}.o
 	    local dep=${src%.C}.d
+            # Generate dependencies in a .tmp file and then rename if
+            # everything succeeds, so that we're not left with invalid
+            # .d files if we fail part-way through.
 	    cat <<EOF
 -include $dep
 $obj: $src $allsrcdeps gitversion.H
@@ -62,9 +65,9 @@ ${obj/.o/-c.o}: $src $allsrcdeps gitversion.H
 ${obj/.o/-p.o}: $src $allsrcdeps gitversion.H
 	ccache \$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -pg -fprofile-arcs ${F2_CPPFLAGS} ${F2_CXXFLAGS} -O3 -DEXESUFFIX=\"-p\" -c -o ${obj}-p.tmp \$< && mv ${obj}-p.tmp \$@
 $dep: $src $allsrcdeps
-	\$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o} ${dep}" $src \$< > ${dep}.tmpZ && mv ${dep}.tmpZ ${dep}
+	\$(F2_CXX) $dashi -DTESTING=1 -DCOVERAGE=1 -std=gnu++11 ${F2_CPPFLAGS} -M -MT "$obj ${obj/.o/-c.o} ${obj/.o/-t.o} ${obj/.o/-p.o} ${dep}" $src \$< > ${dep}.tmp && mv ${dep}.tmp ${dep}
 clean::
-	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmpZ
+	rm -f $dep $obj ${obj}.tmp ${dep}.tmp ${dep}.tmp
 	rm -f ${obj/.o/-c.o} ${obj}-c.tmp
 	rm -f ${obj/.o/-t.o} ${obj}-t.tmp
 	rm -f ${obj/.o/-p.o} ${obj}-p.tmp
