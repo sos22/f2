@@ -23,5 +23,6 @@ F2_CC=${CC:-gcc}
 F2_LD=${LD:-gcc-4.9}
 F2_GCOV=${GCOV:-gcov-4.9}
 PREFIX="$(pwd)"
+CCACHE_BASEDIR="$(pwd)"
 EOF
 
