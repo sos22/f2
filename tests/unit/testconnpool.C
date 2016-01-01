@@ -1067,15 +1067,15 @@ static testmodule __testconnpool(
         auto pt(srv->pause(io));
         srv->paused = true;
         auto end(timestamp::now());
-        assert((end - start) < 100_ms);
+        assert((end - start) < 200_ms);
         auto prepause(nrcalls);
-        (100_ms).future().sleep(io);
+        (200_ms).future().sleep(io);
         srv->paused = false;
         start  = timestamp::now();
         srv->unpause(pt);
         end = timestamp::now();
-        assert(end - start < 100_ms);
-        (100_ms).future().sleep(io);
+        assert(end - start < 200_ms);
+        (200_ms).future().sleep(io);
         tassert(T(nrcalls) - T(prepause) > T(10u));
         /* We're done.  Shut it all down. */
         stopclient = true;
