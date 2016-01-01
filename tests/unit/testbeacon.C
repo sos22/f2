@@ -79,7 +79,7 @@ static testmodule __beacontests(
                .fatal("starting beacon client"));
         auto start(timestamp::now());
         c->query(io, agent);
-        while (timestamp::now() < start + timedelta::milliseconds(600)) {
+        while (timestamp::now() < start + timedelta::milliseconds(500)) {
             assert(c->poll(agent) != Nothing); }
         c->destroy();
         s->destroy(io); },
