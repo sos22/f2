@@ -161,15 +161,19 @@ rpcservice2config::dflt(const clustername &cn,
 
 orerror<listenfd>
 rpcservice2::open(const peername &pn) {
+    orerror<listenfd> res(error::unknown);
     auto s(::socket(pn.sockaddr()->sa_family,
                     SOCK_STREAM | SOCK_NONBLOCK,
                     0));
-    if (s < 0) return error::from_errno();
-    if (::bind(s, pn.sockaddr(), pn.sockaddrsize()) < 0 ||
-        ::listen(s, 10) < 0) {
+    if (s < 0) res = error::from_errno();
+    else if (::bind(s, pn.sockaddr(), pn.sockaddrsize()) < 0 ||
+             ::listen(s, 10) < 0) {
         ::close(s);
-        return error::from_errno(); }
-    else return listenfd(s); }
+        res = error::from_errno(); }
+    else res = listenfd(s);
+    logmsg(loglevel::debug,
+           "listen on " + pn.field() + " -> " + res.field());
+    return res; }
 
 orerror<void>
 rpcservice2::_initialise(clientio io) {
@@ -191,10 +195,11 @@ rpcservice2::_initialise(clientio io) {
                "cannot start rpcservice: initialise said " + res.field());
         destroy(io);
         return res; }
-    root->beacon = beacon.success();
-    root->initialisedone.set(res);
-    logmsg(loglevel::debug, "initialised rpcservice");
-    return res; }
+    else {
+        root->beacon = beacon.success();
+        root->initialisedone.set(res);
+        logmsg(loglevel::debug, "initialised rpcservice");
+        return Success; } }
 
 orerror<void>
 rpcservice2::initialise(clientio) { return Success; }
@@ -400,6 +405,7 @@ rpcservice2::rootthread::run(clientio io) {
                     break; } };
             died->join(death.just());
             rpcservice2::clientdisconnected(); } }
+    logmsg(loglevel::debug, "service " + fd.field() + " shutdown");
     /* Time to die.  Wait for our client connections to drop.  Should
      * be quick because they watch our shutdown box. */
     while (!workers.empty()) {
@@ -409,6 +415,7 @@ rpcservice2::rootthread::run(clientio io) {
         w->join(io); }
     if (beacon) beacon->destroy(io);
     fd.close();
+    logmsg(loglevel::debug, "closed " + fd.field());
     owner.destroying(io); }
 
 rpcservice2::pausetoken
