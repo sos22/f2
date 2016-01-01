@@ -141,7 +141,15 @@ private: void detach() final;
     /* Destruct the subscription, disconnecting the subscriber from
      * the FD. */
 public:  ~iosubscription();
-};
+    /* Synchronise with the polling thread following a destruction,
+     * waiting for it to stop touching the file descriptor. This is
+     * moderately expensive and almost always unnecessary, because the
+     * usual worst case is a pointless thread wake. The exception is
+     * when close()ing a file descriptor has visible side-effects,
+     * because those side effects will get delayed until the polling
+     * thread removes the FD from its ppoll set. Synchronising waits
+     * for that to happen on all destructed iosubscriptions. */
+public:  static void synchronise(clientio); };
 
 /* A subscriber represent someone who waits for events to be
  * published.  Each subscriber can be subscribed to one or more

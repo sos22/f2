@@ -22,12 +22,14 @@ class iopollingthread : public thread {
     friend class thread;
 private: mutex_t mux;
 private: bool shutdown;
+private: unsigned seqlock;
 private: list<iosubscription *> what;
 private: iopollingthread(constoken);
 private: void run(clientio);
 public:  void start();
 public:  void attach(iosubscription &);
 public:  void detach(iosubscription &);
+public:  void synchronise(clientio);
 public:  void stop(clientio); };
 
 /* pubsub IO polling is done by a global singleton thread. */
@@ -47,6 +49,7 @@ iopollingthread::run(clientio) {
     auto token(mux.lock());
     while (!shutdown) {
         unsigned nr = 0;
+        __sync_fetch_and_add(&seqlock, 1);
         for (auto it(what.start()); !it.finished(); it.next()) {
             if (nr == nralloced) {
                 nralloced += 8;
@@ -60,7 +63,8 @@ iopollingthread::run(clientio) {
                 error::from_errno().fatal("getting sigmask"); }
             assert(::sigismember(&sigs, SIGUSR1));
             ::sigdelset(&sigs, SIGUSR1);
-            r = ::ppoll(pfds, nr, NULL, &sigs); }
+            r = ::ppoll(pfds, nr, NULL, &sigs);
+            __sync_fetch_and_add(&seqlock, 1); }
         if (r < 0 && errno != EINTR) {
             error::from_errno().fatal(
                 "poll()ing for IO with " + fields::mk(nr) + " fds"); }
@@ -101,6 +105,7 @@ iopollingthread::iopollingthread(constoken tok)
     : thread(tok),
       mux(),
       shutdown(false),
+      seqlock(0),
       what() { }
 
 void
@@ -128,7 +133,15 @@ iopollingthread::detach(iosubscription &sub) {
                 break; } }
         assert(found);
         mux.unlock(&token); }
-    pollthread->kill(SIGUSR1).fatal("waking up poller thread for new FD"); }
+    pollthread->kill(SIGUSR1).fatal("waking up poller thread for lost FD"); }
+
+void
+iopollingthread::synchronise(clientio) {
+    unsigned seq = __sync_fetch_and_add(&seqlock, 0);
+    pollthread->kill(SIGUSR1).fatal("waking up poller thread for synchronise");
+    while (true) {
+        sched_yield();
+        if (seq % 2 == 0 || seq != seqlock) break; } }
 
 void
 iopollingthread::stop(clientio io) {
@@ -248,6 +261,9 @@ iosubscription::detach() {
 
 iosubscription::~iosubscription() {
     detach(); }
+
+void
+iosubscription::synchronise(clientio io) { pollthread->synchronise(io); }
 
 subscriber::subscriber()
     : mux(),
