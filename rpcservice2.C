@@ -162,6 +162,7 @@ rpcservice2config::dflt(const clustername &cn,
 orerror<listenfd>
 rpcservice2::open(const peername &pn) {
     orerror<listenfd> res(error::unknown);
+    logmsg(loglevel::debug, "start listening on " + pn.field());
     auto s(::socket(pn.sockaddr()->sa_family,
                     SOCK_STREAM | SOCK_NONBLOCK,
                     0));
@@ -378,6 +379,7 @@ rpcservice2::rootthread::run(clientio io) {
         else if (s == &ios) {
             /* We have a new client. */
             auto newfd(fd.accept());
+            logmsg(loglevel::debug, "accept -> " + newfd.field());
             if (newfd.isfailure()) {
                 newfd.failure().warn(
                     "accepting on " + fields::mk(fd.localname()));
@@ -413,7 +415,9 @@ rpcservice2::rootthread::run(clientio io) {
         auto w( (connworker *)it->data );
         it.remove();
         w->join(io); }
+    logmsg(loglevel::debug, "no more workers");
     if (beacon) beacon->destroy(io);
+    logmsg(loglevel::debug, "no more beacon");
     fd.close();
     logmsg(loglevel::debug, "closed " + fd.field());
     owner.destroying(io); }
