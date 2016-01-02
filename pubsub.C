@@ -148,7 +148,7 @@ publisher::publish() {
     auto tok(mux.lock());
     for (auto it(subscriptions.start()); !it.finished(); it.next()) {
         if (++cntr % 10000 == 0) {
-            logmsg(loglevel::error, "wake lots of subs " + fields::mk(cntr));}
+            logmsg(loglevel::debug, "wake lots of subs " + fields::mk(cntr));}
         (*it)->set(); }
     mux.unlock(&tok); }
 
@@ -278,7 +278,7 @@ subscriber::wait(clientio io, maybe<timestamp> deadline) {
                 fuzzsched();
                 return r; }
             if (++cntr % 1000 == 0) {
-                logmsg(loglevel::error,
+                logmsg(loglevel::debug,
                        "very long subs list " + fields::mk(cntr)); } } } }
 
 subscriptionbase *

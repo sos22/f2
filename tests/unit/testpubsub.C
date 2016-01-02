@@ -446,7 +446,7 @@ static testmodule __testpubsub(
             tests::eventwaiter< ::loglevel> waiter(
                 tests::logmsg,
                 [&nrmsgs] (loglevel level) {
-                    if (level >= loglevel::error) nrmsgs++; });
+                    if (level >= loglevel::debug) nrmsgs++; });
             for (auto x = 0; x < nrpubs; x++) assert(sub.wait(_io) != NULL);
             assert(nrmsgs > 0);
             nrmsgs = 0;
@@ -471,7 +471,7 @@ static testmodule __testpubsub(
             tests::eventwaiter< ::loglevel> waiter(
                 tests::logmsg,
                 [&nrmsgs] (loglevel level) {
-                    if (level >= loglevel::error) nrmsgs++; });
+                    if (level >= loglevel::debug) nrmsgs++; });
             for (auto x = 0; x < nrsubs; x++) assert(subs[x].wait(_io)==&ss[x]);
             nrmsgs = 0;
             pub.publish();
