@@ -316,7 +316,7 @@ rpcservice2::rootthread::run(clientio io) {
     subscription ss(sub, shutdown.pub());
     subscription ps(sub, pausepub);
     list<subscription> workers;
-    iosubscription ios(sub, fd.poll());
+    maybe<iosubscription> ios(Just(), sub, fd.poll());
     while (!shutdown.ready()) {
         assert(!_paused); /* No lock: this thread is the only one that
                            * changes it. */
@@ -376,7 +376,7 @@ rpcservice2::rootthread::run(clientio io) {
                 w->pausepub.publish(); }
             /* No wait for the connection unpause to actually
              * happen. */ }
-        else if (s == &ios) {
+        else if (s == &ios.just()) {
             /* We have a new client. */
             auto newfd(fd.accept());
             logmsg(loglevel::debug, "accept -> " + newfd.field());
@@ -387,7 +387,7 @@ rpcservice2::rootthread::run(clientio io) {
                  * persistent failure doesn't completely spam the
                  * logs. */
                 sub.wait(io, timestamp::now() + timedelta::seconds(1)); }
-            ios.rearm();
+            ios.just().rearm();
             if (newfd.isfailure()) continue;
             auto r(thread::start<connworker>(
                        "S:" + fields::mk(fd.localname()),
@@ -419,6 +419,10 @@ rpcservice2::rootthread::run(clientio io) {
     if (beacon) beacon->destroy(io);
     logmsg(loglevel::debug, "no more beacon");
     fd.close();
+    /* Get the io subscription out of the way so that other people can
+     * use the port immediately. */
+    ios = Nothing;
+    iosubscription::synchronise(io);
     logmsg(loglevel::debug, "closed " + fd.field());
     owner.destroying(io); }
 
