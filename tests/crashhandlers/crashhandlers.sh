@@ -18,6 +18,12 @@ t=$(mktemp)
 grep -q "hello crash" $t
 rm -f $t
 
+# SEGV in one handler should prevent any others
+t=$(mktemp)
+! ${top}/tests/crashhandlers/crasher crashsegv 2> $t
+grep -q "hello crash" $t
+rm -f $t
+
 # A really slow crashhandler shouldn't stall shutdown forever.
 start=$(date +%s)
 ! ${top}/tests/crashhandlers/crasher runforever

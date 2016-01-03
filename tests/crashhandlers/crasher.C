@@ -8,12 +8,13 @@
 #include "main.H"
 #include "string.H"
 
+class chhello : public crashhandler {
+public: chhello() : crashhandler(fields::mk("chhello")) {}
+public: void doit() { fprintf(stderr, "\nhello crash\n"); } };
+
 static void
 crashhello(void) {
-    class cc : public crashhandler {
-    public: cc() : crashhandler(fields::mk("cc")) {}
-    public: void doit() { fprintf(stderr, "\nhello crash\n"); } };
-    cc handler;
+    chhello handler;
     abort(); }
 
 static void
@@ -24,11 +25,22 @@ runforever(void) {
     cc handler;
     abort(); }
 
+static void
+crashsegv(void) {
+    class cc : public crashhandler {
+    public: cc() : crashhandler(fields::mk("segv")) {}
+    public: void doit() { *(unsigned *)72 = 43; } };
+    cc h1;
+    chhello handler;
+    cc h2;
+    abort(); }
+
 orerror<void>
 f2main(list<string> &args) {
     if (args.length() != 1) errx(1, "need a single argument");
     auto &t(args.idx(0));
     if (t == string("crashhello")) crashhello();
     else if (t == string("runforever")) runforever();
+    else if (t == string("crashsegv")) crashsegv();
     else error::noparse.fatal("unknown crash test " + t.field());
     return Success; }
