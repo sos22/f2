@@ -144,10 +144,10 @@ static testmodule __beacontests(
         /* Should drop out within the beaconserver liveness time,
          * plus a bit of fuzz, but not too much sooner. */
         auto destroyed(timestamp::now());
-        (destroyed + 800_ms).sleep(io);
-        tassert(T(c->poll(agent)) != T(Nothing));
-        (destroyed + 1400_ms).sleep(io);
-        tassert(T(c->poll(agent)) == T(Nothing));
+        while (c->poll(agent) != Nothing) (1_ms).future().sleep(io);
+        auto dropped(timestamp::now());
+        tassert(T(dropped) >= T(destroyed) + T(700_ms) &&
+                T(dropped) <= T(destroyed) + T(1400_ms));
         /* Should come back almost immediately when we re-create
          * the server. */
         s = beaconserver::build(
