@@ -16,6 +16,12 @@ static testmodule __testuntested(
                        "computefmt.C",
                        "computeservice.C",
                        "computespy.C",
+                       /* Crash handlers get a pass because they only
+                        * run after we've crashed, which breaks the
+                        * unit test framework.  They have their own
+                        * tests in tests/crashhandlers. */
+                       "crashhandler.C",
+                       "crashhandler.H",
                        "digest.C",
                        "digest.H",
                        "filesystemcli.C",

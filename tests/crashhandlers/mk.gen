@@ -1,0 +1,8 @@
+#! /bin/bash
+
+. shutil
+
+cc tests/crashhandlers/crasher.C
+ld tests/crashhandlers/crasher tests/crashhandlers/crasher.o lib.a
+target tests/crashhandlers/crasher
+

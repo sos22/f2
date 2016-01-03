@@ -3,6 +3,7 @@
 #include <signal.h>
 
 #include "backtrace.H"
+#include "crashhandler.H"
 #include "fields.H"
 #include "list.H"
 #include "logging.H"
@@ -14,12 +15,10 @@
 
 static void
 fatalsignal(int signr) {
-    /* Bit of an abuse: we might already hold some memlog locks, so
-       this could deadlock. We're crashing anyway, though, so it
-       probably doesn't matter. */
     dumpmemlog();
     logmsg(loglevel::emergency,
            "signal " + fields::mk(signr) + " from " + backtrace().field());
+    crashhandler::invoke();
     signal(signr, SIG_DFL);
     raise(signr); }
 
