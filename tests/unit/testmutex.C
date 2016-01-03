@@ -1,3 +1,6 @@
+#include <sys/mman.h>
+
+#include "crashhandler.H"
 #include "logging.H"
 #include "mutex.H"
 #include "parsers.H"
@@ -19,7 +22,10 @@
 static testmodule __testmutex(
     "mutex",
     list<filename>::mk("mutex.C", "mutex.H", "mutex.tmpl"),
-    testmodule::BranchCoverage(70_pc),
+    /* The missing coverage is either syscalls which can't actually
+     * fail, or assertions, or stuff which happens in crash handlers
+     * (which are in a special process which gcov can't see). */
+    testmodule::BranchCoverage(69_pc),
     "basic", [] () {
         /* Spawn a bunch of threads and confirm that only one can
          * hold each lock at a time. */
@@ -148,4 +154,36 @@ static testmodule __testmutex(
                     return tt == Nothing; }));
         mux.unlock(&t);
         assert(!mux.trylocked<bool>([] (maybe<mutex_t::token> tt) {
-                    return tt == Nothing; })); } );
+                    return tt == Nothing; })); },
+    "crashhandler", [] {
+        void *mm = mmap(NULL,
+                        4096,
+                        PROT_READ|PROT_WRITE,
+                        MAP_SHARED|MAP_ANONYMOUS,
+                        -1,
+                        0);
+        bool *invoked = (bool *)mm;
+        class cc : public crashhandler {
+        public: mutex_t mux;
+        public: bool *_invoked;
+        public: cc(bool *__invoked)
+            : crashhandler(fields::mk("cc")),
+              mux(),
+              _invoked(__invoked) {}
+        public: void doit() {
+            assert(!*_invoked);
+            mux.locked([this] { *_invoked = true; }); } };
+        cc handler(invoked);
+        assert(!*invoked);
+        /* Handlers can't get stuck waiting for locks */
+        handler.mux.locked([] { crashhandler::invoke(); });
+        assert(*invoked);
+        munmap(mm, 4096);
+        /* Locks should behave as normal after running the
+         * handlers. */
+        auto t(handler.mux.lock());
+        assert(handler.mux.trylock() == Nothing);
+        handler.mux.unlock(&t);
+        auto tt(handler.mux.trylock());
+        assert(tt != Nothing);
+        handler.mux.unlock(&tt.just()); } );

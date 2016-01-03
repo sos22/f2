@@ -1,6 +1,7 @@
 #include "mutex.H"
 
 #include "backtrace.H"
+#include "crashhandler.H"
 #include "fuzzsched.H"
 #include "logging.H"
 #include "timedelta.H"
@@ -17,6 +18,11 @@ mutex_t::~mutex_t() { pthread_mutex_destroy(&mux); }
 
 mutex_t::token
 mutex_t::lock() {
+    /* If we're in crash mode then there's no point in acquiring
+     * locks. We've been reduced to a single thread, so if a lock is
+     * contended then we'll get suck forever, and crash handlers are
+     * supposed to be tolerant of weird memory corruption, anyway. */
+    if (crashhandler::crashing()) return token();
     fuzzsched();
     assert(!heldby.isjust() || heldby.__just() != tid::me());
     auto start(timestamp::now());
@@ -56,6 +62,9 @@ mutex_t::DUMMY() { return token(); }
 
 void
 mutex_t::unlock(token *tok) {
+    /* crash handlers don't bother acquiring locks, so releasing them
+     * can only ever cause problems. */
+    if (crashhandler::crashing()) return;
     tok->formux(*this);
     tok->release();
     heldby = tid::nonexistent();
