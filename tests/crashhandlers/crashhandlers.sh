@@ -12,9 +12,16 @@ make -C $top -j8 -s tests/crashhandlers/crasher
 # These are expected to crash, but don't want a core dump.
 ulimit -c 0
 
+# Basic hello world smoke test
 t=$(mktemp)
 ! ${top}/tests/crashhandlers/crasher crashhello 2> $t
 grep -q "hello crash" $t
 rm -f $t
+
+# A really slow crashhandler shouldn't stall shutdown forever.
+start=$(date +%s)
+! ${top}/tests/crashhandlers/crasher runforever
+end=$(date +%s)
+[ $(( $end - $start ))  -lt 5 ]
 
 echo "passed"
