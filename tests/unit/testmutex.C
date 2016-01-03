@@ -123,6 +123,7 @@ static testmodule __testmutex(
         mutex_t mux;
         assert(!strcmp(mux.field().c_str(), "<unheld>"));
         auto t(mux.lock());
+        assert(!strcmp(t.field().c_str(), ""));
         assert(("<heldby:t:" + parsers::intparser<unsigned>() + ">")
                .match(mux.field().c_str())
                .success()

@@ -40,7 +40,7 @@ public:
         ~token() {};
         token(const token &) {}
         void operator=(const token &) {}
-    };
+    public: const fields::field &field() const; };
     mutex_t();
     ~mutex_t();
     token lock();

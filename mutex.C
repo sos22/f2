@@ -8,6 +8,9 @@
 
 #include "maybe.tmpl"
 
+const fields::field &
+mutex_t::token::field() const { return fields::mk(""); }
+
 mutex_t::mutex_t() : heldby(Nothing) { pthread_mutex_init(&mux, NULL); }
 
 mutex_t::~mutex_t() { pthread_mutex_destroy(&mux); }
