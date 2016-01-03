@@ -44,4 +44,12 @@ t=$(mktemp)
 grep -q "re-locked!" $t
 rm -f $t
 
+# Low-level log messages should dump following a crash
+t=$(mktemp)
+! ${crasher} dumplog 2>$t
+grep -q "^\+\+\+ .* debug .* this is a debug message" $t
+# But not in the main log area.
+! grep -q "^[0-9] .* this is a debug message" $t
+rm -f $t
+
 echo "passed"

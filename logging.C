@@ -6,6 +6,7 @@
 #include <syslog.h>
 #include <unistd.h>
 
+#include "crashhandler.H"
 #include "fields.H"
 #include "filename.H"
 #include "test.H"
@@ -165,8 +166,10 @@ _logmsg(const logmodule &module,
         const char *what) {
     _logmsg(module, file, line, func, level, fields::mk(what)); }
 
-void
-dumpmemlog() {
+namespace {
+class dumpmemlog : public crashhandler {
+public: dumpmemlog() : crashhandler(fields::mk("dumpmemlog")) {}
+public: void doit() {
     logmsg(loglevel::notice, "log dump from thread " + tid::me().field());
     maybe<decltype(threadmemlog()->log.start())> titer(Nothing);
     if (threadmemlog() != NULL) titer = threadmemlog()->log.start();
@@ -188,13 +191,8 @@ dumpmemlog() {
     if (titer != Nothing) {
         while (!titer.just().finished()) {
             fprintf(stderr, "*** %s\n", (*titer.just())->field().c_str());
-            titer.just().next(); } } }
-
-static void
-_logging_exit(int code, void *) {
-    if (code != 0) {
-        logmsg(loglevel::emergency, "exiting with status " + fields::mk(code));
-        dumpmemlog(); } }
+            titer.just().next(); } } } };
+static dumpmemlog _dumpmemlog; }
 
 void
 _initlogging(const char *_ident, list<string> &args) {
@@ -228,8 +226,7 @@ _initlogging(const char *_ident, list<string> &args) {
     memcpy(ident + s, ".log", 5);
     logfile = fopen(ident, "a");
     if (logfile == NULL) err(1, "opening %s", ident);
-    free(ident);
-    on_exit(_logging_exit, NULL); }
+    free(ident); }
 
 logging::silence::silence(void) {
     logmsg(loglevel::info, "silence logging: " + fields::mk(silencecount));

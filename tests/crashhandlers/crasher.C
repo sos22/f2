@@ -5,6 +5,7 @@
 #include "crashhandler.H"
 #include "fields.H"
 #include "list.H"
+#include "logging.H"
 #include "main.H"
 #include "mutex.H"
 #include "string.H"
@@ -54,6 +55,11 @@ doublelock(void) {
     cc handler(mux);
     mux.locked([] { abort(); }); }
 
+static void
+dumplog(void) {
+    logmsg(loglevel::debug, "this is a debug message");
+    abort(); }
+
 orerror<void>
 f2main(list<string> &args) {
     if (args.length() != 1) errx(1, "need a single argument");
@@ -63,5 +69,6 @@ f2main(list<string> &args) {
     else if (t == string("crashsegv")) crashsegv();
     else if (t == string("disablehandler")) disablehandler();
     else if (t == string("doublelock")) doublelock();
+    else if (t == string("dumplog")) dumplog();
     else error::noparse.fatal("unknown crash test " + t.field());
     return Success; }

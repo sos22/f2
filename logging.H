@@ -72,8 +72,6 @@ void _logmsg(const logmodule &,
             (lvl),                              \
             __VA_ARGS__)
 
-void dumpmemlog(void);
-
 void _initlogging(const char *ident, list<string> &args);
 #define initlogging(args) _initlogging(__BASE_FILE__, args);
 
