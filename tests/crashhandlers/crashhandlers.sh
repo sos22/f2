@@ -24,6 +24,12 @@ t=$(mktemp)
 grep -q "hello crash" $t
 rm -f $t
 
+# Disabled handlers shouldn't run.
+t=$(mktemp)
+! ${top}/tests/crashhandlers/crasher disablehandler 2> $t
+! grep -q "hello crash" $t
+rm -f $t
+
 # A really slow crashhandler shouldn't stall shutdown forever.
 start=$(date +%s)
 ! ${top}/tests/crashhandlers/crasher runforever

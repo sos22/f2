@@ -35,6 +35,11 @@ crashsegv(void) {
     cc h2;
     abort(); }
 
+static void
+disablehandler(void) {
+    {   chhello h; }
+    abort(); }
+
 orerror<void>
 f2main(list<string> &args) {
     if (args.length() != 1) errx(1, "need a single argument");
@@ -42,5 +47,6 @@ f2main(list<string> &args) {
     if (t == string("crashhello")) crashhello();
     else if (t == string("runforever")) runforever();
     else if (t == string("crashsegv")) crashsegv();
+    else if (t == string("disablehandler")) disablehandler();
     else error::noparse.fatal("unknown crash test " + t.field());
     return Success; }
