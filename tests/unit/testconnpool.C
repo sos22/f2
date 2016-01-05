@@ -448,7 +448,7 @@ static testmodule __testconnpool(
                        interfacetype::test,
                        timestamp::now() + timedelta::hours(1),
                        [] (serialise1 &s, connpool::connlock) {
-                           timedelta::milliseconds(200).serialise(s);
+                           timedelta::milliseconds(400).serialise(s);
                            s.push((unsigned)1); },
                        [&completed, &completed1]
                        (connpool::asynccall &ac,
@@ -481,12 +481,12 @@ static testmodule __testconnpool(
                            completed2 = timestamp::now();
                            completed.pushtail(ac);
                            return Success; } ) );
-        assert(call1->pop(io) == Success);
+        tassert(T(call1->pop(io)) == T(Success));
         assert(completed1.isjust());
         assert(completed2.isjust());
-        assert(completed1.just() > completed2.just());
+        tassert(T(completed1.just()) > T(completed2.just()));
         assert(call2->finished().isjust());
-        assert(call2->pop(io) == Success);
+        tassert(T(call2->pop(io)) == T(Success));
         assert(completed.pophead() == call2);
         assert(completed.pophead() == call1);
         pool->destroy();
