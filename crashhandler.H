@@ -3,6 +3,14 @@
 
 namespace fields { class field; }
 
+class crashhandler;
+
+/* Token type to indicate that something's called in a crash handler
+ * context. */
+class crashcontext {
+    friend class crashhandler;
+private: crashcontext() {} };
+
 /* Callbacks which get invoked when we know we're going to crash, to
  * collect any interesting logging. There can be any manner of weird
  * memory corruption when these get invoked, and there might certainly
@@ -19,7 +27,7 @@ protected: explicit crashhandler(const fields::field &_name);
 protected: ~crashhandler();
 private:   crashhandler(const crashhandler&) = delete;
 private:   void operator=(const crashhandler &) = delete;
-private:   virtual void doit() = 0;
+private:   virtual void doit(crashcontext) = 0;
 public:    static void invoke();
 public:    static bool crashing(); };
 

@@ -170,7 +170,7 @@ static testmodule __testmutex(
             : crashhandler(fields::mk("cc")),
               mux(),
               _invoked(__invoked) {}
-        public: void doit() {
+        public: void doit(crashcontext) override {
             assert(!*_invoked);
             mux.locked([this] { *_invoked = true; }); } };
         cc handler(invoked);

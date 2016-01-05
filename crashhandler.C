@@ -77,7 +77,7 @@ crashhandler::invoke() {
             /* Don't want to invoke any special sighandlers, because
              * that's mostly just confusing. */
             for (unsigned x = 0; x < 32; x++) signal(x, SIG_DFL);
-            cursor->doit();
+            cursor->doit(crashcontext());
             syscall(SYS_exit, 0); }
         else {
             /* We are the parent. */

@@ -169,7 +169,7 @@ _logmsg(const logmodule &module,
 namespace {
 class dumpmemlog : public crashhandler {
 public: dumpmemlog() : crashhandler(fields::mk("dumpmemlog")) {}
-public: void doit() {
+public: void doit(crashcontext) override {
     logmsg(loglevel::notice, "log dump from thread " + tid::me().field());
     maybe<decltype(threadmemlog()->log.start())> titer(Nothing);
     if (threadmemlog() != NULL) titer = threadmemlog()->log.start();

@@ -12,7 +12,8 @@
 
 class chhello : public crashhandler {
 public: chhello() : crashhandler(fields::mk("chhello")) {}
-public: void doit() { fprintf(stderr, "\nhello crash\n"); } };
+public: void doit(crashcontext) override {
+    fprintf(stderr, "\nhello crash\n"); } };
 
 static void
 crashhello(void) {
@@ -23,7 +24,7 @@ static void
 runforever(void) {
     class cc : public crashhandler {
     public: cc() : crashhandler(fields::mk("cc")) {}
-    public: void doit() { while (true) ; } };
+    public: void doit(crashcontext) override { while (true) ; } };
     cc handler;
     abort(); }
 
@@ -31,7 +32,7 @@ static void
 crashsegv(void) {
     class cc : public crashhandler {
     public: cc() : crashhandler(fields::mk("segv")) {}
-    public: void doit() { *(unsigned *)72 = 43; } };
+    public: void doit(crashcontext) override { *(unsigned *)72 = 43; } };
     cc h1;
     chhello handler;
     cc h2;
@@ -50,7 +51,7 @@ doublelock(void) {
     public: cc(mutex_t &__mux)
         : crashhandler(fields::mk("cc")),
           _mux(__mux) {}
-    public: void doit() {
+    public: void doit(crashcontext) override {
         _mux.locked([] { fprintf(stderr, "re-locked!\n"); }); } };
     cc handler(mux);
     mux.locked([] { abort(); }); }
