@@ -52,4 +52,11 @@ grep -q "^\+\+\+ .* debug .* this is a debug message" $t
 ! grep -q "^[0-9] .* this is a debug message" $t
 rm -f $t
 
+# One crash handler should not see changes made by the other
+t=$(mktemp)
+! ${crasher} changesinvisible 2>$t
+# The two handlers shoudl produce the same output.
+[ $(grep "^zzz 1$" $t | wc -l) -eq 2 ]
+rm -f $t
+
 echo "passed"

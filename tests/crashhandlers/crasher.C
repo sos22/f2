@@ -61,6 +61,22 @@ dumplog(void) {
     logmsg(loglevel::debug, "this is a debug message");
     abort(); }
 
+static void
+changesinvisible(void) {
+    unsigned z = 0;
+    class cc : public crashhandler {
+    public: unsigned &_z;
+    public: cc(unsigned &__z)
+        : crashhandler(fields::mk("cc")),
+          _z(__z) {}
+    public: void doit(crashcontext) override {
+        assert(_z == 0);
+        _z++;
+        fprintf(stderr, "zzz %d\n", _z); } };
+    cc h1(z);
+    cc h2(z);
+    abort(); }
+
 orerror<void>
 f2main(list<string> &args) {
     if (args.length() != 1) errx(1, "need a single argument");
@@ -71,5 +87,6 @@ f2main(list<string> &args) {
     else if (t == string("disablehandler")) disablehandler();
     else if (t == string("doublelock")) doublelock();
     else if (t == string("dumplog")) dumplog();
+    else if (t == string("changesinvisible")) changesinvisible();
     else error::noparse.fatal("unknown crash test " + t.field());
     return Success; }
