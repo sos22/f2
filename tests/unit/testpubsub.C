@@ -489,30 +489,33 @@ static testmodule __testpubsub(
          * thread has finished waiting for it, so that closing a
          * listening socket and then creating a new one works as
          * expected. */
-        int fd(::socket(AF_INET, SOCK_STREAM, 0));
-        if (fd < 0) error::from_errno().fatal("socket");
-        if (::listen(fd, 10) < 0) error::from_errno().fatal("listen");
-        sockaddr_in sin;
-        socklen_t ss = sizeof(sin);
-        if (::getsockname(fd, (sockaddr *)&sin, &ss) < 0) {
-            error::from_errno().fatal("getsockname"); }
-        int fd2(::socket(AF_INET, SOCK_STREAM, 0));
-        if (fd2 < 0) error::from_errno().fatal("socket");
-        subscriber sub;
-        {   struct pollfd pfd;
-            pfd.fd = fd;
-            pfd.events = POLLIN;
-            pfd.revents = 0;
-            iosubscription ios(sub, pfd);
-            /* A little bit of a stall makes it more likely that the
-             * thread will have actually noticed th iosub before we
-             * release it. */
-            (10_ms).future().sleep(io); }
-        iosubscription::synchronise(io);
-        ::close(fd);
-        if (::bind(fd2, (sockaddr *)&sin, ss) < 0) {
-            error::from_errno().fatal("bind2"); }
-        ::close(fd2); },
+        /* Run it a bunch of times to be more likely to cover
+         * all thread schedulings. */
+        for (int cntr = 0; cntr < 100; cntr++) {
+            int fd(::socket(AF_INET, SOCK_STREAM, 0));
+            if (fd < 0) error::from_errno().fatal("socket");
+            if (::listen(fd, 10) < 0) error::from_errno().fatal("listen");
+            sockaddr_in sin;
+            socklen_t ss = sizeof(sin);
+            if (::getsockname(fd, (sockaddr *)&sin, &ss) < 0) {
+                error::from_errno().fatal("getsockname"); }
+            int fd2(::socket(AF_INET, SOCK_STREAM, 0));
+            if (fd2 < 0) error::from_errno().fatal("socket");
+            subscriber sub;
+            {   struct pollfd pfd;
+                pfd.fd = fd;
+                pfd.events = POLLIN;
+                pfd.revents = 0;
+                iosubscription ios(sub, pfd);
+                /* A little bit of a stall makes it more likely that
+                 * the thread will have actually noticed the iosub
+                 * before we release it. */
+                (10_ms).future().sleep(io); }
+            iosubscription::synchronise(io);
+            ::close(fd);
+            if (::bind(fd2, (sockaddr *)&sin, ss) < 0) {
+                error::from_errno().fatal("bind2"); }
+            ::close(fd2); } },
     testmodule::TestFlags::noauto(), "condpingpong", [] {
         auto takesample([] (clientio io) {
                 pthread_mutex_t mux;
