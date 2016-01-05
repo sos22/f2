@@ -61,9 +61,7 @@ crashhandler::_releaseshared(void *ptr, size_t sz) {
     munmap(ptr, (sz + 4095) & ~4095ul); }
 
 void
-crashhandler::invoke() {
-    /* If we're already in crash handler mode then do nothing. */
-    if (crashhandler::crashing()) return;
+crashhandler::surrogate() {
     /* Need to proceed even if we can't get the lock... */
     auto deadline((100_ms).future());
     auto tok(handlerlock().trylock());
@@ -135,6 +133,22 @@ crashhandler::invoke() {
             logmsg(loglevel::emergency, "too many crash handlers");
             break; } }
     if (tok != Nothing) handlerlock().unlock(&tok.just()); }
+
+void
+crashhandler::invoke() {
+    /* If we're already in crash handler mode then do nothing. */
+    if (crashhandler::crashing()) return;
+    /* Fork a child and stop the parent, to get as clean a report as
+     * possible. */
+    pid_t spid = (pid_t)syscall(SYS_fork);
+    if (spid < 0) error::from_errno().warn("fork CH surrogate");
+    else if (spid > 0) ::waitpid(spid, NULL, 0);
+    else {
+        pid_t ppid = (pid_t)syscall(SYS_getppid);
+        ::kill(ppid, SIGSTOP);
+        surrogate();
+        ::kill(ppid, SIGCONT);
+        _exit(0); } }
 
 bool
 crashhandler::crashing() { return ::crashing; }

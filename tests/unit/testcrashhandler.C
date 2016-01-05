@@ -12,8 +12,8 @@ static testmodule __testcrashhandler(
     list<filename>::mk("crashhandler.C",
                        "crashhandler.H",
                        "crashhandler.tmpl"),
-    testmodule::LineCoverage(20_pc),
-    testmodule::BranchCoverage(15_pc),
+    testmodule::LineCoverage(19_pc),
+    testmodule::BranchCoverage(14_pc),
     testmodule::Dependency("tests/crashhandlers/crasher"),
     "sh", [] (clientio io) {
         auto e(spawn::program("./tests/crashhandlers/crashhandlers.sh")

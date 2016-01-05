@@ -69,4 +69,10 @@ rm -f $t
 # Releasing shared state should allow us to allocate lots more.
 ${crasher} releaseshared
 
+# Handlers shouldn't see mutations from worker threads
+t=$(mktemp)
+! ${crasher} stopotherthreads 2>$t
+[ $(grep "^ZZZ [0-9]*$" $t | sort | uniq | wc -l ) -eq 1 ]
+rm -f $t
+
 echo "passed"

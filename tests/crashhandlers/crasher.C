@@ -8,9 +8,11 @@
 #include "logging.H"
 #include "main.H"
 #include "mutex.H"
+#include "spark.H"
 #include "string.H"
 
 #include "crashhandler.tmpl"
+#include "spark.tmpl"
 
 class chhello : public crashhandler {
 public: chhello() : crashhandler(fields::mk("chhello")) {}
@@ -106,6 +108,22 @@ releaseshared(void) {
     /* This one doesn't actually crash; we're just checking that
      * releasing shared state actually releases memory. */ }
 
+static void
+stopotherthreads(void) {
+    auto &cntr(crashhandler::allocshared<unsigned>());
+    cntr = 0;
+    spark<void> countup([&] { cntr++; });
+    class cc : public crashhandler {
+    public: unsigned &_cntr;
+    public: cc(unsigned &__cntr)
+        : crashhandler(fields::mk("cc")),
+          _cntr(__cntr) {}
+    public: void doit(crashcontext) override {
+        fprintf(stderr, "\nZZZ %d\n", _cntr); } };
+    cc h1(cntr);
+    cc h2(cntr);
+    abort(); }
+
 orerror<void>
 f2main(list<string> &args) {
     if (args.length() != 1) errx(1, "need a single argument");
@@ -119,5 +137,6 @@ f2main(list<string> &args) {
     else if (t == string("changesinvisible")) changesinvisible();
     else if (t == string("sharedstate")) sharedstate();
     else if (t == string("releaseshared")) releaseshared();
+    else if (t == string("stopotherthreads")) stopotherthreads();
     else error::noparse.fatal("unknown crash test " + t.field());
     return Success; }

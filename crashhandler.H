@@ -30,6 +30,7 @@ protected: ~crashhandler();
 private:   crashhandler(const crashhandler&) = delete;
 private:   void operator=(const crashhandler &) = delete;
 private:   virtual void doit(crashcontext) = 0;
+private:   static void surrogate();
 private:   static void *_allocshared(size_t);
 private:   static void _releaseshared(void *, size_t);
     /* Normally, crash handlers run in their own address space, so
