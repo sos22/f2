@@ -26,6 +26,8 @@ static testmodule __testorerror(
         assert(s.success().z == 1.5); },
     "constructfail", [] {
         assert(orerror<int>(Failure, error::dlopen) == error::dlopen); },
+    "succfield", [] {
+        assert(!strcmp(fields::mk(Success).c_str(), "Success")); },
     "orerrorerror", [] {
         assert(orerror<error>(Failure, error::dlopen).isfailure());
         assert(!orerror<error>(Failure, error::dlopen).issuccess());

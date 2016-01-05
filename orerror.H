@@ -9,7 +9,8 @@ template <typename> class parser;
 namespace fields { class field; }
 
 /* Tag types used purely to allow constructor disambiguation. */
-class _Success { };
+class _Success {
+public: const fields::field &field() const; };
 extern const _Success Success;
 class _Failure { };
 extern const _Failure Failure;
