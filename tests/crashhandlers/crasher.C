@@ -10,6 +10,8 @@
 #include "mutex.H"
 #include "string.H"
 
+#include "crashhandler.tmpl"
+
 class chhello : public crashhandler {
 public: chhello() : crashhandler(fields::mk("chhello")) {}
 public: void doit(crashcontext) override {
@@ -77,6 +79,33 @@ changesinvisible(void) {
     cc h2(z);
     abort(); }
 
+static void
+sharedstate(void) {
+    unsigned &z(crashhandler::allocshared<unsigned>());
+    class cc : public crashhandler {
+    public: unsigned &_z;
+    public: cc(unsigned &__z)
+        : crashhandler(fields::mk("cc")),
+          _z(__z) {}
+    public: void doit(crashcontext) override {
+        _z++;
+        fprintf(stderr, "zzz %d\n", _z); } };
+    cc h1(z);
+    cc h2(z);
+    abort(); }
+
+static void
+releaseshared(void) {
+    struct bigstruct { char content[1 << 20]; };
+    for (unsigned x = 0; x < 20000; x++) {
+        auto &t(crashhandler::allocshared<bigstruct>());
+        /* Force allocation by writing to every page. */
+        for (unsigned y = 0; y < sizeof(t.content); y += 4096) {
+            t.content[y] = 7; }
+        crashhandler::releaseshared(t); }
+    /* This one doesn't actually crash; we're just checking that
+     * releasing shared state actually releases memory. */ }
+
 orerror<void>
 f2main(list<string> &args) {
     if (args.length() != 1) errx(1, "need a single argument");
@@ -88,5 +117,7 @@ f2main(list<string> &args) {
     else if (t == string("doublelock")) doublelock();
     else if (t == string("dumplog")) dumplog();
     else if (t == string("changesinvisible")) changesinvisible();
+    else if (t == string("sharedstate")) sharedstate();
+    else if (t == string("releaseshared")) releaseshared();
     else error::noparse.fatal("unknown crash test " + t.field());
     return Success; }

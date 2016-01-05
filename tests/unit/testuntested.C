@@ -22,6 +22,7 @@ static testmodule __testuntested(
                         * tests in tests/crashhandlers. */
                        "crashhandler.C",
                        "crashhandler.H",
+                       "crashhandler.tmpl",
                        "digest.C",
                        "digest.H",
                        "filesystemcli.C",

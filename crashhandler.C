@@ -1,5 +1,6 @@
 #include "crashhandler.H"
 
+#include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -43,6 +44,21 @@ crashhandler::~crashhandler() {
             if (prev != NULL) prev->next = next;
             else firstch = next; });
     free(name); }
+
+void *
+crashhandler::_allocshared(size_t sz) {
+    void *res = mmap(NULL,
+                     (sz + 4095) & ~4095ul,
+                     PROT_READ|PROT_WRITE,
+                     MAP_SHARED|MAP_ANONYMOUS,
+                     -1,
+                     0);
+    assert(res != MAP_FAILED);
+    return res; }
+
+void
+crashhandler::_releaseshared(void *ptr, size_t sz) {
+    munmap(ptr, (sz + 4095) & ~4095ul); }
 
 void
 crashhandler::invoke() {

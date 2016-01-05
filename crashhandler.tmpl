@@ -1,0 +1,15 @@
+#ifndef CRASHHANDLER_TMPL__
+#define CRASHHANDLER_TMPL__
+
+template <typename t, typename ... args> t&
+crashhandler::allocshared(args&&...params) {
+    void *space = _allocshared(sizeof(t));
+    new (space) t(std::forward<args>(params)...);
+    return *(t *)space; }
+
+template <typename t> void
+crashhandler::releaseshared(t &what) {
+    what.~t();
+    _releaseshared(&what, sizeof(what)); }
+
+#endif /* !CRASHHANDLER_TMPL__ */

@@ -59,4 +59,14 @@ t=$(mktemp)
 [ $(grep "^zzz 1$" $t | wc -l) -eq 2 ]
 rm -f $t
 
+# Explicit shared state should be shared.
+t=$(mktemp)
+! ${crasher} sharedstate 2>$t
+[ $(grep "^zzz 1$" $t | wc -l) -eq 1 ]
+[ $(grep "^zzz 2$" $t | wc -l) -eq 1 ]
+rm -f $t
+
+# Releasing shared state should allow us to allocate lots more.
+${crasher} releaseshared
+
 echo "passed"
