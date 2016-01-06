@@ -106,6 +106,8 @@ const intfield &mk(long);
 const intfield &mk(unsigned long);
 static inline const intfield &mk(int x) { return mk((long)x); }
 static inline const intfield &mk(unsigned x) { return mk((unsigned long)x); }
+static inline const intfield &mk(short x) {
+    return mk((long)x); }
 static inline const intfield &mk(unsigned short x) {
     return mk((unsigned long)x); }
 

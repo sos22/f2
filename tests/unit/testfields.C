@@ -47,6 +47,10 @@ static testmodule __testfields(
         simpletest(mk((unsigned short)0), "0");
         simpletest(mk((unsigned short)1), "1");
         simpletest(mk((unsigned short)0xfffe).base(16), "{16}f,ffe"); },
+    "sshort", [] {
+        simpletest(mk((short)0), "0");
+        simpletest(mk((short)-2), "-2");
+        simpletest(mk((short)5), "5"); },
     "arrowpad1", [] {
         simpletest(padcenter(mk("Hel"), 10, mk("-->"), mk("<--")),
                    "-->Hel<--<"); },
