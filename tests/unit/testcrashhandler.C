@@ -12,7 +12,7 @@ static testmodule __testcrashhandler(
     list<filename>::mk("crashhandler.C",
                        "crashhandler.H",
                        "crashhandler.tmpl"),
-    testmodule::LineCoverage(19_pc),
+    testmodule::LineCoverage(18_pc),
     testmodule::BranchCoverage(14_pc),
     testmodule::Dependency("tests/crashhandlers/crasher"),
     "sh", [] (clientio io) {

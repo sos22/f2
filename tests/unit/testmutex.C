@@ -11,6 +11,7 @@
 #include "thread.H"
 #include "timedelta.H"
 
+#include "crashhandler.tmpl"
 #include "mutex.tmpl"
 #include "parsers.tmpl"
 #include "spark.tmpl"
@@ -156,29 +157,23 @@ static testmodule __testmutex(
         assert(!mux.trylocked<bool>([] (maybe<mutex_t::token> tt) {
                     return tt == Nothing; })); },
     "crashhandler", [] {
-        void *mm = mmap(NULL,
-                        4096,
-                        PROT_READ|PROT_WRITE,
-                        MAP_SHARED|MAP_ANONYMOUS,
-                        -1,
-                        0);
-        bool *invoked = (bool *)mm;
+        auto &invoked(crashhandler::allocshared<bool>());
         class cc : public crashhandler {
         public: mutex_t mux;
-        public: bool *_invoked;
-        public: cc(bool *__invoked)
+        public: bool &_invoked;
+        public: cc(bool &__invoked)
             : crashhandler(fields::mk("cc")),
               mux(),
               _invoked(__invoked) {}
         public: void doit(crashcontext) override {
-            assert(!*_invoked);
-            mux.locked([this] { *_invoked = true; }); } };
+            assert(!_invoked);
+            mux.locked([this] { _invoked = true; }); } };
         cc handler(invoked);
-        assert(!*invoked);
+        assert(!invoked);
         /* Handlers can't get stuck waiting for locks */
         handler.mux.locked([] { crashhandler::invoke(); });
-        assert(*invoked);
-        munmap(mm, 4096);
+        assert(invoked);
+        crashhandler::releaseshared(invoked);
         /* Locks should behave as normal after running the
          * handlers. */
         auto t(handler.mux.lock());
