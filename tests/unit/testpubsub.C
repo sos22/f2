@@ -602,5 +602,46 @@ static testmodule __testpubsub(
         for (unsigned cntr = 0; cntr < 5; cntr++) {
             auto s(takesample(clientio::CLIENTIO));
             logmsg(loglevel::info, "sample " + fields::mk(s));
-            samples.pushtail(s); } }
+            samples.pushtail(s); } },
+    "fields", [] (clientio io) {
+        publisher pub;
+        subscriber sub;
+        subscription ss(sub, pub, (void *)0x1234);
+        auto s(ss.field().c_str());
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "data 1234"));
+        assert(strstr(s, "notified TRUE"));
+        assert(sub.poll() == &ss);
+        s = ss.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "data 1234"));
+        assert(strstr(s, "notified FALSE"));
+        auto p(fd_t::pipe().fatal("pipe"));
+        iosubscription ios(sub, p.read.poll(POLLIN));
+        s = ios.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(memcmp(s, "ios", 3) == 0);
+        assert(strstr(s, "notified FALSE"));
+        assert(strstr(s, "registered TRUE"));
+        p.write.write(io, "XXX", 3).fatal("write");
+        (200_ms).future().sleep(io);
+        s = ios.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "notified TRUE"));
+        assert(strstr(s, "registered FALSE"));
+        ios.rearm();
+        (200_ms).future().sleep(io);
+        s = ios.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "notified TRUE"));
+        assert(strstr(s, "registered FALSE"));
+        {   char buf[3];
+            p.read.read(io, buf, 3).fatal("read"); }
+        ios.rearm();
+        (200_ms).future().sleep(io);
+        s = ios.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "notified TRUE"));
+        assert(strstr(s, "registered FALSE"));
+        p.close(); }
     );

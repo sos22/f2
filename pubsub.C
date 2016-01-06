@@ -200,6 +200,12 @@ subscriptionbase::~subscriptionbase() {
     sub->mux.unlock(&token);
     assert(found); }
 
+const fields::field &
+subscriptionbase::field() const {
+    return "sub " + fields::mkptr(this) + " to " +
+        fields::mkptr(sub) + "; data " + fields::mkptr(data) +
+        "; notified " + fields::mk(notified); }
+
 subscription::subscription(subscriber &_sub, const publisher &_pub, void *_data)
     : subscriptionbase(_sub, _data),
       pub(&_pub) {
@@ -258,6 +264,11 @@ iosubscription::detach() {
        that. */
     tests::iosubdetachrace.trigger();
     pollthread->detach(*this); }
+
+const fields::field &
+iosubscription::field() const {
+    return "ios(" + subscriptionbase::field() + ") "
+        "registered " + fields::mk(registered); }
 
 iosubscription::~iosubscription() {
     detach(); }

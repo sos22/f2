@@ -97,7 +97,7 @@ public:   void set();
      * publisher.  This is made public in some subclasses. */
 private:   virtual void detach() = 0;
 protected: virtual ~subscriptionbase();
-};
+public:    const fields::field &field() const; };
 
 /* A subscription acts to connect a subscriber to a publisher. */
 class subscription final : public subscriptionbase {
@@ -138,6 +138,7 @@ public:  iosubscription(subscriber &, struct pollfd);
      * subscriber::wait(). */
 public:  void rearm();
 private: void detach() final;
+public:  const fields::field &field() const;
     /* Destruct the subscription, disconnecting the subscriber from
      * the FD. */
 public:  ~iosubscription();
