@@ -46,7 +46,7 @@ private:   class connworker;
     friend class rootthread;
     friend class connworker;
 
-private:   const rpcservice2config config;
+public:    const rpcservice2config config;
 private:   rootthread *const root;
 
 private:   static orerror<listenfd> open(const peername &pn);

@@ -2,6 +2,7 @@
 
 #include <dlfcn.h>
 
+#include "crashhandler.H"
 #include "connpool.H"
 #include "compute.H"
 #include "either.H"
@@ -83,6 +84,7 @@ private: list<proto::compute::jobstatus> &finishedjobs(mutex_t::token) {
     return _finishedjobs; }
 private: maintenancethread &thr;
 private: subscriber sub;
+private: crashhandler ch;
 public:  explicit computeservice(const constoken &token,
                                  connpool &_cp,
                                  const agentname &_fs,
@@ -99,7 +101,22 @@ public:  explicit computeservice(const constoken &token,
       _finishedjobs(),
       thr(*thread::start<maintenancethread>(
               fields::mk("computemaintenance"), *this)),
-      sub() {}
+      sub(),
+      ch("computeservice " + config.beacon.name.field(),
+         [this] (crashcontext) {
+             logmsg(loglevel::notice, "mux " + mux.field());
+             logmsg(loglevel::notice, "shutdown " + shutdown.field());
+             logmsg(loglevel::notice, "running:");
+             for (auto it(_runningjobs.start());
+                  !it.finished();
+                  it.next()) {
+                 logmsg(loglevel::notice, "   " + (*it)->field()); }
+             logmsg(loglevel::notice, "finished:");
+             for (auto it(_finishedjobs.start());
+                  !it.finished();
+                  it.next()) {
+                 logmsg(loglevel::notice, "   " + it->field()); }
+             logmsg(loglevel::notice, "sub " + sub.field()); }) {}
 public:  static orerror<nnp<computeservice> > build(clientio io,
                                                     const clustername &cn,
                                                     const agentname &fs,
