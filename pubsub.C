@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "buffer.H"
+#include "crashhandler.H"
 #include "fields.H"
 #include "fuzzsched.H"
 #include "logging.H"
@@ -45,17 +46,32 @@ sigusr1handler(int) {}
 void
 iopollingthread::run(clientio) {
     unsigned nralloced = 8;
+    unsigned nrpfds = 0;
     struct pollfd *pfds = (struct pollfd *)calloc(nralloced, sizeof(*pfds));
+    crashhandler ch(
+        fields::mk("iopollingthread"),
+        [&] (crashcontext) {
+            logmsg(loglevel::notice, "io pfds");
+            for (unsigned x = 0; x < nrpfds; x++) {
+                logmsg(loglevel::notice,
+                       fields::mk(x) + "/" + fields::mk(nrpfds) +
+                       " -> " + fields::mk(pfds[x].fd) + "::" +
+                       fields::mk(pfds[x].events) + "::" +
+                       fields::mk(pfds[x].revents) + " ~~> " +
+                       fd_t(pfds[x].fd).status().field()); }
+            logmsg(loglevel::notice, "io subs");
+            for (auto it(what.start()); !it.finished(); it.next()) {
+                logmsg(loglevel::notice, "  " + (*it)->field()); } });
     auto token(mux.lock());
     while (!shutdown) {
-        unsigned nr = 0;
+        nrpfds = 0;
         __sync_fetch_and_add(&seqlock, 1);
         for (auto it(what.start()); !it.finished(); it.next()) {
-            if (nr == nralloced) {
+            if (nrpfds == nralloced) {
                 nralloced += 8;
                 pfds = (struct pollfd *)realloc(pfds,
                                                 sizeof(*pfds) * nralloced); }
-            pfds[nr++] = (*it)->pfd; }
+            pfds[nrpfds++] = (*it)->pfd; }
         mux.unlock(&token);
         int r;
         {   sigset_t sigs;
@@ -63,16 +79,16 @@ iopollingthread::run(clientio) {
                 error::from_errno().fatal("getting sigmask"); }
             assert(::sigismember(&sigs, SIGUSR1));
             ::sigdelset(&sigs, SIGUSR1);
-            r = ::ppoll(pfds, nr, NULL, &sigs);
+            r = ::ppoll(pfds, nrpfds, NULL, &sigs);
             __sync_fetch_and_add(&seqlock, 1); }
         if (r < 0 && errno != EINTR) {
             error::from_errno().fatal(
-                "poll()ing for IO with " + fields::mk(nr) + " fds"); }
+                "poll()ing for IO with " + fields::mk(nrpfds) + " fds"); }
         if (r < 0) r = 0;
         token = mux.lock();
         unsigned i = 0;
         while (r) {
-            assert(i < nr);
+            assert(i < nrpfds);
             if (!pfds[i].revents) {
                 i++;
                 continue; }
