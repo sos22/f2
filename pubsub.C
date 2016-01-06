@@ -339,6 +339,14 @@ subscriber::~subscriber() {
         r->sub = NULL; }
     assert(nrnotified == 0); }
 
+const fields::field &
+subscriber::field() const {
+    auto *acc(&("<subscriber " + mux.field() +
+                " nrnotified " + fields::mk(nrnotified)));
+    for (auto it(subscriptions.start()); !it.finished(); it.next()) {
+        acc = &(*acc + " " + (*it)->field()); }
+    return *acc + ">"; }
+
 void
 initpubsub() {
     if (pollthread != NULL) return;

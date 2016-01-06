@@ -643,5 +643,20 @@ static testmodule __testpubsub(
         logmsg(loglevel::debug, s);
         assert(strstr(s, "notified TRUE"));
         assert(strstr(s, "registered FALSE"));
-        p.close(); }
+        p.close(); },
+    "fields2", [] {
+        subscriber sub;
+        auto s(sub.field().c_str());
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "nrnotified 0"));
+        publisher pub;
+        subscription ss(sub, pub, (void *)0x5678);
+        s = sub.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "nrnotified 1"));
+        assert(strstr(s, "data 5678"));
+        assert(sub.poll() == &ss);
+        s = sub.field().c_str();
+        logmsg(loglevel::debug, s);
+        assert(strstr(s, "nrnotified 0")); }
     );
