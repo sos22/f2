@@ -158,27 +158,22 @@ static testmodule __testmutex(
                     return tt == Nothing; })); },
     "crashhandler", [] {
         auto &invoked(crashhandler::allocshared<bool>());
-        class cc : public crashhandler {
-        public: mutex_t mux;
-        public: bool &_invoked;
-        public: cc(bool &__invoked)
-            : crashhandler(fields::mk("cc")),
-              mux(),
-              _invoked(__invoked) {}
-        public: void doit(crashcontext) override {
-            assert(!_invoked);
-            mux.locked([this] { _invoked = true; }); } };
-        cc handler(invoked);
+        mutex_t mux;
+        crashhandler handler(
+            fields::mk("cc"),
+            [&] (crashcontext) {
+                assert(!invoked);
+                mux.locked([&] { invoked = true; }); });
         assert(!invoked);
         /* Handlers can't get stuck waiting for locks */
-        handler.mux.locked([] { crashhandler::invoke(); });
+        mux.locked([] { crashhandler::invoke(); });
         assert(invoked);
         crashhandler::releaseshared(invoked);
         /* Locks should behave as normal after running the
          * handlers. */
-        auto t(handler.mux.lock());
-        assert(handler.mux.trylock() == Nothing);
-        handler.mux.unlock(&t);
-        auto tt(handler.mux.trylock());
+        auto t(mux.lock());
+        assert(mux.trylock() == Nothing);
+        mux.unlock(&t);
+        auto tt(mux.trylock());
         assert(tt != Nothing);
-        handler.mux.unlock(&tt.just()); } );
+        mux.unlock(&tt.just()); } );

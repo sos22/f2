@@ -29,13 +29,17 @@ handlerlock() {
 static bool
 crashing;
 
-crashhandler::crashhandler(const fields::field &_name) {
+crashhandler::crashhandler(
+    const fields::field &_name,
+    const std::function<void (crashcontext)> &_doit)
+    : next(NULL),
+      prev(NULL),
+      name(strdup(_name.c_str())),
+      doit(_doit) {
     handlerlock().locked([this] {
             next = firstch;
-            prev = NULL;
             if (firstch != NULL) firstch->prev = this;
-            firstch = this; });
-    name = ::strdup(_name.c_str()); }
+            firstch = this; }); }
 
 crashhandler::~crashhandler() {
     handlerlock().locked([this] {

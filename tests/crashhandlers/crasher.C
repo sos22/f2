@@ -14,50 +14,47 @@
 #include "crashhandler.tmpl"
 #include "spark.tmpl"
 
-class chhello : public crashhandler {
-public: chhello() : crashhandler(fields::mk("chhello")) {}
-public: void doit(crashcontext) override {
-    fprintf(stderr, "\nhello crash\n"); } };
-
 static void
 crashhello(void) {
-    chhello handler;
+    crashhandler ch(
+        fields::mk("chhello"),
+        [] (crashcontext) { fprintf(stderr, "\nhello crash\n"); });
     abort(); }
 
 static void
 runforever(void) {
-    class cc : public crashhandler {
-    public: cc() : crashhandler(fields::mk("cc")) {}
-    public: void doit(crashcontext) override { while (true) ; } };
-    cc handler;
+    crashhandler ch(
+        fields::mk("cc"),
+        [] (crashcontext) { while (true) ; });
     abort(); }
 
 static void
 crashsegv(void) {
-    class cc : public crashhandler {
-    public: cc() : crashhandler(fields::mk("segv")) {}
-    public: void doit(crashcontext) override { *(unsigned *)72 = 43; } };
-    cc h1;
-    chhello handler;
-    cc h2;
+    crashhandler s1(
+        fields::mk("s1"),
+        [] (crashcontext) { *(unsigned *)72=43; });
+    crashhandler ch(
+        fields::mk("chhello"),
+        [] (crashcontext) { fprintf(stderr, "\nhello crash\n"); });
+    crashhandler s2(
+        fields::mk("s2"),
+        [] (crashcontext) { *(unsigned *)78=43; });
     abort(); }
 
 static void
 disablehandler(void) {
-    {   chhello h; }
+    crashhandler(
+        fields::mk("chhello"),
+        [] (crashcontext) { fprintf(stderr, "\nhello crash\n"); });
     abort(); }
 
 static void
 doublelock(void) {
     mutex_t mux;
-    class cc : public crashhandler {
-    public: mutex_t &_mux;
-    public: cc(mutex_t &__mux)
-        : crashhandler(fields::mk("cc")),
-          _mux(__mux) {}
-    public: void doit(crashcontext) override {
-        _mux.locked([] { fprintf(stderr, "re-locked!\n"); }); } };
-    cc handler(mux);
+    crashhandler handler(
+        fields::mk("cc"),
+        [&] (crashcontext) {
+            mux.locked([] { fprintf(stderr, "re-locked!\n"); }); });
     mux.locked([] { abort(); }); }
 
 static void
@@ -68,32 +65,22 @@ dumplog(void) {
 static void
 changesinvisible(void) {
     unsigned z = 0;
-    class cc : public crashhandler {
-    public: unsigned &_z;
-    public: cc(unsigned &__z)
-        : crashhandler(fields::mk("cc")),
-          _z(__z) {}
-    public: void doit(crashcontext) override {
-        assert(_z == 0);
-        _z++;
-        fprintf(stderr, "zzz %d\n", _z); } };
-    cc h1(z);
-    cc h2(z);
+    auto inner([&] (crashcontext) {
+            assert(z == 0);
+            z++;
+            fprintf(stderr, "zzz %d\n", z); });
+    crashhandler h1(fields::mk("h1"), inner);
+    crashhandler h2(fields::mk("h2"), inner);
     abort(); }
 
 static void
 sharedstate(void) {
-    unsigned &z(crashhandler::allocshared<unsigned>());
-    class cc : public crashhandler {
-    public: unsigned &_z;
-    public: cc(unsigned &__z)
-        : crashhandler(fields::mk("cc")),
-          _z(__z) {}
-    public: void doit(crashcontext) override {
-        _z++;
-        fprintf(stderr, "zzz %d\n", _z); } };
-    cc h1(z);
-    cc h2(z);
+    auto &z(crashhandler::allocshared<unsigned>());
+    auto inner([&] (crashcontext) {
+            z++;
+            fprintf(stderr, "zzz %d\n", z); });
+    crashhandler h1(fields::mk("h1"), inner);
+    crashhandler h2(fields::mk("h2"), inner);
     abort(); }
 
 static void
@@ -113,15 +100,10 @@ stopotherthreads(void) {
     auto &cntr(crashhandler::allocshared<unsigned>());
     cntr = 0;
     spark<void> countup([&] { cntr++; });
-    class cc : public crashhandler {
-    public: unsigned &_cntr;
-    public: cc(unsigned &__cntr)
-        : crashhandler(fields::mk("cc")),
-          _cntr(__cntr) {}
-    public: void doit(crashcontext) override {
-        fprintf(stderr, "\nZZZ %d\n", _cntr); } };
-    cc h1(cntr);
-    cc h2(cntr);
+    auto inner([&] (crashcontext) {
+            fprintf(stderr, "\nZZZ %d\n", cntr); });
+    crashhandler h1(fields::mk("h1"), inner);
+    crashhandler h2(fields::mk("h2"), inner);
     abort(); }
 
 orerror<void>

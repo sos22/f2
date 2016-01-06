@@ -167,32 +167,32 @@ _logmsg(const logmodule &module,
     _logmsg(module, file, line, func, level, fields::mk(what)); }
 
 namespace {
-class dumpmemlog : public crashhandler {
-public: dumpmemlog() : crashhandler(fields::mk("dumpmemlog")) {}
-public: void doit(crashcontext) override {
-    logmsg(loglevel::notice, "log dump from thread " + tid::me().field());
-    maybe<decltype(threadmemlog()->log.start())> titer(Nothing);
-    if (threadmemlog() != NULL) titer = threadmemlog()->log.start();
-    globalmemlogmux.locked([&titer] (mutex_t::token t) {
-            auto giter(globalmemlog(t).log.start());
-            if (titer != Nothing) {
-                while (!giter.finished() && !titer.just().finished()) {
-                    if ((*giter)->when < (*titer.just())->when) {
-                        fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
-                        giter.next(); }
-                    else {
-                        fprintf(stderr,
-                                "*** %s\n",
-                                (*titer.just())->field().c_str());
-                        titer.just().next(); } } }
-            while (!giter.finished()) {
-                fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
-                giter.next(); } });
-    if (titer != Nothing) {
-        while (!titer.just().finished()) {
-            fprintf(stderr, "*** %s\n", (*titer.just())->field().c_str());
-            titer.just().next(); } } } };
-static dumpmemlog _dumpmemlog; }
+static const crashhandler
+dumpmemlog(
+    fields::mk("dumpmemlog"),
+    [] (crashcontext) {
+        logmsg(loglevel::notice, "log dump from thread " + tid::me().field());
+        maybe<decltype(threadmemlog()->log.start())> titer(Nothing);
+        if (threadmemlog() != NULL) titer = threadmemlog()->log.start();
+        globalmemlogmux.locked([&titer] (mutex_t::token t) {
+                auto giter(globalmemlog(t).log.start());
+                if (titer != Nothing) {
+                    while (!giter.finished() && !titer.just().finished()) {
+                        if ((*giter)->when < (*titer.just())->when) {
+                            fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
+                            giter.next(); }
+                        else {
+                            fprintf(stderr,
+                                    "*** %s\n",
+                                    (*titer.just())->field().c_str());
+                            titer.just().next(); } } }
+                while (!giter.finished()) {
+                    fprintf(stderr, "+++ %s\n", (*giter)->field().c_str());
+                    giter.next(); } });
+        if (titer != Nothing) {
+            while (!titer.just().finished()) {
+                fprintf(stderr, "*** %s\n", (*titer.just())->field().c_str());
+                titer.just().next(); } } }); }
 
 void
 _initlogging(const char *_ident, list<string> &args) {
