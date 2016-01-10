@@ -56,6 +56,7 @@
 
 #include "cond.H"
 #include "fd.H"
+#include "futex.H"
 #include "list.H"
 #include "maybe.H"
 #include "mutex.H"
@@ -164,8 +165,7 @@ class subscriber {
     friend class subscriptionbase;
     friend class subscription;
 private: mutex_t mux;
-private: cond_t cond;
-private: unsigned nrnotified;
+private: futex nrnotified;
 private: list<subscriptionbase *> subscriptions;
     /* Construct a subscriber with no subscriptions. */
 public: subscriber();

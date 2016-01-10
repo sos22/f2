@@ -1,12 +1,15 @@
 #include "pubsub.H"
 
+#include <asm/unistd.h>
 #include <sys/poll.h>
+#include <linux/futex.h>
 #include <signal.h>
 #include <unistd.h>
 
 #include "buffer.H"
 #include "crashhandler.H"
 #include "fields.H"
+#include "futex.H"
 #include "fuzzsched.H"
 #include "logging.H"
 #include "pair.H"
@@ -206,12 +209,7 @@ subscriptionbase::subscriptionbase(
 void
 subscriptionbase::set() {
     assert(sub);
-    auto tok(sub->mux.lock());
-    if (!notified.load()) {
-        notified.store(true);
-        sub->nrnotified++;
-        if (sub->nrnotified == 1) sub->cond.broadcast(tok); }
-    sub->mux.unlock(&tok); }
+    if (!notified.compareswap(false, true)) sub->nrnotified.fetchadd(1); }
 
 subscriptionbase::~subscriptionbase() {
     if (!sub) return;
@@ -222,7 +220,7 @@ subscriptionbase::~subscriptionbase() {
             found = true;
             it.remove();
             break; } }
-    if (notified.load()) sub->nrnotified--;
+    if (notified.load()) sub->nrnotified.fetchadd(-1);
     sub->mux.unlock(&token);
     assert(found); }
 
@@ -304,35 +302,36 @@ iosubscription::synchronise(clientio io) { pollthread->synchronise(io); }
 
 subscriber::subscriber()
     : mux(),
-      cond(mux),
       nrnotified(0),
       subscriptions() {}
 
 subscriptionbase *
-subscriber::wait(clientio io, maybe<timestamp> deadline) {
-    auto token(mux.lock());
-    while (1) {
-        while (nrnotified == 0) {
-            auto r(cond.wait(io, &token, deadline));
-            token = r.token;
-            if (r.timedout) {
-                mux.unlock(&token);
-                fuzzsched();
-                return NULL; } }
+subscriber::wait(clientio io, maybe<timestamp> ts) {
+    while (true) {
+        if (nrnotified.wait(io, 0, ts) == Nothing) return NULL;
+        auto token(mux.lock());
         unsigned cntr = 0;
-        for (auto it(subscriptions.start()); true; it.next()) {
+        for (auto it(subscriptions.start()); !it.finished(); it.next()) {
             assert(!it.finished());
             auto r(*it);
             assert(r->sub == this);
-            if (r->notified.load()) {
-                r->notified.store(false);
-                nrnotified--;
+            if (r->notified.load() && r->notified.compareswap(true, false)) {
+                /* Caution: nrnotified might go negative if we're
+                 * racing with a notification in the right way
+                 * (because supscriptionbase::set() sets notified on
+                 * the subscription before it increments nrnotified on
+                 * the subscriber). It's always a transient thing
+                 * because the subscription will increment it again
+                 * soon enough, and everything which looks at
+                 * nrnotified is tolerant of it. */
+                nrnotified.fetchadd(-1);
                 mux.unlock(&token);
                 fuzzsched();
                 return r; }
             if (++cntr % 1000 == 0) {
                 logmsg(loglevel::debug,
-                       "very long subs list " + fields::mk(cntr)); } } } }
+                       "very long subs list " + fields::mk(cntr)); } }
+        mux.unlock(&token); } }
 
 subscriptionbase *
 subscriber::poll() {
@@ -344,10 +343,10 @@ subscriber::~subscriber() {
     while (!subscriptions.empty()) {
         auto r(subscriptions.pophead());
         assert(r->sub == this);
-        if (r->notified.load()) nrnotified--;
+        if (r->notified.load()) nrnotified.fetchadd(-1);
         r->detach();
         r->sub = NULL; }
-    assert(nrnotified == 0); }
+    assert(nrnotified.poll() == 0); }
 
 const fields::field &
 subscriber::field() const {

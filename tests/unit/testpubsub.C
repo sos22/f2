@@ -687,15 +687,15 @@ static testmodule __testpubsub(
         subscriber sub;
         auto s(sub.field().c_str());
         logmsg(loglevel::debug, s);
-        assert(strstr(s, "nrnotified 0"));
+        assert(strstr(s, "nrnotified F:0"));
         publisher pub;
         subscription ss(sub, pub, (void *)0x5678);
         s = sub.field().c_str();
         logmsg(loglevel::debug, s);
-        assert(strstr(s, "nrnotified 1"));
+        assert(strstr(s, "nrnotified F:1"));
         assert(strstr(s, "data 5678"));
         assert(sub.poll() == &ss);
         s = sub.field().c_str();
         logmsg(loglevel::debug, s);
-        assert(strstr(s, "nrnotified 0")); }
+        assert(strstr(s, "nrnotified F:0")); }
     );
