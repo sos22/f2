@@ -81,9 +81,10 @@ public: void publish();
     /* Destruct a publisher.  It must not have any subscriptions when
      * this is called. */
 public: ~publisher();
+    /* Various bits of debugging info. */
+public: const fields::field &field() const;
     /* Special publisher which is never notified. */
-public: static const publisher dummy;
-};
+public: static const publisher dummy; };
 
 class subscriptionbase {
     friend class subscriber;

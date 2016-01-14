@@ -605,6 +605,7 @@ static testmodule __testpubsub(
             samples.pushtail(s); } },
     "fields", [] (clientio io) {
         publisher pub;
+        assert(!strcmp(pub.field().c_str(), "<publisher: <unheld>>"));
         subscriber sub;
         subscription ss(sub, pub, (void *)0x1234);
         auto s(ss.field().c_str());

@@ -183,6 +183,16 @@ publisher::publish() {
 
 publisher::~publisher() {}
 
+const fields::field &
+publisher::field() const {
+    auto acc(&("<publisher: " + mux.field()));
+    auto t(mux.trylock());
+    if (t != Nothing) {
+        for (auto it(subscriptions.start()); !it.finished(); it.next()) {
+            acc = &(*acc + " " + (*it)->field()); }
+        mux.unlock(&t.just()); }
+    return *acc + ">"; }
+
 subscriptionbase::subscriptionbase(
     subscriber &_sub,
     void *_data)
