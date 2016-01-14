@@ -1,6 +1,7 @@
 #ifndef FIELDS_TMPL__
 #define FIELDS_TMPL__
 
+#include "crashhandler.H"
 #include "fields.H"
 
 #include "maybe.tmpl"
@@ -16,6 +17,8 @@ template <typename t> const field &
 mkptr(const t *const &what) {
     return mk((unsigned long)what).base(16).sep(colon, 4).hidebase(); }
 template <typename t> const field &
-mk(const t &what) { return what.field(); } }
+mk(const t &what) { return what.field(); }
+template <typename t> const field &
+mk(const t &what, crashcontext ctxt) { return what.field(ctxt); } }
 
 #endif /* !FIELDS_TMPL__ */

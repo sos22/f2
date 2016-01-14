@@ -296,6 +296,16 @@ static testmodule __listtest(
             list<int> l(q);
             auto b(fields::mk(l).c_str());
             assert(p.match(b) == l); } },
+    "crashfield", [] {
+        class cc {
+        public: const fields::field &field(crashcontext) const {
+            return fields::mk("X"); } };
+        list<cc> l;
+        l.append();
+        l.append();
+        l.append();
+        assert(!strcmp(l.field(*(crashcontext *)NULL).c_str(),
+                       "{X X X}")); },
     "->", [] {
         struct foo {
             int x;

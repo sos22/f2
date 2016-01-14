@@ -1,5 +1,6 @@
 #include "filesystemagent.H"
 
+#include "crashhandler.H"
 #include "connpool.H"
 #include "eq.H"
 #include "eqclient.H"
@@ -47,7 +48,11 @@ public: const streamstatus &status(onfilesystemthread) const {
 public: stream(proto::eq::eventid __refreshedat,
                const streamstatus &__status)
     : _refreshedat(__refreshedat),
-      _status(__status) {} };
+      _status(__status) {}
+
+public: const fields::field &field(crashcontext) const {
+    return "<stream ra:" + _refreshedat.field() +
+        " status:" + _status.field() +">"; } };
 
 /* A job held on a remote storage agent. */
 class job {
@@ -112,6 +117,8 @@ public: job(store &_sto,
       _liststreamssub(Nothing),
       _liststreamsres(Nothing),
       _content() {}
+
+public: const fields::field &field(crashcontext ctxt) const;
 
 public: stream *findstream(const streamname &sn, onfilesystemthread);
 public: void removestream(stream &, mutex_t::token, onfilesystemthread);
@@ -244,7 +251,26 @@ public: orerror<void> listjobswoken(connpool &,
                                     mutex_t::token,
                                     onfilesystemthread oft);
 
-public: ~store(); };
+public: ~store();
+
+public: const fields::field &field(crashcontext ctxt) const {
+    return "<store: " + name.field() +
+        "eqsub: " + _eqsub.field() +
+        "listjobs: " + fields::mkptr(_listjobs) +
+        "listjobsres: " + _listjobsres.field() +
+        "jobs: " + _jobs.field(ctxt) +
+        "deferredremove: " + _deferredremove.field() +
+        ">"; } };
+
+const fields::field &
+job::field(crashcontext cc) const {
+    return "<job: " + name.field() +
+        " refreshedat:" + _refreshedat.field() +
+        " liststreams:" + fields::mk(_liststreams) +
+        " liststreamssub:" + _liststreamssub.field() +
+        " liststreamsres:" + _liststreamsres.field() +
+        " content:" + _content.field(cc) +
+        ">"; }
 
 /* Find a stream in a job by name.  Returns NULL if the stream isn't
  * present. */
@@ -827,7 +853,9 @@ public: pendingbarrier(
     const std::function<void (clientio)> &_cb)
     : an(_an),
       eid(_eid),
-      cb(_cb) {} };
+      cb(_cb) {}
+public: const fields::field &field() const {
+    return "<pendingbarrier on " + an.field() + "::" + eid.field() + ">"; } };
 
 class filesystem : public thread {
 private: connpool &pool;
@@ -854,6 +882,8 @@ public:  publisher barrierspub;
 public:  list<pendingbarrier> _barriers;
 public:  list<pendingbarrier> &barriers(mutex_t::token) { return _barriers; }
 
+public:  crashhandler ch;
+
 public:  explicit filesystem(const thread::constoken &token, connpool &_pool)
     : thread(token),
       pool(_pool),
@@ -862,7 +892,15 @@ public:  explicit filesystem(const thread::constoken &token, connpool &_pool)
       _stores(),
       _nominateidx(0),
       barrierspub(),
-      _barriers() {}
+      _barriers(),
+      ch(fields::mk("filesystem"),
+         [this] (crashcontext ct) {
+             logmsg(loglevel::info, "shutdown " + shutdown.field());
+             logmsg(loglevel::info, "mux " + mux.field());
+             logmsg(loglevel::info, "_nominateidx " + fields::mk(_nominateidx));
+             logmsg(loglevel::info, "barrierspub " + barrierspub.field());
+             logmsg(loglevel::info, "barriers " + _barriers.field());
+             logmsg(loglevel::info, "stores " + _stores.field(ct)); }) {}
 public:  static filesystem &build(connpool &);
 
 public:  void run(clientio);

@@ -194,6 +194,16 @@ static testmodule __testfields(
         simpletest(mkptr((unsigned *)0), "0");
         simpletest(mkptr((unsigned *)0xf001), "f001");
         simpletest(mkptr((unsigned *)0xdeadf001), "dead:f001"); },
+    "crashctxt", [] {
+        class cc {
+        public: const fields::field &field() const {
+            return fields::mk("norm"); }
+        public: const fields::field &field(crashcontext) const {
+            return fields::mk("cc"); } };
+        cc c;
+        crashcontext *ctxt = (crashcontext *)NULL;
+        assert(!strcmp(fields::mk(c).c_str(), "norm"));
+        assert(!strcmp(fields::mk(c, *ctxt).c_str(), "cc")); },
     "c_str", [] { simpletest(mk(5), "5"); },
     /* Not really a useful test case, but it makes the coverage 100%,
      * and the print() function's simple enough that just confirming

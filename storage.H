@@ -34,7 +34,8 @@ public: void serialise(serialise1 &) const;
      * and including @when. */
 public: proto::eq::eventid when;
     /* The actual snapshot itself. */
-public: list<streamstatus> res; };
+public: list<streamstatus> res;
+public: const fields::field &field() const; };
 class tag : public proto::tag {
 private: explicit tag(unsigned char x) : proto::tag(x) {}
 public:  explicit tag(deserialise1 &ds);
@@ -87,8 +88,5 @@ public:  static event finishstream(
     const streamstatus &);
 public:  const fields::field &field() const;
 public:  bool operator==(const event &) const; }; } }
-
-namespace fields {
-const field &mk(const proto::storage::liststreamsres &r); }
 
 #endif /* !STORAGE_H__ */

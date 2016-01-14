@@ -5,6 +5,8 @@
 
 #include "empty.H"
 
+class crashcontext;
+
 class deserialise1;
 namespace fields { class field; }
 class quickcheck;
@@ -164,6 +166,7 @@ public:
     bool operator==(const list &o) const;
 
     const fields::field &field() const;
+    const fields::field &field(crashcontext) const;
 
     /* A scheme for allocating a list entry before hooking it into the
      * list.  Occasionally useful to make the synchronisation work out

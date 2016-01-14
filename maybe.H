@@ -22,6 +22,7 @@
 
 #include "error.H"
 
+class crashcontext;
 class deserialise1;
 class quickcheck;
 class serialise1;
@@ -124,6 +125,7 @@ public:
     template <typename ... args> void silencecompiler(args &&...params);
     
     const fields::field &field() const;
+    const fields::field &field(crashcontext) const;
 };
 
 template <typename t> maybe<t> mkjust(const t &x);

@@ -9,6 +9,8 @@
 #include "tid.H"
 #include "tmpheap.H"
 
+class crashcontext;
+
 namespace fields {
 
 class field;
@@ -129,6 +131,7 @@ const doublefield &mk(double);
 void print(const field &f);
 
 template <typename t> const field &mk(const t &);
+template <typename t> const field &mk(const t &, crashcontext);
 template <typename t> const field &mkptr(const t * const&); };
 
 #endif /* !FIELDS_H__ */

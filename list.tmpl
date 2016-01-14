@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 
+#include "crashhandler.H"
 #include "error.H"
 #include "fields.H"
 #include "parsers.H"
@@ -504,6 +505,16 @@ list<t>::field() const {
         if (!first) acc = &(*acc + " ");
         first = false;
         acc = &(*acc + fields::mk(*it)); }
+    return *acc + "}"; }
+
+template <typename t> const fields::field &
+list<t>::field(crashcontext ctxt) const {
+    const fields::field *acc = &fields::mk("{");
+    bool first = true;
+    for (auto it(start()); !it.finished(); it.next()) {
+        if (!first) acc = &(*acc + " ");
+        first = false;
+        acc = &(*acc + fields::mk(*it, ctxt)); }
     return *acc + "}"; }
 
 template <typename t, typename ... args> list<t>

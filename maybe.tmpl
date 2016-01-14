@@ -1,6 +1,7 @@
 #ifndef MAYBE_TMPL__
 #define MAYBE_TMPL__
 
+#include "crashhandler.H"
 #include "fields.H"
 #include "parsers.H"
 #include "serialise.H"
@@ -88,6 +89,11 @@ template <typename t> const fields::field &
 maybe<t>::field() const {
     if (isnothing()) return fields::mk("Nothing");
     else return "<" + fields::mk(just()) + ">"; }
+
+template <typename t> const fields::field &
+maybe<t>::field(crashcontext ct) const {
+    if (isnothing()) return fields::mk("Nothing");
+    else return "<" + fields::mk(just(), ct) + ">"; }
 
 template <typename t> t
 maybe<t>::just(_Steal s) { return t(s, just()); }

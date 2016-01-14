@@ -93,9 +93,9 @@ proto::storage::liststreamsres::serialise(serialise1 &s) const {
     s.push(res); }
 
 const fields::field &
-fields::mk(const proto::storage::liststreamsres &a) {
-    return "<liststreamsres: when:" + fields::mk(a.when) +
-        " res:" + fields::mk(a.res) +
+proto::storage::liststreamsres::field() const {
+    return "<liststreamsres: when:" + when.field() +
+        " res:" + res.field() +
         ">"; }
 
 proto::storage::event::event(
