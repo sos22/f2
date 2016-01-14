@@ -40,8 +40,11 @@ timedelta::time(std::function<void ()> what) {
 timespec
 timedelta::astimespec() const {
     timespec res;
-    res.tv_sec = v / 1'000'000'000;
-    res.tv_nsec = v % 1'000'000'000;
+    res.tv_sec = v / 1000000000;
+    res.tv_nsec = v % 1000000000;
+    if (res.tv_nsec < 0) {
+        res.tv_sec--;
+        res.tv_nsec += 1000000000; }
     return res; }
 
 void

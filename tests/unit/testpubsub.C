@@ -263,7 +263,8 @@ static testmodule __testpubsub(
                     assert(!thread1);
                     thread1 = true;
                     pub1.publish();
-                    cntr2++; } });
+                    cntr2++; }
+                logmsg(loglevel::debug, "t2 finished"); });
         t1.get();
         t2.get();
         tassert(T(cntr1) - T(cntr2) >= T(-1) && T(cntr1) - T(cntr2) <= T(1));

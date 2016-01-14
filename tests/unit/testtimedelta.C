@@ -46,6 +46,22 @@ static testmodule __testtimedelta(
         assert(timedelta::minutes(1) != timedelta::seconds(1));
         assert(!(timedelta::minutes(1) != timedelta::minutes(1)));
         assert(timedelta::hours(1) > timedelta::minutes(59)); },
+    "astimespec", [] {
+        auto td(timedelta::milliseconds(-100).astimespec());
+        assert(td.tv_sec == -1);
+        assert(td.tv_nsec == 900000000);
+        td = timedelta::nanoseconds(-1).astimespec();
+        assert(td.tv_sec == -1);
+        assert(td.tv_nsec == 999999999);
+        td = timedelta::nanoseconds(-999999999).astimespec();
+        assert(td.tv_sec == -1);
+        assert(td.tv_nsec == 1);
+        td = timedelta::nanoseconds(1).astimespec();
+        assert(td.tv_sec == 0);
+        assert(td.tv_nsec == 1);
+        td = (1_s + timedelta::nanoseconds(7)).astimespec();
+        assert(td.tv_sec == 1);
+        assert(td.tv_nsec == 7); },
     "randrange", [] {
         for (unsigned x = 0; x < 1000; x++) {
             timedelta a((quickcheck()));
