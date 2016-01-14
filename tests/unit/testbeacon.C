@@ -162,7 +162,7 @@ static testmodule __beacontests(
             T2(timedelta,
                timedelta::time([c, io, port, &agent] {
                        assert(c->query(io, agent).name().getport() == port); }))
-            < T(200_ms));
+            < T(300_ms));
         s->destroy(io);
         c->destroy(); },
     "clientfilter", [] (clientio io) {

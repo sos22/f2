@@ -274,7 +274,7 @@ static testmodule __testconnpool(
         end = timestamp::now();
         /* Aborting can be a little more expensive, but not
          * much. */
-        assert(end < start + timedelta::milliseconds(50));
+        tassert(T(end) < T(start) + T(200_ms));
         c = pool->call<void>(
             agentname("nonesuch"),
             interfacetype::test,
