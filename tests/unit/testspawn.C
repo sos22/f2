@@ -83,7 +83,7 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
         auto t(timestamp::now() - start - timedelta::seconds(1));
         assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(200))); },
+        tassert(T(t) <= T(timedelta::milliseconds(300))); },
     "sleep3", [] (clientio) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg(string("1")))
