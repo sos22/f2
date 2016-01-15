@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include "fd.H"
+#include "logging.H"
 #include "test2.H"
 #include "timedelta.H"
 
@@ -171,6 +172,15 @@ static testmodule __testfd(
         auto r(fd_t::pipe().fatal("pipe"));
         r.close();
         fields::print(fields::mk(r.read.status()) + "\n"); },
+    "dumptable", [] {
+        auto p(fd_t::pipe().fatal("pipe"));
+        auto &f(fd_t::fdtable());
+        logmsg(loglevel::info, "p " + p.field());
+        logmsg(loglevel::info, "fd table " + f);
+        auto s(f.c_str());
+        assert(strstr(s, (fields::mk(p.read.fd) + ":<\"pipe:").c_str()));
+        assert(strstr(s, (fields::mk(p.write.fd) + ":<\"pipe:").c_str()));
+        p.close(); },
     "readpoll", [] {
         auto r(fd_t::pipe().fatal("pipe"));
         char buf[10];

@@ -115,6 +115,8 @@ public: bool operator==(fd_t) const;
 public: typedef fd_tstatus status_t;
 public: status_t status() const;
     
-public: const fields::field &field() const; };
+public: const fields::field &field() const;
+    
+public: static const fields::field &fdtable(); };
 
 #endif /* !FD_H__ */

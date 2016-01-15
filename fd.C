@@ -210,3 +210,18 @@ template <> const fields::field &
 __piperes<fd_t>::field() const {
     return "<pipe: read:" + fields::mk(read) + " write:"
         + fields::mk(write) + ">"; }
+
+const fields::field &
+fd_t::fdtable() {
+    char pid[50];
+    sprintf(pid, "%d", getpid());
+    auto dir(filename("/proc") + string(pid) + string("fd"));
+    const fields::field *acc(&fields::mk(""));
+    bool f(true);
+    for (filename::diriter it(dir); !it.finished(); it.next()) {
+        auto s(dir + string(it.filename()));
+        if (!f) acc = &(*acc + "; ");
+        f = false;
+        acc = &(*acc +
+                fields::mk(it.filename()) + ":" + s.readlink().field()); }
+    return *acc; }
