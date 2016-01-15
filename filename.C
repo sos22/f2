@@ -247,6 +247,24 @@ filename::read(bytecount start, bytecount end) const {
     ::close(_fd);
     return res; }
 
+orerror<string>
+filename::readlink() const {
+    for (ssize_t bufsize = 1024; ; bufsize *= 2) {
+        char *buf = (char *)malloc(bufsize);
+        auto r(::readlink(content.c_str(), buf, bufsize - 1));
+        if (r < 0) {
+            free(buf);
+            return error::from_errno(); }
+        if (r < bufsize - 1) {
+            buf[r] = '\0';
+            return string::steal(buf); }
+        free(buf); } }
+
+orerror<void>
+filename::mklink(const string &target) const {
+    if (::symlink(target.c_str(), content.c_str()) == 0) return Success;
+    else return error::from_errno(); }
+
 filename::diriter::diriter(const class filename &f)
     : dir((DIR *)0xf001ul) {
     DIR *d = opendir(f.content.c_str());

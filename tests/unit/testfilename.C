@@ -4,6 +4,7 @@
 #include "bytecount.H"
 #include "filename.H"
 #include "test.H"
+#include "testassert.H"
 #include "test2.H"
 
 #include "orerror.tmpl"
@@ -231,6 +232,12 @@ static testmodule __testfilename(
         assert(b.contenteq(buffer("hello")));
         fd.close();
         f.unlink().fatal("deletign somefile"); },
+    "symlink", [] {
+        filename f("somelink");
+        f.mklink(string("foo")).fatal("mklink");
+        tassert(T(f.readlink()) == T(string("foo")));
+        assert(f.mklink(string("bar")) == error::from_errno(EEXIST));
+        f.unlink().fatal("unlink"); },
     "serialise", [] {
         quickcheck q;
         serialise<filename>(q); } );

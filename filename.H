@@ -107,6 +107,10 @@ public:  orerror<bytecount> size() const;
      * exclusive.  The bounds must be within the file.  If start ==
      * end <= filesize then return an empty buffer (or an error). */
 public:  orerror<buffer> read(bytecount start, bytecount end) const;
+    /* Read in a symlink. */
+public:  orerror<string> readlink() const;
+    /* Create a symlink. */
+public:  orerror<void> mklink(const string &) const;
     /* Directory iterators.  I'd be happier if diriter were a member
      * method of class filename, but then I'd need to implement a copy
      * constructor, which is a pain. */
