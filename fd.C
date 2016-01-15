@@ -6,7 +6,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "crashhandler.H"
 #include "fields.H"
+#include "logging.H"
 #include "quickcheck.H"
 #include "timedelta.H"
 #include "timestamp.H"
@@ -225,3 +227,8 @@ fd_t::fdtable() {
         acc = &(*acc +
                 fields::mk(it.filename()) + ":" + s.readlink().field()); }
     return *acc; }
+
+static crashhandler
+fdcrash(fields::mk("fdcrash"),
+        [] (crashcontext) {
+            logmsg(loglevel::info, "fd table: " + fd_t::fdtable()); });
