@@ -26,13 +26,13 @@ function ld() {
     z=${z/%.a/-p.a}
     cat <<EOF
 $target: $* $mkfile
-	\$(F2_LD) $LDEXTRA -Wl,-E -o \$@.tmp $* -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) \$(F2_LDFLAGS) $LDEXTRA -Wl,-E -o \$@.tmp $* -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-c: $x $mkfile
-	\$(F2_LD) $LDEXTRA -Wl,-E --coverage -o \$@.tmp $x -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) \$(F2_LDFLAGS) $LDEXTRA -Wl,-E --coverage -o \$@.tmp $x -lstdc++ -ldl -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-t: $y $mkfile
-	\$(F2_LD) $LDEXTRA -Wl,-E -o \$@.tmp $y -ldl -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
+	\$(F2_LD) \$(F2_LDFLAGS) $LDEXTRA -Wl,-E -o \$@.tmp $y -ldl -lstdc++ -lm -lrt -lpthread && mv -f \$@.tmp \$@
 ${target}-p: $z $mkfile
-	\$(F2_LD) $LDEXTRA -Wl,-E -o \$@.tmp $z -pg -ldl -lstdc++ -lm -lrt -lpthread -lgcov && mv -f \$@.tmp \$@
+	\$(F2_LD) \$(F2_LDFLAGS) $LDEXTRA -Wl,-E -o \$@.tmp $z -pg -ldl -lstdc++ -lm -lrt -lpthread -lgcov && mv -f \$@.tmp \$@
 clean::
 	rm -f $target $target.tmp
 	rm -f ${target}-c.tmp ${target}-c
