@@ -50,7 +50,7 @@ thread::pthreadstart(void *_this) {
     thr->run(clientio::CLIENTIO);
     profileendthread();
     /* Tell subscribers that we died. */
-    storerelease(&thr->dead, true);
+    thr->dead.storerelease(true);
     thr->_pub.publish();
     atomicloaddec(nrthreads);
     return NULL; }
@@ -62,7 +62,7 @@ thread::kill(int signal) {
 
 maybe<thread::deathtoken>
 thread::hasdied() const {
-    if (loadacquire(dead)) return deathtoken();
+    if (dead.loadacquire()) return deathtoken();
     else return Nothing; }
 
 const publisher &
@@ -73,7 +73,7 @@ thread::join(deathtoken) {
     /* We guarantee that the thread shuts down quickly once dead is
      * set, and that no death tokens can be created until dead is set,
      * so this is guaranteed to finish quickly. */
-    assert(loadacquire(dead));
+    assert(dead.load());
     int r = pthread_join(thr, NULL);
     if (r) error::from_errno(r).fatal("joining thread " + fields::mk(name));
     delete this; }
@@ -103,7 +103,7 @@ thread::field() const {
     if (tid.isjust()) acc = &(*acc + fields::mk(tid.just()));
     else acc = &(*acc + fields::mk("{no tid yet}"));
     acc = &(*acc + " " + fields::mk(name));
-    if (loadacquire(dead)) acc = &(*acc + " dead");
+    if (dead.load()) acc = &(*acc + " dead");
     if (!started) acc = &(*acc + " unstarted");
     return *acc + ">"; }
 

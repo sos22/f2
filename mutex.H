@@ -7,13 +7,14 @@
 
 #include "maybe.H"
 #include "tid.H"
+#include "util.H"
 
 class cond_t;
 
 class mutex_t {
     friend class cond_t;
     pthread_mutex_t mux;
-    unsigned heldby;
+    racey<unsigned> heldby;
 public:
     /* lock acquisition returns a token, for a couple of reasons:
 

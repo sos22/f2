@@ -72,11 +72,11 @@ const timestamp::tsfield &
 timestamp::field() const {
     static mutex_t basislock;
     static timestamp basis(0);
-    static bool havebasis(false);
-    if (!loadacquire(havebasis)) {
+    static racey<bool> havebasis(false);
+    if (!havebasis.loadacquire()) {
         auto token(basislock.lock());
-        if (!havebasis) {
+        if (!havebasis.load()) {
             basis = timestamp::now();
-            storerelease(&havebasis, true); }
+            havebasis.storerelease(true); }
         basislock.unlock(&token); }
     return *new tsfield(v - basis.v, false); }

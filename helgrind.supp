@@ -1,0 +1,21 @@
+{
+   racey_unsigned_load
+   Helgrind:Race
+   fun:_ZNK5raceyIjE4loadEv
+}
+{
+   racey_unsigned_store
+   Helgrind:Race
+   fun:_ZN5raceyIjE5storeEj
+}
+
+{
+   racey_bool_load
+   Helgrind:Race
+   fun:_ZNK5raceyIbE4loadEv
+}
+{
+   racey_bool_store
+   Helgrind:Race
+   fun:_ZN5raceyIbE5storeEb
+}

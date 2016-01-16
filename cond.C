@@ -39,11 +39,11 @@ cond_t::wait(clientio, mutex_t::token *tok) const
 {
     tok->formux(associated_mux);
     tok->release();
-    assert(associated_mux.heldby == tid::me().os());
-    associated_mux.heldby = 0;
+    assert(associated_mux.heldby.load() == tid::me().os());
+    associated_mux.heldby.store(0);
     pthread_cond_wait(const_cast<pthread_cond_t *>(&cond), &associated_mux.mux);
-    assert(associated_mux.heldby == 0);
-    associated_mux.heldby = tid::me().os();
+    assert(associated_mux.heldby.load() == 0);
+    associated_mux.heldby.store(tid::me().os());
     return mutex_t::token();
 }
 
@@ -62,13 +62,13 @@ cond_t::wait(clientio io,
     tok->formux(associated_mux);
     tok->release();
     struct timespec ts(deadline.just().as_timespec());
-    assert(associated_mux.heldby == tid::me().os());
-    associated_mux.heldby = 0;
+    assert(associated_mux.heldby.load() == tid::me().os());
+    associated_mux.heldby.store(0);
     int r = pthread_cond_timedwait(const_cast<pthread_cond_t *>(&cond),
                                    &associated_mux.mux,
                                    &ts);
-    assert(associated_mux.heldby == 0);
-    associated_mux.heldby = tid::me().os();
+    assert(associated_mux.heldby.load() == 0);
+    associated_mux.heldby.store(tid::me().os());
     assert(r == 0 || r == ETIMEDOUT);
     waitres res;
     res.token = mutex_t::token();

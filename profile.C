@@ -35,7 +35,8 @@
 
 struct sample {
     unsigned cntr;
-    unsigned long rip;
+    racey<unsigned long> rip;
+    sample() : cntr(0), rip(0) {}
 } __attribute__((packed));
 
 struct threadstate {
@@ -75,9 +76,9 @@ sigusr1handler(int /* sigalrm */,
     /* Try to find a suitable hash slot. */
     for (unsigned x = 0; x < 10; x++) {
         auto idx = (rip + x * 16381) % ARRAYSIZE(ts->samples);
-        auto r(atomicload(ts->samples[idx].rip));
+        auto r(ts->samples[idx].rip.load());
         if (r == 0) {
-            storerelease(&ts->samples[idx].rip, rip);
+            ts->samples[idx].rip.store(rip);
             r = rip; }
         if (r == rip) {
             /* XXX there is a race here where samples can get lost if
@@ -98,10 +99,10 @@ integratethread(threadstate *ts, mutex_t::token /* profile lock */) {
         /* This is obviously racey, but the worst possible outcome is
          * one or two samples being misaccounted every couple of
          * seconds, which should be tolerable. */
-        auto rip(loadacquire(ts->samples[x].rip));
+        auto rip(ts->samples[x].rip.load());
         if (rip == 0) continue;
         auto cntr(atomicswap(*(unsigned *)&ts->samples[x].cntr, 0u));
-        storerelease(&ts->samples[x].rip, 0ul);
+        ts->samples[x].rip.store(0);
         if (ts->samples[x].cntr != 0) {
             cntr += atomicswap(*(unsigned *)&ts->samples[x].cntr, 0u); }
         /* <<< end racey bit >>> */

@@ -256,17 +256,14 @@ static testmodule __listtest(
         assert(l.empty_unsafe());
         l.append(1);
         assert(!l.empty_unsafe());
-        bool done = false;
+        racey<bool> done(false);
         spark<void> checker([&] {
-                /* This doesn't need full acquire semantics; it just
-                 * needs to not get completely eliminated by the
-                 * compiler.  Acquire is easier, though. */
-                while (!loadacquire(done)) l.empty_unsafe(); });
+                while (!done.load()) l.empty_unsafe(); });
         auto deadline((2_s).future());
         while (deadline.infuture()) {
             l.append(5);
             l.pophead(); }
-        done = true; },
+        done.store(true); },
     "parser", [] {
         auto &p(list<int>::parser(parsers::intparser<int>()));
         assert(p.match("{}") == list<int>());
