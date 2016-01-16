@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "error.H"
+#include "mutex.H"
 
 namespace tmpheap {
 
@@ -16,23 +17,37 @@ struct arena {
     unsigned char content[];
 };
 
-static pthread_key_t arenakey;
+static void
+endthread(void *_arenas) {
+    arena *arenas = (arena *)_arenas;
+    while (arenas) {
+        auto n(arenas->next);
+        free(arenas);
+        arenas = n; } }
 
-static struct inittmpheap_ {
-    static void endthread(void *_arenas) {
-        arena *arenas = (arena *)_arenas;
-        while (arenas) {
-            auto n(arenas->next);
-            free(arenas);
-            arenas = n; } }
-    inittmpheap_() {
-        int err = pthread_key_create(&arenakey, endthread);
-        if (err) error::from_errno(err).fatal("creating tmpheap arena key"); }
-} inittmpheap;
+#define rmb() asm volatile("lfence\n":::"memory")
+#define wmb() asm volatile("sfence\n":::"memory")
+
+static pthread_key_t
+arenakey() {
+    static bool initted;
+    static mutex_t mux;
+    static pthread_key_t res;
+    if (initted) {
+        rmb();
+        return res; }
+    auto t(mux.lock());
+    if (!initted) {
+        int err = pthread_key_create(&res, endthread);
+        if (err) error::from_errno(err).fatal("creating tmpheap arena key");
+        wmb();
+        initted = true; }
+    mux.unlock(&t);
+    return res; }
 
 void *
 _alloc(size_t sz) {
-    arena *arenas = (arena *)pthread_getspecific(arenakey);
+    arena *arenas = (arena *)pthread_getspecific(arenakey());
     /* Keep everything 16-byte aligned, for general sanity. */
     sz = (sz + 15) & ~15ul;
     if (!arenas || arenas->used + sz > arenas->size) {
@@ -50,7 +65,7 @@ _alloc(size_t sz) {
         assert(a->size == (unsigned)(size - 32 - sizeof(*a)));
         a->used = 0;
         memset(a->content, 'Z', a->size);
-        pthread_setspecific(arenakey, a);
+        pthread_setspecific(arenakey(), a);
         arenas = a; }
     void *res = &arenas->content[arenas->used];
     assert(arenas->used + sz == (unsigned)(arenas->used + sz));
@@ -59,12 +74,12 @@ _alloc(size_t sz) {
 
 void
 release() {
-    struct arena *arenas = (arena *)pthread_getspecific(arenakey);
+    struct arena *arenas = (arena *)pthread_getspecific(arenakey());
     while (arenas) {
         auto n(arenas->next);
         free(arenas);
         arenas = n; }
-    pthread_setspecific(arenakey, NULL); }
+    pthread_setspecific(arenakey(), NULL); }
 
 char *
 strdup(const char *x) {
