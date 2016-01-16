@@ -47,6 +47,7 @@ static testmodule __beacontests(
                                                       agent))
                .fatal("starting beacon client"));
         auto r(c->query(io, agent));
+        c->status(loglevel::emergency);
         assert(r.type().length() == 1);
         assert(r.type().idx(0) == interfacetype::test);
         assert(r.name().getport() == port);
