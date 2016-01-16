@@ -12,9 +12,9 @@
 const fields::field &
 mutex_t::token::field() const { return fields::mk(""); }
 
-mutex_t::mutex_t() : heldby(Nothing) { pthread_mutex_init(&mux, NULL); }
+mutex_t::mutex_t() : heldby(0) { pthread_mutex_init(&mux, NULL); }
 
-mutex_t::~mutex_t() { pthread_mutex_destroy(&mux); }
+mutex_t::~mutex_t() { assert(heldby == 0); pthread_mutex_destroy(&mux); }
 
 mutex_t::token
 mutex_t::lock() {
@@ -24,7 +24,7 @@ mutex_t::lock() {
      * supposed to be tolerant of weird memory corruption, anyway. */
     if (crashhandler::crashing()) return token();
     fuzzsched();
-    assert(!heldby.isjust() || heldby.__just() != tid::me());
+    assert(heldby != tid::me().os());
     auto start(timestamp::now());
     while (true) {
         struct timespec end;
@@ -36,16 +36,18 @@ mutex_t::lock() {
         assert(r == ETIMEDOUT);
         logmsg(loglevel::info,
                "waiting " + (timestamp::now() - start).field() +
-               " for a lock, held by " + heldby.__just().field());
+               " for a lock, held by " + fields::mk(heldby));
         logmsg(loglevel::info, backtrace().field()); }
-    heldby.mkjust(tid::me());
+    assert(heldby == 0);
+    heldby = tid::me().os();
     return token(); }
 
 maybe<mutex_t::token>
 mutex_t::trylock() {
     fuzzsched();
     if (pthread_mutex_trylock(&mux) == 0) {
-        heldby.mkjust(tid::me());
+        assert(heldby == 0);
+        heldby = tid::me().os();
         return token(); }
     else return Nothing; }
 
@@ -54,8 +56,8 @@ mutex_t::field() const {
     /* Careful: we might be racing with people acquiring and releasing
      * the lock. This is safe because we know about how the fields are
      * implemented. */
-    if (heldby == Nothing) return fields::mk("<unheld>");
-    else return "<heldby:"+heldby.__just().field()+">"; }
+    if (heldby == 0) return fields::mk("<unheld>");
+    else return "<heldby:t:" + fields::mk(heldby) + ">"; }
 
 mutex_t::token
 mutex_t::DUMMY() { return token(); }
@@ -67,8 +69,8 @@ mutex_t::unlock(token *tok) {
     if (crashhandler::crashing()) return;
     tok->formux(*this);
     tok->release();
-    heldby = tid::nonexistent();
-    heldby = Nothing;
+    assert(heldby == tid::me().os());
+    heldby = 0;
     pthread_mutex_unlock(&mux);
     fuzzsched(); }
 
