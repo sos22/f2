@@ -19,3 +19,10 @@
    Helgrind:Race
    fun:_ZN5raceyIbE5storeEb
 }
+
+{
+   crashhandler
+   Helgrind:Misc
+   ...
+   fun:_ZN12crashhandler6invokeEv
+}
