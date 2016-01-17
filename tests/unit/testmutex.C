@@ -155,7 +155,11 @@ static testmodule __testmutex(
                     return tt == Nothing; }));
         mux.unlock(&t);
         assert(!mux.trylocked<bool>([] (maybe<mutex_t::token> tt) {
-                    return tt == Nothing; })); },
+                    return tt == Nothing; }));
+        t = mux.lock();
+        mux.trylocked([] (maybe<mutex_t::token> t) {
+                assert(t == Nothing); });
+        mux.unlock(&t); },
     "crashhandler", [] {
         auto &invoked(crashhandler::allocshared<bool>());
         mutex_t mux;
