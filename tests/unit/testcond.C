@@ -13,7 +13,7 @@ static testmodule __condtest(
     "cond",
     list<filename>::mk("cond.C", "cond.H"),
     testmodule::LineCoverage(100_pc),
-    testmodule::BranchCoverage(70_pc),
+    testmodule::BranchCoverage(65_pc),
     /* Not testcaseIO, even though we need a clientio token, because I
        don't want to depend on pubsub from here. */
     "wake", [] {

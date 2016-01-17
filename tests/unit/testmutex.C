@@ -26,7 +26,7 @@ static testmodule __testmutex(
     /* The missing coverage is either syscalls which can't actually
      * fail, or assertions, or stuff which happens in crash handlers
      * (which are in a special process which gcov can't see). */
-    testmodule::BranchCoverage(69_pc),
+    testmodule::BranchCoverage(63_pc),
     "basic", [] () {
         /* Spawn a bunch of threads and confirm that only one can
          * hold each lock at a time. */
