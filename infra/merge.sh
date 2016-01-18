@@ -100,5 +100,8 @@ git log --stat master^..merge-pending >&3
 # Merge successful. Push to master.
 git push ${repo} merge-pending:master
 
+# And then push it to github as well.
+git push git@github.com:sos22/f2.git merge-pending:master
+
 # No need to keep logs any more
 rm -rf $t
