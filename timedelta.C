@@ -23,10 +23,18 @@ timedelta::operator+(timestamp ts) const { return ts + *this; }
 const fields::field &
 timedelta::field() const { return "<timedelta:" + fields::mk(v) + "ns>"; }
 
-const parser<timedelta> &
-parsers::_timedelta() {
-    return ("<timedelta:" + intparser<long>() + "ns>")
-        .map<timedelta>([] (long l) { return timedelta::nanoseconds(l); }); }
+const ::parser<timedelta> &
+timedelta::parser() {
+    class p : public ::parser< ::timedelta> {
+    public: const parser<long> &inner;
+    public: p() : inner(parsers::intparser<long>()) {}
+    public: orerror<result> parse(const char *what) const {
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        else {
+            return result(r.success().left,
+                          timedelta::nanoseconds(r.success().res)); } } };
+    return ("<timedelta:" + *(new p()) + "ns>"); }
 
 timestamp
 timedelta::future() const { return timestamp::now() + *this; }

@@ -64,8 +64,8 @@ parsers::__beaconclientconfig() {
             ~(" type:" + _maybe(interfacetype::parser())) +
             ~(" name:" + _maybe(agentname::parser())) +
             ~(" proto:" + beaconconfig::parser()) +
-            ~(" queryinterval:" + _timedelta()) +
-            ~(" broadcastinterval:" + _timedelta()) +
+            ~(" queryinterval:" + timedelta::parser()) +
+            ~(" broadcastinterval:" + timedelta::parser()) +
             ">")
         .maperr<beaconclientconfig>(
             []

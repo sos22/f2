@@ -14,7 +14,7 @@ static testmodule __testtimedelta(
     list<filename>::mk("timedelta.C", "timedelta.H", "timedelta.tmpl"),
     testmodule::LineCoverage(85_pc),
     testmodule::BranchCoverage(65_pc),
-    "parsers", [] { parsers::roundtrip(parsers::_timedelta()); },
+    "parsers", [] { parsers::roundtrip(timedelta::parser()); },
     "algebra", [] {
         assert(timedelta::milliseconds(200) + timedelta::milliseconds(800)==
                timedelta::seconds(1));

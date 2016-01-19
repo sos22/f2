@@ -11,6 +11,7 @@ class timedelta;
 class timestamp;
 
 template <typename> struct timeres;
+template <typename> class parser;
 
 class timedelta {
     friend class timestamp;
@@ -56,6 +57,7 @@ public:
 
     const fields::field &field() const;
     void serialise(serialise1 &) const;
+public: static const ::parser<timedelta> &parser();
 };
 
 static inline timedelta
@@ -89,11 +91,6 @@ public: operator class timedelta &() { return td; }
      * I'm not sure why. */
 public: ~timeres() {}
 };
-
-template <typename> class parser;
-namespace parsers {
-const parser<timedelta> &_timedelta();
-}
 
 namespace tests {
 void _timedelta();
