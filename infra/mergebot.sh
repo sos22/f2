@@ -35,6 +35,15 @@ results=$(realpath $2)
 infradir=$(realpath $(dirname $0) )
 logs=${results}/logs
 
+if ! [ -e ${results}/lastdaily ]
+then
+    # Bootstrap: if we've never run any daily tests, pretend someone
+    # ran one just before we started, so that we run the daily tests a
+    # day from now.
+    date +%s > ${results}/lastdaily
+fi
+lastdaily=$(cat ${results}/lastdaily)
+
 mkdir -p ${results}/routine
 
 sendemail() {
@@ -71,6 +80,37 @@ basemode() {
     fi
 }
 
+_dailymode() {
+    local flavour=$1
+    local outdir=$2
+    local commit=$3
+    set -e
+    git clone -q ${repo} ${outdir}/checkout
+    cd ${outdir}/checkout
+    git checkout $commit
+    ./infra/dailytests/${flavour} ${outdir}/testdir
+}
+dailytests() {
+    local now=$(_now)
+    local t=${results}/daily/${now}
+    local commit=$(git ls-remote ${repo} refs/heads/master | tr [:space:] ' ' | cut -d' ' -f 1)
+    mkdir $t
+    for fl in infra/dailytests/*.sh
+    do
+        fll=${fl##*/}
+        mkdir ${t}/${fll}
+        if ( _dailymode $fll $t/${fll} $commit )
+        then
+            echo "${now} ${fll} ${commit} PASS" >> $logs
+            rm -rf $t/${fll}
+        else
+            echo "${now} ${fll} ${commit} FAIL" >> $logs
+            grep -v 'pass$' ${t}/${fl}/testdir/summary | sed 's/^/    /' >> $logs
+            ${t}/checkout/infra/summarisefailure.sh ${t}/$fll ${now}-$fll | sendemail
+        fi
+    done
+}
+
 mailheader() {
     cat <<EOF
 Subject: $1
@@ -100,6 +140,12 @@ do
     then
         echo "re-execute $0 $*..."
         exec $0 $*
+    fi
+    if [ $(date +%s) -gt $(( $lastdaily + 86400 )) ]
+    then
+        lastdaily=$(date +%s)
+        dailytests
+        echo $lastdaily > ${results}/lastdaily
     fi
     t=$(mktemp)
     git ls-remote ${repo} 'refs/heads/merge/*' | sed 's,refs/heads/merge/,,' > $t
