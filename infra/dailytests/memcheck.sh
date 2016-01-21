@@ -5,6 +5,7 @@ set -e
 testdir=$1
 
 mkdir ${testdir}
+mkdir ${testdir}/logs
 
 make -s -j8 test2 spawnservice
 
@@ -20,7 +21,7 @@ summary=${testdir}/summary
     do
         if stdbuf -o L -e L \
                valgrind --tool=memcheck --leak-check=full --error-exitcode=2 \
-               ./test2 "${modname}" '*' > ${testdir}/${modname} 2>&1
+               ./test2 "${modname}" '*' > ${testdir}/${logs}/${modname} 2>&1
         then
             printf "%-40s pass\n" $modname >> ${summary}
         else
