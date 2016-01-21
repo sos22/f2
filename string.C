@@ -142,8 +142,15 @@ string::stripprefix(const string &other) const {
 
 const parser<string> &
 string::parser(void) {
-    return parsers::strparser.map<string>([] (const char *const &inner) {
-            return string(inner); }); }
+    class f : public ::parser<string> {
+    public: const ::parser<const char *> &inner;
+    public: f() : inner(parsers::strparser) {}
+    public: orerror<result> parse(const char *what) const {
+        return inner.parse(what)
+            .map<parser<string>::result>([] (auto res) {
+                    return res.map<string>([] (auto res2) {
+                            return string(res2); }); }); } };
+    return *new f(); }
 
 unsigned long
 string::hash() const {
