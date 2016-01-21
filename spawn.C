@@ -8,6 +8,8 @@
 #include <signal.h>
 #include <unistd.h>
 
+#include <valgrind/valgrind.h>
+
 #include "spawnservice.h"
 
 #include "clientio.H"
@@ -192,7 +194,9 @@ process::spawn(const program &p) {
                 elem != childread.fd &&
                 elem.success() > 2 &&
                 elem.success() != it.dirfd().fd &&
-                !fds.haskey(elem.success())) ::close(elem.success()); }
+                !fds.haskey(elem.success()) &&
+                (!RUNNING_ON_VALGRIND || elem.success() < 10000)) {
+                ::close(elem.success()); } }
         char fromchildstr[16];
         sprintf(fromchildstr, "%d", childwrite.fd);
         args[1] = fromchildstr;

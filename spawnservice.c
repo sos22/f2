@@ -11,6 +11,8 @@
 #include <sys/prctl.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <poll.h>
 #include <signal.h>
@@ -68,12 +70,15 @@ main(int argc, char *argv[]) {
     int e;
     struct sigaction sa;
     struct message msg;
-    int i;
     int status;
     ssize_t r;
     bool paused;
     sigset_t sigs;
     int fl;
+    DIR *fddir;
+    struct dirent *de;
+    long fd;
+    char *eof;
 
     assert(argc >= 4);
 
@@ -110,11 +115,23 @@ main(int argc, char *argv[]) {
         _exit(1); }
     /* We are the parent. */
     /* Close the FDs we don't need. */
-    for (i = 0; i <= 1000; i++) {
-        if (i != p[0] &&
-            i != respfd &&
-            i != reqfd) {
-            close(i); } }
+    fddir = opendir("/proc/self/fd");
+    if (fddir == NULL) err(1, "open /proc/self/fd");
+    while (true) {
+        errno = 0;
+        de = readdir(fddir);
+        if (de == NULL) {
+            if (errno == 0) break;
+            else err(1, "readdir /proc/self/fd"); }
+        if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) {
+            continue; }
+        fd = strtoll(de->d_name, &eof, 10);
+        if (errno != 0) err(1, "parsing fd number %s", de->d_name);
+        if (*eof != '\0') errx(1, "noise at end of fd %s", de->d_name);
+        if (fd < 0 || fd > 10000) errx(1, "bad fd %ld", fd);
+        if (fd != p[0] && fd != respfd && fd != reqfd && fd != dirfd(fddir)) {
+            close((int)fd); } }
+    closedir(fddir);
     /* Wait for the child to either exec or report an error. */
     switch (read(p[0], &e, sizeof(e))) {
     case sizeof(e):
