@@ -26,7 +26,9 @@ public: class result {
     public: const char *left;
     public: template <typename ... args> result(
         const char *b,
-        args &&... params); };
+        args &&... params);
+    public: template <typename o> typename parser<o>::result map(
+        const std::function<o (const rval &)> &) const; };
     /* Parse a string, returning either the result of the parse or an
      * error. */
 public: virtual orerror<result> parse(const char *) const = 0;

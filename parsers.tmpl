@@ -16,6 +16,10 @@ template <typename rval> template <typename ... args>
 parser<rval>::result::result(const char *b, args &&... params)
     : res(std::forward<args>(params)...), left(b) {}
 
+template <typename rval> template <typename o> typename parser<o>::result
+parser<rval>::result::map(const std::function<o (const rval &)> &f) const {
+    return typename parser<o>::result(left, f(res)); }
+
 template <typename newtype, typename oldtype>
 class _maperrparser : public parser<newtype> {
 private: typedef typename parser<newtype>::result result;

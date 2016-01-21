@@ -366,4 +366,15 @@ static testmodule __testparsers(
         auto &pp(*new p());
         assert(pp.match("X").issuccess());
         assert(pp.match("").isfailure());
-        assert(pp.match("XX").isfailure()); } );
+        assert(pp.match("XX").isfailure()); },
+    "resultmap", [] {
+        class mapp : public ::parser<string> {
+        public: orerror<result> parse(const char *what) const {
+            return parsers::intparser<int>().parse(what)
+                .map<result>([] (auto x1) {
+                        return x1.map<string>([] (auto x2) {
+                                assert(x2 == 5);
+                                return "bob"; }); }); } };
+        auto &pp(*new mapp());
+        assert(pp.match("ZZZ").isfailure());
+        assert(pp.match("5") == string("bob")); } );
