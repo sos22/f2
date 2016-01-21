@@ -111,4 +111,13 @@ static testmodule __testorerror(
                == error::from_errno(ENOENT));
         parsers::roundtrip(orerror<void>::parser());
         parsers::roundtrip(orerror<int>::parser());
-        parsers::roundtrip(orerror<pair<int, string> >::parser()); });
+        parsers::roundtrip(orerror<pair<int, string> >::parser()); },
+    "map", [] {
+        assert(orerror<int>(error::already).map<string>(
+                   [] (const int &) -> string { abort(); }) ==
+               error::already);
+        assert(orerror<int>(5).map<string>(
+                   [] (const int &x) {
+                   assert(x == 5);
+                   return string("hello"); }) ==
+               string("hello")); } );

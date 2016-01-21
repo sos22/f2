@@ -1,6 +1,8 @@
 #ifndef ORERROR_H__
 #define ORERROR_H__
 
+#include <functional>
+
 #include "either.H"
 #include "error.H"
 
@@ -43,6 +45,8 @@ public: bool isfailure() const;
 public: bool issuccess() const;
 public: const t &success() const;
 public: t &success();
+public: template <typename o> orerror<o> map(
+    const std::function<o (const t &)> &) const;
 public: const orerror &warn(const fields::field &f) const;
 public: const orerror &warn(const char *f) const;
 public: static const ::parser<orerror<t> > &parser();

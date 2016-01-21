@@ -59,6 +59,11 @@ orerror<t>::success() {
     assert(this->issuccess());
     return this->right(); }
 
+template <typename t> template <typename o> orerror<o>
+orerror<t>::map(const std::function<o (const t &)> &f) const {
+    if (isfailure()) return failure();
+    else return ::success(f(this->success())); }
+
 template <typename t> const orerror<t> &
 orerror<t>::warn(const fields::field &f) const {
     if (this->isfailure()) this->failure().warn(f);
