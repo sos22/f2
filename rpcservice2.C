@@ -58,6 +58,7 @@ public: rootthread(const constoken &token,
       pauselock(),
       _pausecount(0),
       _paused(false),
+      dumpstatus(false),
       pausepub() {
     assert(!type.contains(interfacetype::meta));
     type.pushtail(interfacetype::meta); }
