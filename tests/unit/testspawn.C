@@ -32,7 +32,7 @@ static testmodule __spawntest(
     /* Coverage looks quite low on these tests, partly because gcov
      * can't collect coverage for anything which calls exec() or dies
      * with a signal. */
-    testmodule::LineCoverage(77_pc),
+    testmodule::LineCoverage(75_pc),
     testmodule::BranchCoverage(50_pc),
     "truefalsebad", [] (clientio io) {
         {   auto p(process::spawn(program(filename("/bin/true")))

@@ -310,6 +310,7 @@ process::pause() {
         mux.unlock(&t);
         return pausetoken(); }
     struct message msg;
+    memset(&msg, 0, sizeof(msg));
     msg.tag = message::msgpause;
     auto sendres(tochild.write(
                      clientio::CLIENTIO,
@@ -347,6 +348,7 @@ process::unpause(pausetoken) {
         return; }
     assert(paused);
     struct message msg;
+    memset(&msg, 0, sizeof(msg));
     msg.tag = message::msgunpause;
     tochild.write(
         clientio::CLIENTIO,
