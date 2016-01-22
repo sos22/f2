@@ -105,8 +105,8 @@ dailytests() {
             rm -rf $t/${fll}
         else
             echo "${now} ${fll} ${commit} FAIL" >> $logs
-            grep -v 'pass$' ${t}/${fl}/testdir/summary | sed 's/^/    /' >> $logs
-            ${t}/checkout/infra/summarisefailure.sh ${t}/$fll ${now}-$fll | sendemail
+            grep -v 'pass$' ${t}/${fll}/testdir/summary | sed 's/^/    /' >> $logs
+            ${t}/${fll}/checkout/infra/summarisefailure.sh ${t}/$fll ${now}-$fll | sendemail
         fi
     done
 }
