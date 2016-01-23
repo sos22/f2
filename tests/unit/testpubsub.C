@@ -271,7 +271,7 @@ static testmodule __testpubsub(
         t1.get();
         t2.get();
         tassert(T(cntr1) - T(cntr2) >= T(-1) && T(cntr1) - T(cntr2) <= T(1));
-        tassert(T(cntr1) >= T(5000)); },
+        tassert(T(cntr1) >= (running_on_valgrind() ? T(100) : T(5000))); },
     "ioshutdownrace", [] {
         auto pipe(fd_t::pipe());
         subscriber sub;
