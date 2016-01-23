@@ -49,6 +49,16 @@ cd ${t}/work
 git fetch -q ${repo} merge/${name}:merge/${name}
 git checkout -q master
 git checkout -q -b merge-pending
+# If there are any commits whose subject starts DNP then we do all the
+# validation but don't actually merge the branch, to make it a bit
+# easier for people to ask for tests to be run.
+if git log --pretty=format:%s ..merge/${name} | grep -q ^DNP
+then
+    dnp=true
+else
+    dnp=false
+fi
+
 # Dribble intermediate commits in one at a time until we get to the
 # last one in the series.
 set -e -- $(git rev-list ..merge/${name} | cut -d' ' -f 1| tr ' ' '\n' | tac | tr '\n' ' ')
@@ -97,11 +107,14 @@ fi
 
 git log --stat master^..merge-pending >&3
 
-# Merge successful. Push to master.
-git push ${repo} merge-pending:master
+if ! $dnp
+then
+    # Merge successful. Push to master.
+    git push ${repo} merge-pending:master
 
-# And then push it to github as well.
-git push git@github.com:sos22/f2.git merge-pending:master
+    # And then push it to github as well.
+    git push git@github.com:sos22/f2.git merge-pending:master
+fi
 
 # No need to keep logs any more
 rm -rf $t
