@@ -394,6 +394,8 @@ static testmodule __testpubsub(
         pipe0.close();
         deinitpubsub(_io); },
     "listenboth", [] {
+        auto stall(running_on_valgrind() ? 100_ms : 1_ms);
+        auto delay(running_on_valgrind() ? 1_s : 100_ms);
         /* Basic tests when we're listening for read and write on the
            same FD in different subscriptions. */
         initpubsub();
@@ -406,17 +408,17 @@ static testmodule __testpubsub(
                        _io,
                        b,
                        sizeof(b),
-                       timestamp::now() + timedelta::milliseconds(1)));
+                       stall.future()));
             if (r == error::timeout) break;
             r.fatal("filling sockbuf"); }
         {   subscriber sub;
             iosubscription reading(sub, pipe.fd0.poll(POLLIN));
             iosubscription writing(sub, pipe.fd0.poll(POLLOUT));
-            (timestamp::now() + timedelta::milliseconds(100)).sleep(_io);
+            delay.future().sleep(_io);
             assert(sub.poll() == NULL);
             {   char b[4096];
                 pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
-            (timestamp::now() + timedelta::milliseconds(100)).sleep(_io);
+            delay.future().sleep(_io);
             assert(sub.poll() == &writing); }
         while (1) {
             char b[4096];
@@ -425,17 +427,17 @@ static testmodule __testpubsub(
                        _io,
                        b,
                        sizeof(b),
-                       timestamp::now() + timedelta::milliseconds(1)));
+                       stall.future()));
             if (r == error::timeout) break;
             r.fatal("filling sockbuf"); }
         {   subscriber sub;
             iosubscription writing(sub, pipe.fd0.poll(POLLOUT));
             iosubscription reading(sub, pipe.fd0.poll(POLLIN));
-            (timestamp::now() + timedelta::milliseconds(100)).sleep(_io);
+            delay.future().sleep(_io);
             assert(sub.poll() == NULL);
             {   char b[4096];
                 pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
-            (timestamp::now() + timedelta::milliseconds(100)).sleep(_io);
+            delay.future().sleep(_io);
             assert(sub.poll() == &writing); }
         deinitpubsub(_io); },
 #if TESTING
