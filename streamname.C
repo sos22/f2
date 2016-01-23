@@ -59,12 +59,16 @@ streamname::serialise(serialise1 &s) const { content.serialise(s); }
 
 const parser<streamname> &
 streamname::parser() {
-    return ("<stream:" + string::parser() + ">")
-        .maperr<streamname>(
-            [] (const string &x) -> orerror<streamname> {
-                auto r(streamname::mk(x));
-                if (r == Nothing) return error::noparse;
-                else return r.just(); }); }
+    class f : public ::parser<streamname> {
+    public: const ::parser<string> &inner;
+    public: f() : inner("<stream:" + string::parser() + ">") {}
+    public: orerror<result> parse(const char *what) const {
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        auto res(streamname::mk(r.success().res));
+        if (res == Nothing) return error::noparse;
+        return result(r.success().left, res.just()); } };
+    return *new f(); }
 
 const parser<streamname> &
 streamname::filenameparser() {
