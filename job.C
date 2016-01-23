@@ -116,42 +116,46 @@ job::field() const {
 
 const parser<job> &
 job::parser() {
-    auto &stream(
-        ("-<" + streamname::parser() + ":" + job::inputsrc::parser()) |
-        ("->" + streamname::parser()));
+    auto &stream(("-<" + streamname::parser() + ":" + job::inputsrc::parser()) |
+                 ("->" + streamname::parser()));
     auto &imm(string::parser() + "=" + string::parser());
-    return ("<job:" + filename::parser() + ":" + string::parser() +
-            ~strmatcher(" ") + parsers::sepby((stream|imm), strmatcher(" ")) +
-            ">")
-        .maperr<job>(
-            [] (const pair<pair<pair<filename, string>,
-                                maybe<void> >,
-                           list<either<either<pair<streamname, job::inputsrc>,
-                                              streamname>,
-                                       pair<string, string> > > > &what) {
-                orerror<job> _res(
-                    Success,
-                    what.first().first().first(),
-                    what.first().first().second());
-                auto &res(_res.success());
-                for (auto it(what.second().start()); !it.finished(); it.next()){
-                    if (it->isleft()) {
-                        auto &str(it->left());
-                        if (str.isleft()) {
-                            auto &input(str.left());
-                            if (res.inputs.haskey(input.first())) {
-                                _res = error::duplicate;
-                                return _res; }
-                            res.inputs.set(input.first(), input.second()); }
-                        else res._outputs.append(str.right()); }
-                    else {
-                        auto &imme(it->right());
-                        if (res.immediate.haskey(imme.first())) {
-                            _res = error::duplicate;
-                            return _res; }
-                        res.immediate.set(imme.first(), imme.second()); } }
-                sort(res._outputs);
-                if (res.outputs().hasdupes()) _res = error::noparse;
-                return _res; }); }
+    auto &parameter(stream|imm);
+    auto &hdr("<job:" + filename::parser() + ":" + string::parser() +
+              ~strmatcher(" "));
+    auto &inner(hdr + parsers::sepby(parameter, strmatcher(" ")) + ">");
+    class f : public ::parser<job> {
+    public: decltype(inner) &_inner;
+    public: f(decltype(_inner) &__inner) : _inner(__inner) {}
+    public: orerror<result> parse(const char *what) const {
+        auto r(_inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        auto &_hdr(r.success().res.first());
+        orerror<result> _res(
+            Success,
+            r.success().left,
+            _hdr.first().first(),
+            _hdr.first().second());
+        auto &res(_res.success().res);
+        auto &_parameters(r.success().res.second());
+        for (auto it(_parameters.start()); !it.finished(); it.next()) {
+            if (it->isleft()) {
+                auto &_stream(it->left());
+                if (_stream.isleft()) {
+                    auto &input(_stream.left());
+                    if (res.inputs.haskey(input.first())) {
+                        _res = error::duplicate;
+                        return _res; }
+                    res.inputs.set(input.first(), input.second()); }
+                else res._outputs.append(_stream.right()); }
+            else {
+                auto &_imm(it->right());
+                if (res.immediate.haskey(_imm.first())) {
+                    _res = error::duplicate;
+                    return _res; }
+                res.immediate.set(_imm.first(), _imm.second()); } }
+        sort(res._outputs);
+        if (res.outputs().hasdupes()) _res = error::noparse;
+        return _res; } };
+    return *new f(inner); }
 
 template class map<streamname, pair<jobname, streamname> >;
