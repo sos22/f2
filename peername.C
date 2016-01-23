@@ -311,61 +311,67 @@ _ip6litparser::parse(const char *what) const {
 const ::parser<peername> &
 peername::parser() {
     using namespace parsers;
-    auto parseip([] () -> const ::parser<peername> & {
-        return ("ip://" +
+    class parseip : public ::parser<peername> {
+    public: const parser<pair<maybe<pair<pair<pair<unsigned,
+                                                   unsigned>,
+                                              unsigned>,
+                                         unsigned> >,
+                              maybe<unsigned> > > &inner;
+    public: parseip()
+        : inner("ip://" +
                 ~(intparser<unsigned>() + "." +
                   intparser<unsigned>() + "." +
                   intparser<unsigned>() + "." +
                   intparser<unsigned>()) +
-                ~(":" + intparser<unsigned>()) + "/")
-            .maperr<peername>(
-                [] (const pair<maybe<pair<pair<pair<unsigned,
-                                                    unsigned>,
-                                               unsigned>,
-                                          unsigned> >,
-                               maybe<unsigned> > &x)
-                -> orerror<peername> {
-                    struct sockaddr_in sin;
-                    memset(&sin, 0, sizeof(sin));
-                    sin.sin_family = AF_INET;
-                    if (x.first().isjust()) {
-                        auto p(x.first().just());
-                        auto a(p.first().first().first());
-                        auto b(p.first().first().second());
-                        auto c(p.first().second());
-                        auto d(p.second());
-                        if (a > 255 || b > 255 || c > 255 || d > 255) {
-                            return error::noparse; };
-                        sin.sin_addr.s_addr =
-                            (d << 24) |
-                            (c << 16) |
-                            (b << 8) |
-                            a; }
-                    if (x.second().isjust()) {
-                        if (x.second().just() >= 65536) return error::noparse;
-                        sin.sin_port = htons((uint16_t)x.second().just()); }
-                    return peername((const struct sockaddr *)&sin,
-                                    sizeof(sin)); }); });
-    auto parseip6([] () -> const ::parser<peername> & {
-            return ("ip6://" + ~ip6litparser +
-                    ~(":" + intparser<unsigned>()) + "/")
-                .maperr<peername>(
-                    [] (const pair<maybe<in6_addr>,
-                                   maybe<unsigned> > &x)
-                    -> orerror<peername> {
-                        struct sockaddr_in6 sin6;
-                        memset(&sin6, 0, sizeof(sin6));
-                        sin6.sin6_family = AF_INET6;
-                        if (x.first().isjust()) {
-                            sin6.sin6_addr = x.first().just(); }
-                        if (x.second().isjust()) {
-                            if (x.second().just() >= 65536) {
-                                return error::noparse; }
-                            sin6.sin6_port = htons(
-                                (uint16_t)x.second().just()); }
-                        return peername((const struct sockaddr *)&sin6,
-                                        sizeof(sin6)); }); });
-    return parseip() || parseip6(); }
+                ~(":" + intparser<unsigned>()) + "/") {}
+    public: orerror<result> parse(const char *what) const {
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        auto rr(r.success());
+        auto x(rr.res);
+        struct sockaddr_in sin;
+        memset(&sin, 0, sizeof(sin));
+        sin.sin_family = AF_INET;
+        if (x.first().isjust()) {
+            auto p(x.first().just());
+            auto a(p.first().first().first());
+            auto b(p.first().first().second());
+            auto c(p.first().second());
+            auto d(p.second());
+            if (a > 255 || b > 255 || c > 255 || d > 255) {
+                return error::noparse; };
+            sin.sin_addr.s_addr =
+                (d << 24) |
+                (c << 16) |
+                (b << 8) |
+                a; }
+        if (x.second().isjust()) {
+            if (x.second().just() >= 65536) {
+                return error::noparse; }
+            sin.sin_port = htons((uint16_t)x.second().just()); }
+        return result(rr.left, peername((const struct sockaddr *)&sin,
+                                        sizeof(sin))); } };
+    class parseip6 : public ::parser<peername> {
+    public: const parser<pair<maybe<in6_addr>,
+                              maybe<unsigned> > > &inner;
+    public: parseip6()
+        : inner("ip6://" + ~ip6litparser +
+                ~(":" + intparser<unsigned>()) + "/") {}
+    public: orerror<result> parse(const char *what) const {
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        auto rr(r.success());
+        auto x(rr.res);
+        struct sockaddr_in6 sin6;
+        memset(&sin6, 0, sizeof(sin6));
+        sin6.sin6_family = AF_INET6;
+        if (x.first().isjust()) sin6.sin6_addr = x.first().just();
+        if (x.second().isjust()) {
+            if (x.second().just() >= 65536) return error::noparse;
+            sin6.sin6_port = htons((uint16_t)x.second().just()); }
+        return result(rr.left, peername((const struct sockaddr *)&sin6,
+                                        sizeof(sin6))); } };
+    return (*new parseip()) || (*new parseip6()); }
 
 const parser<peername::port> &
 peernameport::parser() {
