@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "error.H"
+#include "void.H"
 
 class crashcontext;
 class deserialise1;
@@ -133,25 +134,10 @@ template <typename t> maybe<t> mkjust(const t &x);
 /* Special case for maybe<void>.  Semantically, this is just a bool;
  * its only purpose is to make other templates come out a little bit
  * more cleanly. */
-template <> class maybe<void> {
-private: bool r;
-private: maybe() : r(false) {}
-public:  maybe(const quickcheck &);
-public:  template <typename t> maybe(const maybe<t> &o);
-public:  maybe(_Nothing)
-    : r(true) {}
-public:  static maybe just;
-public:  void operator=(const maybe &o) {
-    r = o.r; }
-public:   bool isnothing() const { return r; }
-public:   bool operator!() const { return isnothing(); }
-public:   bool isjust() const { return !r; }
-public:   void mkjust() { r = false; }
-public:   bool operator==(const _Nothing) const {
-    return isnothing(); }
-public:   bool operator==(const maybe<void> &x) const {
-    return isjust() == x.isjust(); }
-public:   template <typename o> maybe<o> map(const std::function<o ()> &f); };
+template <> class maybe<void> : public maybe<Void> {
+private: maybe() : maybe<Void>(Void()) {}
+public:  maybe(_Nothing n) : maybe<Void>(n) {}
+public:  static maybe just; };
 
 template <typename t> bool operator ==(const t &a, const maybe<t> &o);
 

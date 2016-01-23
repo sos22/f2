@@ -181,14 +181,6 @@ _Nothing::operator==(const maybe<t> &o) const { return o.isnothing(); }
 template <typename t> bool
 _Nothing::operator!=(const maybe<t> &o) const { return o.isjust(); }
 
-template <typename t>
-maybe<void>::maybe(const maybe<t> &o) : r(o.r) {}
-
-template <typename o> maybe<o>
-maybe<void>::map(const std::function<o ()> &f) {
-    if (isnothing()) return Nothing;
-    else return f(); }
-
 template <typename t> bool
 operator ==(const t &a, const maybe<t> &o) {
     return o.isjust() && a == o.just(); }
