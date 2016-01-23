@@ -1,6 +1,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include <valgrind/valgrind.h>
+
 #include "logging.H"
 #include "pubsub.H"
 #include "socket.H"
@@ -196,12 +198,13 @@ static testmodule __testpubsub(
            Doesn't really do a great deal beyond confirming that we
            don't crash. */
         publisher pub;
-        timestamp deadline(timedelta::milliseconds(200).future());
+        timestamp deadline((running_on_valgrind() ? 1_s : 200_ms).future());
         int cntr;
         cntr = 0;
         spark<bool> t1([&pub, deadline] () {
                 while (timestamp::now() < deadline) {
-                    pub.publish(); }
+                    pub.publish();
+                    if (running_on_valgrind()) sched_yield(); }
                 return true; });
         spark<bool> t2([&pub, &cntr, deadline] () {
                 subscriber sub;
@@ -216,7 +219,7 @@ static testmodule __testpubsub(
                 return true; } );
         t1.get();
         t2.get();
-        tassert(T(cntr) >= T(3000)); },
+        tassert(T(cntr) >= (running_on_valgrind() ? T(10) : T(3000))); },
     "pingpong", [] {
         /* Ping-pong back and forth between two threads for a
          * bit. */
