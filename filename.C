@@ -397,8 +397,16 @@ filename::mktemp() {
 
 const parser<filename> &
 filename::parser() {
-    return ("<filename:" + string::parser() + ">")
-        .map<filename>([] (const string &x) { return filename(x); }); }
+    class f : public ::parser<filename> {
+    public: const ::parser<string> &inner;
+    public: f() : inner("<filename:" + string::parser() + ">") {}
+    public: orerror<result> parse(const char *what) const {
+        return inner.parse(what).map<result>(
+            [] (const ::parser<string>::result &r) {
+                return r.map<filename>(
+                    [] (auto rr) {
+                        return filename(rr); }); }); } };
+    return *new f(); }
 
 unsigned long
 filename::hash() const { return content.hash(); }
