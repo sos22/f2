@@ -36,6 +36,12 @@ fields::mk(const agentname &s) {
 
 const parser< ::agentname> &
 agentname::parser() {
-    return ("<agentname:" + parsers::strparser + ">").map<agentname>(
-        [] (const char *const&what) {
-            return agentname(what); }); }
+    class f : public ::parser< ::agentname> {
+    public: const ::parser<const char *> &inner;
+    public: f() : inner("<agentname:" + parsers::strparser + ">") {}
+    public: orerror<result> parse(const char *what) const {
+        return inner.parse(what)
+            .map<result>([] (auto r) {
+                    return r.map<agentname>([] (auto rr) {
+                            return agentname(rr); }); });}};
+    return *new f(); }
