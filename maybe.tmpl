@@ -95,6 +95,21 @@ maybe<t>::field(crashcontext ct) const {
     if (isnothing()) return fields::mk("Nothing");
     else return "<" + fields::mk(just(), ct) + ">"; }
 
+template <typename t> const ::parser<maybe<t> > &
+maybe<t>::parser(const ::parser<t> &underlying) {
+    class f : public ::parser<maybe<t> > {
+    public: const ::parser<t> &inner;
+    public: f(const ::parser<t> &u) : inner("<" + u + ">") {}
+    public: orerror<typename ::parser<maybe<t> >::result> parse(
+        const char *what) const {
+        return inner.parse(what).map<typename ::parser<maybe<t> >::result>(
+            [] (auto r) {
+                return r.map<maybe<t> > ([] (auto x) { return x; }); }); } };
+    return strmatcher("Nothing", maybe<t>(Nothing)) || (*new f(underlying)); }
+
+template <typename t> const ::parser<maybe<t> > &
+maybe<t>::parser() { return parser(t::parser()); }
+
 template <typename t> t
 maybe<t>::just(_Steal s) { return t(s, just()); }
 
@@ -167,13 +182,6 @@ maybe<t>::silencecompiler(args &&... params) {
 
 template <typename t> maybe<t>
 mkjust(const t &x) { return maybe<t>(x); }
-
-namespace parsers {
-template <typename t> const parser<maybe<t> > &
-_maybe(const parser<t> &underlying) {
-    return strmatcher("Nothing", maybe<t>(Nothing)) ||
-        ("<" + underlying + ">").map<maybe<t> >(
-            [] (const t &x) { return maybe<t>(x); }); } }
 
 template <typename t> bool
 _Nothing::operator==(const maybe<t> &o) const { return o.isnothing(); }

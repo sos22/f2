@@ -28,7 +28,7 @@ static testmodule __testmaybe(
     "maybe",
     list<filename>::mk("maybe.C", "maybe.H", "maybe.tmpl"),
     testmodule::LineCoverage(90_pc),
-    testmodule::BranchCoverage(50_pc),
+    testmodule::BranchCoverage(65_pc),
     "nothing", [] { maybe<nodestruct> x(Nothing); },
     "copy", [] {
         maybe<countcopies> x(countcopies(0));
@@ -145,7 +145,12 @@ static testmodule __testmaybe(
         serialise<maybe<string> >(q); },
     "parser", [] {
         parsers::roundtrip(
-            parsers::_maybe(parsers::intparser<unsigned>())); },
+            maybe<unsigned>::parser(parsers::intparser<unsigned>()));
+        parsers::roundtrip(maybe<string>::parser());
+        auto &t(maybe<void>::parser(strmatcher("hello")));
+        assert(t.match(string("<hello>")) == maybe<void>::just);
+        assert(t.match(string("<goodbye>")) == error::noparse);
+        assert(t.match(string("Nothing")) == Nothing); },
     "alignment", [] {
         maybe<unsigned long> x[3] = {1, 7, 9};
         assert((unsigned long)&x[0].just() % alignof(unsigned long) == 0);

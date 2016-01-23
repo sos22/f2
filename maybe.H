@@ -25,6 +25,7 @@
 
 class crashcontext;
 class deserialise1;
+template <typename> class parser;
 class quickcheck;
 class serialise1;
 
@@ -127,7 +128,8 @@ public:
     
     const fields::field &field() const;
     const fields::field &field(crashcontext) const;
-};
+public: static const ::parser<maybe<t> > &parser(const parser<t> &underlying);
+public: static const ::parser<maybe<t> > &parser(); };
 
 template <typename t> maybe<t> mkjust(const t &x);
 
@@ -137,15 +139,11 @@ template <typename t> maybe<t> mkjust(const t &x);
 template <> class maybe<void> : public maybe<Void> {
 private: maybe() : maybe<Void>(Void()) {}
 public:  maybe(_Nothing n) : maybe<Void>(n) {}
+public:  static const ::parser<maybe<void> > &parser(const ::parser<void> &);
 public:  static maybe just; };
 
 template <typename t> bool operator ==(const t &a, const maybe<t> &o);
 
 template <typename t> bool operator !=(const t &a, const maybe<t> &o);
-
-template <typename> class parser;
-namespace parsers {
-template <typename t> const parser<maybe<t> > &_maybe(const parser<t> &);
-}
 
 #endif /* !MAYBE_H__ */
