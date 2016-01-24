@@ -37,9 +37,10 @@ storageconfig::parser() {
     public: decltype(i) inner;
     public: f(decltype(i) ii) : inner(ii) {}
     public: orerror<result> parse(const char *what) const {
-        return inner.parse(what).map<result>([] (auto r) {
-                return r.map<storageconfig>([] (auto x) {
-                        return storageconfig(
-                            x.first().dflt(filename("storagepool")),
-                            x.second()); }); }); } };
+        auto i(inner.parse(what));
+        if (i.isfailure()) return i.failure();
+        else return i.success().map<storageconfig>([] (auto x) {
+                return storageconfig(
+                    x.first().dflt(filename("storagepool")),
+                    x.second()); }); } };
     return *new f(i); }

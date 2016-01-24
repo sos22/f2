@@ -44,10 +44,10 @@ beaconconfig::parser() {
     public: decltype(i) inner;
     public: f(decltype(inner) _inner) : inner(_inner) {}
     public: orerror<result> parse(const char *what) const {
-        return inner.parse(what).map<result>(
-            [] (auto r) {
-                return r.map<beaconconfig>([] (auto w) {
-                        return beaconconfig(w.first(), w.second()); }); }); } };
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        return r.success().map<beaconconfig>([] (auto w) {
+                return beaconconfig(w.first(), w.second()); }); } };
     return *new f(i); }
 
 beaconconfig

@@ -146,10 +146,10 @@ string::parser(void) {
     public: const ::parser<const char *> &inner;
     public: f() : inner(parsers::strparser) {}
     public: orerror<result> parse(const char *what) const {
-        return inner.parse(what)
-            .map<parser<string>::result>([] (auto res) {
-                    return res.map<string>([] (auto res2) {
-                            return string(res2); }); }); } };
+        auto i(inner.parse(what));
+        if (i.isfailure()) return i.failure();
+        else return i.success().map<string>([] (auto res2) {
+                return string(res2); }); } };
     return *new f(); }
 
 unsigned long

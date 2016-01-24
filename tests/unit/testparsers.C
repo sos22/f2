@@ -281,16 +281,6 @@ static testmodule __testparsers(
     "nul", [] {
         assert(nulparser(73).match("") == 73);
         assert(nulparser(73).match("x") == error::noparse); },
-    "map", [] {
-        auto ip(intparser<long>);
-        assert( ip()
-                .map<double>([] (int x) { return x * 5 + .3; })
-                .match("7")
-                .success() == 35.3);
-        assert( errparser<int>(error::dlopen)
-                .map<const char *>([] (int) { return "Huh?"; })
-                .match("7")
-                .failure() == error::dlopen); },
     "maperr", [] {
         assert(intparser<unsigned>()
                ._maperr<double>(
@@ -371,7 +361,7 @@ static testmodule __testparsers(
         class mapp : public ::parser<string> {
         public: orerror<result> parse(const char *what) const {
             return parsers::intparser<int>().parse(what)
-                .map<result>([] (auto x1) {
+                .map<result>([] (const parser<int>::result &x1) {
                         return x1.map<string>([] (auto x2) {
                                 assert(x2 == 5);
                                 return "bob"; }); }); } };

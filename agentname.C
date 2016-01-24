@@ -41,7 +41,7 @@ agentname::parser() {
     public: f() : inner("<agentname:" + parsers::strparser + ">") {}
     public: orerror<result> parse(const char *what) const {
         return inner.parse(what)
-            .map<result>([] (auto r) {
+            .map<result>([] (const parser<const char *>::result &r) {
                     return r.map<agentname>([] (auto rr) {
                             return agentname(rr); }); });}};
     return *new f(); }

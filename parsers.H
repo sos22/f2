@@ -19,6 +19,7 @@ class string;
  * rvals. */
 template <typename rval>
 class parser : public tmpheap::base {
+public: rval *typetag[0];
     /* Partial parse result: represents the value of the current
        parser and all of the bits it didn't parse. */
 public: class result {
@@ -29,12 +30,10 @@ public: class result {
         args &&... params);
     public: template <typename o> typename parser<o>::result map(
         const std::function<o (const rval &)> &) const; };
+public: const result *resulttag[0];
     /* Parse a string, returning either the result of the parse or an
      * error. */
 public: virtual orerror<result> parse(const char *) const = 0;
-    /* Lift a function into the parser monad. */
-public: template <typename o> const parser<o> &map(
-    const std::function<o (const rval &)> &what) const;
     /* Like map, except that it can also see error values. */
 public: template <typename o> const parser<o> &_maperr(
     const std::function<orerror<o> (const orerror<rval> &)> &what) const;

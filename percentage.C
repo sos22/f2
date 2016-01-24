@@ -19,7 +19,8 @@ percentage::parser() {
     public: const ::parser<long double> &inner;
     public: f() : inner(parsers::longdoubleparser + "%") {}
     public: orerror<result> parse(const char *what) const {
-        return inner.parse(what).map<result>([] (auto r) {
-                return r.map<percentage>([] (auto x) {
-                        return percentage(x); }); }); } };
+        auto i(inner.parse(what));
+        if (i.isfailure()) return i.failure();
+        else return i.success().map<percentage>([] (auto x) {
+                return percentage(x); }); } };
     return *new f(); }

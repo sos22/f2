@@ -68,9 +68,10 @@ proto::eq::eventid::_parser() {
     public: decltype(i) inner;
     public: f(decltype(i) ii) : inner(ii) {}
     public: orerror<result> parse(const char *what) const {
-        return inner.parse(what).map<result>([] (auto r) {
-                return r.map<proto::eq::eventid>([] (auto x) {
-                        return proto::eq::eventid(x); }); }); } };
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        else return r.success().map<proto::eq::eventid>([] (auto x) {
+                return proto::eq::eventid(x); }); } };
     return *new f(i); }
 
 proto::eq::tag::tag(deserialise1 &ds)

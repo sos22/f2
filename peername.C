@@ -379,8 +379,8 @@ peernameport::parser() {
     public: const ::parser<unsigned short> &inner;
     public: f() : inner("<port:" + parsers::intparser<unsigned short>() + ">"){}
     public: orerror<result> parse(const char *what) const {
-        return inner.parse(what)
-            .map<result>([] (auto r) {
-                    return r.map<peername::port>([] (auto x) {
-                            return peername::port(x); }); }); } };
+        auto r(inner.parse(what));
+        if (r.isfailure()) return r.failure();
+        return r.success().map<peername::port>([] (auto x) {
+                return peername::port(x); }); } };
     return *new f(); }
