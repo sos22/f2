@@ -8,8 +8,6 @@ static testmodule __testuntested(
     "untested",
     list<filename>::mk("agentname.C",
                        "agentname.H",
-                       "bytecount.C",
-                       "bytecount.H",
                        "config.H",
                        "config.tmpl", /* Not even a C++ file */
                        "computecli.C",
