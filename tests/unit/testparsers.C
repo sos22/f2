@@ -281,45 +281,6 @@ static testmodule __testparsers(
     "nul", [] {
         assert(nulparser(73).match("") == 73);
         assert(nulparser(73).match("x") == error::noparse); },
-    "maperr", [] {
-        assert(intparser<unsigned>()
-               ._maperr<double>(
-                   [] (const orerror<unsigned> &x) {
-                       return x.failure(); })
-               .match("Z") == error::noparse);
-        assert(intparser<unsigned>()
-               ._maperr<double>(
-                   [] (const orerror<unsigned> &x) {
-                       assert(x.success() == 73);
-                       return error::noparse; })
-               .match("73") == error::noparse);
-        assert(intparser<unsigned>()
-               ._maperr<double>(
-                   [] (const orerror<unsigned> &x) {
-                       assert(x.success() == 73);
-                       return 92.5; })
-               .match("73") == 92.5);
-        assert(intparser<unsigned>()
-               ._maperr<double>(
-                   [] (const orerror<unsigned> &x) {
-                       assert(x == error::noparse);
-                       return 92.25; })
-               .match("") == 92.25); },
-    "mapvoid", [] {
-        int cntr;
-        cntr = 0;
-        assert(strmatcher("Foo")
-               .map<int>([&cntr] { return cntr++; })
-               .match("Foo") == 0);
-        assert(strmatcher("Foo")
-               .map<int>([&cntr] { return cntr++; })
-               .match("Foo") == 1);
-        assert(strmatcher("Foo")
-               .map<int>([&cntr] { return cntr++; })
-               .match("Foo") == 2);
-        assert(strmatcher("Foo")
-               .map<int>([&cntr] { return cntr++; })
-               .match("Bar") == error::noparse); },
     "roundtrip", [] { parsers::roundtrip(intparser<unsigned>()); },
     "sepby", [] {
         auto &p(parsers::sepby(parsers::intparser<int>(),

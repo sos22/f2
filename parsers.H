@@ -34,9 +34,6 @@ public: const result *resulttag[0];
     /* Parse a string, returning either the result of the parse or an
      * error. */
 public: virtual orerror<result> parse(const char *) const = 0;
-    /* Like map, except that it can also see error values. */
-public: template <typename o> const parser<o> &_maperr(
-    const std::function<orerror<o> (const orerror<rval> &)> &what) const;
     /* Convenience function which runs the parser and returns either
        the result, if it matched the entire string, or an error, if it
        didn't. */
@@ -61,8 +58,6 @@ template <>
 class parser<void> : public tmpheap::base {
 public: typedef const char *result;
 public: virtual orerror<const char *> parse(const char *) const = 0;
-public: template <typename o> const parser<o> &map(
-    const std::function<o ()> &what) const;
 public: orerror<void> match(const string &) const;
 public: template <typename t> const parser<t> &val(const t &) const;
 /* Concatenation and alternation have simpler types here. */

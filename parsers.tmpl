@@ -20,37 +20,6 @@ template <typename rval> template <typename o> typename parser<o>::result
 parser<rval>::result::map(const std::function<o (const rval &)> &f) const {
     return typename parser<o>::result(left, f(res)); }
 
-template <typename newtype, typename oldtype>
-class _maperrparser : public parser<newtype> {
-private: typedef typename parser<newtype>::result result;
-private: const parser<oldtype> &underlying;
-private: std::function<orerror<newtype> (const orerror<oldtype> &)> mapper;
-private: orerror<result> parse(const char *what) const {
-    orerror<result> res(error::unknown);
-    auto r1(underlying.parse(what));
-    if (r1.isfailure()) {
-        auto r2(mapper(r1.failure()));
-        if (r2.isfailure()) res = r2.failure();
-        else res.mksuccess(what, r2.success()); }
-    else {
-        auto r2(mapper(r1.success().res));
-        if (r2.isfailure()) res = r2.failure();
-        else res.mksuccess(r1.success().left, r2.success()); }
-    return res; }
-public:  _maperrparser(const parser<oldtype> &_underlying,
-                       const std::function<
-                          orerror<newtype> (const orerror<oldtype> &)> &_mapper)
-    : parser<newtype>(),
-      underlying(_underlying),
-      mapper(_mapper) {} };
-template <typename oldtype>
-template <typename newtype>
-parser<newtype> const &
-parser<oldtype>::_maperr(
-    std::function<
-        orerror<newtype> (const orerror<oldtype> &)> const &mapper) const {
-    return *new _maperrparser<newtype, oldtype>(*this, mapper); }
-
 template <typename r> orerror<r>
 parser<r>::match(const string &what) const {
     typedef orerror<r> typ;
@@ -171,22 +140,6 @@ template <typename t>
 const parser<maybe<t> > &
 parser<t>::operator|(const parser<void> &what) const {
     return *new parseormatch<t>(*this, what); }
-
-template <typename t>
-class mapvoidparser : public parser<t> {
-private: const parser<void> &underlying;
-private: const std::function<t ()> what;
-public:  mapvoidparser(const parser<void> &_underlying,
-                       const std::function<t ()> &_what)
-    : underlying(_underlying),
-      what(_what) {}
-private: orerror<typename parser<t>::result> parse(const char *str) const {
-    auto r(underlying.parse(str));
-    if (r.isfailure()) return r.failure();
-    else return typename parser<t>::result(r.success(), what()); } };
-template <typename t> const parser<t> &
-parser<void>::map(const std::function<t ()> &what) const {
-    return *new mapvoidparser<t>(*this, what); }
 
 template <typename t> const parser<t> &
 parser<void>::val(const t &what) const {
