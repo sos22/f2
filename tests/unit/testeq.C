@@ -437,6 +437,7 @@ static testmodule __testeq(
         assert(c == NULL);
         pool->destroy();
         s->destroy(io);
+        q->destroy(io);
         server->destroy();
         state.unlink().fatal("unlinking test queue"); },
     "shutdownwaiter", [] (clientio io) {
@@ -608,6 +609,7 @@ static testmodule __testeq(
             assert(c->pop(io) == x); }
         c->destroy();
         s->destroy(io);
+        q->destroy(io);
         server->destroy();
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
@@ -662,6 +664,7 @@ static testmodule __testeq(
         timedelta::milliseconds(200).future().sleep(io);
         c1->destroy();
         s->destroy(io);
+        q->destroy(io);
         server->destroy();
         pool->destroy();
         state.unlink().fatal("unlinking test queue"); },
