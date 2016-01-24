@@ -35,6 +35,8 @@ results=$(realpath $2)
 infradir=$(realpath $(dirname $0) )
 logs=${results}/logs
 
+defaultmailto=sos22@archy.org.uk
+
 if ! [ -e ${results}/lastdaily ]
 then
     # Bootstrap: if we've never run any daily tests, pretend someone
@@ -47,7 +49,7 @@ lastdaily=$(cat ${results}/lastdaily)
 mkdir -p ${results}/routine
 
 sendemail() {
-    /usr/sbin/sendmail sos22@archy.org.uk
+    /usr/sbin/sendmail $*
 }
 
 _basemode() {
@@ -76,7 +78,8 @@ basemode() {
     else
         echo "${now} ${commit} FAIL" >> $logs
         grep -v 'pass$' ${t}/testdir/summary | sed 's/^/    /' >> $logs
-        ${t}/checkout/infra/summarisefailure.sh ${t} ${now} | sendemail
+        ${t}/checkout/infra/summarisefailure.sh ${t} ${now} $defaultmailto |
+            sendemail $defaultmailto
     fi
 }
 
@@ -106,7 +109,8 @@ dailytests() {
         else
             echo "${now} ${fll} ${commit} FAIL" >> $logs
             grep -v 'pass$' ${t}/${fll}/testdir/summary | sed 's/^/    /' >> $logs
-            ${t}/${fll}/checkout/infra/summarisefailure.sh ${t}/$fll ${now}-$fll | sendemail
+            ${t}/${fll}/checkout/infra/summarisefailure.sh ${t}/$fll ${now}-$fll $defaultmailto |
+                sendemail $defaultmailto
         fi
     done
 }
@@ -114,8 +118,8 @@ dailytests() {
 mailheader() {
     cat <<EOF
 Subject: $1
-From: sos22@archy.org.uk
-To: sos22@archy.org.uk
+From: $defaultemailto
+To: $(cat $2 | sed 's/ /, /')
 
 EOF
 }
@@ -157,19 +161,20 @@ do
         do
             t=$(mktemp)
             t2=$(mktemp)
+            t3=$(mktemp)
             now=$(_now)
             echo "merging $name"
-            if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1 3>$t2
+            if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1 3>$t2 4>$t3
             then
                 echo "merging $name successful"
                 echo "${now} MERGE $commit ($name) PASS" >> ${logs}
-                mergesuccmsg $name $t2 | sendemail
+                mergesuccmsg $name $t2 | sendemail $(cat $t3)
             else
                 echo "merging $name failed"
                 echo "${now} MERGE $commit ($name) FAIL" >> ${logs}
-                mergefailmsg $name $t | sendemail
+                mergefailmsg $name $t | sendemail $(cat $t3)
             fi
-            rm -f $t $t2
+            rm -f $t $t2 $t3
             # The merge branch gets deleted even if the merge fails.
             git push --delete ${repo} merge/${name}
         done

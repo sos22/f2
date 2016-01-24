@@ -5,6 +5,7 @@ set -e
 results=$1
 repo=$2
 name=$3
+recipients=$4
 
 now=$(date +%Y-%m-%d-%H-%M-%S)
 t=${results}/merge/${name}/${now}
@@ -58,6 +59,14 @@ then
 else
     dnp=false
 fi
+
+# Who gets emailed about this merge, when it finishes?
+git log "--pretty=format:%aE %cE %gE" ..merge/${name} |
+    tr ' ' '\n' |
+    sort -u |
+    grep -v '^$' |
+    tr '\n' ' ' > $recipients
+echo >> $recipients
 
 # Dribble intermediate commits in one at a time until we get to the
 # last one in the series.
