@@ -36,12 +36,19 @@ beaconconfig::field() const {
 
 const parser<beaconconfig> &
 beaconconfig::parser() {
-    return ("<beaconconfig:"
+    auto &i("<beaconconfig:"
             " reqport:" + peernameport::parser() +
             " respport:" + peernameport::parser() +
-            ">")
-        .map<beaconconfig>([] (pair<peernameport, peernameport> w) {
-                return beaconconfig(w.first(), w.second()); }); }
+            ">");
+    class f : public ::parser<beaconconfig> {
+    public: decltype(i) inner;
+    public: f(decltype(inner) _inner) : inner(_inner) {}
+    public: orerror<result> parse(const char *what) const {
+        return inner.parse(what).map<result>(
+            [] (auto r) {
+                return r.map<beaconconfig>([] (auto w) {
+                        return beaconconfig(w.first(), w.second()); }); }); } };
+    return *new f(i); }
 
 beaconconfig
 beaconconfig::dflt(
