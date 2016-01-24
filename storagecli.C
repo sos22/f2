@@ -40,7 +40,7 @@ f2main(list<string> &args) {
         auto stream(streamname::parser()
                     .match(args.idx(4))
                     .fatal("parsing stream name " + fields::mk(args.idx(4))));
-        auto oldsize(parsers::_bytecount()
+        auto oldsize(bytecount::parser()
                      .match(args.idx(5))
                      .fatal("parsing byte count " + fields::mk(args.idx(5))));
         buffer buf;
@@ -70,12 +70,12 @@ f2main(list<string> &args) {
                     .fatal("parsing stream name " + fields::mk(args.idx(4))));
         maybe<bytecount> start(Nothing);
         if (args.length() > 5) {
-            start = parsers::_bytecount()
+            start = bytecount::parser()
                 .match(args.idx(5))
                 .fatal("parsing start offset " + fields::mk(args.idx(5))); }
         maybe<bytecount> end(Nothing);
         if (args.length() > 6) {
-            end = parsers::_bytecount()
+            end = bytecount::parser()
                 .match(args.idx(6))
                 .fatal("parsing end offset " + fields::mk(args.idx(6))); }
         auto r(conn.read(clientio::CLIENTIO, job, stream, start, end)

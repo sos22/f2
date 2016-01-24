@@ -5,6 +5,8 @@
 #include "maybe.H"
 #include "serialise.H"
 
+template <typename> class parser;
+
 class bytecount {
 public:  unsigned long b;
 private: explicit bytecount(unsigned long _b) : b(_b) {}
@@ -39,7 +41,7 @@ public:  bytecount operator *(unsigned long o) const {
     return bytes(n); }
 
 public:  const fields::field &field() const { return fields::mk(b) + "B"; }
-
+public:  static const ::parser<bytecount> &parser();
 public:  template <typename t> static bytecount size(const t &) {
     return bytecount(sizeof(t)); }
 };
@@ -63,9 +65,5 @@ static inline bytecount
 operator"" _MB(unsigned long long x) { return bytecount::megabytes(x); }
 static inline bytecount
 operator"" _MiB(unsigned long long x) { return bytecount::mebibytes(x); }
-
-template <typename> class parser;
-namespace parsers {
-const parser< ::bytecount> &_bytecount(); }
 
 #endif /* !BYTECOUNT_H__ */

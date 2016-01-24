@@ -4,9 +4,9 @@
 
 #include "parsers.tmpl"
 
-const parser<bytecount> &
-parsers::_bytecount() {
-    auto &d(intparser<unsigned long>());
+const ::parser<bytecount> &
+bytecount::parser() {
+    auto &d(parsers::intparser<unsigned long>());
     return
         (d + strmatcher("B")).map<bytecount>([] (const unsigned long &c) {
                 return bytecount::bytes(c); }) ||
