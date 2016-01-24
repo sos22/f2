@@ -134,9 +134,6 @@ beaconclientconfig::field() const {
         " broadcastinterval:" + fields::mk(_broadcastinterval) +
         ">"; }
 
-const fields::field &
-fields::mk(const beaconclientconfig &o) { return o.field(); }
-
 class beaconclientslot {
     friend class beaconclient;
     /* Name of remote system */

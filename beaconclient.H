@@ -81,9 +81,6 @@ public:  bool operator==(const beaconclientconfig &o) const;
 public:  bool operator!=(const beaconclientconfig &o) const;
 public:  const fields::field &field() const; };
 
-namespace fields {
-class field;
-const field &mk(const beaconclientconfig &); }
 template <typename t> class parser;
 namespace parsers {
 const parser<beaconclientconfig> &__beaconclientconfig(); }
