@@ -44,12 +44,15 @@ fd_t::polled(const struct pollfd &pfd) const
 orerror<size_t>
 fd_t::read(clientio, void *buf, size_t sz, maybe<timestamp> deadline) const {
     if (deadline != Nothing) {
+        bool first = true;
         while (1) {
             struct pollfd pfd = poll(POLLIN);
             auto remaining(
                 (deadline.just() - timestamp::now()).as_milliseconds());
-            if (remaining < 0) return error::timeout;
             assert(remaining == (int)remaining);
+            if (!first && remaining < 0) return error::timeout;
+            if (remaining < 0) remaining = 0;
+            first = false;
             int r = ::poll(&pfd, 1, (int)remaining);
             if (r < 0) return error::from_errno();
             if (r == 1) break;
@@ -71,12 +74,15 @@ fd_t::write(clientio,
             size_t sz,
             maybe<timestamp> deadline) const {
     if (deadline != Nothing) {
+        bool first = false;
         while (1) {
             struct pollfd pfd = poll(POLLOUT);
             auto remaining(
                 (deadline.just() - timestamp::now()).as_milliseconds());
             assert(remaining == (int)remaining);
-            if (remaining < 0) return error::timeout;
+            if (!first && remaining < 0) return error::timeout;
+            if (remaining < 0) remaining = 0;
+            first = false;
             int r = ::poll(&pfd, 1, (int)remaining);
             if (r < 0) return error::from_errno();
             if (r == 1) break;

@@ -417,7 +417,7 @@ static testmodule __testpubsub(
             delay.future().sleep(_io);
             assert(sub.poll() == NULL);
             {   char b[4096];
-                pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
+                pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll1"); }
             delay.future().sleep(_io);
             assert(sub.poll() == &writing); }
         while (1) {
@@ -436,7 +436,7 @@ static testmodule __testpubsub(
             delay.future().sleep(_io);
             assert(sub.poll() == NULL);
             {   char b[4096];
-                pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll"); }
+                pipe.fd1.readpoll(b, sizeof(b)).fatal("readpoll2"); }
             delay.future().sleep(_io);
             assert(sub.poll() == &writing); }
         deinitpubsub(_io); },
