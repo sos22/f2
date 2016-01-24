@@ -51,17 +51,6 @@ parser<oldtype>::_maperr(
         orerror<newtype> (const orerror<oldtype> &)> const &mapper) const {
     return *new _maperrparser<newtype, oldtype>(*this, mapper); }
 
-template <typename oldtype>
-template <typename newtype>
-parser<newtype> const &
-parser<oldtype>::maperr(
-    std::function<
-        orerror<newtype> (const oldtype &)> const &mapper) const {
-    return _maperr<newtype>(
-        [mapper] (const orerror<oldtype> &e) -> orerror<newtype> {
-            if (e.isfailure()) return e.failure();
-            else return mapper(e.success()); }); }
-
 template <typename r> orerror<r>
 parser<r>::match(const string &what) const {
     typedef orerror<r> typ;

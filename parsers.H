@@ -37,9 +37,6 @@ public: virtual orerror<result> parse(const char *) const = 0;
     /* Like map, except that it can also see error values. */
 public: template <typename o> const parser<o> &_maperr(
     const std::function<orerror<o> (const orerror<rval> &)> &what) const;
-    /* Like map, except that it can return an error. */
-public: template <typename o> const parser<o> &maperr(
-    const std::function<orerror<o> (const rval &)> &what) const;
     /* Convenience function which runs the parser and returns either
        the result, if it matched the entire string, or an error, if it
        didn't. */

@@ -304,17 +304,7 @@ static testmodule __testparsers(
                    [] (const orerror<unsigned> &x) {
                        assert(x == error::noparse);
                        return 92.25; })
-               .match("") == 92.25);
-        assert(intparser<unsigned>()
-               .maperr<double>(
-                   [] (const unsigned &x) {
-                       return x + 5; })
-               .match("12") == 17);
-        assert(intparser<unsigned>()
-               .maperr<double>(
-                   [] (const unsigned &) {
-                       return error::overflowed; })
-               .match("12") == error::overflowed); },
+               .match("") == 92.25); },
     "mapvoid", [] {
         int cntr;
         cntr = 0;
