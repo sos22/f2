@@ -54,23 +54,26 @@ beaconserverconfig::operator==(const beaconserverconfig &o) const {
 
 const parser<beaconserverconfig> &
 beaconserverconfig::parser() {
-    return ("<beaconserverconfig:" +
+    auto &i("<beaconserverconfig:" +
             ~(" proto:" + beaconconfig::parser()) +
             " cluster:" + clustername::parser() +
             " name:" + agentname::parser() +
             ~(" cachetime:" + timedelta::parser()) +
-            ">")
-        .map<beaconserverconfig>(
-            []
-            (const pair<pair<pair<maybe<beaconconfig>,
-                                  clustername>,
-                             agentname>,
-                        maybe<timedelta> > &w) {
-            return beaconserverconfig(
-                w.first().first().first().dflt(beaconconfig::dflt),
-                w.first().first().second(),
-                w.first().second(),
-                w.second().dflt(timedelta::seconds(60))); }); }
+            ">");
+    class f : public ::parser<beaconserverconfig> {
+    public: decltype(i) inner;
+    public: f(decltype(inner) _inner) : inner(_inner) {}
+    public: orerror<result> parse(const char *what) const {
+        auto i(inner.parse(what));
+        if (i.isfailure()) return i.failure();
+        auto &w(i.success().res);
+        return result(i.success().left,
+                      beaconserverconfig(
+                          w.first().first().first().dflt(beaconconfig::dflt),
+                          w.first().first().second(),
+                          w.first().second(),
+                          w.second().dflt(timedelta::seconds(60)))); } };
+    return *new f(i); }
 
 const fields::field &
 beaconserverconfig::field() const {
