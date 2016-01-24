@@ -1,5 +1,6 @@
 #include "spark.H"
 #include "test2.H"
+#include "testassert.H"
 #include "timedelta.H"
 #include "waitqueue.H"
 
@@ -23,4 +24,4 @@ static testmodule __waitqueuetest(
         auto start(timestamp::now());
         wq.append("foo");
         s.get();
-        assert(timestamp::now() - start < timedelta::milliseconds(20)); });
+        tassert(T(timestamp::now()) - T(start) < T(20_ms * TIMEDILATE)); });
