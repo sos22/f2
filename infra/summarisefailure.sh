@@ -3,9 +3,9 @@
 # Take one of the test directories produced by testmodule.sh and spit
 # out a summary of what went wrong.
 
-if [ $# -ne 2 ]
+if [ $# -ne 3 ]
 then
-    echo "need two arguments, test dir and timestamp"
+    echo "need three arguments, test dir, timestamp, and email address"
     exit 1
 fi
 
