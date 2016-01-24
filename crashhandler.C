@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <valgrind/valgrind.h>
+
 #include "clientio.H"
 #include "fields.H"
 #include "logging.H"
@@ -100,7 +102,7 @@ crashhandler::surrogate() {
         else {
             /* We are the parent. */
             timespec ts = {
-                .tv_sec = 1,
+                .tv_sec = RUNNING_ON_VALGRIND ? 10 : 1,
                 .tv_nsec = 0, };
             while (true) {
                 siginfo_t si;

@@ -13,7 +13,7 @@ static testmodule __testcrashhandler(
                        "crashhandler.H",
                        "crashhandler.tmpl"),
     testmodule::LineCoverage(18_pc),
-    testmodule::BranchCoverage(17_pc),
+    testmodule::BranchCoverage(16_pc),
     testmodule::Dependency("tests/crashhandlers/crasher"),
     "sh", [] (clientio io) {
         auto e(spawn::program("./tests/crashhandlers/crashhandlers.sh")
