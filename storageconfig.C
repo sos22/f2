@@ -29,13 +29,17 @@ storageconfig::field() const {
 
 const parser<storageconfig> &
 storageconfig::parser() {
-    return ("<storageconfig:" +
+    auto &i("<storageconfig:" +
             ~(" poolpath:" + filename::parser()) +
             " beacon:" + beaconserverconfig::parser() +
-            ">")
-        .map<storageconfig>(
-            []
-            (const pair<maybe<filename>, beaconserverconfig> &x) {
-            return storageconfig(
-                x.first().dflt(filename("storagepool")),
-                x.second()); }); }
+            ">");
+    class f : public ::parser<storageconfig> {
+    public: decltype(i) inner;
+    public: f(decltype(i) ii) : inner(ii) {}
+    public: orerror<result> parse(const char *what) const {
+        return inner.parse(what).map<result>([] (auto r) {
+                return r.map<storageconfig>([] (auto x) {
+                        return storageconfig(
+                            x.first().dflt(filename("storagepool")),
+                            x.second()); }); }); } };
+    return *new f(i); }
