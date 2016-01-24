@@ -164,7 +164,7 @@ do
             t3=$(mktemp)
             now=$(_now)
             echo "merging $name"
-            if ${infradir}/merge.sh ${results} ${repo} $name >$t 2>&1 3>$t2 4>$t3
+            if ${infradir}/merge.sh ${results} ${repo} $name $t3 >$t 2>&1 3>$t2
             then
                 echo "merging $name successful"
                 echo "${now} MERGE $commit ($name) PASS" >> ${logs}
