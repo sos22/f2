@@ -64,11 +64,14 @@ public: orerror<void> called(
 
 class abandonservice : public rpcservice2 {
 public: maybe<spark<void> > worker;
+public: waitbox<void> &started;
 public: waitbox<void> &abandoned;
 public: abandonservice(const rpcservice2::constoken &t,
+                       waitbox<void> &_started,
                        waitbox<void> &_abandoned)
     : rpcservice2(t, interfacetype::test),
       worker(Nothing),
+      started(_started),
       abandoned(_abandoned) {}
 public: orerror<void> called(
     clientio,
@@ -76,6 +79,7 @@ public: orerror<void> called(
     interfacetype,
     nnp<incompletecall> ic,
     onconnectionthread) final {
+    started.set();
     worker.mkjust([this, ic] () {
             ic->abandoned().get(clientio::CLIENTIO);
             abandoned.set();
@@ -376,12 +380,14 @@ static testmodule __testconnpool(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         agentname sn(q);
+        waitbox<void> started;
         waitbox<void> abandoned;
         auto srv(rpcservice2::listen<abandonservice>(
                      io,
                      cn,
                      sn,
                      peername::all(peername::port::any),
+                     started,
                      abandoned)
                  .fatal("starting abandon service"));
         auto pool(connpool::build(cn).fatal("building connpool"));
@@ -395,7 +401,7 @@ static testmodule __testconnpool(
                           connpool::connlock) {
                           assert(d == error::disconnected);
                           return error::toosoon; }));
-        (timedelta::milliseconds(100).future()).sleep(io);
+        started.get(io);
         assert(call->finished() == Nothing);
         pool->destroy();
         assert(call->pop(io) == error::toosoon);
@@ -406,11 +412,13 @@ static testmodule __testconnpool(
         auto cn(mkrandom<clustername>(q));
         agentname sn(q);
         waitbox<void> abandoned;
+        waitbox<void> started;
         auto srv(rpcservice2::listen<abandonservice>(
                      io,
                      cn,
                      sn,
                      peername::all(peername::port::any),
+                     started,
                      abandoned)
                  .fatal("starting abandon service"));
         auto pool(connpool::build(cn).fatal("building connpool"));
@@ -418,13 +426,13 @@ static testmodule __testconnpool(
                    io,
                    sn,
                    interfacetype::test,
-                   timestamp::now() + timedelta::milliseconds(100),
+                   (TIMEDILATE * 100_ms).future(),
                    [] (serialise1 &, connpool::connlock) {},
                    [] (deserialise1 &, connpool::connlock)
                    -> orerror<void> {
                        abort(); })
                == error::timeout);
-        (timestamp::now() + timedelta::milliseconds(100)).sleep(io);
+        started.get(io);
         assert(!abandoned.ready());
         srv->destroy(io);
         abandoned.get(io);
