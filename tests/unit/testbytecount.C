@@ -7,7 +7,7 @@
 static testmodule __bytecount(
     "bytecount",
     list<filename>::mk("bytecount.C", "bytecount.H"),
-    testmodule::BranchCoverage(35_pc),
+    testmodule::BranchCoverage(55_pc),
     "basics", [] {
         assert(1_B == bytecount::bytes(1));
         assert(1000_B == bytecount::kilobytes(1));
