@@ -1385,9 +1385,13 @@ static testmodule __testconnpool(
         /* Not much point in doing this if we don't have at least a
          * few hundred samples. */
         unsigned nrsamples(samples.length());
-        tassert(T(nrsamples) > T(1500u));
+        tassert(T(nrsamples) > (running_on_valgrind() ? T(100u) : T(1500u)));
+        if (running_on_valgrind()) {
+            /* If we're on Valgrind we probably won't collect enough
+             * samples for useful stats. */
+            return; }
         /* Drop the first and last few, because they're more likely to
-         * have odd results. */
+         * have odd results. e*/
         for (unsigned x = 0; x < 500; x++) samples.drophead();
         for (unsigned x = 0; x < 500; x++) samples.droptail();
         nrsamples -= 1000;
