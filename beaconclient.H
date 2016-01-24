@@ -22,6 +22,7 @@
 class clientio;
 template <typename, typename> class pair;
 template <typename> class orerror;
+template <typename t> class parser;
 class quickcheck;
 
 class beaconclientslot;
@@ -79,11 +80,8 @@ public:  void serialise(serialise1 &) const;
 public:  explicit beaconclientconfig(deserialise1 &);
 public:  bool operator==(const beaconclientconfig &o) const;
 public:  bool operator!=(const beaconclientconfig &o) const;
-public:  const fields::field &field() const; };
-
-template <typename t> class parser;
-namespace parsers {
-const parser<beaconclientconfig> &__beaconclientconfig(); }
+public:  const fields::field &field() const;
+public:  static const ::parser<beaconclientconfig> &parser(); };
 
 class beaconclient : private thread {
     friend class pausedthread<beaconclient>;

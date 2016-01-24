@@ -268,7 +268,7 @@ static testmodule __beacontests(
         s2->destroy(io);
         s3->destroy(io); },
     "clientconfig", [] {
-        parsers::roundtrip(parsers::__beaconclientconfig());
+        parsers::roundtrip(beaconclientconfig::parser());
         quickcheck q;
         serialise<beaconclientconfig>(q); },
     "serverconfig", [] { parsers::roundtrip(beaconserverconfig::parser()); },

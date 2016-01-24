@@ -59,7 +59,7 @@ beaconclientconfig::beaconclientconfig(const clustername &__cluster,
     assert(__broadcastinterval >= timedelta::seconds(0)); }
 
 const parser<beaconclientconfig> &
-parsers::__beaconclientconfig() {
+beaconclientconfig::parser() {
     return ("<beaconclientconfig: " + clustername::parser() +
             ~(" type:" + maybe<interfacetype>::parser()) +
             ~(" name:" + maybe<agentname>::parser()) +
