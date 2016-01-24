@@ -63,9 +63,15 @@ fields::mk(proto::eq::eventid e) { return e.field(); }
 
 const parser<proto::eq::eventid> &
 proto::eq::eventid::_parser() {
-    return ("<ev:" + parsers::intparser<unsigned long>() + ">")
-        .map<proto::eq::eventid> ([] (const unsigned long &x) {
-                return proto::eq::eventid(x); }); }
+    auto &i("<ev:" + parsers::intparser<unsigned long>() + ">");
+    class f : public ::parser<proto::eq::eventid> {
+    public: decltype(i) inner;
+    public: f(decltype(i) ii) : inner(ii) {}
+    public: orerror<result> parse(const char *what) const {
+        return inner.parse(what).map<result>([] (auto r) {
+                return r.map<proto::eq::eventid>([] (auto x) {
+                        return proto::eq::eventid(x); }); }); } };
+    return *new f(i); }
 
 proto::eq::tag::tag(deserialise1 &ds)
     : proto::tag(ds) {
