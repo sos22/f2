@@ -60,33 +60,30 @@ beaconclientconfig::beaconclientconfig(const clustername &__cluster,
 
 const parser<beaconclientconfig> &
 beaconclientconfig::parser() {
-    return ("<beaconclientconfig: " + clustername::parser() +
-            ~(" type:" + maybe<interfacetype>::parser()) +
-            ~(" name:" + maybe<agentname>::parser()) +
-            ~(" proto:" + beaconconfig::parser()) +
-            ~(" queryinterval:" + timedelta::parser()) +
-            ~(" broadcastinterval:" + timedelta::parser()) +
-            ">")
-        .maperr<beaconclientconfig>(
-            []
-            (const pair<pair<pair<pair<pair<clustername,
-                                            maybe<maybe<interfacetype> > >,
-                                       maybe<maybe<agentname> > >,
-                                  maybe<beaconconfig> >,
-                             maybe<timedelta> >,
-                        maybe<timedelta> > &x) {
-                return  beaconclientconfig::mk(
-                        x.first().first().first().first().first(),
-                        x.first().first().first().first().second()
-                            .dflt(Nothing),
-                        x.first().first().first().second()
-                            .dflt(Nothing),
-                        x.first().first().second()
-                            .dflt(beaconconfig::dflt),
-                        x.first().second()
-                            .dflt(timedelta::seconds(1)),
-                        x.second()
-                            .dflt(timedelta::minutes(1))); }); }
+    auto &inner("<beaconclientconfig: " + clustername::parser() +
+                ~(" type:" + maybe<interfacetype>::parser()) +
+                ~(" name:" + maybe<agentname>::parser()) +
+                ~(" proto:" + beaconconfig::parser()) +
+                ~(" queryinterval:" + timedelta::parser()) +
+                ~(" broadcastinterval:" + timedelta::parser()) +
+                ">");
+    class f : public ::parser<beaconclientconfig> {
+    public: decltype(inner) &i;
+    public: f(decltype(i) &_i) : i(_i) {}
+    public: orerror<result> parse(const char *what) const {
+        auto r(i.parse(what));
+        if (r.isfailure()) return r.failure();
+        auto &x(r.success().res);
+        auto rr(beaconclientconfig::mk(
+                    x.first().first().first().first().first(),
+                    x.first().first().first().first().second().dflt(Nothing),
+                    x.first().first().first().second().dflt(Nothing),
+                    x.first().first().second().dflt(beaconconfig::dflt),
+                    x.first().second().dflt(1_s),
+                    x.second().dflt(60_s)));
+        if (rr.isfailure()) return rr.failure();
+        else return result(r.success().left, rr.success()); } };
+    return *new f(inner); }
 
 void
 beaconclientconfig::serialise(serialise1 &s) const {
