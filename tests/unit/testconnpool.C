@@ -850,7 +850,7 @@ static testmodule __testconnpool(
                       peername::all(peername::port::any))
                   .fatal("starting echo service"));
         auto cconfig(connpool::config::dflt(cn));
-        cconfig.idletimeout = timedelta::milliseconds(50);
+        cconfig.idletimeout = 50_ms * TIMEDILATE;
         auto pool(connpool::build(cconfig).fatal("building connpool"));
         unsigned nrreaped(0);
         tests::hook<void> h(connpool::reapedconnthread,
@@ -869,7 +869,7 @@ static testmodule __testconnpool(
             orerror<int> {
                 assert(string(*d.success()) == "");
                 return 1023; });
-        assert(nrreaped == 0);
+        tassert(T(nrreaped) == T(0u));
         pool->call<int>(
             io,
             sn2,
@@ -881,7 +881,7 @@ static testmodule __testconnpool(
             -> orerror<int> {
                 assert(string(*d.success()) == "foo");
                 return 1023; });
-        assert(nrreaped == 0);
+        tassert(T(nrreaped) == T(0u));
         pool->call<int>(
             io,
             sn1,
@@ -893,8 +893,8 @@ static testmodule __testconnpool(
             -> orerror<int> {
                 assert(string(*d.success()) == "");
                 return 1023; });
-        assert(nrreaped == 0);
-        while (nrreaped == 0)timedelta::milliseconds(10).future().sleep(io);
+        tassert(T(running_on_valgrind()) || T(nrreaped) == T(0u));
+        while (nrreaped == 0) (10_ms).future().sleep(io);
         srv2->destroy(io);
         srv1->destroy(io);
         pool->destroy(); },
