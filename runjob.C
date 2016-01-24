@@ -113,9 +113,6 @@ f2main(list<string> &args) {
     fd_t outfd(args.length() == 3
                ? 1
                : (parsers::intparser<unsigned>()
-                  .maperr<int>([] (const int &fd) -> orerror<int> {
-                          if (fd < 0) return error::noparse;
-                          else return fd; })
                   .match(args.idx(3))
                   .fatal("parsing fd " + fields::mk(args.idx(3)))));
     initpubsub();
