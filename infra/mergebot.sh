@@ -49,7 +49,11 @@ lastdaily=$(cat ${results}/lastdaily)
 mkdir -p ${results}/routine
 
 sendemail() {
-    /usr/sbin/sendmail $*
+    local t=$(mktemp)
+    cat > $t
+    echo "email to $*; content:"
+    cat $t
+    cat $t | /usr/sbin/sendmail $*
 }
 
 _basemode() {
