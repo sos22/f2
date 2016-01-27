@@ -523,17 +523,16 @@ static testmodule __testconnpool(
                           assert(d == error::aborted);
                           return Success; }) );
         /* Wait for the call to start. */
-        while (srv->outstanding.empty()) {
-            (timestamp::now() + timedelta::milliseconds(1)).sleep(io); }
+        while (srv->outstanding.empty()) (1_ms).future().sleep(io);
         /* Shut down server while it's got outstanding calls.
          * Should be able to do it quickly. */
         tassert(T2(timedelta,
                    timedelta::time([srv, io] { srv->destroy(io); })) <
-                T(100_ms));
+                T(100_ms * TIMEDILATE));
         tassert(T2(timedelta, timedelta::time([call, io] { call->abort(); })) <
-                T(100_ms));
+                T(100_ms * TIMEDILATE));
         tassert(T2(timedelta, timedelta::time([pool] { pool->destroy(); })) <
-                T(100_ms)); },
+                T(100_ms * TIMEDILATE)); },
     "abortcompleted", [] (clientio io) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
