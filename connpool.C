@@ -373,6 +373,10 @@ connpool::asynccall::implementation() const {
 
 connpool::asynccall::token::token() {}
 
+/* Just so that maybe<token>.field() works */
+const fields::field &
+connpool::asynccall::token::field() const { return fields::mk(""); }
+
 maybe<connpool::asynccall::token>
 connpool::asynccall::finished() const { return implementation().finished(); }
 

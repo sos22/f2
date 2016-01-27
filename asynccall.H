@@ -3,6 +3,7 @@
 #define ASYNCCALL_H__
 
 class clientio;
+namespace fields { class field; }
 template <typename> class maybe;
 template <typename> class orerror;
 class publisher;
@@ -47,7 +48,8 @@ private: const implT &impl() const;
 public:  class token {
         friend asynccall;
     private: innerTokenT inner;
-    private: token(innerTokenT _inner) : inner(_inner) {} };
+    private: token(innerTokenT _inner) : inner(_inner) {}
+    public:  const fields::field &field() const; };
 public:  maybe<token> finished() const;
 public:  const publisher &pub() const;
 public:  orerror<resT> pop(token t);

@@ -251,7 +251,8 @@ private: const impl &implementation() const;
      * does not need a clientio token.  Returned by finished(). */
 public:  class token {
         friend class asynccallT;
-    private: token(); };
+    private: token();
+    public:  const fields::field &field() const; };
     /* Check whether the call has finished (which includes success,
      * hard failure, and timeout).  Returns a token type which can be
      * used as a proof-of-work to make pop() non-blocking.  This will
@@ -289,7 +290,8 @@ private: asynccallT();
 public:  class token {
         friend class asynccallT<t>;
     private: asynccall::token inner;
-    private: explicit token(asynccall::token _inner) : inner(_inner) {}; };
+    private: explicit token(asynccall::token _inner) : inner(_inner) {};
+    public:  const fields::field &field() const { return inner.field(); } };
 public:  maybe<token> finished() const;
 public:  orerror<t> pop(token tok);
 public:  const publisher &pub() const;

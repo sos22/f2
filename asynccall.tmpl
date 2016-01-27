@@ -11,6 +11,9 @@ asynccall<_spec>::impl() { return *containerof(this, implT, api); }
 template <typename _spec> const typename _spec::_implT &
 asynccall<_spec>::impl() const { return *containerof(this, implT, api); }
 
+template <typename _spec> const fields::field &
+asynccall<_spec>::token::field() const { return inner.field(); }
+
 template <typename _spec> const publisher &
 asynccall<_spec>::pub() const { return impl().cl.pub(); }
 

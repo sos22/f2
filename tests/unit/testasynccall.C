@@ -70,6 +70,7 @@ static testmodule __testasynccall(
                 sub.wait(io);
                 t = c.finished(); } }
         tassert(T(timestamp::now()) - T(start) > T(100_ms));
+        assert(!strcmp(t.field().c_str(), "<>"));
         tassert(T(c.pop(t.just())) == T(5));
         pool.destroy();
         srv.destroy(io); },
