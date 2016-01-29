@@ -128,7 +128,7 @@ main(int argc, char *argv[]) {
         fd = strtoll(de->d_name, &eof, 10);
         if (errno != 0) err(1, "parsing fd number %s", de->d_name);
         if (*eof != '\0') errx(1, "noise at end of fd %s", de->d_name);
-        if (fd < 0 || fd > 10000) errx(1, "bad fd %ld", fd);
+        if (fd < 0 || fd > 65536) errx(1, "bad fd %ld", fd);
         if (fd != p[0] && fd != respfd && fd != reqfd && fd != dirfd(fddir)) {
             close((int)fd); } }
     closedir(fddir);
