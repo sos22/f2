@@ -258,7 +258,7 @@ static testmodule __testconnpool(
                == error::dlopen);
         auto end(timestamp::now());
         tassert(T(end) > T(start) + T(10_ms));
-        tassert(T(end) < T(start) + T(110_ms * TIMEDILATE));
+        tassert(T(end) < T(start) + T(110_ms));
         start = timestamp::now();
         auto c(pool->call<void>(
                    agentname("nonesuch"),
@@ -272,7 +272,7 @@ static testmodule __testconnpool(
                        return error::dlopen; }));
         end = timestamp::now();
         /* Starting the call should be very cheap. */
-        tassert(T(end) < T(start) + T(10_ms * TIMEDILATE));
+        tassert(T(end) < T(start) + T(10_ms));
         start = end;
         assert(c->abort() == error::dlopen);
         end = timestamp::now();
@@ -426,7 +426,7 @@ static testmodule __testconnpool(
                    io,
                    sn,
                    interfacetype::test,
-                   (TIMEDILATE * 100_ms).future(),
+                   (100_ms).future(),
                    [] (serialise1 &, connpool::connlock) {},
                    [] (deserialise1 &, connpool::connlock)
                    -> orerror<void> {
@@ -528,11 +528,11 @@ static testmodule __testconnpool(
          * Should be able to do it quickly. */
         tassert(T2(timedelta,
                    timedelta::time([srv, io] { srv->destroy(io); })) <
-                T(100_ms * TIMEDILATE));
+                T(100_ms));
         tassert(T2(timedelta, timedelta::time([call, io] { call->abort(); })) <
-                T(100_ms * TIMEDILATE));
+                T(100_ms));
         tassert(T2(timedelta, timedelta::time([pool] { pool->destroy(); })) <
-                T(100_ms * TIMEDILATE)); },
+                T(100_ms)); },
     "abortcompleted", [] (clientio io) {
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
@@ -754,8 +754,8 @@ static testmodule __testconnpool(
          * idle timeout on the pool is only 50ms. */
         tassert(T2(timestamp, finished.just())-T(start) > T(200_ms));
         /* But not too far past it. */
-        tassert(T(end) - T(finished.just()) < T(100_ms * TIMEDILATE));
-        tassert(T(end) - T(start) < T(500_ms * TIMEDILATE));
+        tassert(T(end) - T(finished.just()) < T(100_ms));
+        tassert(T(end) - T(start) < T(500_ms));
         pool->destroy();
         srv->destroy(io); },
     "abort1", [] (clientio io) {
@@ -786,7 +786,7 @@ static testmodule __testconnpool(
         tassert(T2(timedelta,
                    timedelta::time([&callaborted, io] {
                            callaborted.get(io); }))
-                < T(50_ms * TIMEDILATE));
+                < T(50_ms));
         pool->destroy();
         srv->destroy(io); },
     "abort2", [] (clientio io) {
@@ -849,7 +849,7 @@ static testmodule __testconnpool(
                       peername::all(peername::port::any))
                   .fatal("starting echo service"));
         auto cconfig(connpool::config::dflt(cn));
-        cconfig.idletimeout = 50_ms * TIMEDILATE;
+        cconfig.idletimeout = 50_ms;
         auto pool(connpool::build(cconfig).fatal("building connpool"));
         unsigned nrreaped(0);
         tests::hook<void> h(connpool::reapedconnthread,
@@ -1068,21 +1068,21 @@ static testmodule __testconnpool(
                     nrcalls++;
                     if (!stopclient) startnext(); }
                 pool->destroy(); });
-        (200_ms * TIMEDILATE).future().sleep(io);
+        (200_ms).future().sleep(io);
         tassert(T(nrcalls) > T(10u));
         auto start(timestamp::now());
         auto pt(srv->pause(io));
         srv->paused = true;
         auto end(timestamp::now());
-        tassert((T(end) - T(start)) < T(200_ms * TIMEDILATE));
+        tassert((T(end) - T(start)) < T(200_ms));
         auto prepause(nrcalls);
-        (200_ms * TIMEDILATE).future().sleep(io);
+        (200_ms).future().sleep(io);
         srv->paused = false;
         start  = timestamp::now();
         srv->unpause(pt);
         end = timestamp::now();
-        tassert(T(end) - T(start) < T(200_ms * TIMEDILATE));
-        (200_ms * TIMEDILATE).future().sleep(io);
+        tassert(T(end) - T(start) < T(200_ms));
+        (200_ms).future().sleep(io);
         tassert(T(nrcalls) - T(prepause) > T(10u));
         /* We're done.  Shut it all down. */
         stopclient = true;

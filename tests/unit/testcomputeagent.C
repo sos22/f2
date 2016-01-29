@@ -105,7 +105,7 @@ static testmodule __testcomputeagent(
                .issuccess());
         auto end(timestamp::now());
         tassert(T(end) - T(start) > T(1_s));
-        tassert(T(end) - T(start) < T(1_s + 500_ms * TIMEDILATE));
+        tassert(T(end) - T(start) < T(1_s + 500_ms));
         t.cc.drop(io, j.name()).fatal("dropjob");
         assert(t.cc.waitjob(io, j.name()) == error::toosoon); },
     "abortjob", [] (clientio io) {
@@ -115,7 +115,7 @@ static testmodule __testcomputeagent(
         t.cc.start(io, j).fatal("starting job");
         tassert(T2(timedelta,
                    timedelta::time([&] { t.computeagent->destroy(io); })) <
-                T(100_ms * TIMEDILATE));
+                T(100_ms));
         t.computeagent = NULL; },
     "dropbad", [] (clientio io) {
         computetest t(io);

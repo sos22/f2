@@ -697,9 +697,9 @@ static testmodule __testeq(
                       *pool,
                       sn,
                       proto::eq::names::testunsigned));
-        tassert(T(timestamp::now()) - T(start) < T(300_ms * TIMEDILATE));
+        tassert(T(timestamp::now()) - T(start) < T(300_ms));
         servercaptured.get(io);
-        tassert(T(timestamp::now()) - T(start) < T(300_ms * TIMEDILATE));
+        tassert(T(timestamp::now()) - T(start) < T(300_ms));
         assert(conn->finished() == Nothing);
         {   subscriber sub;
             subscription ss(sub, conn->pub());

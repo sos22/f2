@@ -24,4 +24,4 @@ static testmodule __waitqueuetest(
         auto start(timestamp::now());
         wq.append("foo");
         s.get();
-        tassert(T(timestamp::now()) - T(start) < T(20_ms * TIMEDILATE)); });
+        tassert(T(timestamp::now()) - T(start) < T(20_ms)); });

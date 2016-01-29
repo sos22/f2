@@ -283,6 +283,14 @@ testmodule::runtest(const string &what,
         if (group) return;
         error::unknown.fatal(name().field() + "::" + what.field() +
                              " cannot be run under Valgrind"); }
+    if (limit != Nothing) {
+        /* Set a timeout. VG tests get longer, regardless of whether
+         * they're VG because the harness is or because we're starting
+         * VG now. */
+        if (running_on_valgrind() ||
+            tt->flags.intersects(TestFlags::valgrind())) {
+            alarm((unsigned)((VALGRIND_TIMEWARP * limit.just()) / 1_s)); }
+        else alarm((unsigned)((limit.just())/1_s)); }
     auto timetaken(0_s);
     if (tt->flags.intersects(TestFlags::valgrind()) &&
         !running_on_valgrind()) {
@@ -291,8 +299,6 @@ testmodule::runtest(const string &what,
         initpubsub();
         /* Valgrind tests get longer, even if we're not under VG
          * ourselves. */
-        if (limit != Nothing) {
-            alarm((unsigned)((VALGRIND_TIMEWARP * limit.just()) / 1_s)); }
         maybe<either<shutdowncode, spawn::signalnr> > _p(Nothing);
         timetaken = timedelta::time([&] {
                 _p = spawn::program("/usr/bin/valgrind")
@@ -312,9 +318,7 @@ testmodule::runtest(const string &what,
         else if (p.left() != shutdowncode::ok) {
             error::unknown.fatal(
                 "valgrind exited with status " + p.left().field()); } }
-    else {
-        if (limit != Nothing) alarm((unsigned)((TIMEDILATE*limit.just())/1_s));
-        timetaken = timedelta::time([tt] { tt->work(); }); }
+    else timetaken = timedelta::time([tt] { tt->work(); });
     logmsg(loglevel::debug,
            "pass test " + name().field() + "::" + what.field() +
            " in " + timetaken.field());

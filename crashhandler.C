@@ -102,7 +102,7 @@ crashhandler::surrogate() {
         else {
             /* We are the parent. */
             timespec ts = {
-                .tv_sec = RUNNING_ON_VALGRIND ? 10 : 1,
+                .tv_sec = RUNNING_ON_VALGRIND ? VALGRIND_TIMEWARP : 1,
                 .tv_nsec = 0, };
             while (true) {
                 siginfo_t si;

@@ -146,18 +146,18 @@ static testmodule __teststorageagent(
         auto start(timestamp::now());
         auto &statjob(t.client.statjob(jn));
         auto end(timestamp::now());
-        tassert(T(end) - T(start) < T(10_ms * TIMEDILATE));
+        tassert(T(end) - T(start) < T(10_ms));
         tassert(T(statjob.finished()) == T(Nothing));
         start = end;
         end = timestamp::now();
-        tassert(T(end) - T(start) < T(10_ms * TIMEDILATE));
+        tassert(T(end) - T(start) < T(10_ms));
         (50_ms).future().sleep(io);
         tassert(T(statjob.finished()) == T(Nothing));
         t.agent.unpause(pt);
         start = timestamp::now();
         auto res(statjob.pop(io));
         end = timestamp::now();
-        tassert(T(end) - T(start) < T(200_ms * TIMEDILATE));
+        tassert(T(end) - T(start) < T(200_ms));
         tassert(T(res.fatal("statjob")) == T(j)); },
     "statstream", [] (clientio io) {
         teststate t((io));

@@ -12,8 +12,6 @@
  * template arguments. Turn it into a bool. */
 bool running_on_valgrind();
 
-#define TIMEDILATE (running_on_valgrind() ? 20 : 1)
-
 class clientio;
 template <typename> class maybe;
 

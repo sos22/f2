@@ -198,7 +198,7 @@ static testmodule __testpubsub(
            Doesn't really do a great deal beyond confirming that we
            don't crash. */
         publisher pub;
-        timestamp deadline((running_on_valgrind() ? 1_s : 200_ms).future());
+        timestamp deadline((200_ms).future());
         int cntr;
         cntr = 0;
         spark<bool> t1([&pub, deadline] () {
@@ -219,7 +219,7 @@ static testmodule __testpubsub(
                 return true; } );
         t1.get();
         t2.get();
-        tassert(T(cntr) >= (running_on_valgrind() ? T(10) : T(3000))); },
+        tassert(T(cntr) >= T(3000)); },
     "pingpong", [] {
         /* Ping-pong back and forth between two threads for a
          * bit. */
@@ -271,7 +271,7 @@ static testmodule __testpubsub(
         t1.get();
         t2.get();
         tassert(T(cntr1) - T(cntr2) >= T(-1) && T(cntr1) - T(cntr2) <= T(1));
-        tassert(T(cntr1) >= (running_on_valgrind() ? T(100) : T(5000))); },
+        tassert(T(cntr1) >= T(5000)); },
     "ioshutdownrace", [] {
         auto pipe(fd_t::pipe());
         subscriber sub;
@@ -394,8 +394,8 @@ static testmodule __testpubsub(
         pipe0.close();
         deinitpubsub(_io); },
     "listenboth", [] {
-        auto stall(running_on_valgrind() ? 100_ms : 1_ms);
-        auto delay(running_on_valgrind() ? 1_s : 100_ms);
+        auto stall(1_ms);
+        auto delay(100_ms);
         /* Basic tests when we're listening for read and write on the
            same FD in different subscriptions. */
         initpubsub();
