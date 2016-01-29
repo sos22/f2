@@ -3,6 +3,8 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include <valgrind/valgrind.h>
+
 #include "clientio.H"
 #include "fields.H"
 #include "mutex.H"
@@ -15,8 +17,19 @@ timestamp::now()
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return timestamp(ts.tv_sec * 1000000000l + ts.tv_nsec);
-}
+    timestamp res(ts.tv_sec * 1000000000l + ts.tv_nsec);
+    if (!RUNNING_ON_VALGRIND) return res;
+    /* If we're on Valgrind, slow down the clock by a fixed factor,
+     * because that's easier than manually adjusting all the test
+     * timeouts. */
+    static racey<bool> havebase(false);
+    static maybe<timestamp> base(Nothing);
+    if (!havebase.loadacquire()) {
+        struct timespec tts;
+        clock_gettime(CLOCK_MONOTONIC, &tts);
+        base = timestamp(tts.tv_sec * 1000000000l + tts.tv_nsec);
+        havebase.storerelease(true); }
+    return base.just() + (res - base.just()) / VALGRIND_TIMEWARP; }
 
 timestamp::timestamp(quickcheck q)
     : v(q) {}

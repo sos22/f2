@@ -1,3 +1,5 @@
+#include <unistd.h>
+
 #include "testassert.H"
 #include "test2.H"
 #include "timedelta.H"
@@ -95,6 +97,18 @@ static testmodule __testtimedelta(
         assert(t.v == 5);
         tassert(T(100_ms) < T(t.td));
         tassert(T(t.td) < T(timedelta::milliseconds(120))); },
+    testmodule::TestFlags::valgrind(), "valgrindwarp", [] (clientio io) {
+        /* Time works slightly different on the Valgrind timewarp. */
+        auto td(timedelta::time([] {
+                    /* Use the unistd.h sleep rather than timestamp
+                     * sleep, so that this sleep doesn't get
+                     * warped. */
+                    sleep(1); }));
+        tassert(T(td) > T((1_s / VALGRIND_TIMEWARP) / 2));
+        tassert(T(td) < T((1_s / VALGRIND_TIMEWARP) * 2));
+        td = timedelta::time([io] { (100_ms).future().sleep(io); });
+        tassert(T(td) > T(100_ms));
+        tassert(T(td) < T(400_ms)); },
     "timeV", [] {
         auto t(timedelta::time([] {
                     (timestamp::now()+timedelta::milliseconds(100))

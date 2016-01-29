@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <valgrind/valgrind.h>
+
 #include "clientio.H"
 #include "logging.H"
 #include "timedelta.H"
@@ -50,20 +52,29 @@ cond_t::wait(clientio, mutex_t::token *tok) const
 cond_t::waitres
 cond_t::wait(clientio io,
              mutex_t::token *tok,
-             maybe<timestamp> deadline) const {
-    if (deadline == Nothing) {
+             maybe<timestamp> _deadline) const {
+    if (_deadline == Nothing) {
         waitres res;
         res.timedout = false;
         res.token = wait(io, tok);
         return res; }
-    
-    auto dd(deadline.just() - timestamp::now());
+    auto deadline(_deadline.just());
+    bool warped = RUNNING_ON_VALGRIND;
+
+  retry:
+    /* If we're running on Valgrind then we need to adjust for the
+     * timewarp. Basically, we want to wake up immediately after
+     * timestamp::now() reaches the deadline. timestamp::now()
+     * advances at a twentieth the speed of the kernel clock. */
+    auto n(timestamp::now());
+    auto dd(deadline - timestamp::now());
     if (dd > 86400_s) logmsg(loglevel::error, "long timeout "+deadline.field());
+    if (warped) deadline = n + (deadline - n) * VALGRIND_TIMEWARP;
     tok->formux(associated_mux);
     tok->release();
-    struct timespec ts(deadline.just().as_timespec());
     assert(associated_mux.heldby.load() == tid::me().os());
     associated_mux.heldby.store(0);
+    struct timespec ts(deadline.as_timespec());
     int r = pthread_cond_timedwait(const_cast<pthread_cond_t *>(&cond),
                                    &associated_mux.mux,
                                    &ts);
@@ -73,4 +84,11 @@ cond_t::wait(clientio io,
     waitres res;
     res.token = mutex_t::token();
     res.timedout = r == ETIMEDOUT;
+    if (res.timedout && warped && deadline.infuture()) {
+        /* The interval between un-warping the deadline and actually
+         * going to sleep isn't un-warped, which can sometimes lead to
+         * us timing out before the deadline has actually
+         * happened. Just retry if that happens. */
+        deadline = _deadline.just();
+        goto retry; }
     return res; }

@@ -291,7 +291,8 @@ testmodule::runtest(const string &what,
         initpubsub();
         /* Valgrind tests get longer, even if we're not under VG
          * ourselves. */
-        if (limit != Nothing) alarm((unsigned)((20 * limit.just()) / 1_s));
+        if (limit != Nothing) {
+            alarm((unsigned)((VALGRIND_TIMEWARP * limit.just()) / 1_s)); }
         maybe<either<shutdowncode, spawn::signalnr> > _p(Nothing);
         timetaken = timedelta::time([&] {
                 _p = spawn::program("/usr/bin/valgrind")

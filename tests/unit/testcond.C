@@ -13,7 +13,7 @@ static testmodule __condtest(
     "cond",
     list<filename>::mk("cond.C", "cond.H"),
     testmodule::LineCoverage(100_pc),
-    testmodule::BranchCoverage(65_pc),
+    testmodule::BranchCoverage(75_pc),
     /* Not testcaseIO, even though we need a clientio token, because I
        don't want to depend on pubsub from here. */
     "wake", [] {
@@ -58,7 +58,16 @@ static testmodule __condtest(
                          timestamp::now() + timedelta::milliseconds(100)));
         assert(r.timedout);
         mux.unlock(&r.token);
-        notify.get(); }
+        notify.get(); },
+    testmodule::TestFlags::valgrind(), "valgrindtimeout", [] {
+        mutex_t mux;
+        cond_t cond(mux);
+        auto t(mux.lock());
+        auto d((100_ms).future());
+        cond.wait(clientio::CLIENTIO, &t, d);
+        assert(timestamp::now() > d);
+        mux.unlock(&t);
+        assert(timestamp::now() < d + 500_ms); }
 #if TESTING
     ,
     "longtimeout", [] {

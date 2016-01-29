@@ -9,6 +9,7 @@
 #include "fields.H"
 
 class clientio;
+class cond_t;
 class quickcheck;
 class timedelta;
 struct timespec;
@@ -16,7 +17,12 @@ class timestamp;
 struct timeval;
 class walltime;
 
+/* When running on Valgrind, slow the clock down by a factor of 20, to
+ * make it easier to set useful timeouts. */
+#define VALGRIND_TIMEWARP 20
+
 class timestamp {
+    friend class cond_t;
     long v; /* nanoseconds since epoch */
     explicit timestamp(long _v) : v(_v) {}
 public:
@@ -28,9 +34,10 @@ public:
     bool operator>(timestamp o) const { return v > o.v; }
     bool operator>=(timestamp o) const { return v >= o.v; }
     bool operator==(timestamp o) const { return v == o.v; }
-    timespec as_timespec() const;
-    walltime aswalltime() const;
+private: timespec as_timespec() const;
+private: walltime aswalltime() const;
 
+public:
     /* Simple wrappers. */
     bool infuture() const { return *this > now(); }
     bool inpast() const { return *this < now(); }
