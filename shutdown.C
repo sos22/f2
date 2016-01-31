@@ -28,10 +28,8 @@ shutdowncode::parse(const char *what)
 }
 
 const fields::field &
-fields::mk(const shutdowncode &code)
-{
-    return "<shutdowncode:" + fields::mk(code.code) + ">";
-}
+shutdowncode::field() const {
+    return "<shutdowncode:" + fields::mk(code) + ">"; }
 
 const shutdowncode
 shutdowncode::ok(0);
