@@ -43,7 +43,13 @@ public:  class TestFlags {
     public:  static TestFlags dflt();
         /* Run the test only when it's explicitly requested, not as
          * part of the usual routine testing. */
-    public:  static TestFlags noauto(); };
+    public:  static TestFlags noauto();
+        /* Run the test only under Valgrind (re-execing the test
+         * harness under VG if necessary.  */
+    public:  static TestFlags valgrind();
+        /* Do not run the test under Valgrind (skipping the test if
+         * the harness is invoked under VG). */
+    public:  static TestFlags novalgrind(); };
 public:  class TestCase {
     private: TestCase() = delete;
     private: TestCase(const TestCase &) = delete;
@@ -90,6 +96,11 @@ public:  void listtests() const;
 public:  void printmodule() const;
 public:  void runtest(const string &name,
                       maybe<timedelta>,
+                      /* If we're running as part of a group operation
+                       * and the flags don't allow it, no-op the test.
+                       * If we're not running as part of a group and
+                       * that happens, fail. */
+                      bool group,
                       testresultaccumulator &) const;
 public:  void runtests(maybe<timedelta>, testresultaccumulator &) const;
 public:  void prepare() const; };

@@ -95,8 +95,11 @@ static testmodule __testmeta(
                 logmsg(loglevel::error,
                        "no test for " + filename(it.filename()).field());
                 failed = true; } }
-        assert(!failed); });
-
+        assert(!failed); },
+    testmodule::TestFlags::valgrind(), "valgrind", [] {
+        assert(running_on_valgrind()); },
+    testmodule::TestFlags::novalgrind(), "novalgrind", [] {
+        assert(!running_on_valgrind()); });
 void
 testresultaccumulator::result(const testmodule &tm,
                               const string &testcase,
@@ -191,9 +194,20 @@ testmodule::TestFlags::intersects(TestFlags o) const {
 
 const fields::field &
 testmodule::TestFlags::field() const {
-    if (flags == dflt().flags) return fields::mk("");
-    else if (flags == noauto().flags) return fields::mk("noauto");
-    else return "<badflags:"+fields::mk(flags)+">"; }
+    const fields::field *res = &fields::mk("");
+    bool first = true;
+    if (intersects(noauto())) {
+        res = &(*res + "noauto");
+        first = false; }
+    if (intersects(valgrind())) {
+        if (!first) res = &(*res + ";");
+        res = &(*res + "valgrind");
+        first = false; }
+    if (intersects(novalgrind())) {
+        if (!first) res = &(*res + ";");
+        res = &(*res + "novalgrind");
+        first = false; }
+    return *res; }
 
 testmodule::TestFlags
 testmodule::TestFlags::dflt() {
@@ -203,6 +217,16 @@ testmodule::TestFlags::dflt() {
 testmodule::TestFlags
 testmodule::TestFlags::noauto() {
     const testmodule::TestFlags res(1);
+    return res; }
+
+testmodule::TestFlags
+testmodule::TestFlags::valgrind() {
+    const testmodule::TestFlags res(2);
+    return res; }
+
+testmodule::TestFlags
+testmodule::TestFlags::novalgrind() {
+    const testmodule::TestFlags res(4);
     return res; }
 
 testmodule::TestCase::TestCase(TestFlags _flags,
@@ -243,18 +267,53 @@ testmodule::printmodule() const {
 void
 testmodule::runtest(const string &what,
                     maybe<timedelta> limit,
+                    bool group,
                     testresultaccumulator &results) const {
     printf("%s\n",
            (fields::padright(name().field(), 20) +
             fields::padright(what.field(), 20)).c_str());
-    if (limit != Nothing) alarm((unsigned)((TIMEDILATE * limit.just()) / 1_s));
     logmsg(loglevel::debug,
            "start test " + name().field() + "::" + what.field());
     auto tt(tests.getptr(what));
     if (tt == NULL) {
         error::notfound.fatal(
             "no such test: " + name().field() + "::" + what.field()); }
-    auto timetaken(timedelta::time([tt] { tt->work(); }));
+    if (tt->flags.intersects(TestFlags::novalgrind()) &&
+        running_on_valgrind()) {
+        if (group) return;
+        error::unknown.fatal(name().field() + "::" + what.field() +
+                             " cannot be run under Valgrind"); }
+    auto timetaken(0_s);
+    if (tt->flags.intersects(TestFlags::valgrind()) &&
+        !running_on_valgrind()) {
+        /* Re-spawn ourselves under Valgrind, with some sensible
+         * flags. */
+        initpubsub();
+        /* Valgrind tests get longer, even if we're not under VG
+         * ourselves. */
+        if (limit != Nothing) alarm((unsigned)((20 * limit.just()) / 1_s));
+        maybe<either<shutdowncode, spawn::signalnr> > _p(Nothing);
+        timetaken = timedelta::time([&] {
+                _p = spawn::program("/usr/bin/valgrind")
+                    .addarg("--tool=memcheck")
+                    .addarg("--leak-check=full")
+                    .addarg("--error-exitcode=2")
+                    .addarg("/proc/" + fields::mk(getpid()).nosep() + "/exe")
+                    .addarg(name())
+                    .addarg(what)
+                    .run(clientio::CLIENTIO)
+                    .fatal("running valgrind"); });
+        deinitpubsub(clientio::CLIENTIO);
+        auto p = _p.just();
+        if (p.isright()) {
+            error::unknown.fatal(
+                "valgrind killed by signal " + p.right().field()); }
+        else if (p.left() != shutdowncode::ok) {
+            error::unknown.fatal(
+                "valgrind exited with status " + p.left().field()); } }
+    else {
+        if (limit != Nothing) alarm((unsigned)((TIMEDILATE*limit.just())/1_s));
+        timetaken = timedelta::time([tt] { tt->work(); }); }
     logmsg(loglevel::debug,
            "pass test " + name().field() + "::" + what.field() +
            " in " + timetaken.field());
@@ -284,7 +343,7 @@ testmodule::runtests(maybe<timedelta> limit,
             schedule.pushtail(it.key()); } }
     list<string> shuffled(shuffle(Steal, schedule));
     for (auto it(shuffled.start()); !it.finished(); it.next()) {
-        runtest(*it, limit, results); } }
+        runtest(*it, limit, true, results); } }
 
 void
 testmodule::prepare() const {
@@ -418,7 +477,8 @@ f2main(list<string> &args) {
         else if (args.length() == 2) {
             module.prepare();
             testresultaccumulator acc;
-            if (args.idx(1) != "*") module.runtest(args.idx(1), timeout, acc);
+            if (args.idx(1) != "*") {
+                module.runtest(args.idx(1), timeout, false, acc); }
             else module.runtests(timeout, acc);
             acc.dump(database); }
         else errx(1, "too many arguments"); }
