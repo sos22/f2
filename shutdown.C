@@ -34,6 +34,9 @@ shutdowncode::field() const {
 const shutdowncode
 shutdowncode::ok(0);
 
+const shutdowncode
+shutdowncode::managerdied(-1);
+
 bool
 shutdowncode::operator==(shutdowncode o) const {
     return code == o.code; }

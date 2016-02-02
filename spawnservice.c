@@ -36,6 +36,12 @@ sigchldhandler(int signr, siginfo_t *info, void *ignore) {
     (void)info;
     (void)ignore; }
 
+/* SIGUSR1 is used by the parent to get us to shut down. */
+static void
+sigusr1handler(int signr) {
+    (void)signr;
+    _exit(0); }
+
 static void
 execfailed(void) {
     struct message msg;
@@ -81,6 +87,8 @@ main(int argc, char *argv[]) {
     char *eof;
 
     assert(argc >= 4);
+
+    signal(SIGUSR1, sigusr1handler);
 
     respfd = atoi(argv[1]);
     reqfd = atoi(argv[2]);

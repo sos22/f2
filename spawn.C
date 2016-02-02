@@ -384,17 +384,27 @@ process::hasdied() const {
                fields::mk(this) + " collected death " + res.field());
         mux.unlock(&t);
         return token(); }
-    logmsg(loglevel::debug, fields::mk(this) + " is still alive");
-    mux.unlock(&t);
-    return Nothing; }
+    else if (r.failure() != error::timeout) {
+        r.failure().warn("reading from spawn manager");
+        res.mkjust(Left(), shutdowncode::managerdied);
+        mux.unlock(&t);
+        return token(); }
+    else {
+        logmsg(loglevel::notice, fields::mk(this) + " is still alive");
+        mux.unlock(&t);
+        return Nothing; } }
 
 either<shutdowncode, signalnr>
 process::join(token) {
     assert(res != Nothing);
     assert(nrsubs == 0);
     auto rr(res.just());
-    if (::kill(-pid, SIGKILL) < 0) error::from_errno().fatal("kill controller");
-    if (::waitpid(pid, NULL, 0) < 0) error::from_errno().fatal("waitpid()");
+    if (::kill(-pid, SIGUSR1) < 0) error::from_errno().fatal("kill controller");
+    int status;
+    if (::waitpid(pid, &status, 0) < 0) error::from_errno().fatal("waitpid()");
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        error::unknown.warn(
+            "bad status " + fields::mk(status) + " from spawn controller"); }
     tochild.close();
     fromchild.close();
     delete this;
@@ -426,4 +436,7 @@ process::field() const {
         [this] (maybe<mutex_t::token> m) {
             if (m == Nothing) return &("<busy:" + mux.field() + ">");
             else return &res.field(); });
-    return "<process:" + fields::mk(pid).nosep() + " res:" + *rr + ">"; } }
+    return "<process:" + fields::mk(pid).nosep() + " res:" + *rr + ">"; }
+
+int
+process::managerpid() const { return pid; } }

@@ -87,7 +87,8 @@ public:  either<shutdowncode, signalnr> join(clientio);
 public:  void kill();
 private: ~process() {}
 public:  const fields::field &field() const;
-};
+    /* PID of the manager process. Only really useful for testing. */
+public:  int managerpid() const; };
 
 }
 

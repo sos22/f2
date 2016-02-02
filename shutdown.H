@@ -10,16 +10,15 @@ namespace fields { class field; }
 /* Silly little wrapper type around the exit codes passed to exit() */
 class shutdowncode {
     int code;
-public: explicit shutdowncode(int _code) : code(_code) {}
-public:
-
-    static const shutdowncode ok;
+public:  explicit shutdowncode(int _code) : code(_code) {}
+public:  static const shutdowncode ok;
+public:  static const shutdowncode managerdied;
 
     /* Call exit() with the given code */
     void finish() __attribute__((noreturn));
 
     static orerror<shutdowncode> parse(const char *);
     bool operator==(shutdowncode) const;
-public: const fields::field &field() const; };
+public:  const fields::field &field() const; };
 
 #endif /* !SHUTDOWN_H__ */

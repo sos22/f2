@@ -1,3 +1,6 @@
+#include <sys/types.h>
+#include <signal.h>
+
 #include "logging.H"
 #include "spawn.H"
 #include "testassert.H"
@@ -323,4 +326,10 @@ static testmodule __spawntest(
            .addfd(fd_t(7), 8),
            "{hello goodbye world 5 8->7}");
 #undef tt
-    } );
+    },
+    "managerdied", [] (clientio io) {
+        /* The manager dying unexpectedly should be a failure. */
+        auto &p(*process::spawn(program("/bin/cat"))
+                .fatal("cat"));
+        ::kill(p.managerpid(), SIGKILL);
+        assert(p.join(io).left() == shutdowncode::managerdied); } );
