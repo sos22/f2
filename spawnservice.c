@@ -45,6 +45,7 @@ sigusr1handler(int signr) {
 static void
 execfailed(void) {
     struct message msg;
+    memset(&msg, 0, sizeof(msg));
     msg.tag = msgexecfailed;
     msg.execfailed.err = errno;
     (void)write(respfd, &msg, sizeof(msg));
@@ -53,12 +54,14 @@ execfailed(void) {
 static bool
 execsucceeded(void) {
     struct message msg;
+    memset(&msg, 0, sizeof(msg));
     msg.tag = msgexecgood;
     return write(respfd, &msg, sizeof(msg)) == sizeof(msg); }
 
 static void
 childstopped(int status) {
     struct message msg;
+    memset(&msg, 0, sizeof(msg));
     msg.tag = msgchildstopped;
     msg.childstopped.status = status;
     if (write(respfd, &msg, sizeof(msg)) != sizeof(msg)) _exit(1); }
