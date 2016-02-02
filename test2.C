@@ -1,5 +1,6 @@
 #include "test2.H"
 
+#include <sys/resource.h>
 #include <sys/time.h>
 #include <err.h>
 #include <signal.h>
@@ -99,7 +100,10 @@ static testmodule __testmeta(
     testmodule::TestFlags::valgrind(), "valgrind", [] {
         assert(running_on_valgrind()); },
     testmodule::TestFlags::novalgrind(), "novalgrind", [] {
-        assert(!running_on_valgrind()); });
+        assert(!running_on_valgrind()); },
+    testmodule::TestFlags::expectfailure(), "expectfailure", [] {
+        abort(); } );
+
 void
 testresultaccumulator::result(const testmodule &tm,
                               const string &testcase,
@@ -207,6 +211,10 @@ testmodule::TestFlags::field() const {
         if (!first) res = &(*res + ";");
         res = &(*res + "novalgrind");
         first = false; }
+    if (intersects(expectfailure())) {
+        if (!first) res = &(*res + ";");
+        res = &(*res + "expectfailure");
+        first = false; }
     return *res; }
 
 testmodule::TestFlags
@@ -227,6 +235,11 @@ testmodule::TestFlags::valgrind() {
 testmodule::TestFlags
 testmodule::TestFlags::novalgrind() {
     const testmodule::TestFlags res(4);
+    return res; }
+
+testmodule::TestFlags
+testmodule::TestFlags::expectfailure() {
+    const testmodule::TestFlags res(8);
     return res; }
 
 testmodule::TestCase::TestCase(TestFlags _flags,
@@ -268,6 +281,7 @@ void
 testmodule::runtest(const string &what,
                     maybe<timedelta> limit,
                     bool group,
+                    bool failuresubprocess,
                     testresultaccumulator &results) const {
     printf("%s\n",
            (fields::padright(name().field(), 20) +
@@ -283,46 +297,63 @@ testmodule::runtest(const string &what,
         if (group) return;
         error::unknown.fatal(name().field() + "::" + what.field() +
                              " cannot be run under Valgrind"); }
-    if (limit != Nothing) {
-        /* Set a timeout. VG tests get longer, regardless of whether
-         * they're VG because the harness is or because we're starting
-         * VG now. */
-        if (running_on_valgrind() ||
-            tt->flags.intersects(TestFlags::valgrind())) {
-            alarm((unsigned)((VALGRIND_TIMEWARP * limit.just()) / 1_s)); }
-        else alarm((unsigned)((limit.just())/1_s)); }
     auto timetaken(0_s);
-    if (tt->flags.intersects(TestFlags::valgrind()) &&
-        !running_on_valgrind()) {
-        /* Re-spawn ourselves under Valgrind, with some sensible
-         * flags. */
+    if (tt->flags.intersects(TestFlags::expectfailure()) &&
+        !failuresubprocess) {
         initpubsub();
-        /* Valgrind tests get longer, even if we're not under VG
-         * ourselves. */
-        maybe<either<shutdowncode, spawn::signalnr> > _p(Nothing);
-        timetaken = timedelta::time([&] {
-                _p = spawn::program("/usr/bin/valgrind")
-                    .addarg("--tool=memcheck")
-                    .addarg("--leak-check=full")
-                    .addarg("--error-exitcode=2")
-                    .addarg("/proc/" + fields::mk(getpid()).nosep() + "/exe")
-                    .addarg(name())
-                    .addarg(what)
-                    .run(clientio::CLIENTIO)
-                    .fatal("running valgrind"); });
+        auto s(timestamp::now());
+        auto r(spawn::program(
+                   ("/proc/" + fields::mk(getpid()).nosep() + "/exe").c_str())
+               .addarg("--failuresubprocess")
+               .addarg(name())
+               .addarg(what)
+               .run(clientio::CLIENTIO)
+               .fatal("run sub-process"));
+        auto e(timestamp::now());
         deinitpubsub(clientio::CLIENTIO);
-        auto p = _p.just();
-        if (p.isright()) {
-            error::unknown.fatal(
-                "valgrind killed by signal " + p.right().field()); }
-        else if (p.left() != shutdowncode::ok) {
-            error::unknown.fatal(
-                "valgrind exited with status " + p.left().field()); } }
-    else timetaken = timedelta::time([tt] { tt->work(); });
-    logmsg(loglevel::debug,
-           "pass test " + name().field() + "::" + what.field() +
-           " in " + timetaken.field());
-    if (limit != Nothing) alarm(0);
+        if (r.isleft() && r.left() == shutdowncode::ok) {
+            error::unknown.fatal("expected test to fail, but it passed?"); }
+        timetaken = e - s; }
+    else {
+        if (limit != Nothing) {
+            /* Set a timeout. VG tests get longer, regardless of
+             * whether they're VG because the harness is or because
+             * we're starting VG now. */
+            if (running_on_valgrind() ||
+                tt->flags.intersects(TestFlags::valgrind())) {
+                alarm((unsigned)((VALGRIND_TIMEWARP * limit.just()) / 1_s)); }
+            else alarm((unsigned)((limit.just())/1_s)); }
+        if (tt->flags.intersects(TestFlags::valgrind()) &&
+            !running_on_valgrind()) {
+            /* Re-spawn ourselves under Valgrind, with some sensible
+             * flags. */
+            initpubsub();
+            /* Valgrind tests get longer, even if we're not under VG
+             * ourselves. */
+            maybe<either<shutdowncode, spawn::signalnr> > _p(Nothing);
+            timetaken = timedelta::time([&] {
+                    _p = spawn::program("/usr/bin/valgrind")
+                        .addarg("--tool=memcheck")
+                        .addarg("--leak-check=full")
+                        .addarg("--error-exitcode=2")
+                        .addarg("/proc/"+fields::mk(getpid()).nosep()+"/exe")
+                        .addarg(name())
+                        .addarg(what)
+                        .run(clientio::CLIENTIO)
+                    .fatal("running valgrind"); });
+            deinitpubsub(clientio::CLIENTIO);
+            auto p = _p.just();
+            if (p.isright()) {
+                error::unknown.fatal(
+                    "valgrind killed by signal " + p.right().field()); }
+            else if (p.left() != shutdowncode::ok) {
+                error::unknown.fatal(
+                    "valgrind exited with status " + p.left().field()); } }
+        else timetaken = timedelta::time([tt] { tt->work(); });
+        logmsg(loglevel::debug,
+               "pass test " + name().field() + "::" + what.field() +
+               " in " + timetaken.field());
+        if (limit != Nothing) alarm(0); }
     results.result(*this, what, timetaken);
     tmpheap::release(); }
 
@@ -348,7 +379,7 @@ testmodule::runtests(maybe<timedelta> limit,
             schedule.pushtail(it.key()); } }
     list<string> shuffled(shuffle(Steal, schedule));
     for (auto it(shuffled.start()); !it.finished(); it.next()) {
-        runtest(*it, limit, true, results); } }
+        runtest(*it, limit, true, false, results); } }
 
 void
 testmodule::prepare() const {
@@ -398,6 +429,7 @@ f2main(list<string> &args) {
     on_exit(::exithandler, NULL);
     
     bool stat = false;
+    bool failuresubprocess = false;
     maybe<timedelta> timeout(30_s);
     maybe<filename> database(Nothing);
     while (!args.empty()) {
@@ -416,6 +448,14 @@ f2main(list<string> &args) {
         else if (args.peekhead() == "--database") {
             args.drophead();
             database.mkjust(args.pophead()); }
+        else if (args.peekhead() == "--failuresubprocess") {
+            rlimit rlim;
+            rlim.rlim_cur = 0;
+            rlim.rlim_max = 0;
+            if (::setrlimit(RLIMIT_CORE, &rlim) < 0) {
+                error::from_errno().fatal("turning off core dumps"); }
+            failuresubprocess = true;
+            args.drophead(); }
         else break; }
     if (args.empty()) listmodules();
     else if (args.idx(0) == "*") {
@@ -483,7 +523,11 @@ f2main(list<string> &args) {
             module.prepare();
             testresultaccumulator acc;
             if (args.idx(1) != "*") {
-                module.runtest(args.idx(1), timeout, false, acc); }
+                module.runtest(args.idx(1),
+                               timeout,
+                               false,
+                               failuresubprocess,
+                               acc); }
             else module.runtests(timeout, acc);
             acc.dump(database); }
         else errx(1, "too many arguments"); }

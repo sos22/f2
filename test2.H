@@ -47,7 +47,10 @@ public:  class TestFlags {
     public:  static TestFlags valgrind();
         /* Do not run the test under Valgrind (skipping the test if
          * the harness is invoked under VG). */
-    public:  static TestFlags novalgrind(); };
+    public:  static TestFlags novalgrind();
+        /* Test is expected to fail, dying with with a signal or an
+         * abnormal exit. */
+    public:  static TestFlags expectfailure(); };
 public:  class TestCase {
     private: TestCase() = delete;
     private: TestCase(const TestCase &) = delete;
@@ -99,6 +102,9 @@ public:  void runtest(const string &name,
                        * If we're not running as part of a group and
                        * that happens, fail. */
                       bool group,
+                      /* Are we already in a process which flips the
+                       * test result, for expectedfailure tests? */
+                      bool failuresubprocess,
                       testresultaccumulator &) const;
 public:  void runtests(maybe<timedelta>, testresultaccumulator &) const;
 public:  void prepare() const; };
