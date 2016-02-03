@@ -1,0 +1,25 @@
+#! /bin/bash
+
+set -e
+
+# Mostly just to make sure that all the makefiles are built before we
+# start
+make -s config
+
+# All of the files which are involved in building and whic make
+# doesn't have a rule for.
+unbuildablefiles() {
+    make --print-data-base | grep --after-context=1 '^# Not a target:$' | grep -v '^--$' | grep -v '^# Not a target:$' | grep -v '^\.' | sed 's/:$//'
+}
+
+# Exclude things which are in /usr
+needcheckin() {
+    unbuildablefiles | grep -v ^/usr
+}
+
+if ! git ls-files `needcheckin` --error-unmatch > /dev/null
+then
+    echo "Untracked files!"
+    exit 1
+fi
+
