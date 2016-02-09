@@ -82,6 +82,10 @@ class silence {
 public: silence();
 public: ~silence(); }; }
 
+/* Turn off logging to syslog. Mostly useful for testing. Affects this
+ * process and all spawned sub-processes. */
+namespace logging { void disablesyslog(void); }
+
 class filename;
 void mkverbose(const filename &);
 

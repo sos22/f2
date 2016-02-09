@@ -68,6 +68,27 @@ logmodule::logmodule(const string &n)
       noisy(false) {
     modules().set(n, this); }
 
+namespace {
+/* Whether logging to syslog is enabled is controlled by an
+ * environment variable, so that it's picked up by spawned
+ * sub-processes (with a cache in local memory). */
+class syslogenabled {
+public: bool state;
+public: syslogenabled()
+    : state(true) {
+    if (::getenv("F2_NO_SYSLOG") != NULL) state = false; }
+public: void disable() {
+    if (!state) return;
+    ::setenv("F2_NO_SYSLOG", "1", 1);
+    state = true; } };
+static syslogenabled &
+syslogstate(void) {
+    static syslogenabled sle;
+    return sle; } }
+
+void
+logging::disablesyslog() { syslogstate().disable(); }
+
 class memlogentry {
 public: const fields::field &field() const;
 public: timestamp when;
@@ -141,7 +162,7 @@ _logmsg(const logmodule &module,
     if (nl < 20) memset(mle->what + nl, ' ', 20 - nl);
     memcpy(mle->what + max(nl, 20u), cstr, len + 1);
     const char *mlestr(NULL);
-    if (level >= loglevel::error) {
+    if (syslogstate().state && level >= loglevel::error) {
         mlestr = mle->field().c_str();
         syslog(level == loglevel::error ? LOG_CRIT : LOG_ALERT,
                "%s",

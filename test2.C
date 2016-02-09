@@ -428,6 +428,8 @@ f2main(list<string> &args) {
     
     on_exit(::exithandler, NULL);
     
+    logging::disablesyslog();
+    
     bool stat = false;
     bool failuresubprocess = false;
     maybe<timedelta> timeout(30_s);
