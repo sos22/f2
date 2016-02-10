@@ -401,7 +401,6 @@ static testmodule __beacontests(
         bool blocksends = true;
         unsigned cntr = 0;
         logmsg(loglevel::debug, "block direct client requests");
-        auto start(timestamp::now());
         tests::hook<orerror<void>, const udpsocket &, const peername &> h(
             udpsocket::_send,
             [&blocksends, c, &cntr]
@@ -414,10 +413,11 @@ static testmodule __beacontests(
                 cntr++;
                 return error::pastend; });
         /* Poll to see when it drops out. */
+        auto start(timestamp::now());
         while (c->poll(agent) != Nothing) (10_ms).future().sleep(io);
         auto drop(timestamp::now());
         /* Should be near the expiry time. */
-        tassert(T(drop) - T(start) >= T(400_ms));
+        tassert(T(drop) - T(start) >= T(300_ms));
         tassert(T(drop) - T(start) <= T(700_ms));
         /* Should have made at least one attempt to refresh. */
         tassert(T(cntr) >= T(1u));
