@@ -303,7 +303,9 @@ static testmodule __beacontests(
         tests::hook<orerror<void>, const udpsocket &> h(
             udpsocket::_receive,
             [&c, &errcount] (const udpsocket &s) -> orerror<void> {
-                if (c == NULL || s != c->__test_listenfd()) return Success;
+                if (c == NULL ||
+                    (s != c->__test_listenfd() &&
+                     s != c->__test_clientfd())) return Success;
                 if (errcount++ < 3) return error::pastend;
                 else return Success; });
         auto cluster(mkrandom<clustername>(q));
