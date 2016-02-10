@@ -333,7 +333,8 @@ static testmodule __spawntest(
     },
     "managerdied", [] (clientio io) {
         /* The manager dying unexpectedly should be a failure. */
-        auto &p(*process::spawn(program("/bin/cat"))
-                .fatal("cat"));
+        auto &p(*process::spawn(program("/bin/sleep")
+                                .addarg("999999"))
+                .fatal("sleep"));
         ::kill(p.managerpid(), SIGKILL);
         assert(p.join(io).left() == shutdowncode::managerdied); } );
