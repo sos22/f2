@@ -25,6 +25,8 @@ then
     exit 1
 fi
 
+mp_boundary=multipart_boundary_${RANDOM}_$(date +%s)_$(date +%N)
+
 # Summary line.
 fail=$(mktemp)
 coverage=$(mktemp)
@@ -33,20 +35,30 @@ grep 'coverage$' ${testdir}/summary | sed 's/[[:space:]]*coverage$//'  > ${cover
 nrfail=$(wc -l < ${fail})
 nrcoverage=$(wc -l < ${coverage})
 
+mp_part() {
+    local disp=$1
+    echo "--${mp_boundary}"
+    echo "Content-Type: text/plan"
+    echo "Content-disposition: ${disp}"
+    echo
+    cat
+}
+trap "echo --${mp_boundary}--" EXIT
 header() {
     local subject="$*"
     echo "Subject: $when: $subject"
     echo "From: $mailaddr"
     echo "To: $mailaddr"
+    echo "Mime-Version: 1.0"
+    echo "Content-Type: multipart/mixed; boundary=${mp_boundary}"
     echo
-    grep 'meta$' ${testdir}/summary | sed 's/[[:space:]]*meta$//'
-    echo
+    mp_part inline < ${testdir}/summary
 }
 coveragesummary() {
     cat $coverage | while read cov
                     do
                         ${builddir}/checkcoverage.sh ${testdir}/$cov
-                    done
+                    done  | mp_part "attachment; filename=coverage"
 }
 if [ $nrfail -eq 0 ]
 then
@@ -84,20 +96,13 @@ fi
 
 cat $fail | while read fail
             do
-                if [ $nrfail -ne 1 ]
-                then
-                    echo "---------- ${fail} -----------"
-                fi
-                cat ${testdir}/logs/${fail}
-                echo "BACKTRACES:"
-                ./infra/backtrace.sh ${testdir}/logs/${fail}
-                echo
+                ( cat ${testdir}/logs/${fail}
+                  echo "BACKTRACES:"
+                  ./infra/backtrace.sh ${testdir}/logs/${fail} ) | mp_part "attachment; filename=${fail}.fail"
             done
 
 if [ $nrcoverage -ne 0 ]
 then
-    echo
-    echo "=============== coverage ============="
     coveragesummary
 fi
 
