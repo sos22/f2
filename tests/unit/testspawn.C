@@ -56,7 +56,8 @@ static testmodule __spawntest(
                .fatal("sleep 1"));
         int cntr(0);
         while (p->hasdied() == Nothing) cntr++;
-        tassert(T(cntr) >= T(200));
+        tassert(T(cntr) >=
+                T(200 / (running_on_valgrind() ? VALGRIND_TIMEWARP : 1)));
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "sleep", [] {
         auto start(timestamp::now());
