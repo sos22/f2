@@ -102,13 +102,14 @@ eqtestcase(clientio io,
     f(io, *c, *q);
     c->destroy();
     pool->destroy();
-    assert(timedelta::time([&] { s->destroy(io); })
-           < timedelta::milliseconds(200));
-    assert(timedelta::time([&] { server->destroy(); })
-           < timedelta::milliseconds(200));
-    assert(timedelta::time([&] {
-                q->destroy(rpcservice2::acquirestxlock(io)); })
-        < timedelta::milliseconds(100));
+    tassert(T2(timedelta, timedelta::time([&] { s->destroy(io); }))
+            < T(300_ms));
+    tassert(T2(timedelta, timedelta::time([&] { server->destroy(); }))
+            < T(300_ms));
+    tassert(T2(timedelta,
+               timedelta::time([&] {
+                       q->destroy(rpcservice2::acquirestxlock(io)); }))
+        < T(300_ms));
     statefile.unlink().fatal("unlinking test queue state file"); }
 
 static testmodule __testeq(
