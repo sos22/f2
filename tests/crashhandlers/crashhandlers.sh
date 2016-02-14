@@ -3,6 +3,8 @@
 # The unit test framework automatically fails anything which crashes,
 # so it can't cover crash handlers. Do some ad-hoc testing instead.
 
+timewarp=$1
+
 set -e
 set -x
 top=$(git rev-parse --show-toplevel)
@@ -36,7 +38,7 @@ rm -f $t
 start=$(date +%s)
 ! ${crasher} runforever
 end=$(date +%s)
-[ $(( $end - $start ))  -lt 5 ]
+[ $(( $end - $start )) -lt $((5 * $timewarp)) ]
 
 # Crash handlers bypass locks
 t=$(mktemp)

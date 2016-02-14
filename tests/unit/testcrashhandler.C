@@ -17,7 +17,10 @@ static testmodule __testcrashhandler(
     testmodule::Dependency("tests/crashhandlers/crasher"),
     "sh", [] (clientio io) {
         auto e(spawn::program("./tests/crashhandlers/crashhandlers.sh")
+               .addarg(running_on_valgrind() ? "1" : "20")
                .run(io)
                .fatal("running crashhandlers.sh"));
-        assert(e.isleft());
-        assert(e.left() == shutdowncode::ok); });
+        /* For some reason doing tassert here makes the linker
+         * crash. Oh, the joys of C++. */
+        if (e.isright() || e.left() != shutdowncode::ok) {
+            error::unknown.fatal("shell script said " + e.field()); } } );
