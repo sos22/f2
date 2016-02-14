@@ -832,4 +832,30 @@ static testmodule __testeq(
                    timestamp::now() + timedelta::seconds(3))
                == error::dlopen);
         pool.destroy();
-        dummy.destroy(io); });
+        dummy.destroy(io); },
+    "fullqueuepipe", [] (clientio io) {
+        /* Server and client both have a queue depth of two, and we
+         * try to keep two things outstanding. Whenever the client
+         * pops an entry out of the queue, add another one to the
+         * server. You should be able to do that for a little while
+         * without anything dropping, even if the server is busy with
+         * other stuff. */
+        auto qconf(eventqueueconfig::dflt());
+        qconf.queuelimit = 2;
+        auto cconf(eqclientconfig::dflt());
+        cconf.maxqueue = 2;
+        eqtestcase(
+            io,
+            [] (clientio io,
+                eqclient<unsigned> &c,
+                eventqueue<unsigned> &q) {
+                q.queue(1, io);
+                q.queue(2, io);
+                unsigned nextpop = 1;
+                auto deadline((5_s).future());
+                while (deadline.infuture()) {
+                    assert(c.pop(io) == nextpop);
+                    q.queue(nextpop + 2, io);
+                    nextpop++; } },
+            qconf,
+            cconf); } );
