@@ -17,7 +17,7 @@ static testmodule __testcrashhandler(
     testmodule::Dependency("tests/crashhandlers/crasher"),
     "sh", [] (clientio io) {
         auto e(spawn::program("./tests/crashhandlers/crashhandlers.sh")
-               .addarg(running_on_valgrind() ? "1" : "20")
+               .addarg(running_on_valgrind() ? "20" : "1")
                .run(io)
                .fatal("running crashhandlers.sh"));
         /* For some reason doing tassert here makes the linker
