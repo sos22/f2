@@ -206,7 +206,10 @@ beaconserver::run(clientio io) {
 
         logmsg(loglevel::info,
                "received beacon request from " +
-               fields::mk(rr.success()));
+               fields::mk(rr.success()) + " on " +
+               fields::mk(notified == &listensub
+                          ? "listensub"
+                          : "clientsub"));
 
         buffer outbuffer;
         serialise1 s(outbuffer);
