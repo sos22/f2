@@ -39,7 +39,9 @@ static testmodule __testjob(
                .fatal("waitjob inner")
                .issuccess());
         auto end(timestamp::now());
-        tassert(T(end) - T(start) >= T(1_s));
+        tassert(T(end) - T(start) >= T(1_s / (running_on_valgrind()
+                                              ? VALGRIND_TIMEWARP
+                                              : 1)));
         tassert(T(end) - T(start) < T(2_s)); },
     "false", [] (clientio io) {
         computetest ct(io);
