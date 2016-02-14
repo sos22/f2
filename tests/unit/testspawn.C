@@ -125,7 +125,10 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).right() == signalnr::term); },
     "signal3", [] (clientio io) {
         logmsg(loglevel::debug, "starting sleep");
-        auto p(process::spawn(program("/bin/sleep").addarg("1"))
+        auto p(process::spawn(program("/bin/sleep")
+                              .addarg(running_on_valgrind()
+                                      ? "20"
+                                      : "1"))
                .fatal("spawning"));
         logmsg(loglevel::debug, "started sleep");
         (500_ms / timewarp()).future().sleep(io);
