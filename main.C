@@ -13,11 +13,29 @@
 
 #include "list.tmpl"
 #include "orerror.tmpl"
+#include "thread.tmpl"
+
+/* The signal thread can handle any signal. */
+namespace { class sigthr : public thread {
+public: waitbox<void> done;
+public: sigthr(const constoken &t) : thread(t) {}
+public: void run(clientio io) {
+    sigset_t ss;
+    ::sigfillset(&ss);
+    if (::sigprocmask(SIG_UNBLOCK, &ss, NULL) < 0) {
+        error::from_errno().fatal("unblocking signals"); }
+    done.get(io); } };
+static sigthr *sigthread; }
 
 static void
 fatalsignal(int signr) {
-    logmsg(loglevel::emergency,
-           "signal " + fields::mk(signr) + " from " + backtrace().field());
+    if (thread::me() == sigthread) {
+        /* Backtraces aren't very interesting on the signal thread. */
+        logmsg(loglevel::emergency, "signal " + fields::mk(signr)); }
+    else {
+        logmsg(loglevel::emergency,
+               "signal " + fields::mk(signr) +
+               " from " + backtrace().field()); }
     crashhandler::invoke();
     signal(signr, SIG_DFL);
     raise(signr); }
@@ -27,22 +45,39 @@ exithandler(int code, void *) {
     if (code != 0) {
         logmsg(loglevel::emergency, "exiting with status " + fields::mk(code));
         fatalsignal(0); } }
+
 int
 main(int argc, char *argv[]) {
     list<string> args;
     for (int i = 1; i < argc; i++) args.pushtail(argv[i]);
     initlogging(args);
-    /* core-dumping signals should probably dump the memory log */
-    signal(SIGSEGV, fatalsignal);
-    signal(SIGQUIT, fatalsignal);
-    signal(SIGILL, fatalsignal);
-    signal(SIGABRT, fatalsignal);
-    signal(SIGFPE, fatalsignal);
-    signal(SIGBUS, fatalsignal);
-    /* Similarly any time we exit with an error. */
+    sigthread = thread::start<sigthr>(fields::mk("signals"));
+    /* Most signals get blocked on most threads, except for ones which
+     * are generated synchronously for specific instructions. */
+    ::sigset_t ss;
+    sigfillset(&ss);
+    auto syncfatal([] (unsigned x) {
+            return x == SIGSEGV ||
+                x == SIGILL ||
+                x == SIGBUS ||
+                x == SIGFPE ||
+                x == SIGABRT; });
+    auto fatal([&] (unsigned x) {
+            return syncfatal(x) ||
+                x == SIGQUIT ||
+                x == SIGALRM; });
+    for (unsigned x = 1; x < 32; x++) {
+        if (syncfatal(x)) sigdelset(&ss, x);
+        if (fatal(x)) signal(x, fatalsignal); }
+    if (::sigprocmask(SIG_BLOCK, &ss, NULL) < 0) {
+        error::from_errno().fatal("sigprocmask"); }
+    /* Exiting with an error is a bit like getting a fatal signal,
+     * most of the time. */
     on_exit(exithandler, NULL);
     thread::initialthread();
     f2main(args).fatal("error from f2main");
+    sigthread->done.set();
+    sigthread->join(clientio::CLIENTIO);
     return 0; }
 
 /* Basically anything which defines f2main() will need this, so put it

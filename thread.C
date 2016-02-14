@@ -17,6 +17,7 @@
 #include "waitbox.tmpl"
 
 static __thread const char *this_name;
+static __thread thread *this_thread;
 static unsigned nrthreads;
 
 thread::thread(const thread::constoken &token)
@@ -41,6 +42,8 @@ void *
 thread::pthreadstart(void *_this) {
     thread *thr = static_cast<thread *>(_this);
     assert(thr->started == true);
+    assert(this_thread == NULL);
+    this_thread = thr;
     /* pthread API doesn't give a good way of getting tid from parent
        process, so do it from here instead. */
     thr->tid_.set(tid::me());
@@ -53,6 +56,7 @@ thread::pthreadstart(void *_this) {
     thr->dead.storerelease(true);
     thr->_pub.publish();
     atomicloaddec(nrthreads);
+    this_thread = NULL;
     return NULL; }
 
 orerror<void>
@@ -112,6 +116,9 @@ thread::myname() { return this_name ?: "<unknown thread>"; }
 
 void
 thread::initialthread() { this_name = "main"; }
+
+thread *
+thread::me() { return this_thread; }
 
 namespace {
 class exitchecks {

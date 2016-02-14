@@ -7,6 +7,7 @@
 #include "parsers.tmpl"
 #include "test2.tmpl"
 #include "thread.tmpl"
+#include "waitbox.tmpl"
 
 static testmodule __testthread(
     "thread",
@@ -172,6 +173,14 @@ static testmodule __testthread(
             assert(strstr(n, "dead"));
             assert(!strstr(n, "unstarted")); }
         thr2->join(io); },
+    "me", [] (clientio io) {
+        class foo : public thread {
+        public: waitbox<foo *> &mmm;
+        public: foo(constoken t, waitbox<foo *> &m) : thread(t), mmm(m) {}
+        public: void run(clientio io) { assert(mmm.get(io) == thread::me()); }};
+        waitbox<foo *> www;
+        www.set(thread::start<foo>(fields::mk("S"), www));
+        www.get(io)->join(io); },
     "_spawn", [] (clientio io) {
         class testthr : public thread {
         public: class token {

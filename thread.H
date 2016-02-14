@@ -114,6 +114,10 @@ public:    const fields::field &field() const;
      * as the thread is running. */
 public:    static const char *myname();
 
+    /* Currently running thread, if it's from this library, or NULL if
+     * it came from somewhere else (main thread, pthread_create). */
+public:    static thread *me();
+
     /* Special interface to initialise the program's initial
      * thread. */
 public:    static void initialthread();

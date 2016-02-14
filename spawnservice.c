@@ -97,9 +97,8 @@ main(int argc, char *argv[]) {
     reqfd = atoi(argv[2]);
 
     sigemptyset(&sigs);
-    sigprocmask(SIG_SETMASK, NULL, &sigs);
     sigaddset(&sigs, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &sigs, NULL);
+    sigprocmask(SIG_SETMASK, &sigs, NULL);
 
     prctl(PR_SET_PDEATHSIG, SIGKILL);
 
