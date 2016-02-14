@@ -83,10 +83,14 @@ static testmodule __spawntest(
                 sub.rearm(); }
             /* Can get a few spurious wakes, but not too many. */
             assert(woke < 5); }
-        assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
-        auto t(timestamp::now() - start - timedelta::seconds(1));
-        assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(300))); },
+        tassert(T(p->join(p->hasdied().just()).left()) ==
+                T(shutdowncode::ok));
+        auto t(timestamp::now() - start -
+               (timedelta::seconds(1) / (running_on_valgrind()
+                                         ? VALGRIND_TIMEWARP
+                                         : 1)));
+        tassert(T(t) >= T(0_s));
+        tassert(T(t) <= T(300_ms)); },
     "sleep3", [] (clientio) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg(string("1")))
