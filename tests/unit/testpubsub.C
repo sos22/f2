@@ -270,7 +270,7 @@ static testmodule __testpubsub(
         t1.get();
         t2.get();
         tassert(T(cntr1) - T(cntr2) >= T(-1) && T(cntr1) - T(cntr2) <= T(1));
-        tassert(T(cntr1) >= T(5000 / timewarp())); },
+        tassert(T(cntr1) >= T(4000 / timewarp())); },
     "ioshutdownrace", [] {
         auto pipe(fd_t::pipe());
         subscriber sub;
