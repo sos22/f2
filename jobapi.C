@@ -39,10 +39,12 @@ class jobapi::impl {
 public: jobapi api;
 public: storageclient &sc;
 public: const job self;
+public: map<streamname, outputstreamimpl> outputs;
 public: explicit impl(storageclient &_sc, const job &_self)
     : api(),
       sc(_sc),
-      self(_self) {
+      self(_self),
+      outputs() {
     logmsg(loglevel::info, "job is " + self.field()); } };
 
 jobapi::impl &
@@ -62,16 +64,20 @@ jobapi::immediate() const {
 
 maybe<nnp<jobapi::outputstream> >
 jobapi::output(const streamname &sn) {
-    if (!implementation().self.outputs().contains(sn)) return Nothing;
-    return _nnp(*static_cast<jobapi::outputstream *>(
-                    new outputstreamimpl(implementation(), sn))); }
+    auto &i(implementation());
+    auto e(i.outputs.getptr(sn));
+    if (e == NULL) {
+        if (!i.self.outputs().contains(sn)) return Nothing;
+        e = &i.outputs.set(sn, i, sn); }
+    return _nnp(*static_cast<outputstream *>(e)); }
 
 maybe<nnp<jobapi::inputstream> >
 jobapi::input(const streamname &sn) {
-    auto r(implementation().self.inputs.get(sn));
+    auto &i(implementation());
+    auto r(i.self.inputs.get(sn));
     if (r == Nothing) return Nothing;
     return _nnp(*static_cast<jobapi::inputstream *>(
-                    new inputstreamimpl(implementation(),
+                    new inputstreamimpl(i,
                                         r.just().first(),
                                         r.just().second()))); }
 
