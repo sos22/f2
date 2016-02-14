@@ -34,7 +34,9 @@ f2main(list<string> &args)
 
     signal(SIGPIPE, SIG_IGN);
 
-    storageagent::build(clientio::CLIENTIO, config)
-        .fatal("build storage agent");
+    {   auto e(storageagent::build(clientio::CLIENTIO, config));
+        if (e.isfailure()) {
+            deinitpubsub(clientio::CLIENTIO);
+            e.fatal("build storage agent"); } }
 
     while (true) sleep(1000); }
