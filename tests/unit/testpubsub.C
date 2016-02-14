@@ -245,7 +245,7 @@ static testmodule __testpubsub(
                                             r == &ss ||
                                             timestamp::now() >= deadline); }}));
                     if (tt > longest) longest = tt;
-                    assert(tt < 100_ms);
+                    assert(tt < 200_ms);
                     assert(thread1);
                     thread1 = false;
                     pub2.publish();
@@ -262,7 +262,7 @@ static testmodule __testpubsub(
                                        assert(
                                            r == &ss ||
                                            timestamp::now() >= deadline); } })
-                           < 100_ms);
+                           < 200_ms);
                     assert(!thread1);
                     thread1 = true;
                     pub1.publish();
