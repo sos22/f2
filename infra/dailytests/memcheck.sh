@@ -20,8 +20,8 @@ summary=${testdir}/summary
     while read modname
     do
         if stdbuf -o L -e L \
-               valgrind --tool=memcheck --leak-check=full --error-exitcode=2 --trace-children=yes --trace-children-skip=/usr/bin/make \
-               ./test2 "${modname}" '*' > ${testdir}/logs/${modname} 2>&1
+                  ./infra/runvalgrind.sh \
+                  ./test2 "${modname}" '*' > ${testdir}/logs/${modname} 2>&1
         then
             printf "%-40s pass\n" $modname >> ${summary}
         else
