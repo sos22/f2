@@ -217,44 +217,44 @@ static testmodule __testeq(
                     cconfig2)
                 .fatal("connecting eqclient")
                 .first());
-        assert(c1->pop() == Nothing);
+        tassert(T(c1->pop()) == T(Nothing));
         q->queue(1, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 1);
-        assert(c2->pop(io) == 1);
+        tassert(T(c1->pop(io)) == T(1));
+        tassert(T(c2->pop(io)) == T(1));
         q->queue(2, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 2);
+        tassert(T(c1->pop(io)) == T(2));
         q->queue(3, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 3);
-        assert(c2->pop(io) == 2);
-        assert(c2->pop(io) == 3);
+        tassert(T(c1->pop(io)) == T(3));
+        tassert(T(c2->pop(io)) == T(2));
+        tassert(T(c2->pop(io)) == T(3));
         q->queue(4, rpcservice2::acquirestxlock(io));
         q->queue(5, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 4);
+        tassert(T(c1->pop(io)) == T(4));
         q->queue(6, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 5);
+        tassert(T(c1->pop(io)) == T(5));
         q->queue(7, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 6);
+        tassert(T(c1->pop(io)) == T(6));
         q->queue(8, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 7);
+        tassert(T(c1->pop(io)) == T(7));
         q->queue(9, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 8);
+        tassert(T(c1->pop(io)) == T(8));
         q->queue(10, rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == 9);
+        tassert(T(c1->pop(io)) == T(9));
         q->queue(11, rpcservice2::acquirestxlock(io));
         /* That's enough to overflow the c2 queue.  Depending on
          * how we race with the queue threads we might still get a
          * couple of messages, but something should definitely get
          * dropped. */
         {   auto a(c2->pop(io));
-            assert(a == 4 || a == error::eventsdropped); }
+            tassert(T(a) == T(4) || T(a) == T(error::eventsdropped)); }
         {   auto a(c2->pop(io));
-            assert(a == 5 || a == error::eventsdropped); }
+            tassert(T(a) == T(5) || T(a) == T(error::eventsdropped)); }
         {   auto a(c2->pop(io));
-            assert(a == 6 || a == error::eventsdropped); }
-        assert(c2->pop(io) == error::eventsdropped);
+            tassert(T(a) == T(6) || T(a) == T(error::eventsdropped)); }
+        tassert(T(c2->pop(io)) == T(error::eventsdropped));
         /* c1 should be unaffected. */
-        assert(c1->pop(io) == 10);
-        assert(c1->pop(io) == 11);
+        tassert(T(c1->pop(io)) == T(10));
+        tassert(T(c1->pop(io)) == T(11));
         c2->destroy();
         c2 = eqclient<unsigned>::connect(
             io,
@@ -265,12 +265,12 @@ static testmodule __testeq(
             cconfig2)
             .fatal("connecting eqclient")
             .first();
-        assert(c2->pop() == Nothing);
+        tassert(T(c2->pop()) == T(Nothing));
         q->queue(99, rpcservice2::acquirestxlock(io));
-        assert(c2->pop(io) == 99);
-        assert(c1->pop(io) == 99);
+        tassert(T(c2->pop(io)) == T(99));
+        tassert(T(c1->pop(io)) == T(99));
         q->destroy(rpcservice2::acquirestxlock(io));
-        assert(c1->pop(io) == error::badqueue);
+        tassert(T(c1->pop(io)) == T(error::badqueue));
         s->destroy(io);
         server->destroy();
         {   /* The error we get here depends on how the teardown
@@ -278,7 +278,7 @@ static testmodule __testeq(
              * thread can connect to the server after the queue is
              * destroyed, or timeout if it misses the window. */
             auto e(c2->pop(io));
-            assert(e == error::badqueue || e == error::timeout); }
+            tassert(T(e) == T(error::badqueue) || T(e) == T(error::timeout)); }
         c1->destroy();
         c2->destroy();
         pool->destroy();
