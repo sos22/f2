@@ -40,11 +40,13 @@ public: jobapi api;
 public: storageclient &sc;
 public: const job self;
 public: map<streamname, outputstreamimpl> outputs;
+public: map<streamname, inputstreamimpl> inputs;
 public: explicit impl(storageclient &_sc, const job &_self)
     : api(),
       sc(_sc),
       self(_self),
-      outputs() {
+      outputs(),
+      inputs() {
     logmsg(loglevel::info, "job is " + self.field()); } };
 
 jobapi::impl &
@@ -74,12 +76,12 @@ jobapi::output(const streamname &sn) {
 maybe<nnp<jobapi::inputstream> >
 jobapi::input(const streamname &sn) {
     auto &i(implementation());
-    auto r(i.self.inputs.get(sn));
-    if (r == Nothing) return Nothing;
-    return _nnp(*static_cast<jobapi::inputstream *>(
-                    new inputstreamimpl(i,
-                                        r.just().first(),
-                                        r.just().second()))); }
+    auto e(i.inputs.getptr(sn));
+    if (e == NULL) {
+        auto r(i.self.inputs.get(sn));
+        if (r == Nothing) return Nothing;
+        e = &i.inputs.set(sn, i, r.just().first(), r.just().second()); }
+    return _nnp(*static_cast<inputstream *>(e)); }
 
 jobapi &
 newjobapi(storageclient &sc, const job &self) {
