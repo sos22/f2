@@ -28,7 +28,7 @@ static testmodule __testpubsub(
     list<filename>::mk("pubsub.C", "pubsub.H"),
     testmodule::LineCoverage(95_pc),
     testmodule::BranchCoverage(68_pc),
-    /* None of these take clientio tokens, because if clientio tests
+    /* None of these take clientio tokens, because clientio tests
      * start the pubsub thread from the harness, and that's something
      * we need to be able to control from the tests. */
     "pubcons", [] { publisher p; },
