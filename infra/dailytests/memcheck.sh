@@ -19,11 +19,14 @@ summary=${testdir}/summary
     sed 's/^Module: \(.*\)/\1/p;d' |
     while read modname
     do
+        vglog=${testdir}/logs/${modname}-vg
+        mkdir -p ${vglog}
         if stdbuf -o L -e L \
-                  ./infra/runvalgrind.sh \
+                  ./infra/runvalgrind.sh ${vglog}/vg.%p \
                   ./test2 "${modname}" '*' > ${testdir}/logs/${modname} 2>&1
         then
             printf "%-40s pass\n" $modname >> ${summary}
+            rm -r ${vglog}
         else
             printf "%-40s fail\n" $modname >> ${summary}
         fi
