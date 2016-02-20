@@ -326,14 +326,14 @@ static testmodule __testpubsub(
     "detachnotifyrace", [] {
         initpubsub();
         auto pipe(fd_t::pipe().fatal("pipe()"));
-        volatile bool shutdown(false);
+        racey<bool> shutdown(false);
         spark<void> bounce([&pipe, &shutdown] {
-                while (!shutdown) {
+                while (!shutdown.load()) {
                     (void)pipe.write.write(_io, "X", 1);
                     char buf;
                     (void)pipe.read.read(_io, &buf, 1); } });
         spark<void> watcher([&pipe, &shutdown] {
-                while (!shutdown) {
+                while (!shutdown.load()) {
                     subscriber sub;
                     char buf[sizeof(iosubscription)];
                     auto r = new (buf) iosubscription(
@@ -343,7 +343,7 @@ static testmodule __testpubsub(
                     r->~iosubscription();
                     memset(buf, 0x99, sizeof(buf)); } });
         (5_s).future().sleep(_io);
-        shutdown = true;
+        shutdown.store(true);
         watcher.get();
         deinitpubsub(_io); },
     "listenclosed", [] {

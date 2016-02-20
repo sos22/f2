@@ -88,7 +88,10 @@ public: static const publisher dummy; };
 
 class subscriptionbase {
     friend class subscriber;
-protected: bool notified;
+protected: racey<bool> notified; /* racey because of
+                                  * iosubscription::rearm() fast
+                                  * path. Otherwise under the
+                                  * subscriber lock. */
 protected: subscriber *sub;
 public:    void *const data;
 protected: subscriptionbase(subscriber &_sub, void *_data = NULL);

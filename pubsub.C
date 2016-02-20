@@ -207,8 +207,8 @@ void
 subscriptionbase::set() {
     assert(sub);
     auto tok(sub->mux.lock());
-    if (!notified) {
-        notified = true;
+    if (!notified.load()) {
+        notified.store(true);
         sub->nrnotified++;
         if (sub->nrnotified == 1) sub->cond.broadcast(tok); }
     sub->mux.unlock(&tok); }
@@ -222,7 +222,7 @@ subscriptionbase::~subscriptionbase() {
             found = true;
             it.remove();
             break; } }
-    if (notified) sub->nrnotified--;
+    if (notified.load()) sub->nrnotified--;
     sub->mux.unlock(&token);
     assert(found); }
 
@@ -230,7 +230,7 @@ const fields::field &
 subscriptionbase::field() const {
     return "sub " + fields::mkptr(this) + " to " +
         fields::mkptr(sub) + "; data " + fields::mkptr(data) +
-        "; notified " + fields::mk(notified); }
+        "; notified " + fields::mk(notified.load()); }
 
 subscription::subscription(subscriber &_sub, const publisher &_pub, void *_data)
     : subscriptionbase(_sub, _data),
@@ -273,7 +273,7 @@ iosubscription::rearm() {
     
     /* Fast path if we're already notified or the FD is already
      * ready. */
-    if (notified) return;
+    if (notified.load()) return;
     struct pollfd p(pfd);
     assert(p.revents == 0);
     int r(::poll(&p, 1, 0));
@@ -324,8 +324,8 @@ subscriber::wait(clientio io, maybe<timestamp> deadline) {
             assert(!it.finished());
             auto r(*it);
             assert(r->sub == this);
-            if (r->notified) {
-                r->notified = false;
+            if (r->notified.load()) {
+                r->notified.store(false);
                 nrnotified--;
                 mux.unlock(&token);
                 fuzzsched();
@@ -344,7 +344,7 @@ subscriber::~subscriber() {
     while (!subscriptions.empty()) {
         auto r(subscriptions.pophead());
         assert(r->sub == this);
-        if (r->notified) nrnotified--;
+        if (r->notified.load()) nrnotified--;
         r->detach();
         r->sub = NULL; }
     assert(nrnotified == 0); }
