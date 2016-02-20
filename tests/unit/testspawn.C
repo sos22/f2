@@ -242,7 +242,9 @@ static testmodule __spawntest(
         assert(p.read.read(io, buf, 7).fatal("reading back") == 6);
         assert(!memcmp(buf, "hello\n", 6));
         p.read.close(); },
-    "fdleak", [] (clientio io) {
+    /* Can't do this on Valgrind, because Valgrind has its own FDs
+     * which make it hard to see which are ours. */
+    testmodule::TestFlags::novalgrind(), "fdleak", [] (clientio io) {
         /* Check that we're not leaking any unexpected FDs into the
          * child. */
         auto outpipe(fd_t::pipe().fatal("out pipe"));
