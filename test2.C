@@ -35,6 +35,9 @@ running_on_valgrind() {
     __running_on_vgrind inner;
     return inner.val; }
 
+double
+timewarp() { return running_on_valgrind() ? VALGRIND_TIMEWARP : 1; }
+
 static map<string, nnp<testmodule> > *
 modules;
 

@@ -12,6 +12,9 @@
  * template arguments. Turn it into a bool. */
 bool running_on_valgrind();
 
+/* How much timewarp is currently being applied? */
+double timewarp();
+
 class clientio;
 template <typename> class maybe;
 

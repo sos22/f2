@@ -56,8 +56,7 @@ static testmodule __spawntest(
                .fatal("sleep 1"));
         int cntr(0);
         while (p->hasdied() == Nothing) cntr++;
-        tassert(T(cntr) >=
-                T(200 / (running_on_valgrind() ? VALGRIND_TIMEWARP : 1)));
+        tassert(T(cntr) >= T(200 / timewarp()));
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "sleep", [] {
         auto start(timestamp::now());
@@ -67,9 +66,9 @@ static testmodule __spawntest(
                .fatal("spawning /bin/sleep"));
         while (p->hasdied() == Nothing) {}
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok);
-        auto t(timestamp::now() - start - timedelta::seconds(1));
-        assert(t >= timedelta::seconds(0));
-        tassert(T(t) <= T(timedelta::milliseconds(200))); },
+        auto t(timestamp::now() - start - (1_s / timewarp()));
+        tassert(T(t) >= T(0_s));
+        tassert(T(t) <= T(200_ms)); },
     "sleep2", [] (clientio io) {
         auto start(timestamp::now());
         auto p(process::spawn(program("/bin/sleep").addarg("1"))
@@ -86,10 +85,7 @@ static testmodule __spawntest(
             assert(woke < 5); }
         tassert(T(p->join(p->hasdied().just()).left()) ==
                 T(shutdowncode::ok));
-        auto t(timestamp::now() - start -
-               (timedelta::seconds(1) / (running_on_valgrind()
-                                         ? VALGRIND_TIMEWARP
-                                         : 1)));
+        auto t(timestamp::now() - start - 1_s / timewarp());
         tassert(T(t) >= T(0_s));
         tassert(T(t) <= T(300_ms)); },
     "sleep3", [] (clientio) {
@@ -97,7 +93,7 @@ static testmodule __spawntest(
         auto p(process::spawn(program("/bin/sleep").addarg(string("1")))
                .fatal("spawning /bin/sleep"));
         assert(p->join(clientio::CLIENTIO).left() == shutdowncode::ok);
-        auto t(timestamp::now() - start - timedelta::seconds(1));
+        auto t(timestamp::now() - start - 1_s / timewarp());
         tassert(T(t) >= T(0_s));
         tassert(T(t) <= T(300_ms)); },
     "sleep4", [] (clientio io) {
@@ -132,7 +128,7 @@ static testmodule __spawntest(
         auto p(process::spawn(program("/bin/sleep").addarg("1"))
                .fatal("spawning"));
         logmsg(loglevel::debug, "started sleep");
-        (500_ms).future().sleep(io);
+        (500_ms / timewarp()).future().sleep(io);
         assert(p->hasdied() == Nothing);
         p->signal(signalnr::stop);
         logmsg(loglevel::debug, "stopped sleep");

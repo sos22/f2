@@ -111,7 +111,6 @@ static testmodule __testtimedelta(
         tassert(T(td) < T(400_ms)); },
     "timeV", [] {
         auto t(timedelta::time([] {
-                    (timestamp::now()+timedelta::milliseconds(100))
-                        .sleep(clientio::CLIENTIO); }));
+                    (100_ms).future().sleep(clientio::CLIENTIO); }));
         tassert(T(100_ms) < T(t));
         tassert(T(t) < T(120_ms)); });

@@ -1,6 +1,7 @@
 #include "tests/lib/testctxt.H"
 #include "test2.H"
 #include "testassert.H"
+#include "timedelta.H"
 
 #include "orerror.tmpl"
 #include "test2.tmpl"
@@ -39,10 +40,9 @@ static testmodule __testjob(
                .fatal("waitjob inner")
                .issuccess());
         auto end(timestamp::now());
-        tassert(T(end) - T(start) >= T(1_s / (running_on_valgrind()
-                                              ? VALGRIND_TIMEWARP
-                                              : 1)));
-        tassert(T(end) - T(start) < T(2_s)); },
+        auto d(end - start - 1_s / timewarp());
+        tassert(T(d) >= T(0_s));
+        tassert(T(d) < T(1_s)); },
     "false", [] (clientio io) {
         computetest ct(io);
         auto j(job(JOBEXEC, "exec")
