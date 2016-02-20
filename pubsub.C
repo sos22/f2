@@ -100,8 +100,8 @@ iopollingthread::run(clientio) {
                 if (reg->pfd.fd == pfds[i].fd &&
                     (reg->pfd.events & pfds[i].revents) != 0) {
                     it.remove();
-                    assert(reg->registered);
-                    reg->registered = false;
+                    assert(reg->registered.load());
+                    reg->registered.store(false);
                     if (COVERAGE) pthread_yield();
                     reg->set();
                     found = true;
@@ -127,9 +127,9 @@ iopollingthread::iopollingthread(constoken tok)
 void
 iopollingthread::attach(iosubscription &sub) {
     auto token(mux.lock());
-    assert(!sub.registered);
+    assert(!sub.registered.load());
     for (auto it(what.start()); !it.finished(); it.next()) assert(*it != &sub);
-    sub.registered = true;
+    sub.registered.store(true);
     what.pushtail(&sub);
     mux.unlock(&token);
     pollthread->kill(SIGUSR1).fatal("waking up poller thread for new FD"); }
@@ -137,14 +137,14 @@ iopollingthread::attach(iosubscription &sub) {
 void
 iopollingthread::detach(iosubscription &sub) {
     auto token(mux.lock());
-    if (!sub.registered) {
+    if (!sub.registered.load()) {
         mux.unlock(&token);
     } else {
         bool found = false;
         for (auto it(what.start()); !it.finished(); it.next()) {
             if (*it == &sub) {
                 it.remove();
-                sub.registered = false;
+                sub.registered.store(false);
                 found = true;
                 break; } }
         assert(found);
@@ -269,7 +269,7 @@ void
 iosubscription::rearm() {
     /* Must have been returned by subscriber::wait(), so can't
      * currently be registered. */
-    assert(!registered);
+    assert(!registered.load());
     
     /* Fast path if we're already notified or the FD is already
      * ready. */
@@ -294,7 +294,7 @@ iosubscription::detach() {
 const fields::field &
 iosubscription::field() const {
     return "ios(" + subscriptionbase::field() + ") "
-        "registered " + fields::mk(registered); }
+        "registered " + fields::mk(registered.load()); }
 
 iosubscription::~iosubscription() {
     detach(); }

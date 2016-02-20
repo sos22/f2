@@ -128,9 +128,10 @@ public:  ~subscription();
 class iosubscription : public subscriptionbase {
     friend class iopollingthread;
 private: const struct pollfd pfd; /* What are we listening for? */
-private: bool registered; /* Are we currently registered with the poll
-                             thread?  Protected by the polling thread
-                             mux. */
+private: racey<bool> registered; /* Are we currently registered with
+                                    the poll thread?  Protected by the
+                                    polling thread mux, except for
+                                    iosubscription::field() */
     /* Construct a new iosubscription connecting the subscriber to a
      * given poll descriptor. */
 public:  iosubscription(subscriber &, struct pollfd);

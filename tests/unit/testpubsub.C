@@ -223,11 +223,10 @@ static testmodule __testpubsub(
     "pingpong", [] {
         /* Ping-pong back and forth between two threads for a
          * bit. */
-        bool thread1;
+        racey<bool> thread1(true);
         publisher pub1;
         publisher pub2;
         timestamp deadline(timestamp::now() + timedelta::milliseconds(200));
-        thread1 = true;
         int cntr1;
         int cntr2;
         cntr1 = 0;
@@ -239,15 +238,15 @@ static testmodule __testpubsub(
                 while (timestamp::now() < deadline) {
                     auto tt(timedelta::time(
                                 [&thread1, &ss, &sub, deadline] () {
-                                    while (!thread1) {
+                                    while (!thread1.load()) {
                                         auto r(sub.wait(_io, deadline));
                                         assert(
                                             r == &ss ||
                                             timestamp::now() >= deadline); }}));
                     if (tt > longest) longest = tt;
                     assert(tt < 200_ms);
-                    assert(thread1);
-                    thread1 = false;
+                    assert(thread1.load());
+                    thread1.store(false);
                     pub2.publish();
                     cntr1++; }
                 logmsg(loglevel::debug, "longest stall " + longest.field()); });
@@ -257,21 +256,21 @@ static testmodule __testpubsub(
                 while (timestamp::now() < deadline) {
                     assert(timedelta::time(
                                [&thread1, &ss, &sub, deadline] () {
-                                   while (thread1) {
+                                   while (thread1.load()) {
                                        auto r(sub.wait(_io, deadline));
                                        assert(
                                            r == &ss ||
                                            timestamp::now() >= deadline); } })
                            < 200_ms);
-                    assert(!thread1);
-                    thread1 = true;
+                    assert(!thread1.load());
+                    thread1.store(true);
                     pub1.publish();
                     cntr2++; }
                 logmsg(loglevel::debug, "t2 finished"); });
         t1.get();
         t2.get();
         tassert(T(cntr1) - T(cntr2) >= T(-1) && T(cntr1) - T(cntr2) <= T(1));
-        tassert(T(cntr1) >= T(5000)); },
+        tassert(T(cntr1) >= T(5000 / timewarp())); },
     "ioshutdownrace", [] {
         auto pipe(fd_t::pipe());
         subscriber sub;
