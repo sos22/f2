@@ -44,7 +44,12 @@ static void
 exithandler(int code, void *) {
     if (code != 0) {
         logmsg(loglevel::emergency, "exiting with status " + fields::mk(code));
-        fatalsignal(0); } }
+        fatalsignal(0); }
+    if (sigthread != NULL) {
+        /* Just to shut Valgrind up. */
+        sigthread->done.set();
+        sigthread->join(clientio::CLIENTIO);
+        sigthread = NULL; } }
 
 int
 main(int argc, char *argv[]) {
@@ -76,8 +81,6 @@ main(int argc, char *argv[]) {
     on_exit(exithandler, NULL);
     thread::initialthread();
     f2main(args).fatal("error from f2main");
-    sigthread->done.set();
-    sigthread->join(clientio::CLIENTIO);
     return 0; }
 
 /* Basically anything which defines f2main() will need this, so put it
