@@ -144,16 +144,12 @@ void
 crashhandler::invoke() {
     /* If we're already in crash handler mode then do nothing. */
     if (crashhandler::crashing()) return;
-    /* Fork a child and stop the parent, to get as clean a report as
-     * possible. */
+    /* Fork a child, to get as clean a report as possible. */
     pid_t spid = (pid_t)syscall(SYS_fork);
     if (spid < 0) error::from_errno().warn("fork CH surrogate");
     else if (spid > 0) ::waitpid(spid, NULL, 0);
     else {
-        pid_t ppid = (pid_t)syscall(SYS_getppid);
-        ::kill(ppid, SIGSTOP);
         surrogate();
-        ::kill(ppid, SIGCONT);
         _exit(0); } }
 
 bool
