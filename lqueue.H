@@ -35,6 +35,7 @@ public: slot *head;
 public: slot *tail;
 public: mutex_t mux;
 public: list<genevtdest *> dests;
+public: racey<bool> destsnonempty;
 public: unsigned long sequence;
 public: publisher pub;
 public: const size_t sz;

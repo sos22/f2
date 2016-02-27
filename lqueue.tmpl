@@ -6,7 +6,7 @@ evtsrc<evt>::evtsrc(timedelta _maxwait) : genevtsrc(sizeof(evt), _maxwait) {}
 
 template <typename evt> void
 evtsrc<evt>::push(const evt &_evt) {
-    if (dests.empty_unsafe()) return;
+    if (!destsnonempty.load()) return;
     auto slt((slot *)malloc(sizeof(slot) + sizeof(evt)));
     new (slt->inner) evt(_evt);
     if (!genevtsrc::push(*slt)) {

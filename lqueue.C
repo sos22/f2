@@ -7,13 +7,12 @@
 #include "fields.tmpl"
 #include "list.tmpl"
 
-template bool list<genevtdest*>::empty_unsafe() const;
-
 genevtsrc::genevtsrc(size_t _sz, timedelta _maxwait)
     : head(NULL),
       tail(NULL),
       mux(),
       dests(),
+      destsnonempty(false),
       sequence(100),
       pub(),
       sz(_sz),
@@ -53,6 +52,7 @@ genevtdest::genevtdest(genevtsrc &_src)
       src(_src) {
     src.mux.locked([this] {
             sequence = src.sequence;
+            src.destsnonempty.store(true);
             src.dests.pushtail(this); }); }
 
 genevtsrc::slot *
@@ -84,6 +84,7 @@ genevtsrc::slot *
 genevtdest::unsubscribe() {
     auto tok(src.mux.lock());
     src.dests.drop(this);
+    if (src.dests.empty()) src.destsnonempty.store(false);
     /* Try to advance the queue */
     auto firsttokeep(src.head);
     genevtsrc::slot *lasttodrop(NULL);
