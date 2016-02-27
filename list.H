@@ -87,8 +87,6 @@ public:
 
     /* Check whether a list is currently empty */
     bool empty() const;
-    /* Check for list emptiness with fewer sanity checks */
-    bool empty_unsafe() const;
     /* Count the number of elements in the list */
     unsigned length() const;
     /* delete everything which is currently in the list */

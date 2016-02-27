@@ -248,22 +248,6 @@ static testmodule __listtest(
         assert(&*l.start() == p1);
         l.drop(p1);
         assert(l == list<int>(Immediate())); },
-    "empty_unsafe", [] {
-        /* empty_unsafe() is like empty(), except that it does
-         * less sanity checking and it's safe while the list is
-         * under concurrent modification. */
-        list<int> l;
-        assert(l.empty_unsafe());
-        l.append(1);
-        assert(!l.empty_unsafe());
-        racey<bool> done(false);
-        spark<void> checker([&] {
-                while (!done.load()) l.empty_unsafe(); });
-        auto deadline((2_s).future());
-        while (deadline.infuture()) {
-            l.append(5);
-            l.pophead(); }
-        done.store(true); },
     "parser", [] {
         auto &p(list<int>::parser(parsers::intparser<int>()));
         assert(p.match("{}") == list<int>());

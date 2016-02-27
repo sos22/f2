@@ -124,13 +124,6 @@ list<t>::empty() const
     return !head;
 }
 
-/* Careful: this is sometimes called while the list is being
- * concurrently modified.  If the list is moving between empty and
- * non-empty states when this is called then it doesn't matter what we
- * return, but we do have to not crash. */
-template <typename t> bool
-list<t>::empty_unsafe() const { return !head; }
-
 template <typename t> unsigned
 list<t>::length() const {
     unsigned acc = 0;
