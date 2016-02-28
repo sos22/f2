@@ -3,6 +3,8 @@
 #include <signal.h>
 #include <stdlib.h>
 
+#include <valgrind/valgrind.h>
+
 #include "backtrace.H"
 #include "crashhandler.H"
 #include "fields.H"
@@ -61,6 +63,8 @@ main(int argc, char *argv[]) {
      * are generated synchronously for specific instructions. */
     ::sigset_t ss;
     sigfillset(&ss);
+    /* KDE bug 39571 */
+    if (RUNNING_ON_VALGRIND) sigdelset(&ss, 64);
     auto syncfatal([] (unsigned x) {
             return x == SIGSEGV ||
                 x == SIGILL ||
