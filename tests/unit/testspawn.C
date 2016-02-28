@@ -144,12 +144,12 @@ static testmodule __spawntest(
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "signal4", [] (clientio io) {
         auto p(process::spawn(program("/bin/true")).fatal("spawning truth"));
-        (50_ms).future().sleep(io);
+        (200_ms).future().sleep(io);
         p->signal(signalnr::kill);
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
     "signal5", [] (clientio io) {
         auto p(process::spawn(program("/bin/true")).fatal("spawning truth"));
-        (50_ms).future().sleep(io);
+        (200_ms).future().sleep(io);
         assert(p->hasdied() != Nothing);
         p->signal(signalnr::kill);
         assert(p->join(p->hasdied().just()).left() == shutdowncode::ok); },
@@ -160,7 +160,7 @@ static testmodule __spawntest(
     "raise2", [] (clientio io) {
         auto p(process::spawn(program("./tests/abort/abort"))
                .fatal("spawing ./tests/abort/abort"));
-        (50_ms).future().sleep(io);
+        (200_ms).future().sleep(io);
         p->signal(signalnr::kill);
         assert(p->join(io).right() == signalnr::abort); },
     "internal", [] {
