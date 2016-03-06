@@ -61,4 +61,7 @@ public:  void storerelease(t x) { store(x); } };
 
 void mb();
 
+namespace proto { namespace eq { class eventid; } };
+template <> class racey<proto::eq::eventid>;
+
 #endif /* !UTIL_H__ */

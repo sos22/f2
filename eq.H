@@ -5,6 +5,7 @@
 
 #include "proto2.H"
 #include "quickcheck.H"
+#include "util.H"
 
 class deserialise1;
 template <typename> class parser;
@@ -60,6 +61,7 @@ public:  bool operator==(subscriptionid o) const { return v == o.v; } };
  * identifiers for the messages to this subscription.  Event IDs are
  * never re-used, even if the server crashes and recovers. */
 class eventid {
+    friend class racey<proto::eq::eventid>;
 private: unsigned long v;
 private: explicit eventid(unsigned long _v) : v(_v) {}
 public:  explicit eventid(quickcheck &q) : v(q) {}
@@ -87,6 +89,11 @@ public:  static const parser<eventid> &_parser();
     /* Occasionally necessary to work around compiler problems.
      * Should never be used for anything real. */
 public:  static eventid compilerdummy() { return eventid(0xf001deadul); } };
+
+template <> class racey<proto::eq::eventid> : private racey<unsigned long> {
+public: racey(proto::eq::eventid);
+public: proto::eq::eventid load() const;
+public: void store(proto::eq::eventid); };
 
 class tag : public proto::tag {
 private: explicit tag(unsigned char _v) : proto::tag(_v) {}

@@ -88,11 +88,13 @@ public: mutable mutex_t mux;
 public: proto::eq::eventid _lastdropped;
 public: proto::eq::eventid &lastdropped(mutex_t::token) { return _lastdropped; }
 
-    /* The last event ID which we used. */
-public: proto::eq::eventid _usedto;
-public: proto::eq::eventid &usedto(mutex_t::token) { return _usedto; }
-public: const proto::eq::eventid &usedto(mutex_t::token) const {
-    return _usedto; }
+    /* The last event ID which we used. Racey because we read it
+     * without the lock in lastid(). Any mutations should be under the
+     * lock. */
+public: racey<proto::eq::eventid> _usedto;
+public: void storeusedto(mutex_t::token, proto::eq::eventid what) {
+    _usedto.store(what); }
+public: proto::eq::eventid loadusedto() const { return _usedto.load(); }
 
     /* The last event ID which has been allocated in the state
      * dump. */
@@ -313,10 +315,7 @@ geneventqueue::queuectxt::finish(geneventqueue &q,
     return eid; }
 
 proto::eq::eventid
-geneventqueue::lastid() const {
-    auto &i(implementation());
-    return i.mux.locked<proto::eq::eventid>([&] (mutex_t::token t) {
-            return i.usedto(t); }); }
+geneventqueue::lastid() const { return implementation().loadusedto(); }
 
 proto::eq::eventid
 geneventqueue::allocdummyid() {
@@ -382,11 +381,11 @@ QUEUE::poll::poll(nnp<rpcservice2::incompletecall> _ic,
 
 proto::eq::eventid
 QUEUE::allocid(mutex_t::token tok) {
-    assert(allocedto(tok) >= usedto(tok));
-    auto res(usedto(tok).succ());
+    assert(allocedto(tok) >= loadusedto());
+    auto res(loadusedto().succ());
     if (allocedto(tok) < res) {
         /* Advance allocation point in the state file. */
-        assert(allocedto(tok) == usedto(tok));
+        assert(allocedto(tok) == loadusedto());
         allocedto(tok) = allocedto(tok).gap(config.idallocsize);
         assert(allocedto(tok) >= res);
         buffer buf;
@@ -400,7 +399,7 @@ QUEUE::allocid(mutex_t::token tok) {
         statefile
             .replace(buf)
             .fatal("updating queue state file " + statefile.field()); }
-    usedto(tok) = res;
+    storeusedto(tok, res);
     return res; }
 
 void
@@ -410,12 +409,12 @@ QUEUE::trim(mutex_t::token tok) {
          * around at all. */
         events(tok).flush();
         logmsg(loglevel::verbose,
-               "lost last subscriber: drop to " + usedto(tok).field());
-        lastdropped(tok) = usedto(tok);
+               "lost last subscriber: drop to " + loadusedto().field());
+        lastdropped(tok) = loadusedto();
         /* Leave a gap in the sequence number space, to flush out bad
          * caching bugs on the client. */
-        usedto(tok) = usedto(tok).gap(1000);
-        allocedto(tok) = max(usedto(tok), allocedto(tok));
+        storeusedto(tok, loadusedto().gap(1000));
+        allocedto(tok) = max(loadusedto(), allocedto(tok));
         return; }
     maybe<proto::eq::eventid> trimto(Nothing);
     trimto.silencecompiler(proto::eq::eventid::compilerdummy());
@@ -577,7 +576,7 @@ SERVER::subscribe(clientio io,
     auto q(_q.success().first());
     auto token(_q.success().second());
     
-    auto s(list<QUEUE::sub>::mkpartial(q->usedto(token).succ()));
+    auto s(list<QUEUE::sub>::mkpartial(q->loadusedto().succ()));
     auto sid(s->val().id);
     auto next(s->val().next);
     q->subscriptions(token).pushtail(s);
@@ -630,10 +629,11 @@ SERVER::get(clientio io,
                    it->next.field());
             q->mux.unlock(&token);
             return error::invalidparameter; }
-        if (q->usedto(token) < eid) {
+        auto usedto(q->loadusedto());
+        if (usedto < eid) {
             logmsg(loglevel::verbose,
                    "get " + eid.field() + " which is not ready "
-                   "(have to " + q->usedto(token).field() + ")");
+                   "(have to " + usedto.field() + ")");
             q->mux.unlock(&token);
             ic->complete(
                 [] (serialise1 &s,
@@ -656,7 +656,7 @@ SERVER::get(clientio io,
                  * somewhere. Counts as having dropped the event. */
                 logmsg(loglevel::debug,
                        "try to fetch " + eid.field()+ ", which is in held range"
-                       " (" + q->usedto(token).field() + " to " +
+                       " (" + usedto.field() + " to " +
                        q->lastdropped(token).field() + "), "
                        "but couldn't find it");
                 q->mux.unlock(&token);
@@ -689,7 +689,8 @@ eqserver::impl::wait(
     auto q(_q.success().first());
     auto token(_q.success().second());
     
-    if (q->usedto(token) >= eid) {
+    auto usedto(q->loadusedto());
+    if (usedto >= eid) {
         /* It's already ready. */
         q->mux.unlock(&token);
         logmsg(loglevel::debug,
@@ -700,7 +701,7 @@ eqserver::impl::wait(
         /* queue up a poller. */
         logmsg(loglevel::debug,
                "wait for " + eid.field() + " on " + subid.field() +
-               "; not ready (" + q->usedto(token).field() + " ready)");
+               "; not ready (" + usedto.field() + " ready)");
         q->polls(token).append(ic, subid, sub, eid, q);
         q->mux.unlock(&token); }
     return Success; }
@@ -723,11 +724,12 @@ eqserver::impl::trim(
         q->mux.unlock(&token);
         ic->complete(Success, io, oct);
         return Success; }
-    if (q->usedto(token) < eid) {
+    auto usedto(q->loadusedto());
+    if (usedto < eid) {
         /* Can't trim past the end of the queue */
         logmsg(loglevel::verbose,
                "trim to " + eid.field() + ", but only have to " +
-               q->usedto(token).field());
+               usedto.field());
         q->mux.unlock(&token);
         return error::toosoon; }
     maybe<nnp<QUEUE::sub> > subs(Nothing);

@@ -86,3 +86,14 @@ proto::eq::tag::tag(deserialise1 &ds)
 
 const parser<proto::eq::eventid> &
 parsers::eq::eventid() { return proto::eq::eventid::_parser(); }
+
+racey<proto::eq::eventid>::racey(proto::eq::eventid w)
+    : racey<unsigned long>(w.v) {}
+
+proto::eq::eventid
+racey<proto::eq::eventid>::load() const {
+    return proto::eq::eventid(racey<unsigned long>::load()); }
+
+void
+racey<proto::eq::eventid>::store(proto::eq::eventid w) {
+    return racey<unsigned long>::store(w.v); }
