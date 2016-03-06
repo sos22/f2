@@ -113,6 +113,7 @@ template unsigned atomicswap(unsigned &, unsigned);
 template unsigned long atomicswap(unsigned long &, unsigned long);
 
 template class racey<bool>;
+template class racey<int>;
 template class racey<unsigned>;
 template class racey<unsigned long>;
 

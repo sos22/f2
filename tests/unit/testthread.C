@@ -16,25 +16,26 @@ static testmodule __testthread(
     "basic", [] {
         auto io(clientio::CLIENTIO);
         class testthr : public thread {
-        public: volatile int &a;
-        public: volatile bool &shutdown;
+        public: racey<int> &a;
+        public: racey<bool> &shutdown;
         public: bool &_died;
         public: testthr(constoken t,
                         int arg,
-                        volatile int &_a,
-                        volatile bool &_shutdown,
+                        racey<int> &_a,
+                        racey<bool> &_shutdown,
                         bool &__died)
             : thread(t),
               a(_a),
               shutdown(_shutdown),
               _died(__died) {
             assert(arg == 901);
-            assert(a == 12);
-            a = 97; }
-        public: void run(clientio) { while (!shutdown) a++; }
+            assert(a.load() == 12);
+            a.store(97); }
+        public: void run(clientio) {
+            while (!shutdown.load()) a.store(a.load() + 1); }
         public: ~testthr() { _died = true; } };
-        volatile int cntr = 12;
-        volatile bool shutdown = false;
+        racey<int> cntr(12);
+        racey<bool> shutdown(false);
         bool died = false;
         /* We can create a thread. */
         int whatever = 901;
@@ -45,15 +46,15 @@ static testmodule __testthread(
                                         died));
         /* The constructor runs immediately, but the run() method
          * doesn't. */
-        assert(cntr == 97);
+        assert(cntr.load() == 97);
         (10_ms).future().sleep(io);
-        assert(cntr == 97);
+        assert(cntr.load() == 97);
         /* We can unpause it. */
         auto thr2(thr.go());
         assert(thr2 != NULL);
         /* It advances. */
         (10_ms).future().sleep(io);
-        assert(cntr > 97);
+        assert(cntr.load() > 97);
         /* Publisher doesn't notify while it's running. */
         maybe<thread::deathtoken> token(Nothing);
         {   subscriber sub;
@@ -63,7 +64,7 @@ static testmodule __testthread(
             assert(sub.wait(io, timestamp::now()) == NULL);
             assert(thr2->hasdied() == Nothing);
             /* Publisher does notify when it dies. */
-            shutdown = true;
+            shutdown.store(true);
             assert(sub.wait(io, (10_ms).future()) == &ds);
             token = thr2->hasdied();
             assert(token != Nothing);
@@ -145,15 +146,16 @@ static testmodule __testthread(
         assert(destructed); },
     "name", [] (clientio io) {
         class testthr : public thread {
-        public: volatile bool &shutdown;
+        public: racey<bool> &shutdown;
         public: testthr(constoken tok,
-                        volatile bool &_shutdown)
+                        racey<bool> &_shutdown)
             : thread(tok),
               shutdown(_shutdown) {}
-        public: void run(clientio) { while (!shutdown) pthread_yield(); } };
+        public: void run(clientio) {
+            while (!shutdown.load()) pthread_yield(); } };
         /* Check that fieldname changes in expected way as thread
          * moves through its lifecycle. */
-        volatile bool shutdown = false;
+        racey<bool> shutdown(false);
         auto thr1(thread::spawn<testthr>(
                       fields::mk("threadname"),
                       shutdown));
@@ -166,7 +168,7 @@ static testmodule __testthread(
             assert(strstr(n, "threadname"));
             assert(!strstr(n, "dead"));
             assert(!strstr(n, "unstarted")); }
-        shutdown = true;
+        shutdown.store(true);
         while (thr2->hasdied() == Nothing) pthread_yield();
         {   auto n(fields::mk(*thr2).c_str());
             assert(strstr(n, "threadname"));
