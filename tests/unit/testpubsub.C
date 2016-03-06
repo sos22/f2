@@ -219,7 +219,7 @@ static testmodule __testpubsub(
                 return true; } );
         t1.get();
         t2.get();
-        tassert(T(cntr) >= T(3000)); },
+        tassert(T(cntr) >= T(1000)); },
     "pingpong", [] {
         /* Ping-pong back and forth between two threads for a
          * bit. */
