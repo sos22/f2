@@ -1261,10 +1261,9 @@ CALL::field() const {
         mux.trylocked<const fields::field *>(
             [&] (maybe<mutex_t::token> t) {
                 if (t == Nothing) return &("<busy " + mux.field() +">");
-                else return &res(t.just()).field(); });
+                else return &("res:" + res(t.just()).field() +
+                              " aborted: " + fields::mk(aborted(t.just()))); });
     return "<call: " + fields::mkptr(this) +
         " deadline:" + deadline.field() +
         " type:" + type.field() +
-        " res:" + *rr +
-        " aborted:" + fields::mk(_aborted) +
-        ">"; }
+        *rr + ">"; }

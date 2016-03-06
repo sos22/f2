@@ -111,6 +111,6 @@ static testmodule __testasynccall(
         c.abort();
         tassert(T(timestamp::now()) - T(start) < T(100_ms));
         (50_ms).future().sleep(io);
-        tassert(T(srv.nrabandoned) == T(1u));
         srv.destroy(io);
+        tassert(T(srv.nrabandoned) == T(1u));
         pool.destroy(); });
