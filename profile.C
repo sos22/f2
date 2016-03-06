@@ -37,7 +37,7 @@ struct sample {
     unsigned cntr;
     racey<unsigned long> rip;
     sample() : cntr(0), rip(0) {}
-} __attribute__((packed));
+};
 
 struct threadstate {
     unsigned long discards;

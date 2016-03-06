@@ -49,7 +49,7 @@ public:  void store(t);
      * real-world difference, but it's sometimes useful
      * documentation. */
 public:  t loadacquire() const { return load(); }
-public:  void storerelease(t x) { store(x); } } __attribute__((packed));
+public:  void storerelease(t x) { store(x); } };
 
 /* Cast to 1 rather than NULL to avoid stupid compiler crap. */
 #define containerof(thing, type, field)                                 \
