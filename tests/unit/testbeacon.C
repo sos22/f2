@@ -323,13 +323,13 @@ static testmodule __beacontests(
                         assert(c->query(clientio::CLIENTIO, agent)
                                .name()
                                .getport() == port); }));
+        s->destroy(io);
+        c->destroy();
         tassert(T(errcount) >= T(3u));
         /* Because each error is supposed to involve backing off for
          * 100 ms. */
         tassert(T(tv) >= T(100_ms) * (T(errcount) - T(2)));
-        tassert(T(tv) <= T(100_ms) * (T(errcount) + T(2)));
-        s->destroy(io);
-        c->destroy(); },
+        tassert(T(tv) <= T(100_ms) * (T(errcount) + T(2))); },
     "clientbroadcastfailure", [] (clientio io) {
         /* Client should be able to recover if its first few
          * broadcasts fail. */
@@ -520,12 +520,14 @@ static testmodule __beacontests(
                .fatal("beaconserver::build"));
         /* Blocking the server from sending aything should make it
          * invisible to clients. */
-        bool fail = true;
-        tests::hook<orerror<void>, const udpsocket &, const peername &> h(
+        maybe<tests::hook<orerror<void>,
+                          const udpsocket &,
+                          const peername &> > h(
+            Just(),
             udpsocket::_send,
-            [&fail, s]
+            [s]
             (const udpsocket &sock, const peername &) -> orerror<void> {
-                if (fail && sock == s->__test_clientfd()) return error::pastend;
+                if (sock == s->__test_clientfd()) return error::pastend;
                 else return Success; });
         auto c(beaconclient::build(
                    beaconclientconfig::mk(
@@ -541,7 +543,7 @@ static testmodule __beacontests(
         (300_ms).future().sleep(io);
         assert(c->poll(agent) == Nothing);
         /* Stop injecting errors and make sure server starts working. */
-        fail = false;
+        h = Nothing;
         assert(timedelta::time([c, io, port, &agent] {
                     assert(c->query(io, agent).name().getport() == port); })
             <= timedelta::milliseconds(300));
