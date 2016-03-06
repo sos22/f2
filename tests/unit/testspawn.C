@@ -195,7 +195,7 @@ static testmodule __spawntest(
     "pause4", [] (clientio io) {
         auto p(process::spawn(program("./tests/abort/abort"))
                .fatal("spawning abort"));
-        (50_ms).future().sleep(io);
+        (500_ms).future().sleep(io);
         auto tok(p->pause());
         p->unpause(tok);
         assert(p->join(p->hasdied().just()).right() == signalnr::abort); },
