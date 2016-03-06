@@ -233,7 +233,7 @@ static testmodule __testmap(
         for (auto it(m.start()); !it.finished(); it.next()) {
             it.value() += it.key(); }
         assert((m == map<int, int>(1, 11, 2, 22, 3, 33))); },
-    "intperf", [] {
+    testmodule::TestFlags::novalgrind(), "intperf", [] {
         static const unsigned nr = 10'000'000;
         auto m = new testmap<int, int>();
         auto build(timedelta::time([m] {
