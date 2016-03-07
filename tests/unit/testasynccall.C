@@ -8,6 +8,7 @@
 
 #include "asynccall.tmpl"
 #include "orerror.tmpl"
+#include "rpcservice2.tmpl"
 #include "testassert.tmpl"
 #include "test2.tmpl"
 
@@ -96,21 +97,23 @@ static testmodule __testasynccall(
         quickcheck q;
         auto cn(mkrandom<clustername>(q));
         agentname sn(q);
+        unsigned nrabandoned(0);
         auto &srv(*rpcservice2::listen<slowservice>(
                       io,
                       cn,
                       sn,
-                      peername::all(peername::port::any))
+                      peername::all(peername::port::any),
+                      &nrabandoned)
                   .fatal("starting service"));
         auto &pool(*connpool::build(cn).fatal("building pool"));
         auto start(timestamp::now());
         auto &c((new slowcallimpl(pool, sn, 3600_s, 5))->api);
         tassert(T(timestamp::now()) - T(start) < T(40_ms));
         (50_ms).future().sleep(io);
-        assert(srv.nrabandoned == 0);
+        assert(nrabandoned == 0);
         c.abort();
         tassert(T(timestamp::now()) - T(start) < T(100_ms));
         (50_ms).future().sleep(io);
         srv.destroy(io);
-        tassert(T(srv.nrabandoned) == T(1u));
+        tassert(T(nrabandoned) == T(1u));
         pool.destroy(); });
