@@ -494,8 +494,6 @@ rpcservice2::connworker::run(clientio io) {
 
     buffer rxbuffer;
 
-    auto &config(owner.owner.config);
-
     /* Shouldn't have stuff to transmit yet, because we've not
      * processed any calls and can't have any responses. */
     assert(_txbuffer.empty());
