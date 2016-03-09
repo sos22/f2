@@ -783,13 +783,13 @@ CONN::processresponse(buffer &rxbuffer,
                    ds.failure().field()); }
         logmsg(loglevel::debug,
                "complete call " + fields::mk(c) + " -> " + callres.field());
+        c->reference(); /* stop it disappearing underneath us. */
         c->mux.locked(
             [c, callres] (mutex_t::token tok) {
                 assert(c->res(tok) == Nothing);
-                /* Once we set res and drop the lock c can be
-                 * released underneath us. */
                 c->res(tok) = callres;
-                c->pub.publish(); }); }
+                c->pub.publish(); });
+        c->dereference(); }
     rxbuffer.discard(hdr.size);
     return Success; }
 
