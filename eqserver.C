@@ -23,18 +23,17 @@
 
 /* Lock ordering:
  *
- * -- server and queue locks are *unordered*.  If you have to acquire
- *    both, acquire the detach lock before acquiring either.
- * -- The queue lock is ordered before the rpcservice txlock.
+ * -- Server lock before queue lock.
+ * -- Queue lock before the rpcservice txlock.
  */
 
-/* Deadlock mediation lock.  The queue and server locks don't have a
- * well-defined order, so any time you acquire both of them you need
- * to acquire this one first. */
-/* XXX not clear this actually buys us anything over just using this in place
- * of the server lock. */
+/* I'd be happier with one mux per server, rather than a global one,
+ * but that makes it hard to avoid deadlocks, because some ops find
+ * the server from the queue and some find the queue from the
+ * server. Having the server lock accessible ab initio is just
+ * easier. */
 static mutex_t
-detachlock;
+serverlock;
 
 class EVENT {
     /* An ID for the event.  This is only assigned once we've finished
@@ -146,8 +145,6 @@ public: void trim(mutex_t::token); };
  * abandoned so that we can clean up. */
 class SERVER : public thread {
 public: eqserver api;
-
-public: mutex_t mux;
 
 public: explicit impl(const constoken &t);
 public: void run(clientio);
@@ -328,13 +325,9 @@ geneventqueue::allocdummyid() {
 void
 geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
     auto &i(implementation());
-    auto toptoken(detachlock.lock());
+    auto stoken(::serverlock.lock());
     auto qtoken(i.mux.lock());
     if (i.server(qtoken) != NULL) {
-        auto stoken(i.server(qtoken)->mux.lock());
-        /* Acquired all the locks we need -> no longer need the
-         * deadlock avoidance lock. */
-        detachlock.unlock(&toptoken);
         /* Hold server lock -> remove ourselves from the queue
          * list. */
         for (auto it(i.server(qtoken)->queues(stoken).start());
@@ -345,11 +338,11 @@ geneventqueue::destroy(rpcservice2::acquirestxlock atl) {
                 break; } }
         /* Server doesn't know about us any more -> can drop server
          * lock. */
-        i.server(qtoken)->mux.unlock(&stoken);
+        ::serverlock.unlock(&stoken);
         i.server(qtoken) = NULL; }
     else {
         /* Already detached -> don't need to touch the server. */
-        detachlock.unlock(&toptoken); }
+        ::serverlock.unlock(&stoken); }
     /* Privatised structure -> no longer need lock. */
     i.mux.unlock(&qtoken);
     /* Pending polls will now never complete. */
@@ -443,7 +436,7 @@ eqserver::registerqueue(geneventqueue &what) {
      * still thread-private. */
     assert(what.implementation()._server == NULL);
     what.implementation()._server = &i;
-    i.mux.locked([this, &i, &what] (mutex_t::token tok) {
+    ::serverlock.locked([this, &i, &what] (mutex_t::token tok) {
             i.queues(tok).pushtail(what.implementation()); }); }
 
 nnp<eqserver>
@@ -479,7 +472,6 @@ eqserver::~eqserver() { assert(implementation()._queues.empty()); }
 SERVER::impl(const constoken &t)
     : thread(t),
       api(),
-      mux(),
       _queues(),
       sub() {}
 
@@ -492,8 +484,7 @@ SERVER::run(clientio io) {
         if (notified == &shutdownsub) continue;
         assert(notified->data != NULL);
         auto q((QUEUE *)notified->data);
-        auto dt(detachlock.lock());
-        auto st(mux.lock());
+        auto st(::serverlock.lock());
         /* The queue might have gone away while we were extracting the
          * subscription from the subscriber, so we need to pull it
          * back out of the queue list, rather than just dereferencing
@@ -503,8 +494,7 @@ SERVER::run(clientio io) {
             /* It's still in the list -> we can safely dereference
              * it. */
             auto qt(q->mux.lock());
-            mux.unlock(&st);
-            detachlock.unlock(&dt);
+            ::serverlock.unlock(&st);
             /* Check all of the polls and complete any which have been
              * abandoned. */
             bool remove;
@@ -526,42 +516,36 @@ SERVER::run(clientio io) {
             q = NULL;
             break; }
         if (q != NULL) {
-            mux.unlock(&st);
-            detachlock.unlock(&dt);
+            ::serverlock.unlock(&st);
             /* Not a big thing, but probably worth a debug message. */
             logmsg(loglevel::debug,
                    "received poll abandonment notification on queue " +
                    fields::mk((unsigned long)q).base(16) +
                    " after it was shut down"); } }
     /* Detach all the remaining queues. */
-    auto dt(detachlock.lock());
-    auto tok(mux.lock());
+    auto tok(::serverlock.lock());
     for (auto it(queues(tok).start()); !it.finished(); it.next()) {
         auto q(*it);
         q->mux.locked([this, q] (mutex_t::token qt) {
                 assert(q->server(qt) == this);
                 q->server(qt) = NULL; }); }
     queues(tok).flush();
-    mux.unlock(&tok);
-    detachlock.unlock(&dt); }
+    ::serverlock.unlock(&tok); }
 
 
 /* Lookup a queue, returning either it or an error.  On success, the
- * queue is returned with the queue lock held (but not the server or
- * detach locks). */
+ * queue is returned with the queue lock held (but not the server
+ * lock). */
 orerror<pair<nnp<QUEUE>, mutex_t::token> >
 SERVER::getlockedqueue(proto::eq::genname n) {
-    auto dt(detachlock.lock());
-    auto servertok(mux.lock());
+    auto servertok(::serverlock.lock());
     for (auto it(queues(servertok).start()); !it.finished(); it.next()) {
         auto q(*it);
         if (q->api.name != n) continue;
         auto queuetok(q->mux.lock());
-        mux.unlock(&servertok);
-        detachlock.unlock(&dt);
+        ::serverlock.unlock(&servertok);
         return mkpair(_nnp(*q), queuetok); }
-    mux.unlock(&servertok);
-    detachlock.unlock(&dt);
+    ::serverlock.unlock(&servertok);
     return error::badqueue; }
 
 orerror<void>
