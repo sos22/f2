@@ -33,6 +33,7 @@ function bits() {
     _ filesystemagent
     _ filesystemclient
     _ filesystemproto
+    _ futex
     _ fuzzsched
     _ interfacetype
     _ jobname

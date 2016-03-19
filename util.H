@@ -35,10 +35,13 @@ max(const t &a, args ... params) {
 #define CONCAT(a, b) a##b
 #define CONCAT2(a, b) CONCAT(a, b)
 
+class futex;
+
 /* Class for things which are accessed without locks. Tries to give
  * Helgrind some useful false positive-suppressing hints, as well as
  * doing the actual op. Only makes sense for primitive types. */
 template <typename t> class racey {
+    friend class futex;
 private: t content;
 private: void operator=(const racey &) = delete;
 public:  racey(t x) : content(x) {}
