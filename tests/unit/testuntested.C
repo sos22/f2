@@ -54,8 +54,6 @@ static testmodule __testuntested(
                        "test.C",
                        "test.H",
                        "test.tmpl",
-                       "tid.C",
-                       "tid.H",
                        "timestamp.C",
                        "timestamp.H",
                        "udpsocket.C",
