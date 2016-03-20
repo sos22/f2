@@ -7,6 +7,7 @@
 #include <valgrind/helgrind.h>
 
 #include "error.H"
+#include "fields.H"
 #include "orerror.H"
 
 #include "orerror.tmpl"
@@ -105,6 +106,9 @@ atomicswap(t &what, t n) {
         auto nv = __sync_val_compare_and_swap(&what, old, n);
         if (nv == old) return old;
         old = nv; } }
+
+template <typename t>
+const fields::field &racey<t>::field() const { return fields::mk(load()); }
 
 template void atomicinc(unsigned &);
 template void atomicinc(unsigned long &);

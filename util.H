@@ -6,6 +6,7 @@
 
 #define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
 
+namespace fields { class field; }
 template <typename t> class orerror;
 
 /* XXX convert everything over to parseint */
@@ -49,7 +50,8 @@ public:  void store(t);
      * real-world difference, but it's sometimes useful
      * documentation. */
 public:  t loadacquire() const { return load(); }
-public:  void storerelease(t x) { store(x); } };
+public:  void storerelease(t x) { store(x); }
+public:  const fields::field &field() const; };
 
 /* Cast to 1 rather than NULL to avoid stupid compiler crap. */
 #define containerof(thing, type, field)                                 \
