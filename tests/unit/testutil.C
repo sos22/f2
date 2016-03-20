@@ -55,6 +55,31 @@ static struct testmodule __testutil(
         tassert(T(cntrs[0]) > T(0u));
         tassert(T(cntrs[1]) > T(0u));
         tassert(T(cntrs[2]) > T(0u)); },
+    "cmpswap", [] (clientio io) {
+        racey<unsigned> x(0);
+        assert(x.compareswap(5, 10) == 0);
+        assert(x.load() == 0);
+        assert(x.compareswap(0, 10) == 0);
+        assert(x.load() == 10);
+        racey<bool> lock(false);
+        racey<bool> finished(false);
+        x.store(0);
+        spark<void> thr1([&] {
+                while (!finished.load()) {
+                    if (lock.compareswap(0, 1) == 0) {
+                        assert(x.load() == 0);
+                        x.store(1);
+                        x.store(0);
+                        lock.store(0); } } });
+        spark<void> thr2([&] {
+                while (!finished.load()) {
+                    if (lock.compareswap(0, 2) == 0) {
+                        assert(x.load() == 0);
+                        x.store(2);
+                        x.store(0);
+                        lock.store(0); } } });
+        (1_s).future().sleep(io);
+        finished.store(true); },
     "increment", [] (clientio io) {
         racey<unsigned> a(0);
         racey<unsigned> b(0);

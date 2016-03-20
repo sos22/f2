@@ -54,6 +54,8 @@ public:  void storerelease(t x) { store(x); }
     /* Atomically fetch something and add @delta to it.  Returns the
      * pre-increase version. */
 public:  t fetchadd(t delta);
+    /* Atomically compare and swap, returning the old value. */
+public:  t compareswap(t old, t _new);
 public:  const fields::field &field() const; };
 
 /* Cast to 1 rather than NULL to avoid stupid compiler crap. */
