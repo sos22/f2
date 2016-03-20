@@ -4,6 +4,8 @@ set -e
 
 make -j8 -s test2-c spawnservice-c
 
+. config
+
 ulimit -c unlimited
 
 : ${TMPDIR:=/tmp}
@@ -77,7 +79,7 @@ find ${t} -type f -name '*.gcda' |
     done
 # Extract coverage numbers
 cd ${t2}
-gcov --no-output -o ${t} -s ${base} -b -c $(find ${t} -type f -name '*.gcda') > gcov_output 2>/dev/null
+$F2_GCOV --no-output -o ${t} -s ${base} -b -c $(find ${t} -type f -name '*.gcda') > gcov_output 2>/dev/null
 cd - > /dev/null
 
 ./test2-c --stat "$module" | sed 's/^[[:space:]]*File:[[:space:]]*\(.*\)$/\1/p;d' > $filelist
@@ -136,7 +138,7 @@ fi
 echo module=${module} branchcoverage=${branchcov} linecoverage=${linecov} > ${outfile}
 echo ------ >> ${outfile}
 cd ${t2}
-gcov -b --object-directory ${t} --source-prefix ${base} $(find ${t} -type f -name '*.gcda') > /dev/null
+$F2_GCOV -b --object-directory ${t} --source-prefix ${base} $(find ${t} -type f -name '*.gcda') > /dev/null
 cd - > /dev/null
 cat ${filelist} | while read fname
 do
