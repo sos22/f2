@@ -93,6 +93,12 @@ racey<t>::store(t what) {
     default:
         abort(); } }
 
+template <typename t> t racey<t>::fetchadd(t delta) {
+    ANNOTATE_HAPPENS_BEFORE(&content);
+    t res = __sync_fetch_and_add(&content, delta);
+    ANNOTATE_HAPPENS_AFTER(&content);
+    return res; }
+
 template <typename t> t
 atomicloaddec(t &what) { return __sync_fetch_and_sub(&what, 1); }
 

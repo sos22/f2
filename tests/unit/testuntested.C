@@ -58,10 +58,8 @@ static testmodule __testuntested(
                        "timestamp.H",
                        "udpsocket.C",
                        "udpsocket.H",
-                       "util.C",
-                       "util.H",
                        "version.C",
                        "version.H"
         ),
-    testmodule::LineCoverage(22_pc),
+    testmodule::LineCoverage(20_pc),
     testmodule::BranchCoverage(15_pc));

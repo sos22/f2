@@ -37,7 +37,7 @@ max(const t &a, args ... params) {
 
 /* Class for things which are accessed without locks. Tries to give
  * Helgrind some useful false positive-suppressing hints, as well as
- * doing the actual op. */
+ * doing the actual op. Only makes sense for primitive types. */
 template <typename t> class racey {
 private: t content;
 private: void operator=(const racey &) = delete;
@@ -51,6 +51,9 @@ public:  void store(t);
      * documentation. */
 public:  t loadacquire() const { return load(); }
 public:  void storerelease(t x) { store(x); }
+    /* Atomically fetch something and add @delta to it.  Returns the
+     * pre-increase version. */
+public:  t fetchadd(t delta);
 public:  const fields::field &field() const; };
 
 /* Cast to 1 rather than NULL to avoid stupid compiler crap. */
