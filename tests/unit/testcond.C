@@ -29,6 +29,15 @@ static testmodule __condtest(
         token = cond.wait(clientio::CLIENTIO, &token);
         mux.unlock(&token);
         notify.get(); },
+    "waitnothing", [] {
+        mutex_t mux;
+        cond_t cond(mux);
+        auto tt(mux.lock());
+        spark<void> thr([&] {
+                mux.locked([&] (mutex_t::token t) { cond.broadcast(t); }); });
+        auto w(cond.wait(clientio::CLIENTIO, &tt, Nothing));
+        assert(!w.timedout);
+        mux.unlock(&w.token); },
     "wake2", [] {
         mutex_t mux;
         cond_t cond(mux);
