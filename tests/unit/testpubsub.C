@@ -613,6 +613,7 @@ static testmodule __testpubsub(
         assert(!strcmp(pub.field().c_str(), "<publisher: <unheld>>"));
         subscriber sub;
         subscription ss(sub, pub, (void *)0x1234);
+        assert(strstr(pub.field().c_str(), ss.field().c_str()));
         auto s(ss.field().c_str());
         logmsg(loglevel::debug, s);
         assert(strstr(s, "data 1234"));
