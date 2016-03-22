@@ -220,6 +220,38 @@ static testmodule __testpubsub(
         t1.get();
         t2.get();
         tassert(T(cntr) >= T(1000)); },
+    "race wait+unsub", [] {
+        /* One thread constantly waits on a subscriber, one constantly
+         * notifies a publisher, and one keeps subscribing and
+         * unsubscribing it. */
+        publisher pub;
+        subscriber sub;
+        auto deadline((500_ms).future());
+        spark<unsigned> publisher([&] {
+                unsigned cntr(0);
+                while (deadline.infuture()) {
+                    pub.publish();
+                    if (running_on_valgrind()) sched_yield();
+                    cntr++; }
+                return cntr; });
+        spark<unsigned> waiter([&] {
+                unsigned cntr(0);
+                while (deadline.infuture()) {
+                    sub.wait(_io, deadline);
+                    if (running_on_valgrind()) sched_yield();
+                    cntr++; };
+                return cntr; });
+        spark<unsigned> subscriber([&] {
+                maybe<subscription> ss(Nothing);
+                unsigned cntr(0);
+                while (deadline.infuture()) {
+                    ss.mkjust(sub, pub);
+                    ss = Nothing;
+                    cntr++; }
+                return cntr; });
+        tassert(T(publisher.get()) > T(100u));
+        tassert(T(waiter.get()) > T(100u));
+        tassert(T(subscriber.get()) > T(100u)); },
     "pingpong", [] {
         /* Ping-pong back and forth between two threads for a
          * bit. */
