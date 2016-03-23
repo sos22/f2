@@ -30,16 +30,24 @@ static struct testmodule __testutil(
         racey<bool> finished(false);
         spark<void> thr([&] {
                 while (!finished.load()) {
+                    if (running_on_valgrind()) sched_yield();
                     seqlock.store(seqlock.load() + 1);
+                    if (running_on_valgrind()) sched_yield();
                     a.store(a.load() + 1);
+                    if (running_on_valgrind()) sched_yield();
                     b.store(b.load() + 1);
+                    if (running_on_valgrind()) sched_yield();
                     seqlock.store(seqlock.load() + 1); } });
         auto deadline((1_s).future());
         unsigned cntrs[] = {0,0,0};
         while (deadline.infuture()) {
+            if (running_on_valgrind()) sched_yield();
             auto s1 = seqlock.load();
+            if (running_on_valgrind()) sched_yield();
             auto bb = b.load();
+            if (running_on_valgrind()) sched_yield();
             auto aa = a.load();
+            if (running_on_valgrind()) sched_yield();
             auto s2 = seqlock.load();
             if (s1 == s2) {
                 if (s1 & 1) {
